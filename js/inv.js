@@ -183,6 +183,7 @@ function invKey(e, root) {
 // a drop becomes the same action a button would send ("mv:B:2:L:0", "wear:3", ...), fired through the screen's own click handler
 function dropAct(from, to) {
   const [fl, fi] = from.split(':'), [tl, ti] = to.split(':');
+  if (tl === 'ground') return fl === 'L' || fl === 'B' ? `drop:${fl}:${fi}` : fl === 'M' ? `gdrop:${fi}` : null;
   if ('LBS'.includes(fl) && 'LBS'.includes(tl)) {
     if (tl === 'L') return ti !== undefined && ti !== '' ? `mv:${fl}:${fi}:L:${ti}` : `mv:${fl}:${fi}:L:${freeHand(dragLists().L)}`;
     return fl === tl ? null : `mv:${fl}:${fi}:${tl}`;
@@ -198,23 +199,25 @@ function dropTarget(el) { // a hand or worn tile is its own slot; otherwise the 
   if (sel && (sel[0] === 'L' || sel[0] === 'W')) return sel[0] === 'W' ? 'W' : sel;
   const d = el.closest('[data-drop]'); return d ? d.dataset.drop : null;
 }
-function enableDrag(root) {
+// root: where drags start; fireRoot: whose click handler runs the action; ground: dropping outside the lists throws it away
+function enableDrag(root, fireRoot = root, ground = false) {
   let from = null;
+  const target = el => dropTarget(el) || (ground && el.closest && !el.closest('.invd,.pbtns') ? 'ground' : null);
   root.addEventListener('dragstart', e => {
     const t = e.target.closest && e.target.closest('.tile[draggable]'); if (!t) return;
     from = t.dataset.act.slice(4); e.dataTransfer.setData('text/plain', from); e.dataTransfer.effectAllowed = 'move';
     t.classList.add('dragging'); root.classList.add('dnd');
   });
-  root.addEventListener('dragend', () => { from = null; root.classList.remove('dnd'); root.querySelectorAll('.dragging,.dropok').forEach(x => x.classList.remove('dragging', 'dropok')); });
+  root.addEventListener('dragend', () => { from = null; root.classList.remove('dnd', 'ground'); root.querySelectorAll('.dragging,.dropok').forEach(x => x.classList.remove('dragging', 'dropok')); });
   root.addEventListener('dragover', e => {
-    if (!from) return; const to = dropTarget(e.target); if (!to || !dropAct(from, to)) return;
-    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    if (!from) return; const to = target(e.target); if (!to || !dropAct(from, to)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move'; root.classList.toggle('ground', to === 'ground');
     const el = e.target.closest('.tile[data-act^="sel:L"],.tile[data-act^="sel:W"]') || e.target.closest('[data-drop]');
     root.querySelectorAll('.dropok').forEach(x => x !== el && x.classList.remove('dropok')); if (el) el.classList.add('dropok');
   });
   root.addEventListener('drop', e => {
     if (!from) return; e.preventDefault();
-    const act = dropAct(from, dropTarget(e.target) || ''); from = null;
-    if (act) fireAct(root, act);
+    const act = dropAct(from, target(e.target) || ''); from = null; root.classList.remove('ground');
+    if (act) fireAct(fireRoot, act);
   });
 }

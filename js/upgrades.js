@@ -11,6 +11,7 @@ const UPGRADES = {
   stamina:     { name: 'Állóképesség',       desc: '+20 max állóképesség, gyorsabb töltődés',  max: 6,  base: 500,  val: l => `${100 + 20 * l}` },
   speed:       { name: 'Mozgási sebesség',   desc: '+4% futás- és sétasebesség',               max: 5,  base: 800,  val: l => `+${4 * l}%` },
   reload:      { name: 'Gyors kezek',        desc: '+6% újratöltési sebesség',                 max: 6,  base: 600,  val: l => `+${6 * l}%` },
+  bag:         { name: 'Nagyobb táska',      desc: '+2 fegyverhely a táskában (legfeljebb 15)', max: 5,  base: 4000, val: l => `${5 + 2 * l} hely` },
   ammo:        { name: 'Lőszertáska',        desc: '+15% tartalék lőszer minden fegyverhez',   max: 5,  base: 700,  val: l => `+${15 * l}%` },
 };
 const U = k => (player.up && player.up[k]) || 0;

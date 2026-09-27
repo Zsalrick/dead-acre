@@ -91,7 +91,7 @@ const BASES = [
     model: { len: .52, h: .12, barrel: .3, br: .02, mag: .12, stock: .26, scope: true } },
   { id: 'sniper', name: 'Sniper Rifle', dmg: 260, rpm: 48, mag: 5, res: 35, reload: 3.2, spread: 5, adsSpread: 0, mode: 'semi', range: 220, zoom: 4, snd: 'heavy', kick: .05, pierce: 4, headMult: 3, scopeView: true, rl: 'mag',
     model: { len: .56, h: .12, barrel: .46, br: .022, mag: .1, stock: .3, scope: true } },
-  { id: 'crossbow', name: 'Crossbow', dmg: 200, rpm: 55, mag: 1, fixedMag: true, res: 30, reload: 0.9, spread: .6, adsSpread: .05, mode: 'semi', range: 120, zoom: 1.8, snd: 'bow', kick: .02, pierce: 3, headMult: 3, rl: 'break', tracer: 0xc9b89a,
+  { id: 'crossbow', name: 'Crossbow', dmg: 200, rpm: 55, mag: 1, fixedMag: true, res: 30, reload: 0.9, spread: .6, adsSpread: .05, mode: 'semi', range: 120, zoom: 1.8, snd: 'bow', kick: .02, pierce: 3, headMult: 3, rl: 'bow', tracer: 0xc9b89a,
     model: { len: .34, h: .08, barrel: .12, br: .014, stock: .26, bow: true } },
   { id: 'launcher', name: 'Grenade Launcher', dmg: 220, rpm: 70, mag: 4, res: 24, reload: .6, single: true, spread: 1, mode: 'semi', range: 60, zoom: 1.3, snd: 'thump', kick: .05, lob: true, splash: 4.5, rl: 'shell',
     model: { len: .34, h: .12, barrel: .24, br: .045, drum: true, stock: .2 } },

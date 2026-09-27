@@ -59,7 +59,7 @@ function giveWeapon(w) {
   if (i < 0) { // the new gun takes the held one's place; the held one goes in the bag, or on the ground if the bag is full
     i = player.cur;
     const old = player.slots[i];
-    if (player.bag.length < BAG_MAX) { player.bag.push(old); popText(`${old.name} a táskába került (${player.bag.length}/${BAG_MAX})`, '#cfc6b0'); }
+    if (player.bag.length < bagMax()) { player.bag.push(old); popText(`${old.name} a táskába került (${player.bag.length}/${bagMax()})`, '#cfc6b0'); }
     else {
       spawnDrop(old, player.pos.clone().add(new V3(rand(-.4, .4), 0, rand(-.4, .4))));
       popText(`Tele a táska · ${old.name} a földön${mission && old.owned ? ', ha itt hagyod, elveszik' : ''}`, '#ff8a70');
@@ -98,6 +98,11 @@ const armItems = {};
   add('box', bx(dark, .1, .1, .12), 0, .06, -.07);
   add('cell', bx(glow, .045, .06, .08), 0, .05, -.06);
   const sh = new THREE.Mesh(new THREE.CylinderGeometry(.012, .012, .06, 8), shellM); sh.rotation.z = Math.PI / 2; add('shell', sh, 0, .045, -.05);
+  const bolt = new THREE.Group(), shaft = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .3, 6), new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: .7 }));
+  shaft.rotation.x = Math.PI / 2; bolt.add(shaft);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(.012, .04, 6), new THREE.MeshStandardMaterial({ color: 0xc0c4c8, metalness: .8, roughness: .3 })); tip.rotation.x = -Math.PI / 2; tip.position.z = -.17; bolt.add(tip);
+  [0, 2.1, 4.2].forEach(a => { const f = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color: 0xb03a2a })); f.scale.set(.002, .02, .05); f.position.set(Math.sin(a) * .008, Math.cos(a) * .008, .13); f.rotation.z = a; bolt.add(f); });
+  add('bolt', bolt, 0, .03, -.08);
   const ld = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .03, 10), dark); ld.rotation.x = Math.PI / 2; add('loader', ld, 0, .04, -.07);
 }
 // pose = [x, y, z, rotX, rotY, rotZ]; keys are eased with smoothstep between them
@@ -148,6 +153,9 @@ const RELOADS = {
   break:    { item: 'shell', gun: [-.05, .25, .05], out: .1, in: .58, snap: .8,
               keys: [[0, 'rest'], [.3, [-.06, -.08, .06]], [.52, [0, .02, .02]], [.64, [0, .02, .02]], [.86, 'rest']],
               sOut: () => SND.breakOpen(), sIn: () => SND.shellIn(), sSnap: () => SND.breakClose() },
+  bow:      { item: 'bolt', gun: [-.02, .12, .04], out: .1, in: .62, snap: .82,
+              keys: [[0, 'rest'], [.3, [-.04, -.05, .12]], [.55, [0, .01, .03]], [.66, [0, .01, .02]], [.88, 'rest']],
+              sOut: () => SND.bow(), sIn: () => SND.shellIn(), sSnap: () => SND.breakClose() },
   shell:    { item: 'shell', gun: [-.18, .04, .06], single: true,
               keys: [[0, [-.05, -.09, .05]], [.5, [0, -.015, 0]], [1, [-.05, -.09, .05]]], sIn: () => SND.shellIn() },
 };

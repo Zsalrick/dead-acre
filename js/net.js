@@ -167,16 +167,17 @@ function updateAvatars(dt, peers) {
     if (p.sameTab || !p.presence || !p.presence.p) continue;
     const P = p.presence.p; seen.add(p.peer);
     let a = NET.avatars.get(p.peer); if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
-    const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12);
-    a.pos.x = lerp(a.pos.x, +P.x || 0, k); a.pos.z = lerp(a.pos.z, +P.z || 0, k);
+    const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
+    if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
+    const q = sampleAt(a.buf, tr - 110);
+    a.pos.x = q.x; a.pos.z = q.z;
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
     a.down = !!P.dn; a.hp = +P.hp || 0; a.mh = +P.mh || 100; a.au = Array.isArray(P.au) ? P.au : null;
-    a.yaw += ((((+P.yw || 0) - a.yaw) + Math.PI * 3) % (Math.PI * 2) - Math.PI) * k;
-    a.pitch = lerp(a.pitch, clamp(+P.pt || 0, -1.4, 1.4), k);
+    a.yaw = q.yw; a.pitch = q.pt;
     // body: yaw on the whole figure, pitch shared by the torso, head, arms and gun; legs walk with speed
     const speed = Math.hypot(a.vel.x, a.vel.z); a.walkT += dt * (2 + speed * 1.9);
     const sw = Math.sin(a.walkT) * Math.min(.7, speed * .14);
-    a.g.position.set(a.pos.x, a.down ? .15 : lerp(a.g.position.y, +P.y || 0, k) + Math.abs(Math.sin(a.walkT)) * Math.min(.05, speed * .01), a.pos.z);
+    a.g.position.set(a.pos.x, a.down ? .15 : q.y + Math.abs(Math.sin(a.walkT)) * Math.min(.05, speed * .01), a.pos.z);
     a.g.rotation.set(0, a.yaw, a.down ? 1.45 : 0);
     a.legL.rotation.x = sw; a.legR.rotation.x = -sw;
     a.torso.rotation.x = a.pitch * .45; a.head.rotation.x = a.pitch * .55;
@@ -275,6 +276,7 @@ function netHit(z, amt, o) {
     else applyElement(z, o.w, amt); // shock: the arc hits another proxy, which is sent too
   }
   pushRoll(NET.hits, [++NET.seq, z.id, Math.round(amt), fl, burn], 24);
+  if (z.hp <= 0 && !z.K.boss && !z.predDead) { z.predDead = performance.now(); proxyDie(z); hitmarker(true); }
   if (!o.dot) { addPoints(10); weaponOnHit(z, amt, o); }
 }
 const netAct = (type, arg) => pushRoll(NET.acts, [++NET.seq, type, arg == null ? 0 : arg], 8);
@@ -367,7 +369,7 @@ function netTick(dt) {
     }
     out.g = buildSnapshot();
   } else if (host && host.presence.g) {
-    applySnapshot(host.presence.g, host.peer);
+    if (host.presence.g !== NET.lastG) { NET.lastG = host.presence.g; applySnapshot(host.presence.g, host.peer); } // only new snapshots
   } else if (mission && !mission.leaving && NET.hadHost) { // the host's job is over
     banner('A MUNKA VÉGET ÉRT', 'A csapatvezető befejezte.'); finishJob(false, true); return;
   }
@@ -384,8 +386,20 @@ function netHostAct(type, arg) {
 }
 
 // ---------- client: follow the host's world ----------
+// members render the host's world ~2 snapshots in the past, interpolating between samples: smooth even when packets bunch up
+const angDiff = d => ((d + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+const interpDelay = () => clamp((NET.gInt || 50) * 2.2, 70, 260);
+function sampleAt(buf, rt) {
+  let a = buf[0], b = null;
+  for (let k = 0; k < buf.length; k++) if (buf[k].t <= rt) { a = buf[k]; b = buf[k + 1] || null; }
+  if (!b) return a;
+  const u = clamp((rt - a.t) / Math.max(1, b.t - a.t), 0, 1), o = {};
+  for (const key in a) o[key] = key === 'h' || key === 'yw' ? a[key] + angDiff(b[key] - a[key]) * u : key === 't' ? rt : lerp(a[key], b[key], u);
+  return o;
+}
 function applySnapshot(g, hostPeer) {
   const M = mission; if (!M || typeof g !== 'object') return;
+  const tr = performance.now(); if (NET.gLast) NET.gInt = lerp(NET.gInt || 50, clamp(tr - NET.gLast, 10, 500), .15); NET.gLast = tr;
   // clock, phase, threat
   const was = { ph: M.phase, w: M.wave, ew: M.evacWarn, cl: M.cleared };
   if (Array.isArray(g.bk) && !M.bountyDone) { M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }); banner('A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
@@ -416,9 +430,11 @@ function applySnapshot(g, hostPeer) {
       NET.zById.set(id, z);
       if (z.K.boss) { banner('A MÉSZÁROS', 'Megérkezett.'); SND.roar(); }
     }
+    if (z.dead && z.predDead) { if (tr - z.predDead > 700) resurrect(z); else continue; } // our kill wasn't confirmed: it gets back up
     const hpv = clamp(+hp || 0, 0, 100) / 100 * z.maxHp;
     if (hpv < z.hp || now - (z.hitT || -9) > .4) z.hp = hpv;
     z.net = { x: x / 10, z: zz / 10, h: h / 100, y: (+y || 0) / 10, fl };
+    (z.buf || (z.buf = [])).push({ t: tr, x: x / 10, z: zz / 10, h: h / 100, y: (+y || 0) / 10 }); if (z.buf.length > 8) z.buf.shift();
   }
   for (const [id, z] of NET.zById) if (!live.has(id)) { NET.zById.delete(id); proxyDie(z); }
   if (Array.isArray(g.bb)) { const bz = NET.zById.get(g.bb[0]); if (bz) { if (!bz.bounty && BOUNTIES[g.bb[1]]) { bz.bounty = g.bb[1]; const tint = new THREE.Color(BOUNTIES[g.bb[1]].tint); bz.mats.forEach(m => m.color && m.color.lerp(tint, .45)); } bz.phase = g.bb[2]; bz.invulnT = g.bb[3] ? .5 : 0; } }
@@ -431,6 +447,7 @@ function applySnapshot(g, hostPeer) {
   for (const e of fresh('k' + hostPeer, g.k)) if (e[1] === NET.me) netOwnKill(e);
   for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && !player.down) hurtPlayer(+e[2] || 0);
 }
+function resurrect(z) { z.dead = false; z.predDead = 0; z.deathT = 0; z.g.rotation.z = 0; z.g.visible = true; }
 function proxyDie(z) {
   if (z.dead) return;
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1;
@@ -450,10 +467,10 @@ function updateProxies(dt) {
       continue;
     }
     if (!s) continue;
-    const k = 1 - Math.exp(-dt * 12), px = z.pos.x, pz = z.pos.z;
-    z.pos.x = lerp(z.pos.x, s.x, k); z.pos.z = lerp(z.pos.z, s.z, k); z.rise = s.fl & 1 ? .5 : 0;
-    z.g.position.set(z.pos.x, lerp(z.g.position.y, s.y, k), z.pos.z);
-    z.g.rotation.y += ((((s.h - z.g.rotation.y) + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * k;
+    const k = 1 - Math.exp(-dt * 12), px = z.pos.x, pz = z.pos.z, q = z.buf && z.buf.length ? sampleAt(z.buf, performance.now() - interpDelay()) : s;
+    z.pos.x = q.x; z.pos.z = q.z; z.rise = s.fl & 1 ? .5 : 0;
+    z.g.position.set(z.pos.x, q.y, z.pos.z);
+    z.g.rotation.y = q.h;
     z.flash -= dt; z.markT = (z.markT || 0) - dt;
     const em = z.flash > 0 || (s.fl & 256 && Math.sin(now * 40) > 0) ? 0x777777 : s.fl & 16 ? 0x4a1800 : s.fl & 32 ? 0x10384a : s.fl & 64 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : s.fl & 4 ? 0x3a2a00 : 0;
     for (const m of z.mats) m.emissive.setHex(em);

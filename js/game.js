@@ -82,7 +82,7 @@ function endIntro() {
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
   equipView(); player.switchT = SWITCH_T * .5;
   banner('1. HULLÁM', 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart();
-  if (!locked && !noLock) pause();
+  if (!locked && !noLock) { needClick = true; $('clickHint').hidden = false; } // one click grabs the mouse
 }
 function updateMission(dt) {
   const M = mission; if (!M) return;
@@ -245,8 +245,13 @@ function lockPointer() {
   lockPending = true;
   try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(lockFailed); } catch (e) { lockFailed(); }
 }
+// a lock request without a click behind it (a party job the leader started, a key press) is refused by the browser:
+// then wait for a click instead of giving up on mouse look
+let lastClick = -1e9;
+addEventListener('mousedown', () => { lastClick = performance.now(); }, true);
 function lockFailed() {
   if (!lockPending) return; lockPending = false;
+  if (performance.now() - lastClick > 1500) { if (state === 'playing') { needClick = true; $('clickHint').hidden = false; } return; }
   if (hadLock) pause('Nem sikerült befogni az egeret. Kattints újra a Folytatásra.');
   else noLock = true;
 }
@@ -266,7 +271,7 @@ function pause(note) {
 }
 // the inventory: move guns between hands and bag, drop them, see the gear you found
 function renderPauseInv() {
-  const L = player.slots, B = player.bag, bagFull = B.length >= BAG_MAX, lone = L.filter(Boolean).length < 2, MG = mission.gear;
+  const L = player.slots, B = player.bag, bagFull = B.length >= bagMax(), lone = L.filter(Boolean).length < 2, MG = mission.gear;
   let [sl, si] = invSel.split(':');
   const get = () => sl === 'L' ? L[+si] : sl === 'B' ? B[+si] : sl === 'M' ? MG[+si] : sl === 'W' ? profile.gear[si] : null;
   if (!get()) { sl = 'L'; si = String(player.cur); invSel = `L:${si}`; }
@@ -280,19 +285,20 @@ function renderPauseInv() {
     detail = weaponDetail(x, sl === 'L' ? L[1 - i] : L[player.cur], `<small class="note">${x.owned ? 'Saját' : 'Új: csak evakuálással a tiéd'} · lőszer ${x.ammo}/${x.reserve}</small>${acts}`);
   }
   const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${L.map((w, k) => w ? wTile(`L:${k}`, w, { n: `${k + 1}`, tag: w.owned ? '' : 'új' }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('')}</div>
-    <h3>Táska <small>${B.length} / ${BAG_MAX}</small></h3><div class="tiles" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új' })).join('') || emptyTile('Üres', 'Ha új fegyvert veszel fel, a kézben lévő ide kerül')}</div>
+    <h3>Táska <small>${B.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új' })).join('') || emptyTile('Üres', 'Ha új fegyvert veszel fel, a kézben lévő ide kerül')}</div>
     <h3>Viselt páncél</h3><div class="tiles worn" data-drop="W">${GEAR_KEYS.map(k => profile.gear[k] ? gTile(`W:${k}`, profile.gear[k], { tag: profile.gear[k].found ? 'új' : '' }) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('')}</div>
     <h3>Páncél a zsákban <small>a talált darab csak evakuálással a tiéd</small></h3><div class="tiles" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: profile.gear[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Még semmi', 'A zombik dobják, rálépve felveszed')}</div>
     <h3>Tárgyak</h3><div class="invlist">${ITEM_KEYS.map(k => `<div><img src="${ICONS[k]}" alt=""><span>[${ITEMS[k].key}] ${k === 'gren' ? GREN_TYPES[throwKind('gren')].name : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].name : ITEMS[k].name}<small>${k === 'gren' ? GREN_TYPES[throwKind('gren')].desc : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].desc : ITEMS[k].desc}</small></span><strong>${player.inv[k]}/${itemMax(k)}</strong></div>`).join('')}</div>`;
   $('loadout').innerHTML = invLayout(left, detail);
   updateKeybar($('loadout'));
 }
-enableDrag($('loadout'));
+enableDrag($('pause'), $('loadout'), true);
 $('loadout').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled || state !== 'paused') return;
   const [kind, f, i, t, j] = b.dataset.act.split(':'), held = curW();
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderPauseInv(); }
   if (kind === 'mv') moveGun({ L: player.slots, B: player.bag }, f, +i, t, +j);
+  if (kind === 'gdrop') { const it = mission.gear.splice(+f, 1)[0]; if (it) spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))); invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
@@ -351,7 +357,7 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('mousedown', e => {
   if (state === 'paused' && $('pause').hidden && $('settings').hidden) { resume(); return; }
   if (state !== 'playing') return;
-  if (needClick) { needClick = false; $('clickHint').hidden = true; lockPointer(); return; } // back from a station via Esc
+  if (needClick || (!locked && !noLock && !lockPending)) { needClick = false; $('clickHint').hidden = true; lockPointer(); return; } // back from a station via Esc, or the mouse was never grabbed
   if (e.button === 0) { mouseDown = true; clickQueued = .15; }
   if (e.button === 1) { e.preventDefault(); doPing(); }
   if (e.button === 2) rmb = true;
@@ -448,7 +454,7 @@ function updateHUD() {
   let card = '', prompt = '';
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot]; card = gearCard(focus.it, `<span><kbd>F</kbd>A zsákba</span><span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>`, true); }
-    else if (focus.w) card = cardHTML(focus.w, `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : player.bag.length < BAG_MAX ? `Táskába ${player.bag.length}/${BAG_MAX}` : 'Tele a táska'}</span><span><kbd>F</kbd>tartsd: Csere</span>`, curW());
+    else if (focus.w) card = cardHTML(focus.w, `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : player.bag.length < bagMax() ? `Táskába ${player.bag.length}/${bagMax()}` : 'Tele a táska'}</span><span><kbd>F</kbd>tartsd: Csere</span>`, curW());
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Utánpótlás-láda felvétele';
     else if (focus.type === 'repair') prompt = `<b>[E]</b> Generátor javítása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
     else if (!['box', 'ammo', 'drop', 'gear'].includes(focus.type)) prompt = areaPrompt(focus);
@@ -472,6 +478,7 @@ function updateHUD() {
   $('hud').classList.toggle('ads', player.ads > .6);
   $('shield').hidden = !maxShield(); $('shieldfill').style.width = (maxShield() ? player.shield / maxShield() * 100 : 0) + '%';
   setHTML('hplbl', `<span>ÉLETERŐ</span><span><b>${Math.ceil(player.hp)}</b>${maxShield() ? `<b class="sh">${Math.ceil(player.shield)}</b>` : ''}</span>`);
+  if (!locked && !noLock && !lockPending && !needClick) { needClick = true; $('clickHint').hidden = false; } // lost the mouse somehow: say so
   $('adsDot').style.opacity = player.ads > .6 && !w.base.scopeView ? 1 : 0;
   $('vig').style.opacity = clamp((1 - player.hp / maxHp()) * 1.1, 0, .7);
   if (mission) {
@@ -485,9 +492,10 @@ function updateHUD() {
   }
   setHTML('wname', `<span class="lvtag" style="--rc:${rarColor(w)}">Lv ${w.level}</span> <span style="color:${rarColor(w)}">${w.name}</span>`);
   setHTML('wsub', `${RARITIES[w.q].name} · ${w.base.name}${w.element ? ` · <span style="color:${ELEMENTS[w.element].color}">${ELEMENTS[w.element].name}</span>` : ''}`);
-  setHTML('mag', w.ammo); $('mag').classList.toggle('low', w.ammo <= Math.ceil(w.mag * .25));
+  const lowAmmo = w.ammo === 0 || (w.mag > 3 && w.ammo <= Math.ceil(w.mag * .25)); // a one-bolt crossbow is never 'low'
+  setHTML('mag', w.ammo); $('mag').classList.toggle('low', lowAmmo);
   setHTML('res', '/ ' + w.reserve); $('res').classList.toggle('none', w.reserve === 0);
-  const hint = player.reloading ? 'Újratöltés…' : w.ammo === 0 && w.reserve === 0 ? 'Nincs lőszer' : w.ammo <= Math.ceil(w.mag * .25) ? '[R] Újratöltés' : '';
+  const hint = player.reloading ? 'Újratöltés…' : w.ammo === 0 && w.reserve === 0 ? 'Nincs lőszer' : lowAmmo && w.reserve > 0 ? '[R] Újratöltés' : '';
   setHTML('hint', hint);
   $('rlhint').hidden = !hint || player.ads > .6; $('rlhint').firstChild.textContent = hint;
   $('rlfill').style.width = player.reloading ? reloadProgress() * 100 + '%' : '0';
@@ -574,12 +582,12 @@ let fHold = 0, fLatch = false, sellHold = 0, sellLatch = false, needClick = fals
 const lootFocus = () => focus && (focus.type === 'drop' || (focus.type === 'box' && box.state === 'ready')) ? focus : null;
 function takeLoot(f, swap) {
   const w = f.type === 'drop' ? f.drop.w : box.weapon, hand = player.slots.indexOf(null);
-  if (!swap && hand < 0 && player.bag.length >= BAG_MAX) { popText('Tele a táska · tartsd nyomva az F-et a cseréhez', '#ff8a70'); return SND.deny(); }
+  if (!swap && hand < 0 && player.bag.length >= bagMax()) { popText('Tele a táska · tartsd nyomva az F-et a cseréhez', '#ff8a70'); return SND.deny(); }
   if (f.type === 'drop') removeDrop(f.drop); else { box.state = 'idle'; scene.remove(box.show); box.show = null; boxUsed(); }
   focus = null;
   if (swap || hand >= 0) return giveWeapon(w);
   player.bag.push(w); trackBest(w); noteFound(w); SND.pickup(w.q);
-  popText(`${w.name} a táskába (${player.bag.length}/${BAG_MAX})`, rarColor(w));
+  popText(`${w.name} a táskába (${player.bag.length}/${bagMax()})`, rarColor(w));
 }
 function updateSellHold(dt) {
   if (focus && focus.type === 'gear') { if (keys.KeyF && !fLatch) { takeGear(focus.gd); focus = null; fLatch = true; } else if (!keys.KeyF) fLatch = false; $('hold').hidden = true; return; }

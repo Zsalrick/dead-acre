@@ -109,7 +109,7 @@ function takeGear(d) { d.it.found = true; mission.gear.push(d.it); removeGearDro
 function clearGearDrops() { while (gearDrops.length) { const d = gearDrops.pop(); scene.remove(d.g); } }
 
 // ---------- weapons: two in hand (L, fixed slots), up to five in the bag (B), the stash at home (S) ----------
-const BAG_MAX = 5;
+const bagMax = () => 5 + 2 * U('bag'); // the Nagyobb táska upgrade adds 2 a level
 // a gun moved into a hand slot swaps with what was there; hands may never end up empty
 function moveGun(lists, from, i, to, j) {
   const src = lists[from], dst = lists[to], w = src && src[i];
@@ -120,7 +120,7 @@ function moveGun(lists, from, i, to, j) {
     if (from === 'L') src[i] = old; else if (old) src[i] = old; else src.splice(i, 1);
     return true;
   }
-  if (dst.length >= (to === 'B' ? BAG_MAX : MAX_STASH)) return false;
+  if (dst.length >= (to === 'B' ? bagMax() : MAX_STASH)) return false;
   if (from === 'L') { if (src.filter(Boolean).length < 2) return false; src[i] = null; } else src.splice(i, 1);
   dst.push(w); return true;
 }
