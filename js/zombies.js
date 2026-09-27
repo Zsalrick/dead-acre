@@ -377,7 +377,7 @@ function updateZombies(dt) {
     }
     z.slowT -= dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
     const fuseBlink = z.fuse > 0 && Math.sin(now * 40) > 0;
-    const em = z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0;
+    const em = z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0x0d100b; // a faint glow so they read against the dark
     for (const m of z.mats) m.emissive.setHex(em);
     if (z.dummy) { z.g.position.set(z.pos.x, 0, z.pos.z); continue; } // a target dummy: it just stands there
 

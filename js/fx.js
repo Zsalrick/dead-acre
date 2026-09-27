@@ -1,7 +1,7 @@
 ﻿// ================= FX =================
 const particles = [];
 const partGeo = new THREE.BoxGeometry(.07, .07, .07);
-const PART_MAX = 400, partIM = new THREE.InstancedMesh(partGeo, new THREE.MeshBasicMaterial(), PART_MAX), partO = new THREE.Object3D(), partC = new THREE.Color();
+const PART_MAX = 400, partIM = new THREE.InstancedMesh(partGeo, new THREE.MeshBasicMaterial({ fog: false }), PART_MAX), partO = new THREE.Object3D(), partC = new THREE.Color();
 partIM.frustumCulled = false; partIM.count = 0; partIM.setColorAt(0, partC); scene.add(partIM);
 function updateParticles(dt) { // one draw call for every speck of blood, dirt and spark
   let n = 0;

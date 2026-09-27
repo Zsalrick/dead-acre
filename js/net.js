@@ -492,7 +492,7 @@ function updateProxies(dt) {
     z.g.position.set(z.pos.x, q.y, z.pos.z);
     z.g.rotation.y = q.h;
     z.flash -= dt; z.markT = (z.markT || 0) - dt;
-    const em = z.flash > 0 || (s.fl & 256 && Math.sin(now * 40) > 0) ? 0x777777 : s.fl & 16 ? 0x4a1800 : s.fl & 32 ? 0x10384a : s.fl & 64 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : s.fl & 4 ? 0x3a2a00 : 0;
+    const em = z.flash > 0 || (s.fl & 256 && Math.sin(now * 40) > 0) ? 0x777777 : s.fl & 16 ? 0x4a1800 : s.fl & 32 ? 0x10384a : s.fl & 64 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : s.fl & 4 ? 0x3a2a00 : 0x0d100b;
     for (const m of z.mats) m.emissive.setHex(em);
     if (K.ghost) { z.op = lerp(z.op || .1, s.fl & 128 ? .9 : .1, Math.min(1, dt * 4)); for (const m of z.mats) m.opacity = z.op; }
     if (z.armorParts && s.fl & 8) z.armorParts.forEach(a => a.visible = false);
