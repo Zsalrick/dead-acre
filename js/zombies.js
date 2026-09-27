@@ -624,6 +624,7 @@ const BOUNTIES = {
   queen:   { loot: ['honey', 'haystack'], name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 5.2, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
   frost:   { minLvl: 8, loot: ['glacier', 'honey'], name: 'A Jégkirály', desc: 'Fagyhullámot bocsát ki, ami lelassít. Futókat hív.', hp: 5.2, tint: 0x6ac8ff, frost: true, summon: ['runner', 10, 3] },
   titan:   { minLvl: 10, loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 4.6, tint: 0x8a929a, slam: true, plate: .6, summon: ['armored', 22, 2] },
+  bell:    { minLvl: 30, loot: ['bells', 'silent'], name: 'A Harangozó', desc: 'Megkondítja a harangot: akit a hang egyenesen elér, megszédül. Bújj fedezék mögé!', hp: 5.5, tint: 0xd8c47a, bell: true, summon: ['screamer', 16, 2] },
   shade:   { loot: ['silent', 'rod', 'sebastian'], name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
@@ -686,6 +687,11 @@ function bountyTick(z, dt, dist) {
     if (z.phase === 3) { z.chargeT = 1.6; z.speed *= 2.2; }
   }
   if (z.chargeT > 0 && (z.chargeT -= dt) <= 0) z.speed /= 2.2;
+  if (B.bell && (z.bellT = (z.bellT == null ? 6 : z.bellT) - dt) <= 0) { // the bell: a huge ring you can't outrun, only hide from
+    z.bellT = z.phase === 3 ? 7 : z.phase === 2 ? 9.5 : 12;
+    const at = z.pos.clone(); tn(220, 1.6, .12, 'sine', 200); tn(330, 1.6, .06, 'sine', 300); popText('A harang mindjárt megszólal: fedezékbe!', '#d8c47a');
+    telegraph(at, 30, 0xd8c47a, 1.5, () => bellHit(at), 'bell');
+  }
   if (B.blink && (z.blinkT -= dt) <= 0 && dist > 5) { // vanishes and comes out behind you
     z.blinkT = z.phase === 3 ? 4 : z.phase === 2 ? 7 : 10;
     burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6);
@@ -714,6 +720,7 @@ function weaponOnHit(z, amt, o) {
   if (w.unique === 'honey') player.hp = Math.min(maxHp(), player.hp + amt * .02);
   if (w.unique === 'silent' && o.head) explode(zHeadPos(z), { r: 3.5, zdmg: amt * .5, pr: .01, pdmg: .001, color: 0xb0c8ff });
   if (w.unique === 'anvil') { if (z.armor > 0 && z.K.boss) z.armor -= z.maxHp * .1; else if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
+  if (w.unique === 'bells' && (player.bellN = (player.bellN || 0) + 1) % 9 === 0) { burst(new V3(z.pos.x, 1.5, z.pos.z), 0xd8c47a, 20, 4, .6); tn(440, .9, .08, 'sine', 430); for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 6) { q.slowT = 2.5; q.flinch = .3; } }
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
 }
@@ -760,3 +767,11 @@ const AFFIX = {
   tough: { name: 'Szívós', on: z => { z.hp *= 1.8; z.maxHp = z.hp; z.scale *= 1.1; z.g.scale.setScalar(z.scale); } },
 };
 const AFFIX_KEYS = Object.keys(AFFIX);
+
+// the bell reaches you only if the bell tower can see you: cover saves you
+function bellHit(at) {
+  SND.roar(); tn(110, 2.5, .25, 'sine', 108); burst(new V3(at.x, 3, at.z), 0xd8c47a, 30, 6, .8);
+  if (player.down || Math.hypot(player.pos.x - at.x, player.pos.z - at.z) > 30) return;
+  if (!hasSight(new V3(at.x, 2.6, at.z), new V3(player.pos.x, 1.6, player.pos.z))) return popText('A fedezék megvédett!', '#7dff7a');
+  player.chillT = 2.2; player.shake = .9; hurtPlayer(14); popText('A harang elkábított!', '#d8c47a');
+}
