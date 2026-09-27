@@ -187,7 +187,7 @@ function settleWeapons(success, M) {
   // armor: pieces found on the job (it.found) only come home if you extract, even if you put them on;
   // your own pieces you took off in the field always come back (and are worn again if the found one is lost)
   let overflow = 0; const home = [], lostGear = [];
-  const toStash = it => { if (P.gearStash.length < MAX_GEAR) P.gearStash.push(it); else { P.cash += gearValue(it); overflow++; } };
+  const toStash = it => { if (P.gearStash.length < gearMax()) P.gearStash.push(it); else { P.cash += gearValue(it); overflow++; } };
   for (const k of GEAR_KEYS) { const it = P.gear[k]; if (it && it.found) { if (success) { delete it.found; home.push(it); } else { P.gear[k] = null; lostGear.push(it); } } }
   for (const it of M.gear) {
     if (it.found) { if (!success) { lostGear.push(it); continue; } delete it.found; home.push(it); }
@@ -244,7 +244,7 @@ function hurtPlayer(d, quiet) {
   d *= SK.taken();
   const hadShield = player.shield > 0;
   if (player.shield > 0) { const a = Math.min(player.shield, d); player.shield -= a; d -= a; }
-  if (hadShield && player.shield <= 0 && rk('m_burst')) explode(player.pos.clone().setY(1), { r: 5, zdmg: 150 + zombieHp(), pr: .01, pdmg: .001, color: 0xf2d27a });
+  if (hadShield && player.shield <= 0 && (rk('m_burst') || exoOn('nova'))) explode(player.pos.clone().setY(1), { r: 5, zdmg: 150 + zombieHp(), pr: .01, pdmg: .001, color: 0xf2d27a });
   player.hp -= d; player.lastHurt = now;
   if (player.hp <= 0 && rk('s_wind') && !mission.wind) { mission.wind = true; player.hp = 1; banner('MÁSODIK SZÉL', 'Még nem most.'); }
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }

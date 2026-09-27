@@ -10,7 +10,7 @@ const JOB_TEXT = {
   town:   [['Délben a főutcán', 'Városi tanács'], ['A bank nem nyit ki magától', 'Első Megyei Bank'], ['Utolsó kör a szalonban', 'Kocsmáros']],
   quarry: [['A gödör alján', 'Kőbánya Kft.'], ['Robbantás előtti éjszaka', 'Bányamester'], ['Senki sem jön fel', 'Bányászszakszervezet']],
 };
-const MAX_STASH = 40, MAX_GEAR = 40;
+const stashMax = () => 40 + 10 * U('stash'), gearMax = () => 40 + 10 * U('stash'); // the Raktárbővítés upgrade adds 10 + 10 a level
 const reroll = () => 50 + 40 * profile.level;
 // the base's own gunsmith: dollars instead of points, so old favourites can keep up
 const PARTS = [1, 2, 5, 15, 40, 80]; // salvage yield by rarity
@@ -115,7 +115,7 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
-const KEY_LABEL = { KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+const KEY_LABEL = { KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 const hbtn = (label, act, off, key) => `<button class="sbtn" data-act="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const hhold = (label, act, off, key) => `<button class="sbtn hold" data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
@@ -140,14 +140,15 @@ const HUB = {
       <div class="jobmap"><svg viewBox="0 0 900 440" class="jsvg" role="img" aria-label="Munkatérkép">${MAP_ART}${locs}${marks}</svg><div class="jside">${jobCard(J[jobSel], jobSel, notReady)}</div></div>`;
   },
   arsenal() {
-    const P = profile, lists = { L: P.loadout.map(unpackW), B: P.bag.map(unpackW), S: P.stash.map(unpackW) };
+    const P = profile, lists = { L: P.loadout.map(unpackW), B: P.bag.map(unpackW), S: P.stash.map(unpackW), K: SH.w.map(unpackW) }, sharedFull = SH.w.length >= SHARED_MAX;
     let [sl, si] = invSel.split(':');
     if (!lists[sl] || !lists[sl][+si]) { sl = 'L'; si = lists.L[0] ? 0 : 1; invSel = `L:${si}`; }
-    const i = +si, w = lists[sl][i], bagFull = lists.B.length >= bagMax(), stashFull = lists.S.length >= MAX_STASH, lone = lists.L.filter(Boolean).length < 2;
+    const i = +si, w = lists[sl][i], bagFull = lists.B.length >= bagMax(), stashFull = lists.S.length >= stashMax(), lone = lists.L.filter(Boolean).length < 2;
     let acts = '';
-    if (w && sl === 'L') acts = hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Raktárba', `mv:L:${i}:S`, lone || stashFull, 'KeyR');
+    if (w && sl === 'L') acts = hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Raktárba', `mv:L:${i}:S`, lone || stashFull, 'KeyR') + hbtn('Közös ládába', `mv:L:${i}:K`, lone || sharedFull, 'KeyK');
+    else if (w && sl === 'K') acts = hbtn('Kézbe', `mv:K:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('Táskába', `mv:K:${i}:B`, bagFull, 'KeyT') + hbtn('Raktárba', `mv:K:${i}:S`, stashFull, 'KeyR');
     else if (w) acts = hbtn('Kézbe', `mv:${sl}:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('1. kézbe', `mv:${sl}:${i}:L:0`, !canUse(w), 'Digit1') + hbtn('2. kézbe', `mv:${sl}:${i}:L:1`, !canUse(w), 'Digit2') +
-      (sl === 'B' ? hbtn('Raktárba', `mv:B:${i}:S`, stashFull, 'KeyR') : hbtn('Táskába', `mv:S:${i}:B`, bagFull, 'KeyT') + hbtn(`Eladás $${sellValue(w)}`, `sell:${i}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[w.q]} ⚙`, `salvage:${i}`, false, 'KeyB'));
+      hbtn('Közös ládába', `mv:${sl}:${i}:K`, sharedFull, 'KeyK') + (sl === 'B' ? hbtn('Raktárba', `mv:B:${i}:S`, stashFull, 'KeyR') : hbtn('Táskába', `mv:S:${i}:B`, bagFull, 'KeyT') + hbtn(`Eladás $${sellValue(w)}`, `sell:${i}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[w.q]} ⚙`, `salvage:${i}`, false, 'KeyB'));
     const pp = P.parts || 0;
     if (w) acts += hbtn(w.level + 2 > HFORGE.cap() ? `Kovács: szintkorlát (${HFORGE.cap()})` : `Kovács: +2 szint · ${HFORGE.level(w)} ⚙`, `hforge:level:${sl}:${i}`, pp < HFORGE.level(w) || w.level + 2 > HFORGE.cap(), 'KeyG') +
       (w.q < 4 ? hbtn(`Kovács: ${RARITIES[w.q + 1].name} · ${HFORGE.rarity(w)} ⚙`, `hforge:rarity:${sl}:${i}`, pp < HFORGE.rarity(w), 'KeyV') : '') +
@@ -156,7 +157,8 @@ const HUB = {
     const hands = lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('');
     const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${hands}</div>
       <h3>Táska <small>${lists.B.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="B">${lists.B.map((x, k) => wTile(`B:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A munkára is jön')}</div>
-      <h3>Raktár <small>${lists.S.length} / ${MAX_STASH}</small></h3><div class="tiles" data-drop="S">${lists.S.map((x, k) => wTile(`S:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A vett és talált fegyverek ide kerülnek')}</div>`;
+      <h3>Raktár <small>${lists.S.length} / ${stashMax()}</small></h3><div class="tiles" data-drop="S">${lists.S.map((x, k) => wTile(`S:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A vett és talált fegyverek ide kerülnek')}</div>
+      <h3>Közös láda <small>${SH.w.length} / ${SHARED_MAX} · mindhárom karaktered látja</small></h3><div class="tiles shared" data-drop="K">${lists.K.map((x, k) => wTile(`K:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'Tegyél ide fegyvert, és a másik mentésed is eléri')}</div>`;
     return `<div class="hubhead"><h2>Fegyverek</h2></div>
       <p class="lede"><b class="parts">Alkatrész: ${P.parts || 0} ⚙</b> · szétszedéssel kapod, a kovács ebből dolgozik. A két kézben lévő fegyver és a táska (${bagMax()} hely) jön veled a munkára; munka közben [I] vagy [Tab] a leltár. Kattints egy fegyverre a részletekért, vagy húzd át máshová.</p>
       ${invLayout(left, w ? weaponDetail(w, cmp, acts) : noDetail('Válassz egy fegyvert.'))}`;
@@ -164,15 +166,16 @@ const HUB = {
   gear() {
     const P = profile, st = P.gearStash;
     let [sl, si] = invSel.split(':');
-    const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : null;
+    const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : sl === 'H' ? SH.g[+si] : null;
     if (!get()) { const k = GEAR_KEYS.find(k => P.gear[k]); [sl, si] = k ? ['W', k] : ['G', '0']; invSel = `${sl}:${si}`; }
     const it = get();
-    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= MAX_GEAR, 'KeyF') : hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + hbtn(`Eladás $${gearValue(it)}`, `gsell:${si}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[it.q]} ⚙`, `gsalvage:${si}`, false, 'KeyB');
+    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + hbtn('Közös ládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn(`Eladás $${gearValue(it)}`, `gsell:${si}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[it.q]} ⚙`, `gsalvage:${si}`, false, 'KeyB');
     const worn = GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('');
     const sorted = st.map((x, k) => [x, k]).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
     const left = `<h3>Viselt</h3><div class="tiles worn" data-drop="W">${worn}</div>
       <h3>Összesítve</h3>${gearSummary()}
-      <h3>Páncélraktár <small>${st.length} / ${MAX_GEAR}</small></h3><div class="tiles" data-drop="G">${sorted.map(([x, k]) => gTile(`G:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'A munkán talált páncél ide kerül')}</div>
+      <h3>Páncélraktár <small>${st.length} / ${gearMax()}</small></h3><div class="tiles" data-drop="G">${sorted.map(([x, k]) => gTile(`G:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'A munkán talált páncél ide kerül')}</div>
+      <h3>Közös láda <small>${SH.g.length} / ${SHARED_MAX} · mindhárom karaktered látja</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>
       <h3>Márka-kódex</h3><div class="brands">${Object.values(BRANDS).map(B => `<div class="brand" style="--bc:${B.color}"><b>${B.name}</b><small>${B.tag} · minden darab: ${GSTATS[B.core[0]].name} ${fmtG(...B.core)}</small>
         <ul>${B.sets.map(([n, k, v]) => `<li>${n} db: ${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('')}</ul></div>`).join('')}</div>`;
     return `<div class="hubhead"><h2>Páncél</h2></div>
@@ -197,9 +200,9 @@ const HUB = {
     if (!get()) { const a = P.shop.findIndex(Boolean), b = P.gshop.findIndex(Boolean); [sl, si] = a >= 0 ? ['P', a] : ['Q', b]; invSel = `${sl}:${si}`; }
     const x = get();
     let detail = noDetail('Minden elfogyott. Munka után megújul a kínálat.');
-    if (x && sl === 'P') { const c = shopPrice(x); detail = weaponDetail(x, unpackW(P.loadout[0]) || unpackW(P.loadout[1]), hbtn(`Megveszem · $${c}`, `gun:${si}`, P.cash < c || P.stash.length >= MAX_STASH, 'KeyF')); }
+    if (x && sl === 'P') { const c = shopPrice(x); detail = weaponDetail(x, unpackW(P.loadout[0]) || unpackW(P.loadout[1]), hbtn(`Megveszem · $${c}`, `gun:${si}`, P.cash < c || P.stash.length >= stashMax(), 'KeyF')); }
     if (x && sl === 'I') { const c = ITEM_PRICE[x], full = P.inv[x] >= itemMax(x); detail = itemDetail(x, hbtn(full ? 'Tele' : `Megveszem · $${c}`, `item:${x}`, full || P.cash < c, 'KeyF')); }
-    if (x && sl === 'Q') { const c = gearPrice(x); detail = gearDetail(x, P.gear[x.slot], hbtn(`Megveszem · $${c}`, `gbuy:${si}`, P.cash < c || P.gearStash.length >= MAX_GEAR, 'KeyF')); }
+    if (x && sl === 'Q') { const c = gearPrice(x); detail = gearDetail(x, P.gear[x.slot], hbtn(`Megveszem · $${c}`, `gbuy:${si}`, P.cash < c || P.gearStash.length >= gearMax(), 'KeyF')); }
     const L0 = unpackW(P.loadout[0]) || unpackW(P.loadout[1]);
     const guns = P.shop.map((o, k) => { if (!o) return ''; const w = unpackW(o), c = shopPrice(w); return wTile(`P:${k}`, w, { cmp: L0, price: `$${c}`, cant: P.cash < c }); }).join('');
     const gear = P.gshop.map((it, k) => it ? gTile(`Q:${k}`, it, { cmp: P.gear[it.slot] || null, price: `$${gearPrice(it)}`, cant: P.cash < gearPrice(it) }) : '').join('');
@@ -237,7 +240,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'vet' && VET[a] && vetAvail() > 0) { P.vet[a] = (P.vet[a] || 0) + 1; gearChanged(); }
   if (kind === 'reroll' && pay(reroll())) rollBoard();
   if (kind === 'hforge') { // hforge:level|rarity:L|B|S:i
-    const [, what, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash }[l], w = list && list[+i] && unpackW(list[+i]);
+    const [, what, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]);
     const ok = what === 'level' ? w && w.level + 2 <= HFORGE.cap() : what === 'rarity' ? w && w.q < 4 : w && w.q >= 2, cost = w && HFORGE[what] ? HFORGE[what](w) : 1e9;
     if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'level') levelUpWeapon(w, 2); else if (what === 'rarity') rarityUp(w); else w.anoint = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); list[+i] = packW(w); SND.explode(); }
   }
@@ -247,16 +250,18 @@ $('hubBody').addEventListener('click', e => {
     const T = P.throw, list = a === 'g' ? GREN_TYPES : KNIFE_TYPES, D = list[c];
     if (D) { if (!T.own.includes(c)) { if (!pay(D.price)) return; T.own.push(c); } T[a] = c; }
   }
-  if (kind === 'gun') { const w = unpackW(P.shop[+a]); if (P.stash.length < MAX_STASH && pay(shopPrice(w))) { P.stash.push(packW(w)); P.shop[+a] = null; noteFound(w); } }
-  if (kind === 'mv') { const [, f, i, t, j] = b.dataset.act.split(':'); moveGun({ L: P.loadout, B: P.bag, S: P.stash }, f, +i, t, +j); }
+  if (kind === 'gun') { const w = unpackW(P.shop[+a]); if (P.stash.length < stashMax() && pay(shopPrice(w))) { P.stash.push(packW(w)); P.shop[+a] = null; noteFound(w); } }
+  if (kind === 'mv') { const [, f, i, t, j] = b.dataset.act.split(':'); moveGun({ L: P.loadout, B: P.bag, S: P.stash, K: SH.w }, f, +i, t, +j); }
   if (kind === 'wear') { const it = P.gearStash.splice(+a, 1)[0], old = P.gear[it.slot]; P.gear[it.slot] = it; if (old) P.gearStash.push(old); gearChanged(); }
   if (kind === 'unwear') { P.gearStash.push(P.gear[a]); P.gear[a] = null; gearChanged(); }
+  if (kind === 'gshare' && P.gearStash[+a] && SH.g.length < SHARED_MAX) SH.g.push(P.gearStash.splice(+a, 1)[0]);
+  if (kind === 'gunshare' && SH.g[+a] && P.gearStash.length < gearMax()) P.gearStash.push(SH.g.splice(+a, 1)[0]);
   if (kind === 'gsell') { P.cash += gearValue(P.gearStash.splice(+a, 1)[0]); }
-  if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < MAX_GEAR && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
+  if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < gearMax() && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
   if (kind === 'salvage') { const w = P.stash[+a] && unpackW(P.stash[+a]); if (w) { P.stash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[w.q]; } }
   if (kind === 'gsalvage') { const it = P.gearStash[+a]; if (it) { P.gearStash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[it.q]; } }
   if (kind === 'sell') { const w = unpackW(P.stash.splice(+a, 1)[0]); P.cash += sellValue(w); }
-  SND.buy(); saveProfile(); renderHub();
+  SND.buy(); saveProfile(); saveShared(); renderHub();
 });
 
 // ---------- after a job ----------

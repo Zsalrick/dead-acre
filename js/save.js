@@ -9,6 +9,10 @@ const store = {
 };
 const emptyStats = () => ({ bounties: 0, jobs: 0, fails: 0, kills: 0, heads: 0, earned: 0, cash: 0, time: 0, legendaries: 0, boxSpins: 0, bestThreat: 0, killsBy: {}, found: {}, byMap: {} });
 let profile = null, slot = 0, stats = emptyStats();
+// the shared chest: every career on this browser can put things in and take them out (weapons packed, armor as is)
+const SHARED_KEY = 'deadacre.shared', SHARED_MAX = 30;
+const SH = Object.assign({ w: [], g: [] }, store.get(SHARED_KEY) || {});
+const saveShared = () => store.set(SHARED_KEY, SH);
 
 const packW = w => w ? Object.assign({}, w, { base: w.base.id }) : null;
 function unpackW(o) {

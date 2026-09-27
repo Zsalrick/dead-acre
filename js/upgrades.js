@@ -13,6 +13,7 @@ const UPGRADES = {
   reload:      { name: 'Gyors kezek',        desc: '+6% újratöltési sebesség',                 max: 6,  base: 600,  val: l => `+${6 * l}%` },
   revive:      { name: 'Gyors felélesztés',  desc: '-15% idő, amíg felállítasz egy társat',   max: 4,  base: 1500, val: l => `${(10 * (1 - .15 * l)).toFixed(1)} mp` },
   swind:       { name: 'Újraéledés',          desc: 'Ha a földön ölsz: több életerővel állsz fel, +1 mp harcidő; 2. szinttől teli pajzzsal', max: 4, base: 1200, val: l => `${20 + 20 * l}% életerő${l >= 2 ? ' + pajzs' : ''}` },
+  stash:       { name: 'Raktárbővítés',      desc: '+10 fegyver- és +10 páncélhely a raktárban', max: 6, base: 3000, val: l => `${40 + 10 * l} + ${40 + 10 * l} hely` },
   bag:         { name: 'Nagyobb táska',      desc: '+2 fegyverhely a táskában (legfeljebb 15)', max: 5,  base: 4000, val: l => `${5 + 2 * l} hely` },
   ammo:        { name: 'Lőszertáska',        desc: '+15% tartalék lőszer minden fegyverhez',   max: 5,  base: 700,  val: l => `+${15 * l}%` },
 };
@@ -20,13 +21,13 @@ const U = k => (player.up && player.up[k]) || 0;
 const upCost = k => Math.round(UPGRADES[k].base * 1.25 * Math.pow(1.38, U(k)) / 50) * 50;
 // G(k): bonuses from worn gear (gear.js) · mkOf(w): the held gun's maker perk
 const perk = k => !!(player.perks && player.perks[k]);
-const maxHp = () => Math.round((100 + 20 * U('maxHp') + SK.hp() + G('hp')) * (perk('jug') ? 1.5 : 1));
+const maxHp = () => Math.round((100 + 20 * U('maxHp') + SK.hp() + G('hp')) * (perk('jug') ? 1.5 : 1) * (exoOn('glass') ? .75 : 1));
 const maxShield = () => 25 * U('shield') + SK.shield() + G('armor');
 const maxStam = () => 100 + 20 * U('stamina') + G('stam');
 const critChance = () => Math.min(.75, .05 + .04 * U('crit') + SK.crit(curW()) + G('crit') + (mkOf(curW()).crit || 0) + (curW() && curW().anoint === 'ads' && player.ads > .6 ? .15 : 0));
 const critMult = () => 1.5 + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (mkOf(curW()).critDmg || 0);
 const headBonus = () => 1 + .15 * U('head') + SK.head() + G('head') + (mkOf(curW()).head || 0);
-const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed') + (perk('runner') ? .15 : 0);
+const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed') + (perk('runner') ? .15 : 0) + (exoOn('league') ? .2 : 0);
 const reloadMul = () => 1 + .06 * U('reload') + SK.reload() + G('reload') + (perk('speed') ? .3 : 0);
 const resMax = w => Math.round(w.maxRes * (1 + .15 * U('ammo') + SK.ammo() + G('ammo')));
 

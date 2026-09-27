@@ -47,6 +47,23 @@ function makeGear(slot, q, level, brand) {
   const armor = Math.round({ head: 12, chest: 20, legs: 14, boots: 10 }[slot] * (1 + .08 * (level - 1)) * (1 + q * .15) * rand(.9, 1.1));
   return { slot, brand, q, level, armor, stats, name: q === 4 ? GEAR_LEGENDS[slot] : `${BRANDS[brand].name.split(' ')[0]} ${pick(GEAR_NAMES[slot])}` };
 }
+// ---------- exotic armor (The Division): one talent that changes how you play; bosses drop them ----------
+const EXO_COL = '#ff5a3a';
+const EXOTICS = {
+  vamp:    { slot: 'chest', name: 'Vérszívó kabát',    talent: 'Minden ölés a max életerőd 8%-át visszatölti.' },
+  nova:    { slot: 'chest', name: 'Pajzsnóva mellvért', talent: 'Ha a pajzsod elfogy, lökéshullám robban körülötted.' },
+  berserk: { slot: 'head',  name: 'Berzerker sisak',    talent: 'Minél kevesebb az életerőd, annál többet sebzel: legfeljebb +50%.' },
+  glass:   { slot: 'head',  name: 'Üvegágyú',           talent: '+50% kritikus sebzés, de −25% max életerő.' },
+  quick:   { slot: 'legs',  name: 'Gyorskezű nadrág',   talent: 'Fejlövéses ölés után a tár azonnal megtelik.' },
+  league:  { slot: 'boots', name: 'Hétmérföldes csizma', talent: '+20% mozgás, a sprint nem fogyaszt állóképességet.' },
+};
+function makeExotic(key, level) {
+  key = EXOTICS[key] ? key : pick(Object.keys(EXOTICS));
+  const E = EXOTICS[key], it = makeGear(E.slot, 4, level);
+  return Object.assign(it, { exo: key, name: E.name, armor: Math.round(it.armor * 1.1) });
+}
+const exoOn = k => wornGear().some(it => it.exo === k);
+const gCol = it => it.exo ? EXO_COL : RARITIES[it.q].color;
 const gearValue = it => Math.round([40, 100, 220, 450, 900][it.q] * (1 + .08 * (it.level - 1)));
 const gearPrice = it => Math.round(gearValue(it) * 4 / 10) * 10;
 
@@ -87,7 +104,7 @@ function gearSummary() {
 // ---------- gear dropped during a job: walk over it to bag it; it is yours if you extract ----------
 const gearDrops = [];
 function spawnGearDrop(it, pos) {
-  const col = new THREE.Color(RARITIES[it.q].color), g = new THREE.Group();
+  const col = new THREE.Color(gCol(it)), g = new THREE.Group();
   const m = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color: 0x2e2f2a, emissive: col, emissiveIntensity: .35, roughness: .6 }));
   m.scale.set(.5, .32, .38); m.position.y = .45; g.add(m);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 2 + it.q * .8, 6, 1, true),
@@ -121,7 +138,7 @@ function moveGun(lists, from, i, to, j) {
     if (from === 'L') src[i] = old; else if (old) src[i] = old; else src.splice(i, 1);
     return true;
   }
-  if (dst.length >= (to === 'B' ? bagMax() : MAX_STASH)) return false;
+  if (dst.length >= (to === 'B' ? bagMax() : to === 'K' ? SHARED_MAX : stashMax())) return false;
   if (from === 'L') { if (src.filter(Boolean).length < 2) return false; src[i] = null; } else src.splice(i, 1);
   dst.push(w); return true;
 }

@@ -104,10 +104,11 @@ const SK = {
     if (c === 'energy') m += .08 * rk('e_cells');
     if (c === 'shotgun' || c === 'smg') m += .06 * rk('m_zeal');
     if (rk('s_rage') && player.hp < maxHp() * .3) m += .25;
+    if (exoOn('berserk')) m += .5 * clamp(1 - player.hp / maxHp(), 0, 1);
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
   crit: w => .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
-  critDmg: () => .2 * rk('h_deadly'),
+  critDmg: () => .2 * rk('h_deadly') + (exoOn('glass') ? .5 : 0),
   head: () => (isCls('hunter') ? .1 : 0) + .12 * rk('h_head'),
   hp: () => 15 * rk('s_hide'),
   shield: () => 15 * rk('m_shield'),

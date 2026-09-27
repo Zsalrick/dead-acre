@@ -383,7 +383,7 @@ function updatePlayer(dt) {
   if (mv.lengthSq() > 0) mv.normalize();
   const adren = player.adrenT > 0;
   player.sprint = !ff && keys.ShiftLeft && f > 0 && !rmb && !mouseDown && player.knifeT <= 0 && !player.reloading && (adren || player.stam > (player.sprint ? 0 : 15));
-  if (player.sprint && !adren && !perk('runner')) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
+  if (player.sprint && !adren && !perk('runner') && !exoOn('league')) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
   else if ((player.stamT -= dt) <= 0) player.stam = Math.min(maxStam(), player.stam + 28 * (1 + .15 * U('stamina')) * dt);
   player.adrenT = Math.max(0, player.adrenT - dt); player.itemCd -= dt;
   const speed = (ff ? .9 : 1) * (ff ? 1 : player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));

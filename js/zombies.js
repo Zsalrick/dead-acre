@@ -230,6 +230,8 @@ function killZombie(z, o) {
   player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1;
   myKill(o.w || (o.melee ? { name: 'Kés', q: 0 } : o.dot ? { name: 'Égés', q: 0 } : { name: 'Robbanás', q: 0 }), z.K.name, o.head);
   weaponOnKill(z, o);
+  if (exoOn('vamp')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .08);
+  if (o.head && o.w && exoOn('quick')) o.w.ammo = o.w.mag;
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(z.K.points || (o.melee ? 130 : o.head ? 100 : 60));
@@ -245,8 +247,10 @@ function dropLoot(z, p) {
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
     spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
+    if (!z.bounty && Math.random() < .05) spawnGearDrop(makeExotic(null, lootLvl(2)), p.clone().add(new V3(0, 0, 1.4)));
     if (!z.bounty) banner('A MÉSZÁROS ELESETT', 'Epikus vagy jobb fegyvert hagyott maga után.'); SND.roar();
   } else if (z.elite) {
+    if (mission && (mission.job.diff >= 4 || jobTier() > 0) && Math.random() < .006) spawnGearDrop(makeExotic(null, lootLvl(1)), p.clone().add(new V3(0, 0, 1.2)));
     spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3 + dLuck))), lootLvl()), p);
   } else if (z.kind === 'brood') spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p);
   else if (z.kind === 'brute') {
@@ -664,7 +668,7 @@ function bountyKilled(z) {
 function bountyLoot(pos, key) {
   const p = new V3(pos.x, 0, pos.z), B = BOUNTIES[key];
   spawnDrop(B && Math.random() < .25 ? makeUnique(pick(B.loot), lootLvl(3)) : makeWeapon(pick(BASES), 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0))); // a quarter of the time: one of this boss's uniques
-  spawnGearDrop(makeGear(null, 4, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
+  spawnGearDrop(Math.random() < .15 ? makeExotic(null, lootLvl(3)) : makeGear(null, 4, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
 }
 
 // ---------- unique tricks and anointments that fire on hits and kills (the shooter's side) ----------

@@ -57,7 +57,7 @@ function tile(sel, pic, name, sub, color, o = {}) {
 const wTile = (sel, w, o = {}) => tile(sel, wPic(w), w.name, `${RARITIES[w.q].name} · ${w.base.name}`, rarColor(w),
   Object.assign({ lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
-const gTile = (sel, it, o = {}) => tile(sel, gPic(it), it.name, `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`, RARITIES[it.q].color,
+const gTile = (sel, it, o = {}) => tile(sel, gPic(it), it.name, `${it.exo ? 'Egzotikus · ' : ''}${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`, gCol(it),
   Object.assign({ lv: `Lv ${it.level}`, val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
 const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="tpic">${pic ? `<img src="${pic}" alt="">` : ''}</span><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
 const invLayout = (left, detail) => `<div class="inv"><div class="invl">${left}</div><aside class="invd">${detail}</aside></div>`;
@@ -131,10 +131,11 @@ function gearDetail(it, cmp, actions) {
   const pipsB = `<span class="bpips">${[1, 2, 3, 4].map(n => `<i class="${n <= cnt ? 'on' : ''}"></i>`).join('')}</span>`;
   const next = B.sets.find(([n]) => n > cnt);
   const sets = B.sets.map(([n, k, v]) => `<li class="${cnt >= n ? 'on' : ''}"><span>${n} db</span>${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('');
-  return `<div class="dhead" style="--rc:${RARITIES[it.q].color}"><div class="dband"><span class="rar">${RARITIES[it.q].name}</span> ${GEAR_SLOTS[it.slot]}<i class="dlv">Lv ${it.level}</i></div>
+  return `<div class="dhead" style="--rc:${gCol(it)}"><div class="dband"><span class="rar">${it.exo ? 'Egzotikus' : RARITIES[it.q].name}</span> ${GEAR_SLOTS[it.slot]}<i class="dlv">Lv ${it.level}</i></div>
       <div class="dname">${it.name}</div><img src="${gPic(it)}" alt="">
       <div class="dsub"><span style="color:${B.color}">${B.name}</span> · ${B.tag}</div></div>
     ${c ? `<div class="dcmp">Összevetve a viselt darabbal: <span style="color:${RARITIES[c.q].color}">${c.name}</span></div>` : ''}
+    ${it.exo && EXOTICS[it.exo] ? `<div class="duniq" style="border-color:${EXO_COL}"><b>Egzotikus tehetség:</b> ${EXOTICS[it.exo].talent}</div>` : ''}
     <table class="dtab" style="--bc:${B.color}">${rows}</table>
     <div class="dsets" style="--bc:${B.color}"><b>${B.name}</b> ${pipsB} <small>${cnt}/4 viselve</small><ul>${sets}</ul>
       ${next ? `<p class="dnext">Még ${next[0] - cnt} darab: ${GSTATS[next[1]].name} ${fmtG(next[1], next[2])}</p>` : ''}</div>
@@ -186,7 +187,9 @@ function invKey(e, root) {
 function dropAct(from, to) {
   const [fl, fi] = from.split(':'), [tl, ti] = to.split(':');
   if (tl === 'ground') return fl === 'L' || fl === 'B' ? `drop:${fl}:${fi}` : fl === 'M' ? `gdrop:${fi}` : null;
-  if ('LBS'.includes(fl) && 'LBS'.includes(tl)) {
+  if (fl === 'G' && tl === 'H') return `gshare:${fi}`;
+  if (fl === 'H' && tl === 'G') return `gunshare:${fi}`;
+  if ('LBSK'.includes(fl) && 'LBSK'.includes(tl)) {
     if (tl === 'L') return ti !== undefined && ti !== '' ? `mv:${fl}:${fi}:L:${ti}` : `mv:${fl}:${fi}:L:${freeHand(dragLists().L)}`;
     return fl === tl ? null : `mv:${fl}:${fi}:${tl}`;
   }
