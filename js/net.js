@@ -284,7 +284,7 @@ function netHit(z, amt, o) {
     else applyElement(z, o.w, amt); // shock: the arc hits another proxy, which is sent too
   }
   pushRoll(NET.hits, [++NET.seq, z.id, Math.round(amt), fl, burn], 24);
-  if (z.hp <= 0 && !z.K.boss && !z.predDead) { z.predDead = performance.now(); proxyDie(z); hitmarker(true); }
+  if (z.hp <= 0 && !z.K.boss && !z.predDead) { z.predDead = performance.now(); proxyDie(z); if (o.head) headPop(z); hitmarker(true); }
   if (!o.dot) { addPoints(10); weaponOnHit(z, amt, o); }
 }
 const netAct = (type, arg) => pushRoll(NET.acts, [++NET.seq, type, arg == null ? 0 : arg], 8);
@@ -459,7 +459,7 @@ function applySnapshot(g, hostPeer) {
   for (const e of fresh('k' + hostPeer, g.k)) if (e[1] === NET.me) netOwnKill(e);
   for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && !player.down) { hurtSrc = typeof e[3] === 'string' ? e[3].slice(0, 30) : null; hurtPlayer(+e[2] || 0); hurtSrc = null; }
 }
-function resurrect(z) { z.dead = false; z.predDead = 0; z.deathT = 0; z.g.rotation.z = 0; z.g.visible = true; }
+function resurrect(z) { z.dead = false; z.predDead = 0; z.deathT = 0; z.g.rotation.z = 0; z.g.visible = true; z.upper.children.forEach(c => c.visible = true); }
 function proxyDie(z) {
   if (z.dead) return;
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1;
@@ -494,7 +494,7 @@ function updateProxies(dt) {
     z.amp = lerp(z.amp || 0, Math.min(.75, .15 + moving * .18), k);
     const sw = Math.sin(z.walkT) * z.amp;
     z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
-    z.upper.rotation.x = lerp(z.upper.rotation.x, s.fl & 512 ? 1.1 : K.lean, k);
+    z.upper.rotation.x = lerp(z.upper.rotation.x, s.fl & 512 ? 1.1 : K.lean, k); if (z.flinch > 0) { z.flinch -= dt; z.upper.rotation.x -= z.flinch * 2.5; }
     if (K.crawl) { z.armL.rotation.x = -1.3 + sw * 1.2; z.armR.rotation.x = -1.3 - sw * 1.2; }
     else { const reach = -1.35 - (s.fl & 2 ? .9 : 0); z.armL.rotation.x = lerp(z.armL.rotation.x, reach, k); if (!K.gun) z.armR.rotation.x = lerp(z.armR.rotation.x, reach, k); else z.armR.rotation.x = -1.5; }
     if (K.bloat) z.torso.scale.x = 1.55 + Math.sin(now * (s.fl & 256 ? 30 : 3)) * (s.fl & 256 ? .15 : .04);

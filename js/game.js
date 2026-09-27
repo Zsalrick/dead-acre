@@ -82,7 +82,7 @@ function endIntro() {
   M.intro = -1; M.departT = 0; state = 'playing';
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
   equipView(); player.switchT = SWITCH_T * .5;
-  if (M.job.test) banner('LŐTÉR', 'Célbábuk előtted. Esc: leltár és vissza a bázisra.'); else { banner('1. HULLÁM', 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart(); }
+  if (M.job.test) banner('LŐTÉR', 'Célbábuk előtted. Esc: leltár és vissza a bázisra.'); else { banner('1. HULLÁM', noClock(M.job) ? 'Jönnek. A furgon akkor jön, ha kész a feladat.' : 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart(); }
   if (!locked && !noLock) { needClick = true; $('clickHint').hidden = false; } // one click grabs the mouse
 }
 function updateMission(dt) {

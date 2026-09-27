@@ -412,6 +412,63 @@ const MAPS = {
       south: { side: 's', at: 0, name: 'Zagytó', cost: 750, core: { minX: -12, maxX: 12, minZ: 38, maxZ: 60 }, spawns: [[-9, 57], [9, 57]], station: ['well', 0, 48] },
     },
   },
+  fair: {
+    name: 'Vásártér', desc: 'Elhagyott vándorvásár: óriáskerék, körhinta, sátrak és bódék. Színes fények a ködben.', minLevel: 9,
+    main: { minX: -44, maxX: 44, minZ: -34, maxZ: 34 }, look: { tex: 'grass', ground: 0x76805f, fog: 0x140d18, fogD: [.02, .028], fence: 0xc8b8a0 },
+    vans: [[-34, 26], [34, 26], [-36, -26], [36, -24]], ammo: [8, 14], boxSpots: [[-10, 2], [14, -4], [-30, -14], [30, 22], [2, 20], [-16, 24]],
+    spawns: [[-41, -20], [-41, 12], [41, -8], [41, 18], [0, -31], [-26, -31], [26, -31], [-14, 31], [14, 31]],
+    lamps: [[-8, -6], [10, 6], [-28, 20], [28, -2], [0, 26], [-20, -24]],
+    clear: [[0, -18, 7], [-22, 6, 7], [24, 12, 8], [30, -14, 6], [0, 30, 5], [-18, 22, 4], [-26, 22, 4], [18, 22, 4], [26, 22, 4], [-10, 22, 4], [10, 22, 4]],
+    props: [['crate', 2], ['hay', 2], ['barrel', 2], ['stack', 1], ['boom', 1]], propN: [18, 24],
+    build() {
+      const steel = matStd({ color: 0xd8d4cc, metalness: .6, roughness: .4 }), wood = matStd({ map: woodTex, color: 0x9a6a4a });
+      const colors = [0xff3a5a, 0xffd23f, 0x3ad8ff, 0x7dff7a, 0xff8a3a, 0xc05aff];
+      // the Ferris wheel: it keeps turning, lights on
+      addBox(0, -18, 11, 4, .4, matStd({ color: 0x5a4a3a }));
+      for (const sx of [-1, 1]) for (const sz of [-1.3, 1.3]) { const leg = put(new THREE.Mesh(unitBox, steel)); leg.scale.set(.35, 13.3, .35); leg.position.set(sx * 2.4, 6.4, -18 + sz); leg.rotation.z = sx * .36; leg.castShadow = true; }
+      const wheel = put(new THREE.Group()); wheel.position.set(0, 12.5, -18);
+      for (let k = 0; k < 16; k++) {
+        const a = k / 16 * Math.PI * 2, rim = new THREE.Mesh(unitBox, steel); rim.scale.set(.25, 3.6, .25); rim.position.set(Math.cos(a) * 9, Math.sin(a) * 9, 0); rim.rotation.z = a; wheel.add(rim);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 6), basic(colors[k % colors.length])); bulb.position.set(Math.cos(a) * 9.3, Math.sin(a) * 9.3, .2); wheel.add(bulb);
+      }
+      for (let k = 0; k < 8; k++) {
+        const a = k / 8 * Math.PI * 2, sp = new THREE.Mesh(unitBox, steel); sp.scale.set(.15, 9, .15); sp.position.set(Math.cos(a) * 4.5, Math.sin(a) * 4.5, 0); sp.rotation.z = a - Math.PI / 2; wheel.add(sp);
+        const car = new THREE.Mesh(unitBox, matStd({ color: colors[k % colors.length] })); car.scale.set(1.4, 1.1, 1.6); car.position.set(Math.cos(a) * 9, Math.sin(a) * 9 - 1, 0); car.castShadow = true; wheel.add(car);
+      }
+      const hubM = new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, 1.2, 16), steel); hubM.rotation.x = Math.PI / 2; wheel.add(hubM);
+      mapSpin.push(wheel); pointLight(0x3ad8ff, 1.6, 26, 0, 8, -14);
+      // the carousel
+      cylinderSolid(-22, 6, 5, .5, wood);
+      addBox(-22, 6, .4, .4, 4.6, steel, .5, false);
+      const roof = put(new THREE.Mesh(new THREE.ConeGeometry(5.6, 2.4, 16), matStd({ color: 0xc8283a }))); roof.position.set(-22, 6.3, 6); roof.castShadow = true;
+      put(new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.4, 16), matStd({ color: 0xf2e8d8 }))).position.set(-22, 7.9, 6);
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, x = -22 + Math.cos(a) * 3.6, z = 6 + Math.sin(a) * 3.6; addBox(x, z, .08, .08, 4.2, steel, .5, false); const h = addBox(x, z, .35, 1.1, .6, matStd({ color: k % 2 ? 0xf2e8d8 : 0x6a3a2a }), 1.2, false); h.rotation.y = -a; }
+      pointLight(0xff4a8a, 1.4, 16, -22, 3.5, 6);
+      // two big tents
+      cylinderSolid(24, 12, 6, 3, matStd({ color: 0xe8dcc8 }));
+      put(new THREE.Mesh(new THREE.ConeGeometry(6.6, 4, 16), matStd({ color: 0xb8283a }))).position.set(24, 5, 12);
+      addBox(24, 12, .15, .15, 3, steel, 7, false);
+      cylinderSolid(30, -14, 4.2, 2.6, matStd({ color: 0xe0c85a }));
+      put(new THREE.Mesh(new THREE.ConeGeometry(4.7, 3.2, 16), matStd({ color: 0x3a5ab8 }))).position.set(30, 4.2, -14);
+      label(['CIRKUSZ'], '#ffd23f', 2.4, 24, 9.8, 12);
+      // a row of stalls with striped awnings
+      [-26, -18, -10, 10, 18, 26].forEach((x, i) => {
+        addBox(x, 22, 5, 2.2, 1.1, wood); addBox(x, 20.7, 5, .3, 2.7, wood);
+        addBox(x, 21.8, 5.6, 3, .15, matStd({ color: colors[i % colors.length] }), 2.75, false);
+        [-2.6, 2.6].forEach(dx => addBox(x + dx, 23.1, .12, .12, 2.75, poleMat, 0, false));
+      });
+      label(['CÉLLÖVÖLDE'], '#ff8a3a', 1.6, -18, 3.8, 22.3); label(['VATTACUKOR'], '#ff9ad8', 1.4, 10, 3.8, 22.3);
+      // the gate arch
+      [-4.5, 4.5].forEach(dx => addBox(dx, 31, .45, .45, 6, matStd({ color: 0xc8283a })));
+      addBox(0, 31, 9.6, .5, 1.3, matStd({ color: 0xf2e8d8 }), 5.4, false);
+      label(['VÁSÁR'], '#ffd23f', 3, 0, 7.6, 31);
+    },
+    areas: {
+      north: { side: 'n', at: 22, name: 'Szellemvasút', cost: 1250, core: { minX: 10, maxX: 34, minZ: -56, maxZ: -34 }, spawns: [[14, -53], [30, -53]], station: ['trap', 22, -42], graves: true },
+      west:  { side: 'w', at: 0, name: 'Lövöldebódé', cost: 1000, core: { minX: -66, maxX: -44, minZ: -12, maxZ: 12 }, spawns: [[-63, -9], [-63, 9]], station: ['forge', -54, -4] },
+      east:  { side: 'e', at: 4, name: 'Elsősegély-sátor', cost: 750, core: { minX: 44, maxX: 66, minZ: -8, maxZ: 16 }, spawns: [[63, -5], [63, 13]], station: ['well', 54, 4] },
+    },
+  },
 };
 const MAP_IDS = Object.keys(MAPS);
 

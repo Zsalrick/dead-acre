@@ -172,7 +172,7 @@ function zHeadPos(z) { return tmpV.set(z.pos.x, (z.K.crawl ? 1 : 2) * z.scale + 
 
 const tallyHit = (amt, o) => { if (o.remote || o.chain) return; if (!o.dot) player.hitsN++; player.dmgDone += amt; };
 function hurtZombie(z, amt, o = {}) {
-  if (NET.client && mission) { if (!z.dead) tallyHit(amt, o); return netHit(z, amt, o); } // a party member's hit goes to the host
+  if (NET.client && mission) { if (!z.dead) { tallyHit(amt, o); if (!o.dot) z.flinch = .12; } return netHit(z, amt, o); } // a party member's hit goes to the host
   if (z.dead) return;
   if (z.invulnT > 0) { z.flash = .08; return; } // a bounty boss between phases
   if (o.remote) { if (o.insta && !z.K.boss) amt = Math.max(amt, z.hp); } // the sender already applied their own bonuses
@@ -189,7 +189,7 @@ function hurtZombie(z, amt, o = {}) {
     else o.color = o.color || '#8a929a';
   }
   if (!o.remote && exoOn('cryo') && (z.slowT > 0 || (z.net && z.net.fl & 32))) amt *= 1.3; // Kriosztát
-  z.hp -= amt; z.flash = .08; z.hitT = now; tallyHit(amt, o);
+  z.hp -= amt; z.flash = .08; z.hitT = now; tallyHit(amt, o); if (!o.dot) z.flinch = .12;
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit, z);
   if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
@@ -240,6 +240,7 @@ function killZombie(z, o) {
   if (exoOn('bomber') && !o.w && !o.melee && !o.dot) player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 1); // Robbanómellény
   if (brand4('cinder') && !o.w && !o.melee && !o.dot && Math.random() < .4) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .9, pr: .01, pdmg: .001, color: 0xff9a4a }), 120);
   if (o.head && o.w && exoOn('quick')) o.w.ammo = o.w.mag;
+  if (o.head && !z.K.boss) headPop(z);
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(z.K.points || (o.melee ? 130 : o.head ? 100 : 60));
@@ -436,6 +437,7 @@ function updateZombies(dt) {
     const sw = Math.sin(z.walkT) * z.amp;
     z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
     ease(z.upper.rotation, 'x', K.lean);
+    if (z.flinch > 0) { z.flinch -= dt; z.upper.rotation.x -= z.flinch * 2.5; } // a hit jolts the torso back
     z.upper.rotation.z = Math.sin(z.walkT * .5) * .06;
     if (K.crawl) { z.armL.rotation.x = -1.3 + sw * 1.2; z.armR.rotation.x = -1.3 - sw * 1.2; }
     else {
@@ -731,4 +733,10 @@ const MULTI = ['', '', 'DUPLA', 'TRIPLA', 'NÉGYES', 'ÖTÖS', 'MÉSZÁRLÁS'];
 function multiKill() {
   player.mk = now - (player.mkT || -9) < 1.3 ? (player.mk || 1) + 1 : 1; player.mkT = now;
   if (player.mk >= 2) { const n = Math.min(player.mk, MULTI.length - 1); popText(`${MULTI[n]} ÖLÉS! +${25 * player.mk}`, '#ffd23f'); addPoints(25 * player.mk); tn(500 + 120 * n, .12, .07, 'triangle'); }
+}
+
+// a headshot kill takes the head off: everything above the shoulders goes, in a red spray
+function headPop(z) {
+  for (const c of z.upper.children) if (c.position.y > .85) c.visible = false;
+  const h = new V3(z.pos.x, 2 * z.scale, z.pos.z); burst(h, 0x7a0a0a, 22, 4.5, .7); burst(h, 0xd8d0b8, 5, 3, .5); nz(.12, 900, .35, 'bandpass', 2);
 }
