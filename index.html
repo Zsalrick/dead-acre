@@ -759,6 +759,10 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 .hubbody .dact{padding:8px 12px;gap:4px}.hubbody .dact .sbtn{padding:5px 9px;font-size:11px}
 #hub{padding-bottom:52px}
 @media (max-height:820px){.hubbody .dhead img{max-height:84px}}
+#helpcard{position:absolute;right:24px;top:50%;translate:0 -50%;width:min(430px,40vw);padding:14px 18px;background:rgba(8,10,9,.86);border:1px solid rgba(242,163,58,.5);font-size:12px;color:#cfc6b0;pointer-events:none;transition:opacity .6s}
+#helpcard b{display:block;font-family:'Black Ops One',Impact,sans-serif;font-size:18px;color:#f2a33a;margin-bottom:6px;letter-spacing:.06em}
+#helpcard ul{margin:0 0 8px;padding:0;list-style:none;display:grid;gap:5px}#helpcard kbd{display:inline-block;padding:0 5px;margin:0 1px;border:1px solid rgba(232,226,208,.35);font:600 11px inherit;color:#e8e2d0}
+#helpcard.fade{opacity:0}
 </style>
 
 <div id="game">
@@ -785,6 +789,11 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
     <div id="br"><div id="hint"></div><div id="wname"></div><div id="wsub"></div>
       <div id="ammo" class="num"><span id="mag">0</span><span id="res">/ 0</span></div><div id="slots"></div></div>
     <div id="kfeed" aria-live="off"></div>
+    <div id="helpcard" hidden><b>Irányítás</b>
+      <ul><li><kbd>W A S D</kbd> mozgás · <kbd>Shift</kbd> sprint · <kbd>Space</kbd> ugrás</li><li><kbd>Bal egér</kbd> lövés · <kbd>Jobb egér</kbd> célzás · <kbd>R</kbd> újratöltés · <kbd>1</kbd><kbd>2</kbd> fegyverváltás</li>
+      <li><kbd>E</kbd> használat (láda, kapu, doboz, furgon) · <kbd>F</kbd> felvétel · <kbd>F</kbd> nyomva: csere</li><li><kbd>G</kbd> gránát · <kbd>Q</kbd> dobókés · <kbd>V</kbd> kés · <kbd>H</kbd> gyógycsomag · <kbd>X</kbd> adrenalin</li>
+      <li><kbd>C</kbd> kaszt-képesség · <kbd>Z</kbd> vagy <kbd>középső egér</kbd> ping · <kbd>Tab</kbd> leltár · <kbd>Enter</kbd> csapatchat</li></ul>
+      <small>Élj túl, szedd fel a zsákmányt, és szállj be a furgonba, amikor visszajön. <kbd>F1</kbd>: ez a lap újra.</small></div>
     <div id="compass" aria-hidden="true"><div id="compassIn"></div></div>
     <div id="pings"></div>
     <div id="mates" hidden></div>

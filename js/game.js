@@ -82,6 +82,7 @@ function endIntro() {
   M.intro = -1; M.departT = 0; state = 'playing';
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
   equipView(); player.switchT = SWITCH_T * .5;
+  if (!stats.jobs || M.job.test) showHelp(12); // the first job (and the testing ground): the controls on screen
   if (M.job.test) banner('LŐTÉR', 'Célbábuk előtted. Esc: leltár és vissza a bázisra.'); else { banner('1. HULLÁM', noClock(M.job) ? 'Jönnek. A furgon akkor jön, ha kész a feladat.' : 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart(); }
   if (!locked && !noLock) { needClick = true; $('clickHint').hidden = false; } // one click grabs the mouse
 }
@@ -384,6 +385,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyV') knife();
   else if (e.code === 'KeyC') useAbility();
   else if (e.code === 'KeyZ') doPing();
+  else if (e.code === 'F1') { e.preventDefault(); showHelp(10); }
   else if ((e.code === 'Escape' || e.code === 'KeyP') && !locked) pause();
 });
 
@@ -642,3 +644,7 @@ function updateSellHold(dt) {
   $('holdLbl').textContent = 'Csere…';
   $('holdfill').style.width = fHold / SWAP_HOLD * 100 + '%';
 }
+
+// the controls card: on the first job, in the testing ground, and on F1
+let helpT = 0;
+function showHelp(sec) { const h = $('helpcard'); h.hidden = false; h.classList.remove('fade'); clearTimeout(helpT); helpT = setTimeout(() => { h.classList.add('fade'); helpT = setTimeout(() => h.hidden = true, 700); }, sec * 1000); }
