@@ -34,6 +34,7 @@ function spawnPower(pos, type) {
   powerUps.push({ type, s, t: 26 });
 }
 function takePower(p) {
+  itemFeed('felvette', POWERS[p.type].label, p.type === 'ammo' ? 0 : 1);
   if (p.type === 'ammo') { [...player.slots, ...player.bag].forEach(w => { if (w) w.reserve = Math.min(resMax(w), w.reserve + w.mag * 2); }); SND.reload(); return popText('+ lőszer', '#ffd27a'); }
   SND.power(); banner(POWERS[p.type].label.toUpperCase());
   if (p.type === 'max') [...player.slots, ...player.bag].forEach(w => { if (w) { w.reserve = resMax(w); w.ammo = w.mag; } });
@@ -215,7 +216,7 @@ function updateItemDrops(dt) {
     const d = itemDrops[i]; d.t -= dt;
     d.s.position.y = .5 + Math.sin(now * 3 + i) * .08; d.s.visible = d.t > 6 || Math.sin(now * 16) > 0;
     if (Math.hypot(d.s.position.x - player.pos.x, d.s.position.z - player.pos.z) < 1.4 && player.inv[d.k] < itemMax(d.k)) {
-      player.inv[d.k]++; renderInv(); SND.pickup(0); popText(`+1 ${ITEMS[d.k].name}`, ITEMS[d.k].color); d.t = 0;
+      player.inv[d.k]++; renderInv(); SND.pickup(0); itemFeed('felvette', ITEMS[d.k].name, 0); popText(`+1 ${ITEMS[d.k].name}`, ITEMS[d.k].color); d.t = 0;
     }
     if (d.t <= 0) { scene.remove(d.s); itemDrops.splice(i, 1); }
   }

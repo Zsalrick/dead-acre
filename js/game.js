@@ -314,14 +314,14 @@ $('loadout').addEventListener('click', e => {
   const [kind, f, i, t, j] = b.dataset.act.split(':'), held = curW();
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderPauseInv(); }
   if (kind === 'mv') moveGun({ L: player.slots, B: player.bag }, f, +i, t, +j);
-  if (kind === 'gdrop') { const it = mission.gear.splice(+f, 1)[0]; if (it) netShareDrop('g', it, spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6))))); invSel = ''; }
+  if (kind === 'gdrop') { const it = mission.gear.splice(+f, 1)[0]; if (it) itemFeed('eldobta', it.name, it.q); if (it) netShareDrop('g', it, spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6))))); invSel = ''; }
   if (kind === 'destroy') { // parts are paid out only if you extract
     const w = f === 'L' ? player.slots[+i] : player.bag[+i];
     if (!w || (f === 'L' && player.slots.filter(Boolean).length < 2)) return;
     if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
-    mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
+    itemFeed('szétszedte', w.name, w.unique ? 5 : w.q); mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
   }
-  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) mission.parts = (mission.parts || 0) + fieldParts(it.q); invSel = ''; }
+  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { itemFeed('szétszedte', it.name, it.q); mission.parts = (mission.parts || 0) + fieldParts(it.q); } invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
@@ -332,7 +332,7 @@ $('loadout').addEventListener('click', e => {
     const w = f === 'L' ? player.slots[+i] : player.bag[+i];
     if (!w || (f === 'L' && player.slots.filter(Boolean).length < 2)) return;
     if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
-    netShareDrop('w', w, spawnDrop(w, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))));
+    itemFeed('eldobta', w.name, w.unique ? 5 : w.q); netShareDrop('w', w, spawnDrop(w, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))));
   }
   if (!player.slots[player.cur]) player.cur = 1 - player.cur;
   if (curW() !== held) { stopReload(); equipView(); }
@@ -612,7 +612,7 @@ function takeLoot(f, swap) {
   if (!ok) swap = false; // above your level: it can only ride in the bag
   if (!swap && hand < 0 && player.bag.length >= bagMax()) { popText(ok ? 'Tele a táska · tartsd nyomva az F-et a cseréhez' : `${w.level}. szintű: csak a táskába teheted, de tele van`, '#ff8a70'); return SND.deny(); }
   if (f.type === 'drop') { netTookDrop(f.drop); removeDrop(f.drop); } else { box.state = 'idle'; scene.remove(box.show); box.show = null; boxUsed(); }
-  focus = null;
+  focus = null; itemFeed('felvette', w.name, w.unique ? 5 : w.q);
   if (swap || hand >= 0) return giveWeapon(w);
   player.bag.push(w); trackBest(w); noteFound(w); SND.pickup(w.q);
   popText(ok ? `${w.name} a táskába (${player.bag.length}/${bagMax()})` : `${w.name} a táskába · ${w.level}. szinttől használhatod`, ok ? rarColor(w) : '#ff8a70');

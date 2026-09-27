@@ -105,7 +105,7 @@ function updateGearDrops(dt) {
   }
 }
 function removeGearDrop(d) { scene.remove(d.g); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
-function takeGear(d) { netTookDrop(d); d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
+function takeGear(d) { netTookDrop(d); itemFeed('felvette', d.it.name, d.it.q); d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
 function clearGearDrops() { while (gearDrops.length) { const d = gearDrops.pop(); scene.remove(d.g); } }
 
 // ---------- weapons: two in hand (L, fixed slots), up to five in the bag (B), the stash at home (S) ----------

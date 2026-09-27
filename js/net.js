@@ -174,7 +174,7 @@ function updateAvatars(dt, peers) {
     a.pos.x = q.x; a.pos.z = q.z;
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
     if (P.dn && !a.down) killFeed(String(P.dby || 'a horda').slice(0, 30), '#c9c1a8', '', '', a.name, a.col);
-    for (const [, wn, wq, kn, hd] of fresh('kf' + p.peer, P.kf)) killFeed(a.name, a.col, String(wn).slice(0, 40), RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0', String(kn).slice(0, 30), '#c9c1a8', hd);
+    for (const [, wn, wq, kn, hd, vb] of fresh('kf' + p.peer, P.kf)) { const rc = RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0'; killFeed(a.name, a.col, String(wn).slice(0, 40), rc, String(kn).slice(0, 40), vb ? rc : '#c9c1a8', hd, vb ? String(vb).slice(0, 20) : ''); }
     a.down = !!P.dn; a.kc = +P.kc || 0; a.rvc = +P.rvc || 0; a.hp = +P.hp || 0; a.mh = +P.mh || 100; a.au = Array.isArray(P.au) ? P.au : null;
     a.yaw = q.yw; a.pitch = q.pt;
     // body: yaw on the whole figure, pitch shared by the torso, head, arms and gun; legs walk with speed
@@ -634,12 +634,18 @@ function updateCompass() {
 }
 
 // ---------- kill feed, top right: who killed what with what, and who went down to what ----------
-function killFeed(a, aCol, wName, wCol, b, bCol, head) {
+function killFeed(a, aCol, wName, wCol, b, bCol, head, verb) {
   const box = $('kfeed'); if (!box) return;
   const el = document.createElement('div'); el.className = 'kf';
-  el.innerHTML = `<b style="color:${aCol}">${esc(a)}</b>${wName ? ` <i style="color:${wCol}">[${esc(wName)}]</i>` : ' <i>⟶</i>'} <b style="color:${bCol}">${esc(b)}</b>${head ? ' <em>FEJLÖVÉS</em>' : ''}`;
+  el.innerHTML = `<b style="color:${aCol}">${esc(a)}</b>${verb ? ` <i class="kv">${esc(verb)}</i>` : wName ? ` <i style="color:${wCol}">[${esc(wName)}]</i>` : ' <i>⟶</i>'} <b style="color:${bCol}">${esc(b)}</b>${head ? ' <em>FEJLÖVÉS</em>' : ''}`;
   box.prepend(el); while (box.children.length > 5) box.lastChild.remove();
   setTimeout(() => el.classList.add('out'), 4200); setTimeout(() => el.remove(), 4800);
+}
+// picking up, dropping and taking things apart go in the feed too, for the whole party
+function itemFeed(verb, name, q) {
+  const col = CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a';
+  killFeed(NET.mode ? myName() : 'Te', col, '', '', name, RARITIES[q] ? RARITIES[q].color : '#cfc6b0', false, verb);
+  if (NET.mode && NET.kf) pushRoll(NET.kf, [++NET.seq, '', q, String(name).slice(0, 40), 0, verb], 6);
 }
 function myKill(w, kindName, head) {
   const col = CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a', wq = w.unique ? 5 : w.q || 0;
