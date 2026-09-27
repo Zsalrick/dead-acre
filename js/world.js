@@ -1,6 +1,9 @@
 ﻿// ================= RENDERER / SCENES =================
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+// filmic curve: deep blacks, lamps and fire roll off instead of clipping (gfx.js may lower the pixel ratio / shadows per quality)
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -16,8 +19,9 @@ scene.add(camera);
 
 const vmScene = new THREE.Scene();
 const vmCamera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, .01, 10);
-vmScene.add(new THREE.AmbientLight(0x7888a0, .8));
-const vmSun = new THREE.DirectionalLight(0xffe2c0, 1); vmSun.position.set(1, 2, 1.5); vmScene.add(vmSun);
+vmScene.add(new THREE.HemisphereLight(0x8a9cc0, 0x2a2018, .6));
+const vmSun = new THREE.DirectionalLight(0xffe2c0, .85); vmSun.position.set(1, 2, 1.5); vmScene.add(vmSun);
+const vmRim = new THREE.DirectionalLight(0x9ab4ff, .45); vmRim.position.set(-2, 1, -1.5); vmScene.add(vmRim); // cool moon rim on the gun edges
 const vmRoot = new THREE.Group(); vmScene.add(vmRoot);
 
 addEventListener('resize', () => {
@@ -27,15 +31,15 @@ addEventListener('resize', () => {
 });
 
 // lights
-const hemi = new THREE.HemisphereLight(0x5a6f99, 0x1d1710, .6); scene.add(hemi);
-const moon = new THREE.DirectionalLight(0xa4b6ff, .55);
+const hemi = new THREE.HemisphereLight(0x5a6f99, 0x2a2016, .75); scene.add(hemi);
+const moon = new THREE.DirectionalLight(0xa4b6ff, .7);
 moon.position.set(-30, 50, -20); moon.castShadow = true;
 moon.shadow.mapSize.set(2048, 2048);
 Object.assign(moon.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 1, far: 150 });
-moon.shadow.bias = -.0006;
+moon.shadow.bias = -.0006; moon.shadow.normalBias = .02;
 scene.add(moon);
 const muzzleLight = new THREE.PointLight(0xffb060, 0, 9, 2); scene.add(muzzleLight);
-const boomLight = new THREE.PointLight(0xff8a30, 0, 18, 2); scene.add(boomLight);
+const boomLight = new THREE.PointLight(0xff8a30, 0, 26, 2); scene.add(boomLight);
 
 // ================= TEXTURES =================
 function canvasTex(size, draw, repeat) {
@@ -119,7 +123,28 @@ function drawTextSprite(s) {
 const obstacles = [];   // AABBs for movement
 const rayBlockers = []; // meshes that stop bullets
 const matStd = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: .95, metalness: 0 }, o));
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(320, 320), matStd({ map: groundTex, color: 0x9a9a88 }));
+// tiling bump detail for every ground texture (normal map from a noise height field; it follows the map's uv repeat)
+const groundNormal = (() => {
+  const S = 256, h = new Float32Array(S * S);
+  for (let o = 0; o < 4; o++) { // value noise octaves, wrapped so the tile repeats seamlessly
+    const n = 4 << o, gr = []; for (let i = 0; i < n * n; i++) gr.push(Math.random());
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const fx = x / S * n, fy = y / S * n, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+      const v = (a, b) => gr[(b % n) * n + (a % n)], sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      h[y * S + x] += (lerp(lerp(v(x0, y0), v(x0 + 1, y0), sx), lerp(v(x0, y0 + 1), v(x0 + 1, y0 + 1), sx), sy)) / (1 << o);
+    }
+  }
+  for (let i = 0; i < 250; i++) { const x = Math.floor(Math.random() * S), y = Math.floor(Math.random() * S), a = rand(.1, .25); for (let k = 0; k < 4; k++) h[((y + (k >> 1)) % S) * S + (x + (k & 1)) % S] += a; } // pebbles
+  return canvasTex(S, g => {
+    const img = g.createImageData(S, S), at = (x, y) => h[((y + S) % S) * S + (x + S) % S];
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const dx = (at(x + 1, y) - at(x - 1, y)) * 3, dy = (at(x, y + 1) - at(x, y - 1)) * 3, l = Math.hypot(dx, dy, 1), i = (y * S + x) * 4;
+      img.data[i] = (-dx / l * .5 + .5) * 255; img.data[i + 1] = (dy / l * .5 + .5) * 255; img.data[i + 2] = (1 / l * .5 + .5) * 255; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }, 34);
+})();
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(320, 320), matStd({ map: groundTex, color: 0x9a9a88, normalMap: groundNormal, normalScale: new THREE.Vector2(1.1, 1.1) }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground); rayBlockers.push(ground);
 let mapGroup = new THREE.Group(); scene.add(mapGroup); // everything a map builds lives here so loading another map is one swap
@@ -141,13 +166,50 @@ const stoneMat = new THREE.MeshLambertMaterial({ color: 0x6b6a66 });
 const barkMat = new THREE.MeshLambertMaterial({ color: 0x1e1812 });
 const poleMat = matStd({ color: 0x2a2520 });
 // the barn, lamps, stations, box, props and so on are built per map in maps.js
-// sky
-const starGeo = new THREE.BufferGeometry(), sp = [];
-for (let i = 0; i < 600; i++) { const v = new V3().randomDirection ? new V3().randomDirection() : new V3(rand(-1, 1), rand(0, 1), rand(-1, 1)).normalize(); if (v.y < .05) v.y = -v.y + .05; sp.push(v.x * 200, v.y * 200, v.z * 200); }
-starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
-scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: .7, fog: false })));
-const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(8, 20, 16), new THREE.MeshBasicMaterial({ color: 0xe4e9ff, fog: false }));
+// sky: a dome that follows the camera. Horizon = the map's fog colour (maps and mods set it), darker zenith,
+// moon halo, twinkling stars and slow drifting clouds that hide the stars behind them.
+const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(7, 24, 16), new THREE.MeshBasicMaterial({ color: 0xe4e9ff, fog: false, map: canvasTex(128, (g, s) => {
+  g.fillStyle = '#fff'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(120,125,140,${rand(.08, .25)})`; g.beginPath(); g.arc(Math.random() * s, rand(.2, .8) * s, rand(3, 16), 0, 7); g.fill(); }
+}) }));
 moonMesh.position.set(-90, 110, -80); scene.add(moonMesh);
+const skyMat = new THREE.ShaderMaterial({
+  uniforms: { horizon: { value: new THREE.Color() }, moonDir: { value: moonMesh.position.clone().normalize() }, moonCol: { value: new THREE.Color() }, time: { value: 0 } },
+  vertexShader: 'varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform vec3 horizon, moonDir, moonCol; uniform float time; varying vec3 vDir;
+    float hash(vec3 p) { p = fract(p * .3183099 + .1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+    float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(vec3(i, 1.0)), hash(vec3(i + vec2(1, 0), 1.0)), f.x), mix(hash(vec3(i + vec2(0, 1), 1.0)), hash(vec3(i + vec2(1, 1), 1.0)), f.x), f.y); }
+    float fbm(vec2 p) { float v = 0.0, a = .5; for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + 7.1; a *= .5; } return v; }
+    void main() {
+      vec3 d = normalize(vDir); float h = d.y;
+      vec3 zenith = horizon * .28 + vec3(.004, .007, .018);
+      vec3 col = mix(horizon * 1.15, zenith, smoothstep(-.02, .5, h));
+      col += horizon * .5 * exp(-abs(h) * 14.0);                               // haze band on the horizon
+      float md = max(dot(d, moonDir), 0.0);
+      col += moonCol * (pow(md, 60.0) * .22 + pow(md, 8.0) * .05);              // moon halo
+      vec2 uv = d.xz / (h + .18) * 1.6 + vec2(time * .006, time * .002);
+      float c = smoothstep(.42, .82, fbm(uv)) * smoothstep(-.02, .25, h);
+      vec3 st = floor(d * 260.0); float r = hash(st);
+      if (r > .996 && h > 0.0) { float s = smoothstep(.45, 0.0, length(fract(d * 260.0) - .5));
+        col += vec3(.8, .86, 1.0) * s * (.6 + .4 * sin(time * (2.0 + r * 3.0) + r * 900.0)) * smoothstep(0.0, .2, h) * (r > .9993 ? 2.2 : 1.2); }
+      vec3 cloud = horizon * 1.6 + moonCol * .06 * (.4 + md);                    // moonlit cloud tops
+      col = mix(col, cloud, c * .85);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+  side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
+});
+const skyDome = new THREE.Mesh(new THREE.SphereGeometry(150, 32, 16), skyMat);
+skyDome.renderOrder = -1000; skyDome.frustumCulled = false;
+skyDome.onBeforeRender = (r, sc, cam) => {
+  skyDome.position.copy(cam.position);
+  skyMat.uniforms.horizon.value.copy(scene.fog.color); skyMat.uniforms.moonCol.value.copy(moonMesh.material.color);
+  skyMat.uniforms.time.value = performance.now() / 1000;
+  moonHalo.material.color.copy(moonMesh.material.color).multiplyScalar(.55);
+};
+scene.add(skyDome);
+const moonHalo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x8090c0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: .5 }));
+moonHalo.scale.set(40, 40, 1); moonMesh.add(moonHalo);
 
 // ================= COLLISION =================
 function collide(p, r) {
@@ -171,12 +233,23 @@ function blockedAt(x, z, r) {
 
 // ================= GUN MODELS =================
 const sharedCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
+// a small painted studio cube for the first-person / arsenal guns: metal needs something to reflect or it reads as flat black
+const gunEnv = (() => {
+  const face = (k) => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+    if (k === 2) { const gr = g.createRadialGradient(32, 32, 4, 32, 32, 44); gr.addColorStop(0, '#9aa4b8'); gr.addColorStop(1, '#3a4250'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; }
+    if (k === 3) { g.fillStyle = '#17120e'; g.fillRect(0, 0, 64, 64); return c; }
+    const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, '#3a4250'); gr.addColorStop(.55, '#6a6660'); gr.addColorStop(.62, '#2a241e'); gr.addColorStop(1, '#17120e');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    if (k === 0 || k === 4) { g.fillStyle = k ? '#d8c8a8' : '#c8d4f0'; g.fillRect(k ? 8 : 34, 12, 20, 16); } // two soft "windows" for highlights
+    return c; };
+  const t = new THREE.CubeTexture([0, 1, 2, 3, 4, 5].map(face)); t.needsUpdate = true; return t;
+})();
 const gunMatCache = {};
 function gunMats(color, world) {
   const k = color + world;
   if (!gunMatCache[k]) {
     const M = world ? THREE.MeshLambertMaterial : THREE.MeshStandardMaterial;
-    const o = (metalness, roughness) => world ? {} : { metalness, roughness };
+    const o = (metalness, roughness) => world ? {} : { metalness, roughness, envMap: gunEnv, envMapIntensity: .9 };
     gunMatCache[k] = {
       metal: new M(Object.assign({ color: 0x3c4046 }, o(.7, .38))),
       steel: new M(Object.assign({ color: 0x8a9098 }, o(.85, .28))),
@@ -219,6 +292,7 @@ function buildGun(w, world) {
   const rifle = !!(m.stock || L > .3), pistol = !rifle && !m.drum && !b.energy;
   const bodyMat = M.metal, furn = ['shotgun', 'dbarrel', 'lever', 'crossbow', 'launcher', 'revolver'].includes(b.id) ? M.wood : M.rub;
   const by = H * .15, bz = -L / 2 - m.barrel / 2, muzzle = -L / 2 - m.barrel;
+  if (m.multi) return buildMinigun(g, M, m, world, add, rb, bx, cz);
 
   // receiver / frame
   if (pistol) {
@@ -245,12 +319,7 @@ function buildGun(w, world) {
   for (let i = 0; i < 4; i++) bx(W * .84, .004, H * .45, M.dark, 0, -H * .6 - i * H * .16, L * .3 + i * H * .05, .32); // grip texture
 
   // barrel(s)
-  if (m.multi) {
-    const sp = new THREE.Group(); sp.position.set(0, by, bz); g.add(sp); U.spinner = sp;
-    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; cz(m.br * .3, m.barrel, M.dark, Math.cos(a) * m.br * .7, Math.sin(a) * m.br * .7, 0, 10, sp); }
-    [-.4, 0, .38].forEach(t => cz(m.br * 1.12, .025, M.metal, 0, 0, m.barrel * t, 20, sp));
-    cz(m.br * .35, m.barrel * 1.02, M.steel, 0, 0, 0, 10, sp);
-  } else if (m.double) {
+  if (m.double) {
     [-1, 1].forEach(sd => { cz(m.br, m.barrel, M.dark, sd * m.br * 1.02, by, bz, 18); cz(m.br * 1.08, .02, M.steel, sd * m.br * 1.02, by, muzzle + .01, 18); });
     bx(.006, .006, m.barrel, M.steel, 0, by + m.br * .9, bz);                                 // rib
   } else {
@@ -360,5 +429,57 @@ function buildGun(w, world) {
   if (U.mag) U.magY = U.mag.position.y;
   // aim line sits just above the tallest part (rails, handles, sights), so nothing on the gun covers the crosshair while aiming
   if (!world && !m.scope) { g.updateMatrixWorld(true); U.sightY = Math.max(U.sightY, new THREE.Box3().setFromObject(g).max.y + .006); }
+  return g;
+}
+// rotary cannon: motor housing, six-barrel cluster (U.spinner turns on its z), carry handle, belt-fed side box.
+// The grips sit where addHands() puts the hands for a gun of this len / h / barrel.
+const boreMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+function buildMinigun(g, M, m, world, add, rb, bx, cz) {
+  // the body sits well forward of the rear grip, so the bulk stays out of the camera's face
+  const U = g.userData, Y = .04, B = m.barrel * 1.1, Z = -.1, front = Z - .14, muzzle = front - B;
+  rb(.11, .12, .23, .02, M.metal, 0, Y, Z - .015);                                        // receiver housing
+  [-1, 1].forEach(sd => { bx(.003, .012, .18, M.accent, sd * .056, Y - .02, Z - .015); bx(.003, .045, .06, M.dark, sd * .056, Y + .02, Z + .04); }); // stripe + side plate
+  for (let i = 0; i < 4; i++) bx(.07, .004, .01, M.dark, 0, Y + .061, Z - .08 + i * .028); // top vents
+  cz(.038, .09, M.dark, 0, Y - .005, Z + .14, 20);                                        // electric motor
+  for (let i = 0; i < 3; i++) cz(.043, .007, M.metal, 0, Y - .005, Z + .112 + i * .024, 20); // cooling fins
+  cz(.03, .014, M.metal, 0, Y - .005, Z + .19, 20); cz(.008, .02, M.steel, 0, Y - .005, Z + .2, 8); // end cap + bolt
+  rb(.13, .14, .03, .01, M.dark, 0, Y, front + .015);                                     // bearing plate
+  cz(.062, .07, M.metal, 0, Y, front - .035, 24); cz(.066, .012, M.dark, 0, Y, front - .07, 24); // barrel shroud
+  const sp = new THREE.Group(); sp.position.set(0, Y, front - B / 2); g.add(sp); U.spinner = sp;
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2, x = Math.cos(a) * .036, y = Math.sin(a) * .036;
+    cz(.0115, B, M.dark, x, y, 0, 10, sp);
+    cz(.0145, .03, M.steel, x, y, -B / 2 + .015, 10, sp);                                   // muzzle crown
+    cz(.0065, .032, boreMat, x, y, -B / 2 + .015, 8, sp);                                   // bore
+  }
+  [[-B / 2 + .06, .054, M.steel], [-.02, .052, M.metal], [B / 2 - .1, .052, M.metal]].forEach(([z, r, mat]) => cz(r, .022, mat, 0, 0, z, 24, sp)); // barrel clamps
+  cz(.012, B, M.steel, 0, 0, 0, 10, sp);                                                  // centre rod
+  // front handle under the barrels, rear frame with the pistol grip + trigger
+  bx(.03, .018, .16, M.dark, 0, Y - .07, front - .06);
+  rb(.036, .1, .042, .012, M.rub, 0, Y - .125, -.345, .15);
+  for (let i = 0; i < 3; i++) bx(.038, .004, .044, M.dark, 0, Y - .1 - i * .025, -.343 + i * .004, .15);
+  bx(.05, .016, .16, M.dark, 0, Y - .05, .06);
+  rb(.046, .13, .06, .014, M.rub, 0, -.09, .13, .3);
+  add(torusGeo(.035, .005, Math.PI), M.dark, 0, Y - .065, .07, 0, Math.PI / 2, Math.PI);
+  bx(.008, .03, .01, M.steel, 0, Y - .08, .065, .35);
+  // carry handle
+  [Z + .06, Z - .1].forEach(z => bx(.014, .036, .018, M.dark, 0, Y + .075, z));
+  cz(.009, .2, M.rub, 0, Y + .096, Z - .02, 12);
+  // ammo box with the belt running up into the feed (a group, so the box reload can drop it and slide it back)
+  const mg = new THREE.Group(); mg.position.set(-.1, Y - .06, Z); g.add(mg); U.mag = mg;
+  rb(.07, .11, .14, .01, M.dark, 0, 0, 0, 0, 0, 0, mg);
+  rb(.075, .018, .145, .005, M.metal, 0, .06, 0, 0, 0, 0, mg);                             // lid
+  bx(.072, .01, .142, M.accent, 0, .034, 0, 0, 0, 0, mg);                                  // rarity band
+  bx(.004, .026, .05, M.steel, -.037, 0, 0, 0, 0, 0, mg);                                  // side latch
+  const belt = t => [-.02 + t * .075, .074 + Math.sin(t * Math.PI) * .026 + t * .03];
+  for (let i = 0; i < 8; i++) {
+    const [x, y] = belt(i / 7);
+    cz(.0055, .04, M.brass, x, y, 0, 8, mg); cz(.0035, .012, M.steel, x, y, -.026, 6, mg);    // rounds
+    if (i < 7) { const [x2, y2] = belt((i + 1) / 7); bx(.012, .004, .044, M.dark, (x + x2) / 2, (y + y2) / 2 - .006, 0, 0, 0, Math.atan2(y2 - y, x2 - x), mg); } // links
+  }
+  U.port = new V3(-.1, Y - .12, Z);
+  U.muzzleZ = muzzle; U.muzzleY = Y; U.magY = mg.position.y;
+  U.sightY = .1;
+  if (!world) { g.updateMatrixWorld(true); U.sightY = Math.max(U.sightY, new THREE.Box3().setFromObject(g).max.y + .006); }
   return g;
 }
