@@ -27,14 +27,17 @@ function tn(freq, dur, vol, type = 'square', freqEnd = 0, delay = 0) {
   o.connect(g).connect(master); o.start(t); o.stop(t + dur + .02);
 }
 const SND = {
-  light() { nz(.12, 2400, .5, 'bandpass', .8); tn(170, .06, .14, 'square', 60); },
-  mid() { nz(.18, 1600, .6); tn(120, .08, .2, 'square', 50); },
-  heavy() { nz(.35, 950, .8); tn(90, .16, .3, 'sawtooth', 35); },
-  boom() { nz(.45, 700, .95); tn(70, .22, .35, 'sawtooth', 30); },
+  // guns: a sharp crack, the body of the shot, a sub thump and a dark tail (the reverb does the rest)
+  light() { nz(.025, 5200, .45, 'highpass', .7); nz(.12, 2200, .5, 'bandpass', .8); tn(160, .07, .22, 'sine', 55); nz(.3, 600, .1, 'lowpass', .7, .02); },
+  mid() { nz(.03, 4600, .5, 'highpass', .7); nz(.18, 1500, .6); tn(120, .1, .32, 'sine', 42); nz(.45, 450, .15, 'lowpass', .7, .03); },
+  heavy() { nz(.04, 4000, .55, 'highpass', .7); nz(.32, 950, .85); tn(80, .22, .5, 'sine', 30); nz(.8, 320, .24, 'lowpass', .7, .04); },
+  boom() { nz(.05, 3500, .6, 'highpass', .7); nz(.45, 700, .95); tn(65, .3, .55, 'sine', 26); nz(1.1, 260, .3, 'lowpass', .7, .05); },
   ray() { tn(1300, .18, .16, 'square', 180); tn(620, .2, .12, 'sawtooth', 90); },
-  hit() { tn(1900, .035, .05); },
-  head() { tn(2600, .05, .07); tn(3400, .04, .04, 'square', 0, .03); },
-  kill() { tn(900, .08, .06, 'triangle', 300); },
+  hit() { nz(.07, 650, .3, 'lowpass', 2.5); tn(1900, .03, .035); },                                  // a wet thud + the marker tick
+  head() { nz(.08, 1500, .4, 'bandpass', 3); nz(.05, 500, .3, 'lowpass', 2); tn(2600, .05, .06); tn(3400, .04, .035, 'square', 0, .03); },
+  kill() { nz(.18, 320, .4, 'lowpass', 1.5); tn(900, .08, .05, 'triangle', 300); },
+  step(run) { nz(.05, run ? 500 : 380, run ? .16 : .1, 'lowpass', 1.2); nz(.025, 2600, .035, 'bandpass', 2, .01); },
+  down() { tn(220, 1.2, .18, 'sine', 70); nz(1.2, 200, .3, 'lowpass', 1); },
   hurt() { nz(.2, 300, .6, 'lowpass', 1); tn(80, .2, .4, 'sine', 40); },
   dry() { tn(1200, .02, .08); },
   reload() { nz(.05, 3000, .3, 'bandpass', 2); nz(.05, 2200, .3, 'bandpass', 2, .35); },
@@ -75,14 +78,21 @@ const SND = {
   power() { [0, 1, 2, 3].forEach(i => tn(520 + i * 180, .16, .09, 'triangle', 0, i * .06)); },
   roundStart() { tn(110, 1.6, .25, 'sawtooth', 82); tn(165, 1.6, .15, 'triangle', 123, .15); },
   roundEnd() { [0, 1, 2].forEach(i => tn(220 * Math.pow(1.19, i), .7, .12, 'triangle', 0, i * .22)); },
-  groan(vol) {
+  // a throat, not a buzzer: a rough voice through two vocal formants that slide from 'oo' to 'aa', with breath, placed left/right
+  groan(vol, pan = 0) {
     if (!ac) return;
-    const t = ac.currentTime, dur = rand(.8, 1.5), o = ac.createOscillator(), lfo = ac.createOscillator();
-    const lg = ac.createGain(), f = ac.createBiquadFilter(), g = ac.createGain(), f0 = rand(60, 95);
-    o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * rand(.7, 1.2), t + dur);
-    lfo.frequency.value = rand(5, 9); lg.gain.value = 8; lfo.connect(lg).connect(o.frequency);
-    f.type = 'lowpass'; f.frequency.value = 480;
-    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + .15); g.gain.exponentialRampToValueAtTime(.001, t + dur);
-    o.connect(f).connect(g).connect(master); o.start(t); lfo.start(t); o.stop(t + dur); lfo.stop(t + dur);
+    const t = ac.currentTime, dur = rand(.9, 1.8), f0 = rand(55, 95), o = ac.createOscillator(), lfo = ac.createOscillator(), lg = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * rand(1, 1.25), t); o.frequency.linearRampToValueAtTime(f0 * rand(.65, .9), t + dur);
+    lfo.frequency.value = rand(4, 11); lg.gain.value = rand(4, 12); lfo.connect(lg).connect(o.frequency);
+    const br = ac.createBufferSource(), bg = ac.createGain(); br.buffer = noiseBuf; bg.gain.value = .35;
+    const g = ac.createGain(), sp = ac.createStereoPanner ? ac.createStereoPanner() : null;
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + .18); g.gain.setValueAtTime(vol * .8, t + dur * .6); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    for (const [a, b, q, lv] of [[rand(300, 420), rand(600, 800), 5, 1], [rand(700, 900), rand(1000, 1300), 7, .6]]) {
+      const f = ac.createBiquadFilter(), fg = ac.createGain(); f.type = 'bandpass'; f.Q.value = q; fg.gain.value = lv;
+      f.frequency.setValueAtTime(a, t); f.frequency.linearRampToValueAtTime(b, t + dur * .5); f.frequency.linearRampToValueAtTime(a * .9, t + dur);
+      o.connect(f); br.connect(bg).connect(f); f.connect(fg).connect(g);
+    }
+    if (sp) { sp.pan.value = clamp(pan, -1, 1); g.connect(sp).connect(master); } else g.connect(master);
+    o.start(t); lfo.start(t); br.start(t, Math.random() * .5); o.stop(t + dur); lfo.stop(t + dur); br.stop(t + dur);
   },
 };

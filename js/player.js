@@ -234,7 +234,7 @@ function shotMul(w) {
 // fire-rate multiplier: anointment, the Haystack's spin-up, the Double Tap perk
 const rateMul = w => (w.anoint === 'ability' && player.buf && player.buf.ability > 0 ? 1.5 : 1) * (w.unique === 'haystack' ? 1 + (player.uHeat || 0) : 1) * (player.perks && player.perks.tap ? 1.25 : 1);
 function shoot() {
-  const w = curW(), b = w.base;
+  const w = curW(), b = w.base; player.shotsN += w.pellets || 1;
   if (!(player.stormT > 0)) w.ammo--; // Tűzvihar: the mag does not drain
   const sm = shotMul(w), forceCrit = w.unique === 'thirteen' && w.ammo === 0; w.fired = (w.fired || 0) + 1;
   NET.shots = (NET.shots || 0) + 1; // partners hear and see it
@@ -374,6 +374,7 @@ function updatePlayer(dt) {
     else { camera.position.set(player.pos.x, .45, player.pos.z); camera.rotation.set(player.pitch * .5, player.yaw, .4); $('vig').style.opacity = .85; }
     camera.fov = SET.fov; camera.updateProjectionMatrix(); return;
   }
+  const ff = player.ffyl > 0; if (ff) updateFFYL(dt);
   const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (keys.ArrowLeft) player.yaw += dt * 2.4; if (keys.ArrowRight) player.yaw -= dt * 2.4;
   if (keys.ArrowUp) player.pitch = Math.min(1.5, player.pitch + dt * 1.8); if (keys.ArrowDown) player.pitch = Math.max(-1.5, player.pitch - dt * 1.8);
@@ -381,15 +382,16 @@ function updatePlayer(dt) {
   const mv = new V3(-sy * f + cy * s, 0, -cy * f - sy * s);
   if (mv.lengthSq() > 0) mv.normalize();
   const adren = player.adrenT > 0;
-  player.sprint = keys.ShiftLeft && f > 0 && !rmb && !mouseDown && player.knifeT <= 0 && !player.reloading && (adren || player.stam > (player.sprint ? 0 : 15));
+  player.sprint = !ff && keys.ShiftLeft && f > 0 && !rmb && !mouseDown && player.knifeT <= 0 && !player.reloading && (adren || player.stam > (player.sprint ? 0 : 15));
   if (player.sprint && !adren && !perk('runner')) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
   else if ((player.stamT -= dt) <= 0) player.stam = Math.min(maxStam(), player.stam + 28 * (1 + .15 * U('stamina')) * dt);
   player.adrenT = Math.max(0, player.adrenT - dt); player.itemCd -= dt;
-  const speed = (player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
+  const speed = (ff ? .9 : 1) * (ff ? 1 : player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
   const k = 1 - Math.exp(-(player.onGround ? 12 : 3) * dt);
   player.vel.x = lerp(player.vel.x, mv.x * speed, k); player.vel.z = lerp(player.vel.z, mv.z * speed, k);
   player.pos.x += player.vel.x * dt; player.pos.z += player.vel.z * dt;
-  if (keys.Space && player.onGround) { player.vy = 6.2; player.onGround = false; }
+  if (player.onGround && Math.hypot(player.vel.x, player.vel.z) > 1 && (player.stepD += Math.hypot(player.vel.x, player.vel.z) * dt) > 2) { player.stepD = 0; SND.step(player.sprint); }
+  if (keys.Space && player.onGround && !ff) { player.vy = 6.2; player.onGround = false; }
   player.vy -= 18 * dt; player.pos.y += player.vy * dt;
   if (player.pos.y <= 0) { player.pos.y = 0; player.vy = 0; player.onGround = true; }
   collide(player.pos, .42);
@@ -399,7 +401,7 @@ function updatePlayer(dt) {
     if (d < r && d > 1e-4) { const k = NET.client ? .25 : 1; player.pos.x += (z.pos.x + dx / d * r - player.pos.x) * k; player.pos.z += (z.pos.z + dz / d * r - player.pos.z) * k; } // a member's proxies glide: push softly, no camera jumps
   }
   collide(player.pos, .42);
-  updateVitals(dt);
+  if (!ff) updateVitals(dt);
   // ads
   const w = curW();
   const adsTarget = rmb && !player.sprint && player.knifeT <= 0 ? 1 : 0;
@@ -410,8 +412,8 @@ function updatePlayer(dt) {
   player.shake = Math.max(0, player.shake - dt);
   const sh = player.shake * .06;
   const bob = player.onGround ? Math.sin(vm.bobT) * .035 * Math.min(1, Math.hypot(player.vel.x, player.vel.z) / 5) * (1 - player.ads) : 0;
-  camera.position.set(player.pos.x + rand(-sh, sh), player.pos.y + 1.65 + bob, player.pos.z + rand(-sh, sh));
-  camera.rotation.set(player.pitch, player.yaw, 0);
+  camera.position.set(player.pos.x + rand(-sh, sh), player.pos.y + (ff ? .55 : 1.65) + bob, player.pos.z + rand(-sh, sh));
+  camera.rotation.set(player.pitch, player.yaw, ff ? .18 : 0);
 }
 function updateVM(dt) {
   if (!vm.gun) return;
@@ -447,4 +449,26 @@ function updateVM(dt) {
   muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 60);
   const scoped = w.base.scopeView && ads > .85;
   vmRoot.visible = !scoped; $('scope').hidden = !scoped;
+}
+
+// ================= FIGHT FOR YOUR LIFE (Borderlands) =================
+// at 0 HP you drop: you can only shoot. Kill a zombie before the clock runs out and you get back up.
+// Every fall in the same job leaves less time. Out of time: solo the job fails, in a party you wait for a mate.
+function startFFYL() {
+  const M = mission; M.downs = (M.downs || 0) + 1;
+  player.ffyl = player.ffylMax = Math.max(5, 15 - 3 * (M.downs - 1)) + U('swind');
+  player.ffylK = player.kills; player.hp = 0; player.sprint = false; player.shake = .4;
+  banner('HARCOLJ AZ ÉLETEDÉRT', 'Ölj meg egy zombit, és felállsz!'); SND.hurt(); SND.down();
+  $('ffyl').hidden = false; renderer.domElement.style.filter = 'saturate(.25) contrast(1.15)';
+}
+function endFFYLView() { player.ffyl = 0; $('ffyl').hidden = true; renderer.domElement.style.filter = ''; }
+function updateFFYL(dt) {
+  if (player.kills > player.ffylK) { // second wind
+    const L = U('swind'); endFFYLView();
+    player.hp = maxHp() * (.2 + .2 * L); if (L >= 2) player.shield = maxShield(); player.lastHurt = now;
+    banner('ÚJRA TALPON!', 'Második szél.'); SND.power(); return;
+  }
+  player.ffyl -= dt;
+  $('ffylBar').style.width = clamp(player.ffyl / player.ffylMax, 0, 1) * 100 + '%'; $('ffylT').textContent = Math.max(0, player.ffyl).toFixed(1) + ' mp';
+  if (player.ffyl <= 0) { endFFYLView(); if (NET.mode) netDown(); else mission.dead = true; }
 }

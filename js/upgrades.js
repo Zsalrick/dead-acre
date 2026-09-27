@@ -12,6 +12,7 @@ const UPGRADES = {
   speed:       { name: 'Mozgási sebesség',   desc: '+4% futás- és sétasebesség',               max: 5,  base: 800,  val: l => `+${4 * l}%` },
   reload:      { name: 'Gyors kezek',        desc: '+6% újratöltési sebesség',                 max: 6,  base: 600,  val: l => `+${6 * l}%` },
   revive:      { name: 'Gyors felélesztés',  desc: '-15% idő, amíg felállítasz egy társat',   max: 4,  base: 1500, val: l => `${(10 * (1 - .15 * l)).toFixed(1)} mp` },
+  swind:       { name: 'Újraéledés',          desc: 'Ha a földön ölsz: több életerővel állsz fel, +1 mp harcidő; 2. szinttől teli pajzzsal', max: 4, base: 1200, val: l => `${20 + 20 * l}% életerő${l >= 2 ? ' + pajzs' : ''}` },
   bag:         { name: 'Nagyobb táska',      desc: '+2 fegyverhely a táskában (legfeljebb 15)', max: 5,  base: 4000, val: l => `${5 + 2 * l} hely` },
   ammo:        { name: 'Lőszertáska',        desc: '+15% tartalék lőszer minden fegyverhez',   max: 5,  base: 700,  val: l => `+${15 * l}%` },
 };

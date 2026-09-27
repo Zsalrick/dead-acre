@@ -46,11 +46,22 @@ const eyeMats = {};
 for (const k in KINDS) eyeMats[k] = new THREE.MeshBasicMaterial({ color: KINDS[k].eye });
 
 function pivot(g, x, y, z) { const p = new THREE.Group(); p.position.set(x, y, z); g.add(p); return p; }
+// rotting skin and blood-soaked cloth, painted once and shared; each zombie's own material tints them
+function zPaint(blots, n, seed) {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = mulberry(seed);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 64);
+  for (let i = 0; i < n; i++) { g.globalAlpha = .15 + r() * .45; g.fillStyle = blots[Math.floor(r() * blots.length)]; g.beginPath(); g.ellipse(r() * 64, r() * 64, 1 + r() * 8, 1 + r() * 5, r() * 3, 0, 7); g.fill(); }
+  g.globalAlpha = .5; g.strokeStyle = '#2a0806'; g.lineWidth = 1; for (let i = 0; i < 5; i++) { g.beginPath(); const x = r() * 64; g.moveTo(x, r() * 20); g.lineTo(x + r() * 6 - 3, 30 + r() * 34); g.stroke(); } // drips
+  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; return t;
+}
+const ZTEX = { skin: [1, 2, 3].map(k => zPaint(['#3a2a1a', '#6a1410', '#2a3a1a', '#d8d0b0', '#4a3a2a'], 26, k)), cloth: [4, 5, 6].map(k => zPaint(['#1a1210', '#6a0a08', '#000', '#8a7a60', '#3a0604'], 30, k)) };
+const zBone = new THREE.MeshLambertMaterial({ color: 0xd8d0b8 }), zGore = new THREE.MeshLambertMaterial({ color: 0x5a0a08, emissive: 0x1a0000 });
+const zMouth = new THREE.MeshBasicMaterial({ color: 0x140505 }), zHair = new THREE.MeshLambertMaterial({ color: 0x1c1712 });
 function mkZombie(kind) {
   const K = KINDS[kind];
-  const skin = new THREE.MeshLambertMaterial({ color: K.skin || pick(SKIN) });
-  const cloth = new THREE.MeshLambertMaterial({ color: kind === 'gunslinger' ? 0x5a4630 : pick(CLOTH) });
-  const pants = new THREE.MeshLambertMaterial({ color: 0x2a2b2e });
+  const skin = new THREE.MeshLambertMaterial({ color: K.skin || pick(SKIN), map: pick(ZTEX.skin) });
+  const cloth = new THREE.MeshLambertMaterial({ color: kind === 'gunslinger' ? 0x5a4630 : pick(CLOTH), map: pick(ZTEX.cloth) });
+  const pants = new THREE.MeshLambertMaterial({ color: 0x2a2b2e, map: pick(ZTEX.cloth) });
   const g = new THREE.Group();
   const add = (geo, mat, parent, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
   const legL = pivot(g, -.14, .8, 0), legR = pivot(g, .14, .8, 0);
@@ -63,6 +74,15 @@ function mkZombie(kind) {
   if (K.crawl) { legL.visible = legR.visible = false; upper.position.y = .3; }
   else parts.push(...legs);
   add(ZG.eye, eyeMats[kind], upper, -.1, 1.07, .235); add(ZG.eye, eyeMats[kind], upper, .1, 1.07, .235);
+  if (!K.ghost) { // decoration: no shadows, not hit boxes
+    const deco = (mat, parent, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(unitBox, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); return m; };
+    deco(zMouth, upper, 0, .93, .215, .24, .08, .02); deco(zBone, upper, 0, .958, .222, .18, .022, .01); // a gaping mouth with teeth
+    head.rotation.z = rand(-.18, .18); head.rotation.x = rand(-.1, .15);
+    if (Math.random() < .55) deco(zHair, upper, rand(-.04, .04), 1.255, -.03, .44, .07, rand(.3, .44));
+    if (Math.random() < .5) { deco(zGore, upper, rand(-.12, .12), .56, .183, .3, .3, .01); for (let i = 0; i < 3; i++) deco(zBone, upper, 0, .46 + i * .09, .19, .26, .025, .02); } // an open chest
+    for (let i = 0, n = 1 + Math.floor(Math.random() * 3); i < n; i++) deco(zGore, pick([upper, armL, armR]), rand(-.08, .08), rand(-.5, .9), rand(.08, .19), rand(.06, .14), rand(.06, .16), .01); // wounds
+    if (Math.random() < .3) { const arm = pick([armL, armR]); deco(zBone, arm, 0, -.76, 0, .05, .14, .05); deco(zGore, arm, 0, -.7, 0, .17, .04, .17); } // a torn-off hand
+  }
   if (K.bloat) {
     torso.scale.set(1.55, 1.15, 1.8);
     for (let i = 0; i < 6; i++) add(ZG.pus, acidMat, upper, rand(-.4, .4), rand(.15, .7), rand(.3, .36));
@@ -149,8 +169,9 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
 const tmpV = new V3();
 function zHeadPos(z) { return tmpV.set(z.pos.x, (z.K.crawl ? 1 : 2) * z.scale + z.g.position.y, z.pos.z).clone(); }
 
+const tallyHit = (amt, o) => { if (o.remote || o.chain) return; if (!o.dot) player.hitsN++; player.dmgDone += amt; };
 function hurtZombie(z, amt, o = {}) {
-  if (NET.client && mission) return netHit(z, amt, o); // a party member's hit goes to the host
+  if (NET.client && mission) { if (!z.dead) tallyHit(amt, o); return netHit(z, amt, o); } // a party member's hit goes to the host
   if (z.dead) return;
   if (z.invulnT > 0) { z.flash = .08; return; } // a bounty boss between phases
   if (o.remote) { if (o.insta && !z.K.boss) amt = Math.max(amt, z.hp); } // the sender already applied their own bonuses
@@ -166,9 +187,9 @@ function hurtZombie(z, amt, o = {}) {
     if (z.armor <= 0) { z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xc8d0d8, 16, 3.5, .6); o.color = '#c8d0d8'; }
     else o.color = o.color || '#8a929a';
   }
-  z.hp -= amt; z.flash = .08; z.hitT = now;
+  z.hp -= amt; z.flash = .08; z.hitT = now; tallyHit(amt, o);
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
-  if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit);
+  if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit, z);
   if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
   if (o.burnDps) { z.burnT = Math.max(z.burnT, o.burnT || 3); z.burnDps = Math.max(z.burnDps, o.burnDps); z.burnBy = o.remote || null; }
   if (!o.remote) weaponOnHit(z, amt, o);
@@ -218,20 +239,22 @@ function killZombie(z, o) {
 }
 // what a kill drops; in a party each killer rolls their own
 function dropLoot(z, p) {
-  const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() : 0; // harder jobs roll better loot
+  const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() + (NET.mode ? .05 * (partySize() - 1) : 0) : 0; // harder jobs and bigger parties roll better loot
+  const uq = q => mission && (mission.job.diff >= 5 || jobTier() > 0) && Math.random() < .012 + .003 * jobTier() ? 5 : q; // 'Mi a fasz?' and Rémálom: 1-2% of guns are uniques
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
     spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
     if (!z.bounty) banner('A MÉSZÁROS ELESETT', 'Epikus vagy jobb fegyvert hagyott maga után.'); SND.roar();
   } else if (z.elite) {
-    spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.3 + dLuck)), lootLvl()), p);
-  } else if (z.kind === 'brood') spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.3)), lootLvl()), p);
+    spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3 + dLuck))), lootLvl()), p);
+  } else if (z.kind === 'brood') spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p);
   else if (z.kind === 'brute') {
-    spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.3)), lootLvl()), p);
+    spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p);
     if (Math.random() < .2) spawnPower(p.clone().add(new V3(1.2, 0, 0)));
   }
   else if (z.K.gun && Math.random() < .3) spawnDrop(makeWeapon(BASES.find(b => b.id === 'revolver'), rollRarity(.1), lootLvl()), p);
-  else if (Math.random() < .06 * SK.drop()) spawnDrop(makeWeapon(pick(BASES), Math.max(round >= 6 ? 1 : 0, rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck)), lootLvl()), p);
+  else if (Math.random() < .06 * SK.drop()) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(round >= 6 ? 1 : 0, rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck))), lootLvl()), p);
+  else if (Math.random() < (round <= 3 ? .07 : .025)) spawnPower(p, 'ammo'); // ammo packs: plenty early on, when the starter guns run dry
   else if (Math.random() < .02) spawnPower(p);
   else if (Math.random() < .04) spawnItem(pick(['med', 'med', 'gren', 'gren', 'knife', 'knife', 'knife', 'adren']), p);
   // gear: the boss always drops a piece, big and elite zombies often, the rest rarely
@@ -468,7 +491,7 @@ function updateZombies(dt) {
     }
     // groans
     z.groanT -= dt;
-    if (z.groanT <= 0) { z.groanT = rand(3, 9); if (dist < 26 && groanBudget-- > 0) SND.groan(.22 * (1 - dist / 26) * (z.kind === 'brute' ? 1.6 : 1)); }
+    if (z.groanT <= 0) { z.groanT = rand(3, 9); if (dist < 26 && groanBudget-- > 0) SND.groan(.3 * (1 - dist / 26) * (z.kind === 'brute' ? 1.6 : 1), -Math.sin(angDiff(Math.atan2(-(z.pos.x - player.pos.x), -(z.pos.z - player.pos.z)) - player.yaw))); }
   }
   netAimEnd();
   updateZProjs(dt);

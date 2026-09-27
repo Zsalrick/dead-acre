@@ -23,16 +23,18 @@ const POWERS = {
   max:    { lines: ['MAX', 'AMMO'], label: 'Max Ammo' },
   insta:  { lines: ['INSTA', 'KILL'], label: 'Insta-Kill' },
   double: { lines: ['2X'], label: 'Double Points' },
+  ammo:   { lines: ['LŐSZER'], label: 'Lőszer', small: true }, // never rolled at random: dropped on purpose
 };
 const powers = { insta: 0, double: 0 };
 const powerUps = [];
-function spawnPower(pos) {
-  const type = pick(Object.keys(POWERS));
-  const s = textSprite(POWERS[type].lines, '#b6ff8a', 1.5, 'rgba(80,255,60,.5)');
+function spawnPower(pos, type) {
+  type = type || pick(Object.keys(POWERS).filter(k => !POWERS[k].small));
+  const s = POWERS[type].small ? textSprite(POWERS[type].lines, '#ffd27a', .8, 'rgba(255,190,60,.45)') : textSprite(POWERS[type].lines, '#b6ff8a', 1.5, 'rgba(80,255,60,.5)');
   s.position.set(pos.x, 1.1, pos.z); scene.add(s);
   powerUps.push({ type, s, t: 26 });
 }
 function takePower(p) {
+  if (p.type === 'ammo') { [...player.slots, ...player.bag].forEach(w => { if (w) w.reserve = Math.min(resMax(w), w.reserve + w.mag * 2); }); SND.reload(); return popText('+ lőszer', '#ffd27a'); }
   SND.power(); banner(POWERS[p.type].label.toUpperCase());
   if (p.type === 'max') [...player.slots, ...player.bag].forEach(w => { if (w) { w.reserve = resMax(w); w.ammo = w.mag; } });
   else powers[p.type] = 15;

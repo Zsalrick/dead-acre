@@ -203,12 +203,12 @@ function updateAvatars(dt, peers) {
     } else a.sh = Math.max(a.sh, +P.sh || 0);
     if ((a.flashT -= dt) <= 0) a.flash.visible = false;
     // pings
-    if (Array.isArray(P.pg) && P.pg[0] !== a.lastPing) { a.lastPing = P.pg[0]; addPing(p.peer, a.name, a.col, new V3(P.pg[1] / 10, P.pg[2] / 10, P.pg[3] / 10), P.pg[4]); }
+    if (Array.isArray(P.pg) && P.pg[0] !== a.lastPing) { a.lastPing = P.pg[0]; addPing(p.peer, a.name, a.col, new V3(P.pg[1] / 10, P.pg[2] / 10, P.pg[3] / 10), String(P.pg[4]).slice(0, 60)); }
     // a medic's aura (Feltámasztó augment) brings back the downed
     if (a.au && Math.hypot(player.pos.x - a.au[0], player.pos.z - a.au[1]) < 6) { // a medic's circle heals the whole party
       if (player.down && a.au[2]) netRevive(); else if (!player.down) player.hp = Math.min(maxHp(), player.hp + 12 * dt);
     }
-    for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && player.down) { netRevive(); banner('FELÉLESZTETTEK', `${a.name} felállított.`); }
+    for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && (player.down || player.ffyl > 0)) { netRevive(); banner('FELÉLESZTETTEK', `${a.name} felállított.`); }
     netRemoteDrops(p.peer, P);
   }
   for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); if (a.tag) a.tag.remove(); NET.avatars.delete(peer); }
@@ -254,10 +254,11 @@ function netDown() {
   banner('ELESTÉL', 'A következő hullámban visszatérsz, ha a csapat kitart.'); SND.hurt();
 }
 function netRevive() {
-  if (!player.down) return;
+  if (!player.down && !(player.ffyl > 0)) return;
+  const wasDown = player.down; endFFYLView();
   player.down = false; player.hp = maxHp() * .5; player.lastHurt = now;
   const mates = [...NET.avatars.values()].filter(a => !a.down);
-  if (mates.length) { const a = pick(mates); player.pos.set(a.pos.x + rand(-1, 1), 0, a.pos.z + rand(-1, 1)); collide(player.pos, .42); }
+  if (wasDown && mates.length) { const a = pick(mates); player.pos.set(a.pos.x + rand(-1, 1), 0, a.pos.z + rand(-1, 1)); collide(player.pos, .42); }
   banner('VISSZATÉRTÉL', 'A csapat kitartott.'); SND.power();
 }
 function netAllDown() { return player.down && ![...NET.avatars.values()].some(a => !a.down); }
@@ -330,7 +331,7 @@ function myPresence() {
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, kc: player.kills, rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
-    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down ? 1 : 0, h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
+    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
 function fresh(key, list) {
@@ -526,7 +527,12 @@ function doPing() {
   for (const z of zombies) if (!z.dead) targets.push(...z.parts);
   ray.set(camera.position, dir); ray.far = 150;
   const h = ray.intersectObjects(targets, false)[0];
-  const pos = h ? h.point.clone() : camera.position.clone().addScaledVector(dir, 60), kind = h && h.object.userData.z ? 'z' : 'p';
+  const pos = h ? h.point.clone() : camera.position.clone().addScaledVector(dir, 60);
+  let kind = h && h.object.userData.z ? 'z|' + h.object.userData.z.K.name : 'p';
+  if (kind === 'p') { // loot near the spot: say what it is
+    const near = [...drops.map(d => [d, d.w.name, d.w.unique ? 5 : d.w.q]), ...gearDrops.map(d => [d, d.it.name, d.it.q])].map(e => [e, Math.hypot(e[0].pos.x - pos.x, e[0].pos.z - pos.z)]).filter(e => e[1] < 2.5).sort((a, b) => a[1] - b[1])[0];
+    if (near) { const [d, name, q] = near[0]; pos.set(d.pos.x, .4, d.pos.z); kind = `l|${q}|${name}`; }
+  }
   NET.ping = [(NET.ping ? NET.ping[0] : 0) + 1, Math.round(pos.x * 10), Math.round(pos.y * 10), Math.round(pos.z * 10), kind];
   addPing('me', myName(), CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a', pos, kind);
 }
@@ -549,7 +555,9 @@ function updatePings(dt) {
     if (behind) { x = -x; y = -y; }
     const k = Math.max(Math.abs(x) / .92, Math.abs(y) / .85); if (behind || k > 1) { x /= k; y /= k; }
     p.el.style.transform = `translate(${(x + 1) / 2 * W}px,${(1 - y) / 2 * H}px) translate(-50%,-110%)`;
-    p.el.textContent = `${p.kind === 'z' ? 'ZOMBI · ' : ''}${p.name} · ${Math.round(Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z))} m`;
+    const [pk, a1, a2] = String(p.kind).split('|'), loot = pk === 'l' && RARITIES[+a1];
+    p.el.textContent = `${pk === 'z' ? `${(a1 || 'zombi').toUpperCase()} · ` : loot ? `${String(a2 || '').slice(0, 40)} · ` : ''}${p.name} · ${Math.round(Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z))} m`;
+    if (loot) p.el.style.setProperty('--pc', loot.color);
     p.el.style.opacity = Math.min(1, p.t);
   }
 }
@@ -557,7 +565,7 @@ function updatePings(dt) {
 // ---------- reviving a downed mate: hold E next to them ----------
 const reviveT = () => 10 * (1 - .15 * U('revive')); // 10 s, faster with the upgrade
 function reviveFocus() {
-  if (!NET.mode || player.down) return null;
+  if (!NET.mode || player.down || player.ffyl > 0) return null;
   for (const [peer, a] of NET.avatars) if (a.down && Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z) < 2.2) return { type: 'revive', peer, name: a.name };
   return null;
 }

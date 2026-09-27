@@ -14,8 +14,15 @@ function applyVolumes() {
   out.gain.value = SET.master; master.gain.value = .45 * SET.sfx; musicBus.gain.value = .65 * SET.music;
 }
 function initMusic() { // called once from initAudio: reroutes sfx through `out` and adds the music bus with an echo send
-  out = ac.createGain(); out.connect(ac.destination);
+  out = ac.createGain();
+  const comp = ac.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = .004; comp.release.value = .18;
+  out.connect(comp).connect(ac.destination);
   master.disconnect(); master.connect(out);
+  // a night-time open-air room: a short, dark reverb under every effect
+  const len = Math.floor(ac.sampleRate * 1.8), ir = ac.createBuffer(2, len, ac.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+  const rev = ac.createConvolver(), rlp = ac.createBiquadFilter(), wet = ac.createGain(); rev.buffer = ir; rlp.type = 'lowpass'; rlp.frequency.value = 2600; wet.gain.value = .32;
+  master.connect(rev).connect(rlp).connect(wet).connect(out);
   musicBus = ac.createGain(); musicBus.connect(out);
   echo = ac.createDelay(1); echo.delayTime.value = .36;
   const fb = ac.createGain(), lp = ac.createBiquadFilter(); fb.gain.value = .32; lp.type = 'lowpass'; lp.frequency.value = 1800;

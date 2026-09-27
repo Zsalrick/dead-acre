@@ -22,7 +22,11 @@ function tracer(a, b, color, width = .012) {
   scene.add(m); tracers.push({ m, t: .07 });
 }
 const dmgNums = [];
-function dmgNumber(pos, val, color, big, crit) {
+function dmgNumber(pos, val, color, big, crit, key) {
+  if (key) { // rapid hits on the same zombie add up in one number instead of a pile
+    const m = dmgNums.find(n => n.t > .72 && n.key === key && n.color === color);
+    if (m) { m.val += val; m.el.textContent = Math.max(1, Math.round(m.val)) + (crit ? '!' : ''); m.t = .9; return; }
+  }
   let n = dmgNums.find(n => n.t <= 0);
   if (!n) {
     if (dmgNums.length > 70) return;
@@ -32,7 +36,7 @@ function dmgNumber(pos, val, color, big, crit) {
   n.el.textContent = Math.max(1, Math.round(val)) + (crit ? '!' : '');
   n.el.style.color = color; n.el.style.fontSize = big ? '28px' : '19px';
   n.pos.copy(pos).add(new V3(rand(-.3, .3), rand(0, .3), rand(-.3, .3)));
-  n.vx = rand(-.7, .7); n.t = .9; n.el.hidden = false;
+  n.vx = rand(-.7, .7); n.t = .9; n.el.hidden = false; n.key = key; n.val = val; n.color = color;
 }
 let hitmT = 0;
 function hitmarker(kill) { const h = $('hitm'); h.classList.add('on'); h.classList.toggle('kill', !!kill); hitmT = kill ? .22 : .12; }

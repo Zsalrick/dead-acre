@@ -403,7 +403,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 /* ---------- UI pass: menus & hub ---------- */
 :root{--dim:#a29d8c}
 .num,.hubstats strong,.jreward,.sval,.purse strong{font-variant-numeric:tabular-nums}
-#hub{background:linear-gradient(90deg,rgba(6,8,7,.97),rgba(6,8,7,.9) 60%,rgba(6,8,7,.78));padding-inline:max(20px,4vw)}
+#hub{background:linear-gradient(90deg,rgba(6,8,7,.98),rgba(6,8,7,.95) 60%,rgba(6,8,7,.9));backdrop-filter:blur(6px);padding-inline:max(20px,4vw)}
 .hub{max-width:min(1480px,100%)}
 .hubtop{align-items:center}
 .hubtitle{font-size:clamp(36px,3.6vw,52px);margin:2px 0 0}
@@ -701,6 +701,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 .sbtn.hold{position:relative;overflow:hidden;border-color:rgba(255,90,74,.6)}
 .sbtn.hold::after{content:'';position:absolute;left:0;bottom:0;height:100%;width:var(--hp,0%);background:rgba(255,90,74,.35);pointer-events:none}
 .hubhead>span{display:flex;gap:8px}
+#ffyl{position:absolute;left:50%;top:58%;translate:-50% 0;display:grid;justify-items:center;gap:4px;padding:10px 26px;background:rgba(40,0,0,.55);border:1px solid rgba(255,74,58,.5);text-align:center;pointer-events:none}
+#ffyl b{font-family:'Black Ops One',Impact,sans-serif;font-size:24px;letter-spacing:.08em;color:#ff4a3a;text-shadow:0 0 16px rgba(255,40,20,.6)}
+#ffyl small{color:#e8e2d0;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+#ffyl i{display:block;width:260px;height:6px;background:rgba(255,255,255,.12)}#ffyl em{display:block;height:100%;background:#ff4a3a}
+#ffyl span{font-weight:700;color:#ffb0a0;font-variant-numeric:tabular-nums}
+.jwarn{color:#ff8a70;font-weight:700}
 </style>
 
 <div id="game">
@@ -714,6 +720,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
     <div id="cross"><i class="c t"></i><i class="c b"></i><i class="c l"></i><i class="c r"></i><i class="c dot"></i>
       <div id="hitm"><i></i><i></i><i></i><i></i></div></div>
     <div id="prompt" hidden></div>
+    <div id="ffyl" hidden><b>HARCOLJ AZ ÉLETEDÉRT</b><small>Ölj meg egy zombit!</small><i><em id="ffylBar"></em></i><span id="ffylT"></span></div>
     <div id="hold" hidden><i id="holdfill"></i><span id="holdLbl">Eladás…</span></div>
     <div id="clickHint" hidden>Kattints a folytatáshoz</div>
     <div id="topc"><div id="timer" class="num"></div><div id="bossbar" hidden><span id="bossname">MÉSZÁROS</span><div><i id="bosslag"></i><i id="bossfill"></i></div></div><div id="powers"></div></div>
@@ -800,12 +807,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=10" charset="utf-8"></script>
-<script src="js/audio.js?v=10" charset="utf-8"></script>
-<script src="js/music.js?v=10" charset="utf-8"></script>
-<script src="js/world.js?v=10" charset="utf-8"></script>
-<script src="js/maps.js?v=10" charset="utf-8"></script>
-<script src="js/fx.js?v=10" charset="utf-8"></script>
+<script src="js/data.js?v=11" charset="utf-8"></script>
+<script src="js/audio.js?v=11" charset="utf-8"></script>
+<script src="js/music.js?v=11" charset="utf-8"></script>
+<script src="js/world.js?v=11" charset="utf-8"></script>
+<script src="js/maps.js?v=11" charset="utf-8"></script>
+<script src="js/fx.js?v=11" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -813,20 +820,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=10" charset="utf-8"></script>
-<script src="js/player.js?v=10" charset="utf-8"></script>
-<script src="js/zombies.js?v=10" charset="utf-8"></script>
-<script src="js/loot.js?v=10" charset="utf-8"></script>
-<script src="js/upgrades.js?v=10" charset="utf-8"></script>
-<script src="js/gear.js?v=10" charset="utf-8"></script>
-<script src="js/vet.js?v=10" charset="utf-8"></script>
-<script src="js/inv.js?v=10" charset="utf-8"></script>
-<script src="js/save.js?v=10" charset="utf-8"></script>
-<script src="js/menu.js?v=10" charset="utf-8"></script>
-<script src="js/skills.js?v=10" charset="utf-8"></script>
-<script src="js/hub.js?v=10" charset="utf-8"></script>
-<script src="js/game.js?v=10" charset="utf-8"></script>
-<script src="js/jobs.js?v=10" charset="utf-8"></script>
+<script src="js/gfx.js?v=11" charset="utf-8"></script>
+<script src="js/player.js?v=11" charset="utf-8"></script>
+<script src="js/zombies.js?v=11" charset="utf-8"></script>
+<script src="js/loot.js?v=11" charset="utf-8"></script>
+<script src="js/upgrades.js?v=11" charset="utf-8"></script>
+<script src="js/gear.js?v=11" charset="utf-8"></script>
+<script src="js/vet.js?v=11" charset="utf-8"></script>
+<script src="js/inv.js?v=11" charset="utf-8"></script>
+<script src="js/save.js?v=11" charset="utf-8"></script>
+<script src="js/menu.js?v=11" charset="utf-8"></script>
+<script src="js/skills.js?v=11" charset="utf-8"></script>
+<script src="js/hub.js?v=11" charset="utf-8"></script>
+<script src="js/game.js?v=11" charset="utf-8"></script>
+<script src="js/jobs.js?v=11" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=10" charset="utf-8"></script>
-<script src="js/net.js?v=10" charset="utf-8"></script>
+<script src="js/p2p.js?v=11" charset="utf-8"></script>
+<script src="js/net.js?v=11" charset="utf-8"></script>

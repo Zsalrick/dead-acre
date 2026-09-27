@@ -27,9 +27,9 @@ function startJob(job, opts = {}) {
   itemDrops.forEach(d => scene.remove(d.s)); itemDrops.length = 0; clearGearDrops();
   const P = profile;
   Object.assign(player, { points: 500, earned: 0, kills: 0, heads: 0, cur: 0, ads: 0, bloom: 0, recoil: 0, reloadT: 0, reloading: false, spin: 0,
-    fireCd: 0, burstLeft: 0, switchT: 0, knifeT: 0, knifeCd: 0, best: null, yaw: 0, pitch: 0, vy: 0, lastHurt: -99,
+    ffyl: 0, shotsN: 0, hitsN: 0, dmgDone: 0, stepD: 0, fireCd: 0, burstLeft: 0, switchT: 0, knifeT: 0, knifeCd: 0, best: null, yaw: 0, pitch: 0, vy: 0, lastHurt: -99,
     inv: P.inv, up: P.up, stam: maxStam(), stamT: 0, adrenT: 0, itemCd: 0, perks: {}, buf: {}, uHeat: 0, uStack: 0 });
-  player.hp = maxHp(); player.shield = maxShield();
+  player.hp = maxHp(); player.shield = maxShield(); endFFYLView();
   resetSkillsRun();
   const extraGren = (isCls('engineer') ? 1 : 0) + rk('e_belt');
   P.inv.gren = Math.min(itemMax('gren') + (isCls('engineer') ? 1 : 0), P.inv.gren + extraGren);
@@ -222,7 +222,7 @@ function finishJob(success, abandoned) {
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   NET.revs = 0;
-  showResults({ parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  showResults({ acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {
@@ -239,6 +239,7 @@ function hurtAt(pos, r, d) {
 function hurtPlayer(d, quiet) {
   if (netRedirectHurt(d)) return; // a host zombie hit another player
   if (!liveWorld() || (mission && mission.leaving) || player.down) return;
+  if (player.ffyl > 0) { player.ffyl = Math.max(.05, player.ffyl - .4); return; } // hits on the ground eat into the clock
   d *= SK.taken();
   const hadShield = player.shield > 0;
   if (player.shield > 0) { const a = Math.min(player.shield, d); player.shield -= a; d -= a; }
@@ -248,7 +249,7 @@ function hurtPlayer(d, quiet) {
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }
   if (!quiet) { player.shake = .25; SND.hurt(); }
   if (player.hp <= 0 && perk('second')) { player.perks.second = false; player.hp = maxHp() * .5; banner('MÁSODIK ESÉLY', 'Még egyszer.'); SND.power(); }
-  if (player.hp <= 0) { player.hp = 0; if (NET.mode) netDown(); else mission.dead = true; } // finished in updateMission, not mid zombie loop
+  if (player.hp <= 0) { player.hp = 0; startFFYL(); } // on the ground: kill something before the clock runs out
 }
 
 // ================= INPUT =================
@@ -360,6 +361,7 @@ addEventListener('keydown', e => {
   if (state === 'paused' && (e.code === 'KeyI' || e.code === 'Tab')) { resume(); return; }
   if (state === 'playing' && (e.code === 'KeyI' || e.code === 'Tab') && !(mission && mission.leaving)) { if (locked) document.exitPointerLock(); else pause(); return; }
   if (state !== 'playing' || (mission && mission.leaving) || player.down) return;
+  if (player.ffyl > 0 && !['KeyR', 'Digit1', 'Digit2', 'Escape', 'KeyP', 'KeyZ'].includes(e.code)) return; // on the ground: shoot, reload, swap
   if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
   if (e.code === 'KeyR') startReload();
   else if (e.code === 'KeyE') interact();
