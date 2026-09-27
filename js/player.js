@@ -235,7 +235,7 @@ function shotMul(w) {
 const rateMul = w => (w.anoint === 'ability' && player.buf && player.buf.ability > 0 ? 1.5 : 1) * (w.unique === 'haystack' ? 1 + (player.uHeat || 0) : 1) * (player.perks && player.perks.tap ? 1.25 : 1);
 function shoot() {
   const w = curW(), b = w.base; player.shotsN += w.pellets || 1;
-  if (!(player.stormT > 0)) w.ammo--; // Tűzvihar: the mag does not drain
+  if (!(player.stormT > 0) && !(w.unique === 'hydra' && now < (player.hydraUntil || 0))) w.ammo--; // Tűzvihar: the mag does not drain
   const sm = shotMul(w), forceCrit = w.unique === 'thirteen' && w.ammo === 0; w.fired = (w.fired || 0) + 1;
   NET.shots = (NET.shots || 0) + 1; // partners hear and see it
   if (b.flame) { if ((vm.flameN = (vm.flameN || 0) + 1) % 3 === 0) SND.flame(); } else SND[b.snd]();
@@ -375,6 +375,7 @@ function updatePlayer(dt) {
     camera.fov = SET.fov; camera.updateProjectionMatrix(); return;
   }
   const ff = player.ffyl > 0; if (ff) updateFFYL(dt);
+  if (player.chillT > 0) player.chillT -= dt;
   const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (keys.ArrowLeft) player.yaw += dt * 2.4; if (keys.ArrowRight) player.yaw -= dt * 2.4;
   if (keys.ArrowUp) player.pitch = Math.min(1.5, player.pitch + dt * 1.8); if (keys.ArrowDown) player.pitch = Math.max(-1.5, player.pitch - dt * 1.8);
@@ -386,7 +387,7 @@ function updatePlayer(dt) {
   if (player.sprint && !adren && !perk('runner') && !exoOn('league')) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
   else if ((player.stamT -= dt) <= 0) player.stam = Math.min(maxStam(), player.stam + 28 * (1 + .15 * U('stamina')) * dt);
   player.adrenT = Math.max(0, player.adrenT - dt); player.itemCd -= dt;
-  const speed = (ff ? .9 : 1) * (ff ? 1 : player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
+  const speed = (ff ? .9 : 1) * (ff ? 1 : player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (player.chillT > 0 ? .55 : 1) * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
   const k = 1 - Math.exp(-(player.onGround ? 12 : 3) * dt);
   player.vel.x = lerp(player.vel.x, mv.x * speed, k); player.vel.z = lerp(player.vel.z, mv.z * speed, k);
   player.pos.x += player.vel.x * dt; player.pos.z += player.vel.z * dt;

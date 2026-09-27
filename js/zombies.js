@@ -606,6 +606,8 @@ const BOUNTIES = {
   butcher: { loot: ['granny', 'reaper', 'thirteen'], name: 'A Mészáros', desc: 'Nekiront, és a földbe csapja a bárdját. Hívja a sétálókat.', hp: 5.5, tint: 0x6a1010, summon: ['walker', 12, 3] },
   pyre:    { loot: ['ash', 'bigbang'], name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 5, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
   queen:   { loot: ['honey', 'haystack'], name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 5.2, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
+  frost:   { loot: ['glacier', 'honey'], name: 'A Jégkirály', desc: 'Fagyhullámot bocsát ki, ami lelassít. Futókat hív.', hp: 5.2, tint: 0x6ac8ff, frost: true, summon: ['runner', 10, 3] },
+  titan:   { loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 5.8, tint: 0x8a929a, slam: true, plate: 1.4, summon: ['armored', 14, 2] },
   shade:   { loot: ['silent', 'rod', 'sebastian'], name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
@@ -614,7 +616,8 @@ function spawnBounty(key) {
   const z = spawnZombieAt('butcher', sx, sz);
   z.bounty = key; z.hp *= B.hp; z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale);
   const tint = new THREE.Color(B.tint); z.mats.forEach(m => m.color && m.color.lerp(tint, .45));
-  z.sumT = 6; z.novaT = 8; z.blinkT = 10; z.phase = 1; z.dmg *= 1.2; z.throwT = 4;
+  z.sumT = 6; z.novaT = 8; z.blinkT = 10; z.phase = 1; z.dmg *= 1.2; z.throwT = 4; z.slamT = 6;
+  if (B.plate) z.armor = z.hp * B.plate; // the Colossus: break the plating first (headshots skip it)
   banner(B.name.toUpperCase(), B.desc); SND.roar();
   return z;
 }
@@ -649,6 +652,20 @@ function bountyTick(z, dt, dist) {
     SND.explode();
     hurtAt(z.pos, 6.5, 28 * (z.phase || 1));
   }
+  if (B.frost && (z.novaT -= dt) <= 0) { // frost wave: slows everyone it touches
+    z.novaT = z.phase === 3 ? 4.5 : z.phase === 2 ? 6 : 8;
+    for (let k = 0; k < 28; k++) { const a = k / 28 * 6.28; burst(new V3(z.pos.x + Math.sin(a) * 6, .3, z.pos.z + Math.cos(a) * 6), 0x9fe6ff, 3, 2.5, .7); }
+    SND.armorBreak();
+    if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 8) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); }
+    hurtAt(z.pos, 8, 18 * (z.phase || 1));
+  }
+  if (B.slam && (z.slamT -= dt) <= 0 && dist < 16) { // a ground slam with a tell, then a charge in the last phase
+    z.slamT = z.phase === 3 ? 3.5 : z.phase === 2 ? 5 : 6.5;
+    burst(new V3(z.pos.x, .2, z.pos.z), 0xc8c0a8, 30, 6, .9); SND.slam(); player.shake = Math.max(player.shake, dist < 10 ? .5 : .2);
+    hurtAt(z.pos, 7, 32 * (z.phase || 1));
+    if (z.phase === 3) { z.chargeT = 1.6; z.speed *= 2.2; }
+  }
+  if (z.chargeT > 0 && (z.chargeT -= dt) <= 0) z.speed /= 2.2;
   if (B.blink && (z.blinkT -= dt) <= 0 && dist > 5) { // vanishes and comes out behind you
     z.blinkT = z.phase === 3 ? 4 : z.phase === 2 ? 7 : 10;
     burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6);
@@ -676,6 +693,7 @@ function weaponOnHit(z, amt, o) {
   const w = o.w; if (!w || o.dot) return;
   if (w.unique === 'honey') player.hp = Math.min(maxHp(), player.hp + amt * .02);
   if (w.unique === 'silent' && o.head) explode(zHeadPos(z), { r: 3.5, zdmg: amt * .5, pr: .01, pdmg: .001, color: 0xb0c8ff });
+  if (w.unique === 'anvil') { if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
 }
@@ -684,6 +702,8 @@ function weaponOnKill(z, o) {
   if (z.markT > 0 && augOn('plague')) for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 8) q.markT = Math.max(q.markT || 0, 6);
   if (!w) return;
   if (w.unique === 'granny') w.ammo = w.mag;
+  if (w.unique === 'hydra') player.hydraUntil = now + 3;
+  if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }
   if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
   if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
   if (w.anoint === 'killheal') player.hp = Math.min(maxHp(), player.hp + maxHp() * .06);

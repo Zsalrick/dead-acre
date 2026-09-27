@@ -143,6 +143,9 @@ const UNIQUES = {
   sebastian: { base: 'crossbow', name: 'Szent Sebestyén', text: 'Egy nyíl is elég volt.', trick: 'A nyilak becsapódáskor felrobbannak.' },
   silent:    { base: 'sniper',   name: 'Csendes Éj',      text: 'Aludj csak, reggel már nem kelsz fel.', trick: 'A fejlövés szétveti a közeli zombikat is.' },
   honey:     { base: 'smg',      name: 'Mézesmadzag',     text: 'Édes, mint a méz. Ragad is.', trick: 'Minden találat lassít, és a sebzés 2%-át visszagyógyítja.', element: 'cryo' },
+  glacier:   { base: 'ar',       name: 'Örök Tél',        text: 'Nálunk sosem olvad el a hó.', trick: 'A lelassított zombi halálakor szétfagy, és a közelieket is megdermeszti.', element: 'cryo' },
+  anvil:     { base: 'deagle',   name: 'Üllő',            text: 'Kalapács kell ide, nem golyó.', trick: 'Egy lövéssel letépi a páncélt, és hátralöki a célt.' },
+  hydra:     { base: 'autoshot', name: 'Hidra',           text: 'Vágj le egy fejet, kettő nő helyette.', trick: 'Minden ölés után 3 mp-ig nem fogy a tár.' },
   bigbang:   { base: 'launcher', name: 'A Nagy Bumm',     text: 'Minek célozni?', trick: 'Minden gránát három kisebb bombára esik szét.' },
 };
 function makeUnique(key, level) {
