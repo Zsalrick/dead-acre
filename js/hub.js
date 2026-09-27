@@ -301,6 +301,7 @@ function showResults(r) {
     <div class="stats"><div>Ölés<strong>${r.kills}</strong></div><div>Fejlövés<strong>${r.heads}</strong></div><div>Kibírt idő<strong>${fmtTime(r.time)}</strong></div>
       <div>Pontosság<strong>${r.acc}%</strong></div><div>Sebzés<strong>${r.dmg.toLocaleString('hu-HU')}</strong></div>
       <div>Pénz<strong>+$${r.cash}</strong></div><div>XP<strong>+${r.xp}</strong></div><div>Érdemérem<strong>+${r.tokens}</strong></div></div>
+    ${r.xpTo != null ? `<div class="xpanim"><small>${profile.level}. szint · ${profile.xp} / ${xpNeed(profile.level)} XP</small><i><em id="xpFill" style="width:${(r.levelUps ? 0 : r.xpFrom) * 100}%"></em></i></div>` : ''}
     ${r.board ? `<h3>Csapat</h3><table class="mtable"><tr><th>Játékos</th><th>Ölés</th><th>Felélesztés</th></tr>${r.board.sort((a, b) => b.k - a.k).map(p => `<tr><td>${esc(p.n)}${p.me ? ' (te)' : ''}</td><td>${p.k}</td><td>${p.r}</td></tr>`).join('')}</table>` : ''}
     ${r.levelUps ? `<p class="lvlup">Szintet léptél: ${profile.level}. szint! ${MAP_IDS.filter(id => MAPS[id].minLevel === profile.level).map(id => `Új pálya: ${MAPS[id].name}.`).join(' ')}</p>` : ''}
     ${r.tierBonus ? `<h3>${r.job.tier ? 'Rémálom-jutalom' : 'Az első munkád jutalma'}</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
@@ -312,6 +313,7 @@ function showResults(r) {
     ${r.parts ? `<p class="lvlup">Alkatrész a terepen szétszedett holmiból: +${r.parts} ⚙</p>` : r.partsLost ? `<p class="note">A terepen szétszedett holmi alkatrésze (${r.partsLost} ⚙) odaveszett.</p>` : ''}
     ${r.overflow ? `<p class="note">A páncélraktár megtelt: ${r.overflow} darabot automatikusan eladtunk.</p>` : ''}`;
   $('results').hidden = false;
+  const f = $('xpFill'); if (f) setTimeout(() => { f.style.width = Math.min(1, r.xpTo) * 100 + '%'; }, 250); // the XP bar fills up
 }
 $('resultsBtn').onclick = showHub;
 
