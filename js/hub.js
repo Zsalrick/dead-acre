@@ -168,7 +168,7 @@ const HUB = {
       <h3>Táska <small>${lists.B.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="B">${lists.B.map((x, k) => wTile(`B:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A munkára is jön')}</div>
       <h3>Raktár <small>${lists.S.length} / ${stashMax()}</small></h3><div class="tiles" data-drop="S">${lists.S.map((x, k) => wTile(`S:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A vett és talált fegyverek ide kerülnek')}</div>
       <h3>Közös láda <small>${SH.w.length} / ${SHARED_MAX} · mindhárom karaktered látja</small></h3><div class="tiles shared" data-drop="K">${lists.K.map((x, k) => wTile(`K:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'Tegyél ide fegyvert, és a másik mentésed is eléri')}</div>`;
-    return `<div class="hubhead"><h2>Fegyverek</h2></div>
+    return `<div class="hubhead"><h2>Fegyverek</h2></div>${buildsRow()}
       <p class="lede">${['Ki', 'Közönséges', 'Nem mindennapi', 'Ritka'].map((t, q) => hbtn(`${q ? 'Auto-szétszedés: ' : 'Auto-szétszedés: '}${t}${q ? ' és alatta' : ''}`, `junk:${q - 1}`, (P.junkQ == null ? -1 : P.junkQ) === q - 1)).join('')}</p>
       <p class="lede"><b class="parts">Alkatrész: ${P.parts || 0} ⚙</b> · szétszedéssel kapod, a kovács ebből dolgozik. A két kézben lévő fegyver és a táska (${bagMax()} hely) jön veled a munkára; munka közben [I] vagy [Tab] a leltár. Kattints egy fegyverre a részletekért, vagy húzd át máshová.</p>
       ${invLayout(left, w ? weaponDetail(w, cmp, acts) : noDetail('Válassz egy fegyvert.'))}`;
@@ -188,7 +188,7 @@ const HUB = {
       <h3>Közös láda <small>${SH.g.length} / ${SHARED_MAX} · mindhárom karaktered látja</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>
       <h3>Márka-kódex</h3><div class="brands">${Object.values(BRANDS).map(B => `<div class="brand" style="--bc:${B.color}"><b>${B.name}</b><small>${B.tag} · minden darab: ${GSTATS[B.core[0]].name} ${fmtG(...B.core)}</small>
         <ul>${B.sets.map(([n, k, v]) => `<li>${n} db: ${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('')}${B.t4 ? `<li class="t4"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</li>` : ''}</ul></div>`).join('')}</div>`;
-    return `<div class="hubhead"><h2>Páncél</h2></div>
+    return `<div class="hubhead"><h2>Páncél</h2></div>${buildsRow()}
       <p class="lede">Sisak, mellvért, nadrág, csizma. A páncél a pajzsodat növeli, minden darab márkabónuszt ad, és 2/3/4 azonos márkájú darab szettbónuszt. Kattints egy darabra a részletekért.</p>
       ${invLayout(left, it ? gearDetail(it, sl === 'G' ? P.gear[it.slot] : null, acts) : noDetail('Még nincs páncélod. A zombik dobják, és a boltban is van.'))}`;
   },
@@ -247,6 +247,8 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'jsel') { jobSel = +a; return renderHub(); }
   if (kind === 'claim') claimContract(a);
+  if (kind === 'bsave') saveBuild(+a);
+  if (kind === 'bload') loadBuild(+a);
   if (kind === 'slot' && P.stash.length < stashMax() && pay(slotCost())) spinSlot();
   if (kind === 'tier') { const j = P.jobs[+a]; if (j && j.tier && j.base) { const T = clamp(j.tier + +c, 1, (P.tier || 0) + 1); setTier(j, T); P.tierSel = T; } }
   if (kind === 'junk') P.junkQ = clamp(+a, -1, 2);
@@ -333,3 +335,25 @@ function spinSlot() {
   else { const q = r < .95 ? Math.max(1, rollRarity(.4)) : r < .99 ? 4 : 5, w = makeWeapon(pick(BASES), q, lv); P.stash.push(packW(w)); noteFound(w); msg = `${w.name} (${w.unique ? 'egyedi' : RARITIES[w.q].name}) a raktárba`; if (q >= 4) { banner('JACKPOT!', w.name); SND.legend(w.unique); } }
   P.lastSlot = msg; SND.sell();
 }
+
+// ---------- builds (Division loadouts): three saved sets of two guns and four armor pieces ----------
+const uidOf = o => o ? (o.uid || (o.uid = Math.random().toString(36).slice(2, 10))) : null;
+function saveBuild(i) {
+  const P = profile; P.builds = P.builds || [];
+  P.builds[i] = { w: P.loadout.map(uidOf), g: Object.fromEntries(GEAR_KEYS.map(k => [k, uidOf(P.gear[k])])), name: P.loadout.filter(Boolean).map(o => unpackW(o).base.name).join(' + ') };
+}
+function loadBuild(i) {
+  const P = profile, B = P.builds && P.builds[i]; if (!B) return;
+  const lists = [P.loadout, P.bag, P.stash, SH.w];
+  B.w.forEach((u, k) => { // each hand: find the gun wherever it is now and swap it in
+    if (!u || (P.loadout[k] && P.loadout[k].uid === u)) return;
+    for (const L of lists) { const j = L.findIndex(o => o && o.uid === u); if (j < 0) continue;
+      const w = L === P.loadout ? L[j] : L.splice(j, 1)[0]; if (L === P.loadout) L[j] = null;
+      if (P.loadout[k]) P.stash.push(P.loadout[k]); P.loadout[k] = w; break; }
+  });
+  for (const k of GEAR_KEYS) { const u = B.g[k]; if (!u || (P.gear[k] && P.gear[k].uid === u)) continue;
+    for (const L of [P.gearStash, SH.g]) { const j = L.findIndex(it => it.uid === u); if (j < 0) continue; const it = L.splice(j, 1)[0]; if (P.gear[k]) P.gearStash.push(P.gear[k]); P.gear[k] = it; break; } }
+  if (!P.loadout[0] && !P.loadout[1]) P.loadout[0] = packW(makeWeapon(BASES[0], 0, 1));
+  gearChanged(); SND.power();
+}
+const buildsRow = () => `<div class="builds"><b>Buildek</b>${[0, 1, 2].map(i => { const B = (profile.builds || [])[i]; return `<span class="bslot"><small>${i + 1}. ${B ? esc(B.name) : 'üres'}</small>${hbtn('Betöltés', `bload:${i}`, !B)}${hbtn('Mentés', `bsave:${i}`)}</span>`; }).join('')}</div>`;
