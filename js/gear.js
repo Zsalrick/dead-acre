@@ -41,7 +41,7 @@ function rollG(k, q, level) {
   return S.flat ? Math.round(v * (1 + .06 * (level - 1))) : Math.round(v * (1 + .03 * (level - 1)) * 100) / 100;
 }
 function makeGear(slot, q, level, brand) {
-  slot = slot || pick(GEAR_KEYS); brand = brand || pick(Object.keys(BRANDS));
+  slot = slot || pick(GEAR_KEYS); brand = brand || pick(Object.keys(BRANDS)); q = Math.min(q, 4); // armor tops out at legendary
   const keys = Object.keys(GSTATS).filter(k => k !== 'armor'), stats = {}, n = [1, 1, 2, 2, 3][q];
   while (Object.keys(stats).length < n) { const k = pick(keys); if (!(k in stats)) stats[k] = rollG(k, q, level); }
   const armor = Math.round({ head: 12, chest: 20, legs: 14, boots: 10 }[slot] * (1 + .08 * (level - 1)) * (1 + q * .15) * rand(.9, 1.1));

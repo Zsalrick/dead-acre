@@ -15,6 +15,7 @@ function unpackW(o) {
   if (!o) return null;
   const w = Object.assign({}, o, { base: BASES.find(b => b.id === o.base) || BASES[0] });
   if (w.base.single && w.reload > 1.2) w.reload = +(w.reload / 2.8 * w.base.reload).toFixed(2); // saves from before round-by-round loading
+  if (w.unique && UNIQUES[w.unique] && UNIQUES[w.unique].baseMod) w.base = Object.assign({}, w.base, UNIQUES[w.unique].baseMod);
   if (!w.sv) { w.dmg = Math.round(w.dmg * Math.pow(1.08, w.level - 1) / (1 + .075 * (w.level - 1))); w.sv = 2; } // saves from before exponential levels
   if (!w.mk) { w.mk = Object.keys(MAKERS).find(k => MAKERS[k].name === w.maker) || 'kessler'; w.maker = MAKERS[w.mk].name; } // saves from before maker perks
   return w;
@@ -30,6 +31,7 @@ function openProfile(n) {
   player.up = profile.up;
   Object.assign(profile, { bag: profile.bag || [], gear: profile.gear || {}, gearStash: profile.gearStash || [], gshop: profile.gshop || [] });
   profile.vet = profile.vet || {};
+  profile.throw = profile.throw || { g: 'frag', k: 'steel', own: ['frag', 'steel'] };
   gearChanged();
   profile.name = profile.name || `Zsoldos ${n}`;
   profile.skills = profile.skills || {}; profile.tokens = profile.tokens || 0; if (profile.cls === undefined) profile.cls = null;
@@ -50,6 +52,6 @@ function addXp(n) {
 function noteFound(w) {
   const id = w.base.id;
   if (stats.found[id] == null || w.q > stats.found[id]) stats.found[id] = w.q;
-  if (w.q === 4 && !w.counted) { w.counted = true; stats.legendaries++; }
+  if (w.q >= 4 && !w.counted) { w.counted = true; stats.legendaries++; }
 }
 function tickStats(dt) { stats.time += dt; }

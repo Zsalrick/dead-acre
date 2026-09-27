@@ -80,6 +80,15 @@ const CLASSES = {
   },
 };
 const RESPEC = 300, RECLASS = 800;
+// augments change how the class ability works; unlock with merit tokens, one active per class, switch freely
+const AUGMENTS = {
+  soldier: [['ignite', 'Gyújtólövedék', 'A Tűzvihar alatt minden találat felgyújtja a célt.'], ['bulwark', 'Rohampáncél', 'A Tűzvihar alatt 40%-kal kevesebb sebzést kapsz.'], ['resupply', 'Utánpótlás-láda', 'A Tűzvihar +2 gránátot ad, és minden tárat megtölt.']],
+  hunter: [['plague', 'Járvány', 'Ha egy megjelölt zombi meghal, a 8 m-en belüli társai is megjelölődnek.'], ['execute', 'Kivégző', 'A megjelölt zombi 30% élet alatt egy találattól meghal.'], ['wide', 'Sasszem', 'A Jelölés körben mindent megjelöl, és 50%-kal tovább tart.']],
+  engineer: [['shieldtower', 'Pajzstorony', 'A torony 5 m-es pajzskupolát húz: benne 50%-kal kevesebb sebzést kapsz.'], ['twin', 'Ikertorony', 'Két kisebb tornyot telepít (60% sebzés darabonként).'], ['rocket', 'Rakétatorony', 'A torony lassabban lő, de robbanó rakétával.']],
+  medic: [['revive', 'Feltámasztó kör', 'A körben dupla a gyógyítás, és az elesett társak felállnak benne.'], ['smite', 'Ítélet', 'A kör égeti és erősen lassítja a benne álló zombikat.'], ['mobile', 'Vándorszentély', 'A kör veled együtt mozog.']],
+};
+const AUG_COST = 2;
+const augOn = id => !!profile && !!profile.aug && profile.aug[profile.cls] === id;
 const rk = id => (profile && profile.skills && profile.skills[id]) || 0;
 const isCls = c => !!profile && profile.cls === c;
 const treeSpent = () => profile && profile.cls ? CLASSES[profile.cls].tree.reduce((a, [id]) => a + rk(id), 0) : 0;
@@ -107,7 +116,8 @@ const SK = {
   speed: () => .04 * rk('h_light'),
   reload: () => .08 * rk('s_hands'),
   ammo: () => .15 * rk('s_ammo'),
-  taken: () => (1 - .05 * rk('s_armor')) * (1 - Math.min(.5, G('red'))),
+  taken: () => (1 - .05 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
+    * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1),
   med: () => Math.round((70 + 20 * rk('m_bless')) * (isCls('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),
   explMul: () => 1 + (isCls('engineer') ? .2 : 0) + .08 * rk('e_boom') + G('expl'),
@@ -139,24 +149,26 @@ function useAbility() {
   if (c === 'soldier') {
     player.stormT = 8 + 3 * rk('s_storm');
     if (rk('s_supply')) player.slots.forEach(w => { if (w) w.reserve = resMax(w); });
+    if (augOn('resupply')) { player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 2); [...player.slots, ...player.bag].forEach(w => { if (w) w.ammo = w.mag; }); renderInv(); }
     banner('TŰZVIHAR', `${Math.round(player.stormT)} mp végtelen tár`);
   } else if (c === 'hunter') {
-    const f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), dur = 10 + 4 * rk('h_mark');
+    const wide = augOn('wide'), f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), dur = (10 + 4 * rk('h_mark')) * (wide ? 1.5 : 1);
     let n = 0;
     for (const z of zombies) {
       if (z.dead) continue;
       const dx = z.pos.x - player.pos.x, dz = z.pos.z - player.pos.z, d = Math.hypot(dx, dz);
-      if (d < 45 && (dx * f.x + dz * f.z) / Math.max(d, .01) > .72) { z.markT = dur; n++; }
+      if (d < 45 && (wide || (dx * f.x + dz * f.z) / Math.max(d, .01) > .72)) { z.markT = dur; n++; }
     }
     banner('JELÖLÉS', `${n} célpont, ${dur} mp`); SND.stinger && SND.stinger();
   } else if (c === 'engineer') {
-    if (!deployTurret(0, 25 + 5 * rk('e_tools') + 15 * rk('e_last'), { rate: rk('e_overload') ? 2 : 1 })) return SND.deny();
+    if (!deployTurret(0, 25 + 5 * rk('e_tools') + 15 * rk('e_last'), { rate: rk('e_overload') ? 2 : 1, n: augOn('twin') ? 2 : 1, dmgMul: augOn('twin') ? .6 : 1, shield: augOn('shieldtower'), rocket: augOn('rocket') })) return SND.deny();
   } else if (c === 'medic') {
     aura = { pos: player.pos.clone(), t: 8 + 3 * rk('m_circle') };
     auraMesh.position.set(aura.pos.x, .04, aura.pos.z); auraMesh.visible = true;
     banner('SZENTELT KÖR', 'Maradj a körben.');
   }
   player.abilCd = abilityCd(); SND.power();
+  (player.buf || (player.buf = {})).ability = 8;
 }
 function updateSkills(dt) {
   player.abilCd = Math.max(0, (player.abilCd || 0) - dt);
@@ -164,11 +176,13 @@ function updateSkills(dt) {
   if (!aura) return;
   aura.t -= dt;
   auraMesh.material.opacity = .35 + Math.sin(now * 6) * .15;
-  if (Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < 6) player.hp = Math.min(maxHp(), player.hp + 12 * (1 + .5 * rk('m_circle')) * dt);
+  if (augOn('mobile')) { aura.pos.copy(player.pos); auraMesh.position.set(aura.pos.x, .04, aura.pos.z); }
+  const inAura = Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < 6;
+  if (inAura) player.hp = Math.min(maxHp(), player.hp + 12 * (1 + .5 * rk('m_circle')) * (augOn('revive') ? 2 : 1) * dt);
   for (const z of zombies) {
     if (z.dead || Math.hypot(z.pos.x - aura.pos.x, z.pos.z - aura.pos.z) > 6) continue;
-    z.slowT = Math.max(z.slowT, .3);
-    if (rk('m_holy')) { z.burnT = 1; z.burnDps = Math.max(z.burnDps, zombieHp() * .25); }
+    z.slowT = Math.max(z.slowT, augOn('smite') ? 1 : .3);
+    if (rk('m_holy') || augOn('smite')) { z.burnT = 1; z.burnDps = Math.max(z.burnDps, zombieHp() * (augOn('smite') ? .45 : .25)); }
   }
   if (Math.random() < dt * 20) burst(new V3(aura.pos.x + rand(-5, 5), .1, aura.pos.z + rand(-5, 5)), 0xf2d27a, 1, 1, .6);
   if (aura.t <= 0) { aura = null; auraMesh.visible = false; }
@@ -203,6 +217,11 @@ function skillsTab() {
       <div class="hubbtns">${hbtn(`Pontok vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent)}${hbtn(`Kasztváltás · $${RECLASS}`, 'reclass', P.cash < RECLASS)}</div></div>
     <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${Math.round(abilityCd())} mp.</p>
     <p class="tokens">Elkölthető: <strong>${P.tokens}</strong> érdemérem · a fában: ${spent} pont</p>
+    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív, szabadon váltható</small></h3>
+    <div class="augs">${(AUGMENTS[P.cls] || []).map(([id, name, desc]) => {
+      const own = (P.augOwn || []).includes(id), on = augOn(id);
+      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST))}</div>`;
+    }).join('')}</div>
     <div class="tree">${rows}</div>`;
 }
 function skillAction(kind, a) {
@@ -212,6 +231,12 @@ function skillAction(kind, a) {
     const def = CLASSES[P.cls].tree.find(t => t[0] === a), row = Math.floor(CLASSES[P.cls].tree.indexOf(def) / 3);
     if (P.tokens < 1 || rk(a) >= def[2] || treeSpent() < row * 3) return false;
     P.tokens--; P.skills[a] = rk(a) + 1; return true;
+  }
+  if (kind === 'aug') {
+    const ok = (AUGMENTS[P.cls] || []).some(x => x[0] === a); if (!ok) return false;
+    P.augOwn = P.augOwn || []; P.aug = P.aug || {};
+    if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST) return false; P.tokens -= AUG_COST; P.augOwn.push(a); }
+    P.aug[P.cls] = a; return true;
   }
   if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.tokens += treeSpent(); P.skills = {}; return true; }
   if (kind === 'reclass' && P.cash >= RECLASS) { P.cash -= RECLASS; P.tokens += treeSpent(); P.skills = {}; P.cls = null; return true; }

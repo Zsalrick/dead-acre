@@ -10,7 +10,7 @@ const NET = {
   room: null, pr: null, code: null, host: false, me: null,
   mode: null, client: false,              // in a job: 'host' | 'client'
   seq: 0, hits: [], acts: [], kills: [], dmgs: [], last: {},
-  avatars: new Map(), zById: new Map(), job: null, seenJs: 0, hadHost: false,
+  avatars: new Map(), zById: new Map(), lastHit: new Map(), job: null, seenJs: 0, hadHost: false,
   selfPos: null, selfVel: null, targets: null, keyParty: '', keyLobby: '', dirty: true,
 };
 const KIND_IDS = Object.keys(KINDS);
@@ -126,55 +126,111 @@ function netJobEnded() {
   publishMember(); setLobby();
 }
 
-// ---------- avatars of the other players ----------
-const avatarMats = {};
+// ---------- avatars of the other players: a proper soldier in class colours, aiming where they look ----------
+const avMats = {};
+function avMat(col) { return avMats[col] || (avMats[col] = new THREE.MeshStandardMaterial({ color: col, roughness: .85 })); }
+const avDark = new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: .9 }), avBoot = new THREE.MeshStandardMaterial({ color: 0x1a1612, roughness: .8 });
+const avFlashMat = new THREE.SpriteMaterial({ map: glowTex, color: 0xffc080, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
 function makeAvatar(m) {
-  const g = new THREE.Group(), col = CLASSES[m && m.c] ? CLASSES[m.c].color : '#9aa0a6';
-  const mat = avatarMats[col] || (avatarMats[col] = new THREE.MeshLambertMaterial({ color: col }));
-  const box = (sx, sy, sz, y, mt = mat) => { const b = new THREE.Mesh(unitBox, mt); b.scale.set(sx, sy, sz); b.position.y = y; b.castShadow = true; g.add(b); return b; };
-  box(.5, .7, .3, 1.15); box(.22, .8, .24, .4).position.x = -.13; box(.22, .8, .24, .4).position.x = .13;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.17, 12, 10), skinMat); head.position.y = 1.72; g.add(head);
-  box(.38, .08, .38, 1.9, gloveMat);
-  const label = textSprite([String((m && m.n) || 'Társ').slice(0, 24)], col, .42); label.position.y = 2.35; g.add(label);
+  const col = CLASSES[m && m.c] ? CLASSES[m.c].color : '#9aa0a6', cloth = avMat(col), pants = avMat('#3a3f36');
+  const g = new THREE.Group();
+  const box = (parent, mt, sx, sy, sz, x, y, z) => { const b = new THREE.Mesh(unitBox, mt); b.scale.set(sx, sy, sz); b.position.set(x, y, z); b.castShadow = true; parent.add(b); return b; };
+  const hips = new THREE.Group(); hips.position.y = .92; g.add(hips);
+  const leg = x => { const L = new THREE.Group(); L.position.set(x, 0, 0); hips.add(L); box(L, pants, .19, .5, .21, 0, -.25, 0); box(L, pants, .17, .42, .19, 0, -.68, 0); box(L, avBoot, .2, .12, .3, 0, -.88, -.04); return L; };
+  const legL = leg(-.13), legR = leg(.13);
+  box(hips, avDark, .44, .14, .26, 0, .02, 0); // belt
+  const torso = new THREE.Group(); torso.position.y = .95; g.add(torso);
+  box(torso, cloth, .46, .56, .26, 0, .3, 0);
+  box(torso, avDark, .5, .34, .3, 0, .34, 0); // plate carrier
+  box(torso, avDark, .1, .12, .08, -.14, .22, -.17); box(torso, avDark, .1, .12, .08, .02, .22, -.17); // pouches
+  const head = new THREE.Group(); head.position.set(0, .66, 0); torso.add(head);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(.14, 14, 12), skinMat); face.position.y = .1; face.castShadow = true; head.add(face);
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(.165, 14, 10, 0, Math.PI * 2, 0, Math.PI / 1.9), cloth); helm.position.y = .13; head.add(helm);
+  box(head, avDark, .2, .04, .05, 0, .12, -.13); // goggles
+  const arm = x => { const A = new THREE.Group(); A.position.set(x, .5, 0); torso.add(A); box(A, cloth, .13, .13, .34, 0, 0, -.15); box(A, skinMat, .1, .1, .3, 0, -.02, -.44); return A; };
+  const armR = arm(.27), armL = arm(-.27);
+  armR.rotation.y = .25; armL.rotation.y = -.45;
+  const gunG = new THREE.Group(); gunG.position.set(.12, .46, -.5); torso.add(gunG);
+  const flash = new THREE.Sprite(avFlashMat); flash.scale.set(.5, .5, 1); flash.visible = false; gunG.add(flash);
+  const label = textSprite([String((m && m.n) || 'Társ').slice(0, 24)], col, .42); label.position.y = 2.25; g.add(label);
   scene.add(g);
-  return { g, pos: new V3(), vel: new V3(), down: false, gunKey: '', gun: null, tx: 0, tz: 0, ty: 0, yaw: 0 };
+  return { g, hips, legL, legR, torso, head, armL, armR, gunG, flash, pos: new V3(), vel: new V3(), down: false, gunKey: '', gun: null, walkT: 0, pitch: 0, yaw: 0, sh: null, flashT: 0, lastPing: null, name: (m && m.n) || 'Társ', col };
+}
+function remoteShot(b, d) { // their shots, quieter with distance
+  const f = clamp(1 - d / 70, 0, 1) * .7; if (f < .03) return;
+  const low = b && (b.snd === 'boom' || b.snd === 'heavy' || b.snd === 'thump');
+  nz(.16, low ? 900 : 1800, .55 * f); tn(low ? 90 : 160, .08, .2 * f, 'square', 50);
 }
 function updateAvatars(dt, peers) {
   const seen = new Set();
   for (const p of peers) {
     if (p.sameTab || !p.presence || !p.presence.p) continue;
     const P = p.presence.p; seen.add(p.peer);
-    let a = NET.avatars.get(p.peer); if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); }
+    let a = NET.avatars.get(p.peer); if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; }
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12);
     a.pos.x = lerp(a.pos.x, +P.x || 0, k); a.pos.z = lerp(a.pos.z, +P.z || 0, k);
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
-    a.down = !!P.dn; a.hp = +P.hp || 0; a.mh = +P.mh || 100;
-    a.g.position.set(a.pos.x, a.down ? .2 : lerp(a.g.position.y, +P.y || 0, k), a.pos.z);
-    a.g.rotation.set(0, (+P.yw || 0) + Math.PI, a.down ? 1.4 : 0);
+    a.down = !!P.dn; a.hp = +P.hp || 0; a.mh = +P.mh || 100; a.au = Array.isArray(P.au) ? P.au : null;
+    a.yaw += ((((+P.yw || 0) - a.yaw) + Math.PI * 3) % (Math.PI * 2) - Math.PI) * k;
+    a.pitch = lerp(a.pitch, clamp(+P.pt || 0, -1.4, 1.4), k);
+    // body: yaw on the whole figure, pitch shared by the torso, head, arms and gun; legs walk with speed
+    const speed = Math.hypot(a.vel.x, a.vel.z); a.walkT += dt * (2 + speed * 1.9);
+    const sw = Math.sin(a.walkT) * Math.min(.7, speed * .14);
+    a.g.position.set(a.pos.x, a.down ? .15 : lerp(a.g.position.y, +P.y || 0, k) + Math.abs(Math.sin(a.walkT)) * Math.min(.05, speed * .01), a.pos.z);
+    a.g.rotation.set(0, a.yaw, a.down ? 1.45 : 0);
+    a.legL.rotation.x = sw; a.legR.rotation.x = -sw;
+    a.torso.rotation.x = a.pitch * .45; a.head.rotation.x = a.pitch * .55;
+    const rl = P.rl ? Math.sin(now * 9) * .35 - .5 : 0;
+    a.armR.rotation.x = a.pitch * .55; a.armL.rotation.x = a.pitch * .55 + rl;
+    a.gunG.rotation.x = a.pitch * .55 + (P.rl ? -.35 : 0);
     const gk = `${P.wb}:${P.wq}`;
     if (gk !== a.gunKey) {
-      a.gunKey = gk; if (a.gun) a.g.remove(a.gun);
+      a.gunKey = gk; if (a.gun) a.gunG.remove(a.gun);
       const b = BASES.find(b => b.id === P.wb);
-      if (b) { a.gun = buildGun({ base: b, q: clamp(+P.wq || 0, 0, 4) }, true); a.gun.scale.setScalar(1.3); a.gun.position.set(.2, 1.3, -.35); a.gun.rotation.y = Math.PI; a.g.add(a.gun); }
+      if (b) { a.gun = buildGun({ base: b, q: clamp(+P.wq || 0, 0, 5) }, true); a.gun.scale.setScalar(1.25); a.gunG.add(a.gun); a.flash.position.set(0, 0, -((b.model.len + b.model.barrel) * 1.25 * .5) - .1); a.base = b; }
     }
+    // their shots: flash, tracer toward where they aim, and the sound
+    if (a.sh === null) a.sh = +P.sh || 0;
+    if ((+P.sh || 0) > a.sh && !a.down) {
+      a.sh = +P.sh; a.flashT = .06; a.flash.visible = true; a.flash.material.rotation = Math.random() * 6;
+      const from = new V3(); a.flash.getWorldPosition(from);
+      const dir = new V3(-Math.sin(a.yaw) * Math.cos(a.pitch), Math.sin(a.pitch), -Math.cos(a.yaw) * Math.cos(a.pitch));
+      if (!(a.base && a.base.flame)) tracer(from, from.clone().addScaledVector(dir, 40), a.base && a.base.tracer || 0xffd9a0, .012);
+      else burst(from.clone().addScaledVector(dir, 2), 0xff8a2a, 2, 2, .3);
+      remoteShot(a.base, Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z));
+    } else a.sh = Math.max(a.sh, +P.sh || 0);
+    if ((a.flashT -= dt) <= 0) a.flash.visible = false;
+    // pings
+    if (Array.isArray(P.pg) && P.pg[0] !== a.lastPing) { const first = a.lastPing === null; a.lastPing = P.pg[0]; if (!first) addPing(p.peer, a.name, a.col, new V3(P.pg[1] / 10, P.pg[2] / 10, P.pg[3] / 10), P.pg[4]); }
+    // a medic's aura (Feltámasztó augment) brings back the downed
+    if (player.down && a.au && Math.hypot(player.pos.x - a.au[0], player.pos.z - a.au[1]) < 6) netRevive();
   }
   for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); NET.avatars.delete(peer); }
 }
 const partySize = () => 1 + [...NET.avatars.values()].length;
 
 // ---------- host: zombies chase the nearest living player ----------
+// what the zombies may go for this frame: party members (host), the generator on a defense job; null = only you
+let AIM = null;
+function aimSetup() {
+  AIM = NET.targets ? NET.targets.slice() : null;
+  if (mission && mission.gen && mission.gen.hp > 0) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(mission.gen.target);
+  if (AIM) { NET.selfPos = player.pos; NET.selfVel = player.vel; }
+}
 function netAim(z) {
-  if (!NET.targets) return;
-  if (!z.tgt || (z.tgtT = (z.tgtT || 0) - 1 / 60) <= 0) {
-    z.tgtT = .4; let best = NET.targets[0], bd = Infinity;
-    for (const T of NET.targets) { if (!T.alive) continue; const d = Math.hypot(T.pos.x - z.pos.x, T.pos.z - z.pos.z); if (d < bd) { bd = d; best = T; } }
+  if (!AIM) return;
+  if (!z.tgt || !AIM.includes(z.tgt) || (z.tgtT = (z.tgtT || 0) - 1 / 60) <= 0) {
+    z.tgtT = .4; let best = AIM[0], bd = Infinity;
+    for (const T of AIM) { if (!T.alive) continue; const d = Math.hypot(T.pos.x - z.pos.x, T.pos.z - z.pos.z) * (T.gen ? .6 : 1); if (d < bd) { bd = d; best = T; } }
     z.tgt = best;
+    const gen = AIM.find(T => T.gen && T.alive); if (gen && z.id % 5 < 2 && !z.K.boss) z.tgt = gen; // on a defense job 2 in 5 zombies go straight for the generator
   }
   player.pos = z.tgt.pos; player.vel = z.tgt.vel; zTarget = z.tgt;
 }
-function netAimEnd() { if (!NET.targets) return; player.pos = NET.selfPos; player.vel = NET.selfVel; zTarget = null; }
+function netAimEnd() { if (!AIM) return; player.pos = NET.selfPos; player.vel = NET.selfVel; zTarget = null; }
 // a zombie aimed at a remote player: the damage goes to them instead of the host
 function netRedirectHurt(d) {
+  if (zTarget && zTarget.gen) { if (mission && mission.gen) { mission.gen.hp -= d * .5; mission.gen.hitT = now; } return true; } // the generator is sturdier than a person
   if (!zTarget || !zTarget.remote) return false;
   pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10], 16);
   return true;
@@ -202,7 +258,7 @@ function netAllDown() { return player.down && ![...NET.avatars.values()].some(a 
 
 // ---------- client: hits on proxies go to the host ----------
 function netHit(z, amt, o) {
-  if (z.dead) return;
+  if (z.dead || z.invulnT > 0) return;
   if (z.markT > 0) amt *= 1.5;
   if (z.K.boss && rk('h_boss')) amt *= 1.2;
   if (o.w && rk('h_exec') && z.hp < z.maxHp * .25) amt *= 2;
@@ -211,20 +267,22 @@ function netHit(z, amt, o) {
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit);
   let burn = 0, fl = (o.head ? 1 : 0) | (o.crit ? 2 : 0) | (o.melee ? 4 : 0) | (o.dot ? 8 : 0) | (insta ? 32 : 0);
+  if (o.burnDps) burn = Math.round(o.burnDps);
+  NET.lastHit.set(z.id, { w: o.w, head: !!o.head });
   if (o.w && o.w.element && !o.chain) {
     if (o.w.element === 'fire') burn = Math.round(o.w.dmg * o.w.pellets * fireRate(o.w) * .12);
     else if (o.w.element === 'cryo') fl |= 16;
     else applyElement(z, o.w, amt); // shock: the arc hits another proxy, which is sent too
   }
   pushRoll(NET.hits, [++NET.seq, z.id, Math.round(amt), fl, burn], 24);
-  if (!o.dot) addPoints(10);
+  if (!o.dot) { addPoints(10); weaponOnHit(z, amt, o); }
 }
 const netAct = (type, arg) => pushRoll(NET.acts, [++NET.seq, type, arg == null ? 0 : arg], 8);
 
 // ---------- host: a remote player's kill ----------
 function netKill(z, o) {
   const pts = z.K.points || (o.melee ? 130 : o.head ? 100 : 60);
-  pushRoll(NET.kills, [++NET.seq, o.remote, KIND_IDS.indexOf(z.kind), o.head ? 1 : 0, pts, Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), z.elite ? 1 : 0], 16);
+  pushRoll(NET.kills, [++NET.seq, o.remote, KIND_IDS.indexOf(z.kind), o.head ? 1 : 0, pts, Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), z.elite ? 1 : 0, z.id], 16);
 }
 // the killer's side: points, stats and their own loot roll
 function netOwnKill(e) {
@@ -233,6 +291,8 @@ function netOwnKill(e) {
   if (head) { player.heads++; stats.heads++; }
   if (rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(+pts || 60); hitmarker(true); SND.kill();
+  const zid = e[8], lh = NET.lastHit.get(zid) || {}, pz = zombies.find(q => q.id === zid) || { pos: new V3(x / 10, 0, zz / 10), burnT: 0 };
+  weaponOnKill(pz, { w: lh.w, head: !!head }); NET.lastHit.delete(zid);
   dropLoot({ K: KINDS[kind], kind, elite: !!elite }, new V3(x / 10, 0, zz / 10));
 }
 
@@ -251,12 +311,17 @@ function buildSnapshot() {
     t: Math.round(M.t * 10) / 10, ph: M.phase, pt: Math.round((M.phaseT || 0) * 10) / 10, w: M.wave, r: round, cl: M.cleared ? 1 : 0,
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
+    kc: M.kc || 0, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, cr: M.crates ? M.crates.reduce((m, c, i) => m | (c.got ? 1 << i : 0), 0) : 0, od: M.objDone ? 1 : 0,
     tr: trapState.map(T => Math.max(0, Math.round(T.active * 10) / 10)), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
+    bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
+    hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
   };
 }
 function myPresence() {
   const w = curW();
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
+    pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
+    au: aura && augOn('revive') ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10] : null,
     wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down ? 1 : 0, h: NET.hits, a: NET.acts };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
@@ -313,6 +378,8 @@ function netHostAct(type, arg) {
   const keys = Object.keys(AREAS);
   if (type === 'gate' && keys[arg] && !AREAS[keys[arg]].unlocked) { openArea(keys[arg]); banner(`${AREAS[keys[arg]].name.toUpperCase()} MEGNYÍLT`, 'Egy társad nyitotta meg.'); }
   if (type === 'trap' && trapState[arg] && trapState[arg].active <= 0 && trapState[arg].cd <= 0) trapState[arg].active = 20;
+  if (type === 'crate') takeCrate(arg | 0, true);
+  if (type === 'repair' && M.gen && M.gen.hp > 0) M.gen.hp = Math.min(M.gen.max, M.gen.hp + M.gen.max * .25);
   if (type === 'board' && M.phase === 'evac' && truck.parked && !(M.boardT > 0) && !M.leaving) { M.boardT = BOARD_T; banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); }
 }
 
@@ -354,6 +421,12 @@ function applySnapshot(g, hostPeer) {
     z.net = { x: x / 10, z: zz / 10, h: h / 100, y: (+y || 0) / 10, fl };
   }
   for (const [id, z] of NET.zById) if (!live.has(id)) { NET.zById.delete(id); proxyDie(z); }
+  if (Array.isArray(g.bb)) { const bz = NET.zById.get(g.bb[0]); if (bz) { if (!bz.bounty && BOUNTIES[g.bb[1]]) { bz.bounty = g.bb[1]; const tint = new THREE.Color(BOUNTIES[g.bb[1]].tint); bz.mats.forEach(m => m.color && m.color.lerp(tint, .45)); } bz.phase = g.bb[2]; bz.invulnT = g.bb[3] ? .5 : 0; } }
+  NET.hz = Array.isArray(g.hz) ? g.hz : [];
+  M.kc = +g.kc || 0;
+  if (M.gen && g.gh != null) { const hp = +g.gh * M.gen.max; if (hp < M.gen.hp - 1) M.gen.hitT = now; M.gen.hp = hp; }
+  if (M.crates) M.crates.forEach((c, i) => { if ((g.cr & (1 << i)) && !c.got) takeCrate(i, true); });
+  if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
   // kills credited to me, and damage the host's zombies did to me
   for (const e of fresh('k' + hostPeer, g.k)) if (e[1] === NET.me) netOwnKill(e);
   for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && !player.down) hurtPlayer(+e[2] || 0);
@@ -402,6 +475,7 @@ function updateProxies(dt) {
 // the client's side of the job: its own van animations; everything else comes from the snapshot
 function clientMission(dt) {
   const M = mission; if (!M) return;
+  if (M.gen) updateObjective(M, dt); // lamp and sparks only; the host decides the outcome
   if (M.leaving) {
     M.leaving += dt;
     truck.g.position.x += truck.dir * dt * (4 + M.leaving * 6);
@@ -410,7 +484,46 @@ function clientMission(dt) {
     return;
   }
   if (M.departT >= 0) { M.departT += dt; setVanAt(M.departT * M.departT * 2.5); if (!truck.g.visible && M.departT > 1) M.departT = -1; }
+  for (const [x, z, r] of NET.hz || []) for (let k = 0; k < 3; k++) { const a = rand(0, 6.28), d = Math.sqrt(Math.random()) * r / 10; burst(new V3(x / 10 + Math.sin(a) * d, .1, z / 10 + Math.cos(a) * d), Math.random() < .5 ? 0xff6a1a : 0xffc04a, 1, 1.4, .5); }
   stats.bestThreat = Math.max(stats.bestThreat, round);
 }
 
 requestAnimationFrame(frame);
+
+// ---------- pings: Z or the middle mouse button marks a spot (or a zombie) for the whole party ----------
+const pings = [];
+const pingTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  g.strokeStyle = '#fff'; g.lineWidth = 6; g.beginPath(); g.moveTo(32, 6); g.lineTo(58, 32); g.lineTo(32, 58); g.lineTo(6, 32); g.closePath(); g.stroke(); return new THREE.CanvasTexture(c); })();
+function doPing() {
+  if (!mission || state !== 'playing') return;
+  const dir = new V3(0, 0, -1).applyQuaternion(camera.quaternion), targets = rayBlockers.slice();
+  for (const z of zombies) if (!z.dead) targets.push(...z.parts);
+  ray.set(camera.position, dir); ray.far = 150;
+  const h = ray.intersectObjects(targets, false)[0];
+  const pos = h ? h.point.clone() : camera.position.clone().addScaledVector(dir, 60), kind = h && h.object.userData.z ? 'z' : 'p';
+  NET.ping = [(NET.ping ? NET.ping[0] : 0) + 1, Math.round(pos.x * 10), Math.round(pos.y * 10), Math.round(pos.z * 10), kind];
+  addPing('me', myName(), CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a', pos, kind);
+}
+function addPing(owner, name, col, pos, kind) {
+  const old = pings.findIndex(p => p.owner === owner); if (old >= 0) removePing(old);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: pingTex, color: new THREE.Color(col), transparent: true, depthTest: false }));
+  sp.scale.set(.9, .9, 1); sp.position.copy(pos).add(new V3(0, .6, 0)); sp.renderOrder = 999; scene.add(sp);
+  const el = document.createElement('div'); el.className = 'ping'; el.style.setProperty('--pc', col); $('pings').appendChild(el);
+  pings.push({ owner, name: String(name).slice(0, 24), pos, kind, t: 8, sp, el });
+  tn(1100, .07, .12, 'sine'); tn(1650, .09, .1, 'sine', 0, .07);
+}
+function removePing(i) { const p = pings[i]; scene.remove(p.sp); p.sp.material.dispose(); p.el.remove(); pings.splice(i, 1); }
+function updatePings(dt) {
+  const W = innerWidth, H = innerHeight;
+  for (let i = pings.length - 1; i >= 0; i--) {
+    const p = pings[i]; p.t -= dt;
+    if (p.t <= 0 || !mission) { removePing(i); continue; }
+    p.sp.material.opacity = Math.min(1, p.t) * (.7 + Math.sin(now * 8) * .3);
+    const v = p.pos.clone().add(new V3(0, .6, 0)).project(camera); let x = v.x, y = v.y; const behind = v.z > 1;
+    if (behind) { x = -x; y = -y; }
+    const k = Math.max(Math.abs(x) / .92, Math.abs(y) / .85); if (behind || k > 1) { x /= k; y /= k; }
+    p.el.style.transform = `translate(${(x + 1) / 2 * W}px,${(1 - y) / 2 * H}px) translate(-50%,-110%)`;
+    p.el.textContent = `${p.kind === 'z' ? 'ZOMBI · ' : ''}${p.name} · ${Math.round(Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z))} m`;
+    p.el.style.opacity = Math.min(1, p.t);
+  }
+}

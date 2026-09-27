@@ -106,6 +106,8 @@ function weaponDetail(w, cmp, actions) {
       ${drow('Hatótáv', `${b.range} m`, c ? arrow(b.range, c.base.range) : '')}
     </table>
     ${el ? `<div class="delem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
+    ${w.unique && UNIQUES[w.unique] ? `<div class="duniq"><b>Egyedi:</b> ${UNIQUES[w.unique].trick}</div>` : ''}
+    ${w.anoint && ANOINTS[w.anoint] ? `<div class="danoint"><b>Felkenés:</b> ${ANOINTS[w.anoint]}</div>` : ''}
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }

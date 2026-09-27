@@ -47,6 +47,7 @@ function findFocus() {
   for (const d of gearDrops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; bg = d; } }
   if (bg) return { type: 'gear', gd: bg, it: bg.it };
   if (best) return { type: 'drop', drop: best, w: best.w };
+  const cf = crateFocus(); if (cf) return cf;
   const af = areaFocus(); if (af) return af;
   if (Math.hypot(box.pos.x - player.pos.x, box.pos.z - player.pos.z) < 2.6) return { type: 'box', w: box.state === 'ready' ? box.weapon : null };
   if (Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z) < 2.4) return { type: 'ammo' };
@@ -55,6 +56,8 @@ function findFocus() {
 function interact() {
   if (!focus) return;
   if (focus.type === 'drop' || focus.type === 'gear') return; // loot on the ground: F / hold F (game.js)
+  else if (focus.type === 'crate') { takeCrate(focus.i); focus = null; }
+  else if (focus.type === 'repair') repairGen();
   else if (!['box', 'ammo'].includes(focus.type)) areaInteract(focus);
   else if (focus.type === 'box') {
     if (box.state === 'idle') {
@@ -123,18 +126,18 @@ const projs = [];
 const grenGeo = new THREE.SphereGeometry(.09, 10, 8), grenMat = new THREE.MeshLambertMaterial({ color: 0x3d4a2a });
 const knifeGeo = new THREE.BoxGeometry(.025, .05, .34), knifeMat = new THREE.MeshStandardMaterial({ color: 0xcfd3d8, metalness: .8, roughness: .3 });
 const lobMat = new THREE.MeshStandardMaterial({ color: 0x4a5a2a, roughness: .5 });
-function launchGrenade(w, from) {
+function launchGrenade(w, from, mul = 1) {
   const fwd = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
   const m = new THREE.Mesh(grenGeo, lobMat); m.position.copy(from); scene.add(m);
-  projs.push({ k: 'lob', m, v: fwd.multiplyScalar(26).add(new V3(0, 2.5, 0)), t: 6, w });
+  projs.push({ k: 'lob', m, v: fwd.multiplyScalar(26).add(new V3(0, 2.5, 0)), t: 6, w, mul });
 }
 function throwProj(k) {
   const fwd = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
-  const m = new THREE.Mesh(k === 'gren' ? grenGeo : knifeGeo, k === 'gren' ? grenMat : knifeMat);
+  const type = throwKind(k), m = new THREE.Mesh(k === 'gren' ? grenGeo : knifeGeo, k === 'gren' ? (GREN_MATS[type] || grenMat) : (KNIFE_MATS[type] || knifeMat));
   m.position.copy(camera.position).addScaledVector(fwd, .4); m.position.y -= .08; m.castShadow = true;
   scene.add(m);
   const v = fwd.multiplyScalar(k === 'gren' ? 15 : 34); if (k === 'gren') v.y += 3.5;
-  projs.push({ k, m, v, t: k === 'gren' ? 1.8 : 2 });
+  projs.push({ k, type, m, v, t: k === 'gren' ? (type === 'molotov' ? 3 : 1.8) : 2, bounces: type === 'ricochet' ? 2 : 0, hitSet: new Set() });
   SND.knife();
 }
 function explode(p, o = {}) {
@@ -163,7 +166,9 @@ function updateProjs(dt) {
       if (Math.random() < dt * 30) burst(pos, 0x8a8a80, 1, .4, .4);
       const hitZ = zombies.some(z => !z.dead && Math.hypot(z.pos.x - pos.x, z.pos.z - pos.z) < .8 * z.scale && pos.y < 2.2 * z.scale);
       if (pos.y < .1 || hitZ || !inBounds(pos.x, pos.z, 0) || obstacles.some(o => pos.x > o.minX && pos.x < o.maxX && pos.z > o.minZ && pos.z < o.maxZ && pos.y < o.h) || done) {
-        explode(pos.clone().setY(Math.max(.3, pos.y)), { r: p.w.base.splash, zdmg: p.w.dmg * (Math.random() < critChance() ? critMult() : 1), pr: 3, pdmg: 30 });
+        const zd = p.w.dmg * (p.mul || 1) * (Math.random() < critChance() ? critMult() : 1);
+        explode(pos.clone().setY(Math.max(.3, pos.y)), { r: p.w.base.splash, zdmg: zd, pr: 3, pdmg: 30 });
+        if (p.w.unique === 'bigbang') for (let k = 0; k < 3; k++) { const a = k * 2.1 + rand(0, .5), q = pos.clone().add(new V3(Math.sin(a) * 3, 0, Math.cos(a) * 3)).setY(.3); setTimeout(() => mission && explode(q, { r: p.w.base.splash * .7, zdmg: zd * .5, pr: 2, pdmg: 15 }), 250 + k * 120); }
         done = true;
       }
     } else if (p.k === 'knife') {
@@ -175,20 +180,23 @@ function updateProjs(dt) {
       const h = ray.intersectObjects(targets, false)[0];
       if (h) {
         const z = h.object.userData.z, head = !!h.object.userData.head;
-        if (z) { hurtZombie(z, (120 + zombieHp() * .8) * (head ? 2 : 1), { head, color: '#ffffff' }); hitmarker(z.dead); burst(h.point, 0x5a0a0a, 8, 3); SND.hit(); }
-        else burst(h.point, 0xffc070, 5, 2, .3);
-        done = true;
+        if (z) { knifeHit(p, z, head, h.point); done = !p.redirected; p.redirected = false; }
+        else { burst(h.point, 0xffc070, 5, 2, .3); if (p.type === 'blast') explode(h.point.clone(), { r: 3, zdmg: 90 + zombieHp() * .9, pr: 2.5, pdmg: 15 }); done = true; }
       }
     } else {
+      if (p.type === 'sticky' && !p.stuck) { const z = zombies.find(z => !z.dead && Math.hypot(z.pos.x - pos.x, z.pos.z - pos.z) < .7 * z.scale && pos.y < 2 * z.scale); if (z) { p.stuck = z; p.off = new V3(pos.x - z.pos.x, 0, pos.z - z.pos.z).setLength(.3); SND.hit(); } }
+      if (p.stuck) { if (p.stuck.dead && !p.stuck.g.parent) p.stuck = null; else { pos.set(p.stuck.pos.x + p.off.x, 1.2 * p.stuck.scale, p.stuck.pos.z + p.off.z); p.v.set(0, 0, 0); } }
+      if (p.type === 'molotov' && pos.y < .12 && !p.stuck) { p.t = 0; } // shatters when it lands
       p.m.rotation.x += dt * 8;
       if (pos.y < .09) { pos.y = .09; p.v.y = Math.abs(p.v.y) * .35; p.v.x *= .6; p.v.z *= .6; }
       const hitObs = !inBounds(pos.x, pos.z, 0) ||
         obstacles.some(o => pos.x > o.minX && pos.x < o.maxX && pos.z > o.minZ && pos.z < o.maxZ && pos.y < o.h);
       if (hitObs) { pos.x = prev.x; pos.z = prev.z; p.v.x *= -.4; p.v.z *= -.4; }
-      if (p.t <= 0) explode(pos);
+      if (p.t <= 0) detonate(p);
     }
     if (done) { scene.remove(p.m); projs.splice(i, 1); }
   }
+  updateFireZones(dt);
   boomLight.intensity = Math.max(0, boomLight.intensity - dt * 18);
 }
 const itemDrops = [];
@@ -207,5 +215,58 @@ function updateItemDrops(dt) {
       player.inv[d.k]++; renderInv(); SND.pickup(0); popText(`+1 ${ITEMS[d.k].name}`, ITEMS[d.k].color); d.t = 0;
     }
     if (d.t <= 0) { scene.remove(d.s); itemDrops.splice(i, 1); }
+  }
+}
+
+// ---------- grenade and knife kinds ----------
+const GREN_MATS = { molotov: new THREE.MeshStandardMaterial({ color: 0x6a4a1a, emissive: 0x3a1a00, roughness: .3 }), cryo: new THREE.MeshStandardMaterial({ color: 0x8fe8ff, emissive: 0x1a4a5a }),
+  shock: new THREE.MeshStandardMaterial({ color: 0x7d8dff, emissive: 0x2a2a8a }), sticky: new THREE.MeshStandardMaterial({ color: 0x9dff3a, emissive: 0x2a5a0a }) };
+const KNIFE_MATS = { poison: new THREE.MeshStandardMaterial({ color: 0x7fe05a, emissive: 0x1a4a0a, metalness: .6 }), blast: new THREE.MeshStandardMaterial({ color: 0xff7a3a, emissive: 0x5a1a00, metalness: .6 }),
+  ricochet: new THREE.MeshStandardMaterial({ color: 0xb8c8ff, emissive: 0x1a2a5a, metalness: .9, roughness: .2 }) };
+function detonate(p) {
+  const pos = p.m.position.clone().setY(Math.max(.3, p.m.position.y));
+  if (p.type === 'molotov') { addFireZone(pos, 4, 6); explode(pos, { r: 2.5, zdmg: 40 + zombieHp() * .3, pr: 1.5, pdmg: 8, color: 0xff7a1a }); return; }
+  if (p.type === 'cryo') {
+    explode(pos, { r: 4, zdmg: 60 + zombieHp() * .5, pr: 2.5, pdmg: 10, color: 0x8ff0ff });
+    for (const z of zombies) if (!z.dead && z.pos.distanceTo(pos) < 6) hurtZombie(z, 1, { w: { element: 'cryo' }, chain: false, dot: true, color: '#8ff0ff' });
+    return;
+  }
+  if (p.type === 'shock') {
+    explode(pos, { r: 3, zdmg: 60 + zombieHp() * .4, pr: 2, pdmg: 10, color: 0x7d8dff });
+    const near = zombies.filter(z => !z.dead && z.pos.distanceTo(pos) < 10).sort((a, b) => a.pos.distanceTo(pos) - b.pos.distanceTo(pos)).slice(0, 6);
+    let from = pos;
+    for (const z of near) { const to = new V3(z.pos.x, 1.3 * z.scale, z.pos.z); tracer(from, to, 0x7d8dff, .04); hurtZombie(z, 80 + zombieHp() * .9, { color: ELEMENTS.shock.color }); from = to; }
+    SND.zap(); return;
+  }
+  if (p.type === 'sticky') { explode(pos, { r: 5.5, zdmg: (150 + zombieHp() * 1.1) * 1.5, pr: 3.5, pdmg: 35 }); return; }
+  explode(pos);
+}
+function knifeHit(p, z, head, point) {
+  if (p.hitSet.has(z)) { p.redirected = true; return; }
+  p.hitSet.add(z);
+  const base = (120 + zombieHp() * .8) * (head ? 2 : 1);
+  if (p.type === 'poison') hurtZombie(z, base * .5, { head, color: '#7fe05a', burnDps: zombieHp() * .3, burnT: 5 });
+  else if (p.type === 'blast') { hurtZombie(z, base * .6, { head, color: '#ff9a5a' }); explode(point.clone(), { r: 3, zdmg: 90 + zombieHp() * .9, pr: 2.5, pdmg: 15 }); }
+  else hurtZombie(z, base, { head, color: '#ffffff' });
+  hitmarker(z.dead); burst(point, 0x5a0a0a, 8, 3); SND.hit();
+  if (p.bounces > 0) { // ricochet to the nearest other zombie
+    const next = zombies.filter(o => !o.dead && !p.hitSet.has(o) && o.pos.distanceTo(z.pos) < 10).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0];
+    if (next) { p.bounces--; p.redirected = true; p.t = 2; const to = new V3(next.pos.x, 1.3 * next.scale, next.pos.z); p.m.position.copy(point); p.v.copy(to.sub(point).setLength(30)); p.v.y += 1; }
+  }
+}
+// burning ground: molotovs (hurt zombies) and boss hazards (hurt players)
+const fireZones = [];
+function addFireZone(pos, r, t, hazard = 0) { fireZones.push({ pos: pos.clone().setY(0), r, t, tick: 0, hazard }); }
+function updateFireZones(dt) {
+  for (let i = fireZones.length - 1; i >= 0; i--) {
+    const F = fireZones[i]; F.t -= dt; F.tick -= dt;
+    for (let k = 0; k < 3; k++) { const a = rand(0, 6.28), r = Math.sqrt(Math.random()) * F.r; burst(new V3(F.pos.x + Math.sin(a) * r, .1, F.pos.z + Math.cos(a) * r), Math.random() < .5 ? 0xff6a1a : 0xffc04a, 1, 1.4, .5); }
+    if (F.tick <= 0) {
+      F.tick = .5;
+      if (F.hazard) { if (!NET.client) hurtAt(F.pos, F.r, F.hazard * .5); }
+      else for (const z of zombies) if (!z.dead && Math.hypot(z.pos.x - F.pos.x, z.pos.z - F.pos.z) < F.r) hurtZombie(z, zombieHp() * .12, { dot: true, color: '#ff7a1a', burnDps: zombieHp() * .2, burnT: 1.5 });
+      if (!F.hazard && Math.hypot(player.pos.x - F.pos.x, player.pos.z - F.pos.z) < F.r) hurtPlayer(3, true);
+    }
+    if (F.t <= 0) fireZones.splice(i, 1);
   }
 }

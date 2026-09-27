@@ -16,14 +16,15 @@ const UPGRADES = {
 const U = k => (player.up && player.up[k]) || 0;
 const upCost = k => Math.round(UPGRADES[k].base * 1.25 * Math.pow(1.38, U(k)) / 50) * 50;
 // G(k): bonuses from worn gear (gear.js) · mkOf(w): the held gun's maker perk
-const maxHp = () => 100 + 20 * U('maxHp') + SK.hp() + G('hp');
+const perk = k => !!(player.perks && player.perks[k]);
+const maxHp = () => Math.round((100 + 20 * U('maxHp') + SK.hp() + G('hp')) * (perk('jug') ? 1.5 : 1));
 const maxShield = () => 25 * U('shield') + SK.shield() + G('armor');
 const maxStam = () => 100 + 20 * U('stamina') + G('stam');
-const critChance = () => Math.min(.75, .05 + .04 * U('crit') + SK.crit(curW()) + G('crit') + (mkOf(curW()).crit || 0));
+const critChance = () => Math.min(.75, .05 + .04 * U('crit') + SK.crit(curW()) + G('crit') + (mkOf(curW()).crit || 0) + (curW() && curW().anoint === 'ads' && player.ads > .6 ? .15 : 0));
 const critMult = () => 1.5 + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (mkOf(curW()).critDmg || 0);
 const headBonus = () => 1 + .15 * U('head') + SK.head() + G('head') + (mkOf(curW()).head || 0);
-const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed');
-const reloadMul = () => 1 + .06 * U('reload') + SK.reload() + G('reload');
+const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed') + (perk('runner') ? .15 : 0);
+const reloadMul = () => 1 + .06 * U('reload') + SK.reload() + G('reload') + (perk('speed') ? .3 : 0);
 const resMax = w => Math.round(w.maxRes * (1 + .15 * U('ammo') + SK.ammo() + G('ammo')));
 
 function updateVitals(dt) {

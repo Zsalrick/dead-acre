@@ -47,7 +47,9 @@ function equipView() {
 }
 function trackBest(w) { if (!player.best || w.q > player.best.q || (w.q === player.best.q && dps(w) > dps(player.best))) player.best = w; }
 // lower the current gun, swap the model at the bottom of the dip, raise the new one
+function reloaded(w) { w.fired = 0; (player.buf || (player.buf = {})).reload = 5; }
 function beginSwitch() {
+  (player.buf || (player.buf = {})).swap = 4;
   stopReload(); player.burstLeft = 0; player.spin = 0; player.switchT = SWITCH_T;
   if (vm.gun) vm.pending = true; else equipView();
   renderSlots();
@@ -210,16 +212,31 @@ function muzzleWorld() {
   v.z = .5; v.unproject(camera);
   return v.sub(camera.position).normalize().multiplyScalar(1.2).add(camera.position);
 }
+// per-shot damage from anointments and unique tricks
+function shotMul(w) {
+  let m = 1; const a = w.anoint, B = player.buf || {};
+  if (a === 'reload' && B.reload > 0) m *= 1.5;
+  if (a === 'lowhp' && player.hp < maxHp() * .35) m *= 1.6;
+  if (a === 'first' && (w.fired || 0) < 3) m *= 2;
+  if (a === 'swap' && B.swap > 0) m *= 1.4;
+  if (w.unique === 'thirteen' && w.ammo === 0) m *= 5;
+  if (w.unique === 'reaper' && player.uStack) { m *= 1 + player.uStack; player.uStack = 0; }
+  return m;
+}
+// fire-rate multiplier: anointment, the Haystack's spin-up, the Double Tap perk
+const rateMul = w => (w.anoint === 'ability' && player.buf && player.buf.ability > 0 ? 1.5 : 1) * (w.unique === 'haystack' ? 1 + (player.uHeat || 0) : 1) * (player.perks && player.perks.tap ? 1.25 : 1);
 function shoot() {
   const w = curW(), b = w.base;
   if (!(player.stormT > 0)) w.ammo--; // Tűzvihar: the mag does not drain
+  const sm = shotMul(w), forceCrit = w.unique === 'thirteen' && w.ammo === 0; w.fired = (w.fired || 0) + 1;
+  NET.shots = (NET.shots || 0) + 1; // partners hear and see it
   if (b.flame) { if ((vm.flameN = (vm.flameN || 0) + 1) % 3 === 0) SND.flame(); } else SND[b.snd]();
   vm.kick = .06 + b.kick; vm.kickR = b.kick * 4;
   if (vm.flash) { vm.flash.visible = true; vm.flash.material.rotation = Math.random() * 6; vm.flashT = .045; }
   const mz = muzzleWorld(); muzzleLight.position.copy(mz); muzzleLight.intensity = 3; muzzleLight.color.set(b.energy ? 0x60ff70 : 0xffb060);
   const kick = b.kick * (1 - player.ads * .4); player.pitch += kick; player.recoil += kick; // fully recovers: aim returns to where you pointed
   player.bloom = Math.min(w.spread * .6, player.bloom + w.spread * .08 * SK.bloom());
-  if (b.lob) return launchGrenade(w, mz);
+  if (b.lob) return launchGrenade(w, mz, sm);
 
   const spread = currentSpread() * Math.PI / 180;
   const fwd = new V3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -242,8 +259,8 @@ function shoot() {
         const fall = !b.flame && h.distance > b.range * .5 ? lerp(1, .4, (h.distance - b.range * .5) / (b.range * .5)) : 1;
         const head = !!h.object.userData.head;
         const t = tally.get(z) || { amt: 0, head: false, crit: false };
-        const crit = Math.random() < critChance();
-        t.amt += w.dmg * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1);
+        const crit = forceCrit || Math.random() < critChance();
+        t.amt += w.dmg * sm * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1);
         t.head = t.head || head; t.crit = t.crit || crit; tally.set(z, t);
         burst(h.point, 0x5a0a0a, 3, 2.2, .4);
         if (--pierce <= 0) { end = h.point; break; }
@@ -258,7 +275,7 @@ function shoot() {
       burst(end, 0x5aff6a, 14, 4, .45);
       for (const z of zombies) {
         if (z.dead || tally.has(z)) continue;
-        if (Math.hypot(z.pos.x - end.x, z.pos.z - end.z) < b.splash) tally.set(z, { amt: w.dmg * .6, head: false });
+        if (Math.hypot(z.pos.x - end.x, z.pos.z - end.z) < b.splash) tally.set(z, { amt: w.dmg * sm * .6, head: false });
       }
     }
     if (b.flame) { // a cone of fire instead of a tracer
@@ -281,7 +298,8 @@ function shoot() {
       }
     }
   }
-  for (const [z, t] of tally) hurtZombie(z, t.amt, { head: t.head, crit: t.crit, w });
+  const burnAug = player.stormT > 0 && augOn('ignite'); // Tűzvihar augment: burning rounds
+  for (const [z, t] of tally) hurtZombie(z, t.amt, { head: t.head, crit: t.crit, w, burnDps: burnAug ? t.amt * .3 : 0 });
   if (tally.size) { hitmarker(false); [...tally.values()].some(t => t.head) ? SND.head() : SND.hit(); }
 }
 function knife() {
@@ -312,12 +330,14 @@ function updateWeapon(dt) {
         if (player.reloading === 'single') {
           w.ammo++; w.reserve--;
           if (w.ammo < w.mag && w.reserve > 0) { player.reloadT = player.reloadDur; player.rlDone = {}; }
-          else { stopReload(); SND.pump(); vm.kick = .04; }
-        } else { const n = Math.min(w.mag - w.ammo, w.reserve); w.ammo += n; w.reserve -= n; stopReload(); }
+          else { stopReload(); SND.pump(); vm.kick = .04; reloaded(w); }
+        } else { const n = Math.min(w.mag - w.ammo, w.reserve); w.ammo += n; w.reserve -= n; stopReload(); reloaded(w); }
       }
     }
   }
   const busy = player.reloading || player.switchT > 0 || player.knifeT > 0;
+  const B = player.buf || (player.buf = {}); for (const k in B) B[k] = Math.max(0, B[k] - dt);
+  if (w.unique === 'haystack') player.uHeat = clamp((player.uHeat || 0) + (mouseDown && !busy && w.ammo > 0 ? dt / 4 : -dt / 1.5), 0, 1);
   if (w.base.spin) { // minigun spins up before it fires
     player.spin = clamp((player.spin || 0) + (mouseDown && !busy ? dt / .55 : -dt / .8), 0, 1);
     if (player.spin > .05 && (vm.spinSnd = (vm.spinSnd || 0) - dt) <= 0) { vm.spinSnd = .09; SND.spin(player.spin); }
@@ -336,7 +356,7 @@ function updateWeapon(dt) {
   if (w.ammo <= 0) { if (w.reserve > 0) startReload(); else SND.dry(); player.fireCd = .25; return; }
   player.sprint = false;
   if (w.base.mode === 'burst') { player.burstLeft = w.base.burst; player.burstT = 0; player.fireCd = w.base.burstDelay + (w.base.burst - 1) * 60 / w.rpm; }
-  else { shoot(); player.fireCd = 60 / w.rpm / (player.stormT > 0 ? 1.4 : 1); }
+  else { shoot(); player.fireCd = 60 / w.rpm / (player.stormT > 0 ? 1.4 : 1) / rateMul(w); }
   if (w.ammo <= 0 && w.reserve > 0) setTimeout(() => { if (curW() === w && state === 'playing') startReload(); }, 250);
 }
 
@@ -354,7 +374,7 @@ function updatePlayer(dt) {
   if (mv.lengthSq() > 0) mv.normalize();
   const adren = player.adrenT > 0;
   player.sprint = keys.ShiftLeft && f > 0 && !rmb && !mouseDown && player.knifeT <= 0 && !player.reloading && (adren || player.stam > (player.sprint ? 0 : 15));
-  if (player.sprint && !adren) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
+  if (player.sprint && !adren && !perk('runner')) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
   else if ((player.stamT -= dt) <= 0) player.stam = Math.min(maxStam(), player.stam + 28 * (1 + .15 * U('stamina')) * dt);
   player.adrenT = Math.max(0, player.adrenT - dt); player.itemCd -= dt;
   const speed = (player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
@@ -368,7 +388,7 @@ function updatePlayer(dt) {
   for (const z of zombies) {
     if (z.dead || z.rise > .2) continue;
     const dx = player.pos.x - z.pos.x, dz = player.pos.z - z.pos.z, d = Math.hypot(dx, dz), r = .42 + .38 * z.scale;
-    if (d < r && d > 1e-4) { player.pos.x = z.pos.x + dx / d * r; player.pos.z = z.pos.z + dz / d * r; }
+    if (d < r && d > 1e-4) { const k = NET.client ? .25 : 1; player.pos.x += (z.pos.x + dx / d * r - player.pos.x) * k; player.pos.z += (z.pos.z + dz / d * r - player.pos.z) * k; } // a member's proxies glide: push softly, no camera jumps
   }
   collide(player.pos, .42);
   updateVitals(dt);

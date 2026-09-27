@@ -19,6 +19,7 @@ const RARITIES = [
   { name: 'Ritka',          color: '#3a8dff', w: 10, elem: .35 },
   { name: 'Epikus',         color: '#b05cff', w: 3.5, elem: .6 },
   { name: 'Legendás',       color: '#ff8c1a', w: .5, elem: 1 },
+  { name: 'Egyedi',         color: '#ff3b3b', w: .06, elem: 1 }, // one-of-a-kind guns with their own trick (UNIQUES)
 ];
 const ELEMENTS = {
   fire:  { name: 'Tűz',   word: 'Hellfire',  color: '#ff6a2a', hex: 0xff6a2a, desc: 'Felgyújtja a célt (3 mp)' },
@@ -108,6 +109,7 @@ function rollRarity(luck = 0) {
 }
 
 function makeWeapon(base, q, level, mk) {
+  if (q >= 5) return makeUnique(null, level);
   mk = mk || pick(makersFor(base));
   const M = MAKERS[mk], r = {};
   for (const k of ['dmg', 'rate', 'mag', 'reload', 'acc']) r[k] = rand(-1, 1);
@@ -127,14 +129,47 @@ function makeWeapon(base, q, level, mk) {
   const top = Object.keys(r).reduce((a, b) => r[a] > r[b] ? a : b);
   if (q === 4) { const L = pick(LEGENDS); w.name = L[0]; w.flavor = L[1]; }
   else w.name = [q > 0 ? pick(PREFIX[top]) : null, w.element ? ELEMENTS[w.element].word : null, base.name].filter(Boolean).join(' ');
+  if (q >= 2 && Math.random() < [0, 0, .25, .5, 1][q]) w.anoint = pick(Object.keys(ANOINTS));
   return w;
 }
+// ---------- unique (red) weapons: very rare, each with its own trick and a red line, Borderlands style ----------
+const UNIQUES = {
+  granny:    { base: 'dbarrel',  name: 'Nagyi Mordálya',  text: 'Nagyi mindig két golyót tartogatott.', trick: 'Ölés után azonnal újratölt.' },
+  ash:       { base: 'flamer',   name: 'Hamvazószerda',   text: 'Porból lettél, porrá leszel.', trick: 'Az égő zombik halálukkor szétrobbannak.' },
+  thirteen:  { base: 'revolver', name: 'Tizenhárom',      text: 'Az utolsó golyó hozza a szerencsét.', trick: 'A tár utolsó lövése ötszörös és mindig kritikus.' },
+  haystack:  { base: 'lmg',      name: 'Szénakazal',      text: 'Ha elég sokat lősz, valami csak eltalál.', trick: 'Folyamatos tűznél egyre gyorsabban lő, akár kétszeres sebességig.' },
+  reaper:    { base: 'lever',    name: 'Kaszás',          text: 'Aratás ideje van.', trick: 'Fejlövéses ölés után a következő lövés többszörös (3-ig halmozódik).' },
+  rod:       { base: 'tesla',    name: 'Villámhárító',    text: 'Vihar idején ne állj a fa alá.', trick: 'A villám 6 célra ugrik át.', baseMod: { chain: 6 } },
+  sebastian: { base: 'crossbow', name: 'Szent Sebestyén', text: 'Egy nyíl is elég volt.', trick: 'A nyilak becsapódáskor felrobbannak.' },
+  silent:    { base: 'sniper',   name: 'Csendes Éj',      text: 'Aludj csak, reggel már nem kelsz fel.', trick: 'A fejlövés szétveti a közeli zombikat is.' },
+  honey:     { base: 'smg',      name: 'Mézesmadzag',     text: 'Édes, mint a méz. Ragad is.', trick: 'Minden találat lassít, és a sebzés 2%-át visszagyógyítja.', element: 'cryo' },
+  bigbang:   { base: 'launcher', name: 'A Nagy Bumm',     text: 'Minek célozni?', trick: 'Minden gránát három kisebb bombára esik szét.' },
+};
+function makeUnique(key, level) {
+  key = UNIQUES[key] ? key : pick(Object.keys(UNIQUES));
+  const U = UNIQUES[key], w = makeWeapon(BASES.find(b => b.id === U.base), 4, level);
+  Object.assign(w, { q: 5, unique: key, name: U.name, flavor: U.text, dmg: Math.round(w.dmg * 1.12), anoint: pick(Object.keys(ANOINTS)) });
+  if (U.element) w.element = U.element;
+  if (U.baseMod) w.base = Object.assign({}, w.base, U.baseMod);
+  return w;
+}
+// anointments: an extra rule on rare and better guns (25% rare, 50% epic, always on legendary and unique)
+const ANOINTS = {
+  reload:   'Újratöltés után 5 mp-ig +50% sebzés',
+  ability:  'Képesség használata után 8 mp-ig +50% tűzgyorsaság',
+  killheal: 'Minden ölés +6% életerőt ad vissza',
+  lowhp:    '35% életerő alatt +60% sebzés',
+  ads:      'Célzás közben +15% kritikus esély',
+  first:    'Újratöltés után az első 3 lövés dupla sebzésű',
+  swap:     'Fegyvercsere után 4 mp-ig +40% sebzés',
+  boom:     'Ölésenként 20% esély, hogy a zombi felrobban',
+};
 const fireRate = w => w.base.mode === 'burst' ? w.base.burst / (w.base.burstDelay + (w.base.burst - 1) * 60 / w.rpm) : w.rpm / 60;
 // sustained DPS: a full magazine plus its reload, so a double barrel doesn't look like the best gun in the game
 const dps = w => Math.round(w.dmg * w.pellets * w.mag / (w.mag / fireRate(w) + (w.base.single ? w.reload * w.mag : w.reload)));
 const accuracy = w => Math.round(clamp(100 - w.spread * 9, 5, 99));
 const rarColor = w => RARITIES[w.q].color;
-const sellValue = w => Math.round([60, 150, 320, 650, 1300][w.q] * (1 + .08 * (w.level - 1)));
+const sellValue = w => Math.round([60, 150, 320, 650, 1300, 2600][w.q] * (1 + .08 * (w.level - 1)));
 
 const ITEMS = {
   med:   { name: 'Gyógycsomag', key: 'H', max: 3, color: '#ff5a5a', desc: '+70 életerő azonnal' },
@@ -143,6 +178,21 @@ const ITEMS = {
   adren: { name: 'Adrenalin',   key: 'X', max: 2, color: '#7fc4ff', desc: '12 mp: végtelen sprint, +30% sebesség, gyors újratöltés' },
 };
 const ITEM_KEYS = Object.keys(ITEMS);
+// grenade and knife kinds: bought once at the base, the chosen one fills the G / Q slot
+const GREN_TYPES = {
+  frag:    { name: 'Repeszgránát', desc: 'Nagy robbanás 5 m-es körben.', price: 0 },
+  molotov: { name: 'Molotov-koktél', desc: '6 mp-ig égő tűztócsa, ami mindent felgyújt.', price: 900 },
+  cryo:    { name: 'Fagygránát', desc: 'Kisebb robbanás, a környéket 5 mp-re lefagyasztja.', price: 1100 },
+  shock:   { name: 'Villámgránát', desc: 'Villám ugrik a közeli 6 zombira.', price: 1300 },
+  sticky:  { name: 'Tapadó gránát', desc: 'Rátapad az első eltalált zombira, és nagyobbat robban.', price: 1500 },
+};
+const KNIFE_TYPES = {
+  steel:    { name: 'Acélkés', desc: 'Nagy sebzés, fejre dupla.', price: 0 },
+  poison:   { name: 'Mérgezett kés', desc: 'Kisebb találat, de 5 mp-ig mérgez.', price: 800 },
+  blast:    { name: 'Robbanó kés', desc: 'Becsapódáskor felrobban.', price: 1200 },
+  ricochet: { name: 'Pattanó kés', desc: 'Még két zombiról lepattan.', price: 1000 },
+};
+const throwKind = k => { const T = profile && profile.throw || {}; return k === 'gren' ? (GREN_TYPES[T.g] ? T.g : 'frag') : (KNIFE_TYPES[T.k] ? T.k : 'steel'); };
 function drawIcon(k) {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const g = c.getContext('2d'), col = ITEMS[k].color;

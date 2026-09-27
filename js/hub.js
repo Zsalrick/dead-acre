@@ -21,9 +21,12 @@ function makeJob() {
   const dur = 300 + (diff - 1) * 45;
   const mod = diff >= 2 && Math.random() < .4 ? pick(Object.keys(MODS)) : null;
   const boss = diff >= 3 && (diff === 5 || Math.random() < .35);
-  const [title, client] = pick(JOB_TEXT[map]);
+  const [title0, client] = pick(JOB_TEXT[map]);
+  const type = diff >= 2 ? pick(['survive', 'survive', 'survive', 'exterminate', 'defense', 'supply']) : 'survive';
+  const title = type === 'survive' ? title0 : `${JOB_TYPES[type].name}: ${title0}`;
   const reward = Math.round((250 + 180 * Math.pow(diff, 1.4) + lvl * 35) * (dur / 300) * (mod ? 1.2 : 1) * (boss ? 1.3 : 1) / 10) * 10;
-  return { map, diff, dur, mod, boss, title, client, reward, lvl: lvl + diff - 1, xp: 120 * diff + (boss ? 150 : 0) + (mod ? 50 : 0) };
+  return { map, diff, dur, mod, boss, title, client, type, goal: type === 'exterminate' ? 50 + 25 * diff : type === 'supply' ? 5 + diff : 0,
+    reward: Math.round(reward * (type === 'survive' ? 1 : 1.15) / 10) * 10, lvl: lvl + diff - 1, xp: 120 * diff + (boss ? 150 : 0) + (mod ? 50 : 0) };
 }
 function rollBoard() {
   profile.jobs = [makeJob(), makeJob(), makeJob()];
@@ -89,7 +92,7 @@ const HUB = {
         <div class="jhead"><span class="jmap">${M.name}</span><span class="jstars" title="${DIFF_NAMES[j.diff - 1]}">${stars(j.diff)}</span></div>
         <h3>${j.title}</h3><p class="jclient">Megbízó: ${j.client}</p>
         <ul class="jfacts">${B ? `<li class="jboss"><b>${B.name}</b>: ${B.desc}</li><li class="jleg">Garantált legendás fegyver és páncél</li><li>Nincs időkorlát · ${lv}. szintű zombik</li>`
-          : `<li><b>${fmtTime(j.dur)}</b> túlélés · <b>${lv}.</b> szintű zóna</li><li>${DIFF_NAMES[j.diff - 1]} · ${START_THREAT[j.diff - 1]}. szintű veszélytől</li>`}
+          : `${j.type && j.type !== 'survive' ? `<li class="jtype">${JOB_TYPES[j.type].desc(j)}</li>` : ''}<li>${noClock(j) ? 'Nincs időkorlát' : `<b>${fmtTime(j.dur)}</b> ${j.type === 'defense' ? 'védelem' : 'túlélés'}`} · <b>${lv}.</b> szintű zóna</li><li>${DIFF_NAMES[j.diff - 1]} · ${START_THREAT[j.diff - 1]}. szintű veszélytől</li>`}
           ${j.mod ? `<li class="jmod">${MODS[j.mod].label}: ${MODS[j.mod].sub}</li>` : ''}${j.boss ? '<li class="jboss">A Mészáros is eljön</li>' : ''}</ul>
         <div class="jfoot"><span class="jreward">$${j.reward}<small>+${j.xp} XP</small></span>${hbtn(NET.code && !NET.host ? 'A vezető választ' : NET.code ? 'Elvállaljuk' : 'Elvállalom', `job:${i}`, NET.code && !NET.host)}</div>
       </article>`;
@@ -164,7 +167,8 @@ const HUB = {
     const cons = Object.entries(ITEM_PRICE).map(([k, c]) => tile(`I:${k}`, ICONS[k], ITEMS[k].name, `${ITEMS[k].desc}`, ITEMS[k].color, { val: `${P.inv[k]}/${itemMax(k)}`, valLbl: 'nálad', price: `$${c}`, cant: P.cash < c || P.inv[k] >= itemMax(k) })).join('');
     const left = `<h3>Fegyverek</h3><div class="tiles">${guns || emptyTile('Elfogyott', 'Munka után megújul')}</div>
       <h3>Páncél</h3><div class="tiles">${gear || emptyTile('Elfogyott', 'Munka után megújul')}</div>
-      <h3>Felszerelés</h3><div class="tiles">${cons}</div>`;
+      <h3>Felszerelés</h3><div class="tiles">${cons}</div>
+      <h3>Gránát- és késfajták <small>egyszer veszed meg, utána szabadon választható</small></h3><div class="slist">${throwRows()}</div>`;
     return `<div class="hubhead"><h2>Bolt</h2></div><p class="lede">A kínálat minden munka után megújul. A vett fegyver a raktárba, a páncél a páncélraktárba kerül.</p>
       ${invLayout(left, detail)}`;
   },
@@ -187,7 +191,7 @@ $('hubBody').addEventListener('click', e => {
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'job') { if (!P.cls) { hubTab = 'skills'; return renderHub(); } if (NET.code && !NET.host) return; return startJob(P.jobs[+a]); }
-  if (['cls', 'sk', 'respec', 'reclass'].includes(kind)) skillAction(kind, a);
+  if (['cls', 'sk', 'respec', 'reclass', 'aug'].includes(kind)) skillAction(kind, a);
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetAvail() > 0) { P.vet[a] = (P.vet[a] || 0) + 1; gearChanged(); }
   if (kind === 'reroll' && pay(reroll())) rollBoard();
@@ -197,6 +201,10 @@ $('hubBody').addEventListener('click', e => {
   }
   if (kind === 'up' && U(a) < UPGRADES[a].max && pay(upCost(a))) P.up[a] = U(a) + 1;
   if (kind === 'item') { const n = a === 'knife' ? 3 : 1; if (P.inv[a] < itemMax(a) && pay(ITEM_PRICE[a])) P.inv[a] = Math.min(itemMax(a), P.inv[a] + n); }
+  if (kind === 'ttype') { // ttype:g|k:kind
+    const T = P.throw, list = a === 'g' ? GREN_TYPES : KNIFE_TYPES, D = list[c];
+    if (D) { if (!T.own.includes(c)) { if (!pay(D.price)) return; T.own.push(c); } T[a] = c; }
+  }
   if (kind === 'gun') { const w = unpackW(P.shop[+a]); if (P.stash.length < MAX_STASH && pay(shopPrice(w))) { P.stash.push(packW(w)); P.shop[+a] = null; noteFound(w); } }
   if (kind === 'mv') { const [, f, i, t, j] = b.dataset.act.split(':'); moveGun({ L: P.loadout, B: P.bag, S: P.stash }, f, +i, t, +j); }
   if (kind === 'wear') { const it = P.gearStash.splice(+a, 1)[0], old = P.gear[it.slot]; P.gear[it.slot] = it; if (old) P.gearStash.push(old); gearChanged(); }
@@ -233,3 +241,11 @@ $('hubBody').addEventListener('change', e => {
   profile.name = e.target.value.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || profile.name;
   saveProfile(); publishMember(); renderHub();
 });
+
+function throwRows() {
+  const T = profile.throw, row = (slot, key, D) => {
+    const own = T.own.includes(key), on = T[slot] === key;
+    return srow(`${D.name}${on ? ' <span class="vrank">nálad</span>' : ''}`, D.desc, own ? '' : `$${D.price}`, `ttype:${slot}:${key}`, on || (!own && profile.cash < D.price), on ? 'Kiválasztva' : own ? 'Kiválaszt' : 'Megveszem');
+  };
+  return Object.entries(GREN_TYPES).map(([k, D]) => row('g', k, D)).join('') + Object.entries(KNIFE_TYPES).map(([k, D]) => row('k', k, D)).join('');
+}

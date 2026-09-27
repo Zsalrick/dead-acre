@@ -7,7 +7,7 @@ const liveWorld = () => state === 'playing' || netLive(); // in a party the worl
 const alive = () => zombies.reduce((n, z) => n + (z.dead ? 0 : 1), 0);
 // the cap ramps up inside each wave so waves build instead of starting at full pressure
 const aliveCap = () => {
-  const M = mission, ramp = M && M.phase === 'wave' && !M.job.bounty ? .6 + .4 * clamp((WAVE_T - M.phaseT) / 40, 0, 1) : 1;
+  const M = mission, ramp = (M && M.phase === 'wave' && !noClock(M.job) ? .6 + .4 * clamp((WAVE_T - M.phaseT) / 40, 0, 1) : 1) * (M && M.job.type === 'exterminate' ? 1.3 : 1);
   const party = NET.mode === 'host' ? 1 + .35 * (partySize() - 1) : 1;
   return Math.min(36 + 8 * (party > 1 ? partySize() - 1 : 0), Math.round(Math.min(20, 6 + round) * (M && M.phase === 'evac' ? 1.3 : 1) * roundMod.spawns * ramp * party));
 };
@@ -15,20 +15,20 @@ const EVAC_WARN = 40, BOARD_T = 6;
 
 // opts (party jobs): seed and van spots come from the host so everyone gets the same layout; client: the host runs the world
 function startJob(job, opts = {}) {
-  if (job.bounty) job.dur = 1e6; // no clock: the job ends when the target is dead
-  mission = { job, t: 0, phase: 'wave', phaseT: job.bounty ? 1e9 : WAVE_T, wave: 1, brought: [], gear: [], bossDone: !job.boss || !!opts.client, leaving: 0, intro: 0, departT: -1, arriveT: -1 };
+  if (noClock(job)) job.dur = 1e6; // no clock: the job ends when the goal is met
+  mission = { job, t: 0, phase: 'wave', phaseT: noClock(job) ? 1e9 : WAVE_T, wave: 1, brought: [], gear: [], bossDone: !job.boss || !!opts.client, leaving: 0, intro: 0, departT: -1, arriveT: -1 };
   const seed = opts.seed || 1 + Math.floor(Math.random() * 1e9);
   loadMap(job.map, seed);
   applyMod(job.mod);
   clearZombieStuff();
   while (drops.length) removeDrop(drops[0]);
   powerUps.forEach(p => scene.remove(p.s)); powerUps.length = 0;
-  projs.forEach(p => scene.remove(p.m)); projs.length = 0;
+  projs.forEach(p => scene.remove(p.m)); projs.length = 0; fireZones.length = 0;
   itemDrops.forEach(d => scene.remove(d.s)); itemDrops.length = 0; clearGearDrops();
   const P = profile;
   Object.assign(player, { points: 500, earned: 0, kills: 0, heads: 0, cur: 0, ads: 0, bloom: 0, recoil: 0, reloadT: 0, reloading: false, spin: 0,
     fireCd: 0, burstLeft: 0, switchT: 0, knifeT: 0, knifeCd: 0, best: null, yaw: 0, pitch: 0, vy: 0, lastHurt: -99,
-    inv: P.inv, up: P.up, stam: maxStam(), stamT: 0, adrenT: 0, itemCd: 0 });
+    inv: P.inv, up: P.up, stam: maxStam(), stamT: 0, adrenT: 0, itemCd: 0, perks: {}, buf: {}, uHeat: 0, uStack: 0 });
   player.hp = maxHp(); player.shield = maxShield();
   resetSkillsRun();
   const extraGren = (isCls('engineer') ? 1 : 0) + rk('e_belt');
@@ -45,6 +45,7 @@ function startJob(job, opts = {}) {
   const n = MAP.vans.length; let a = Math.floor(Math.random() * n), b = Math.floor(Math.random() * (n - 1)); if (b >= a) b++;
   if (opts.client) { a = clamp(opts.a, 0, n - 1); b = clamp(opts.b, 0, n - 1); }
   mission.pickup = b; placeVan(a, false);
+  setupObjective(mission);
   player.pos.set(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 2.8); player.vel.set(0, 0, 0);
   player.yaw = Math.atan2(player.pos.x, player.pos.z); player.pitch = 0;
   powers.insta = powers.double = 0;
@@ -112,8 +113,9 @@ function updateMission(dt) {
   }
   M.t += dt;
   const left = M.job.dur - M.t;
-  if (M.job.bounty && !M.bountyDone) { // the hunt: the target comes after a moment; the pressure rises every minute
-    if (!M.bountyBoss && M.t > 4) M.bountyBoss = spawnBounty(M.job.bounty);
+  if (updateObjective(M, dt) === 'fail') return finishJob(false);
+  if (noClock(M.job) && !objDone(M)) { // objective jobs: no clock, the pressure rises every minute
+    if (M.job.bounty && !M.bountyBoss && M.t > 4) M.bountyBoss = spawnBounty(M.job.bounty);
     if ((M.huntT = (M.huntT || 0) + dt) > 60) { M.huntT = 0; round++; $('round').textContent = round; }
   }
   if (!M.evacWarn && left <= EVAC_WARN) { // the pickup spot is known 40 s early: the last wave becomes a run across the map
@@ -205,7 +207,7 @@ function finishJob(success, abandoned) {
   const xp = success ? J.xp + player.kills * 2 : Math.floor(player.kills);
   P.cash += cash; stats.cash += cash;
   const levelUps = addXp(xp);
-  const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) : 0) + levelUps;
+  const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
   if (success && J.bounty) stats.bounties = (stats.bounties || 0) + 1;
   P.tokens = (P.tokens || 0) + tokens;
   P.inv = player.inv;
@@ -214,6 +216,12 @@ function finishJob(success, abandoned) {
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   showResults({ job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+}
+function hurtAt(pos, r, d) {
+  const me = NET.selfPos && player.pos !== NET.selfPos ? NET.selfPos : player.pos, zt = zTarget; zTarget = null;
+  if (Math.hypot(me.x - pos.x, me.z - pos.z) < r) { const P0 = player.pos; player.pos = me; hurtPlayer(d, true); player.pos = P0; }
+  zTarget = zt;
+  if (NET.mode === 'host') for (const [peer, a] of NET.avatars) if (!a.down && Math.hypot(a.pos.x - pos.x, a.pos.z - pos.z) < r) pushRoll(NET.dmgs, [++NET.seq, peer, Math.round(d * 10) / 10], 16);
 }
 function hurtPlayer(d, quiet) {
   if (netRedirectHurt(d)) return; // a host zombie hit another player
@@ -226,6 +234,7 @@ function hurtPlayer(d, quiet) {
   if (player.hp <= 0 && rk('s_wind') && !mission.wind) { mission.wind = true; player.hp = 1; banner('MÁSODIK SZÉL', 'Még nem most.'); }
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }
   if (!quiet) { player.shake = .25; SND.hurt(); }
+  if (player.hp <= 0 && perk('second')) { player.perks.second = false; player.hp = maxHp() * .5; banner('MÁSODIK ESÉLY', 'Még egyszer.'); SND.power(); }
   if (player.hp <= 0) { player.hp = 0; if (NET.mode) netDown(); else mission.dead = true; } // finished in updateMission, not mid zombie loop
 }
 
@@ -274,7 +283,7 @@ function renderPauseInv() {
     <h3>Táska <small>${B.length} / ${BAG_MAX}</small></h3><div class="tiles" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új' })).join('') || emptyTile('Üres', 'Ha új fegyvert veszel fel, a kézben lévő ide kerül')}</div>
     <h3>Viselt páncél</h3><div class="tiles worn" data-drop="W">${GEAR_KEYS.map(k => profile.gear[k] ? gTile(`W:${k}`, profile.gear[k], { tag: profile.gear[k].found ? 'új' : '' }) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('')}</div>
     <h3>Páncél a zsákban <small>a talált darab csak evakuálással a tiéd</small></h3><div class="tiles" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: profile.gear[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Még semmi', 'A zombik dobják, rálépve felveszed')}</div>
-    <h3>Tárgyak</h3><div class="invlist">${ITEM_KEYS.map(k => `<div><img src="${ICONS[k]}" alt=""><span>[${ITEMS[k].key}] ${ITEMS[k].name}<small>${ITEMS[k].desc}</small></span><strong>${player.inv[k]}/${itemMax(k)}</strong></div>`).join('')}</div>`;
+    <h3>Tárgyak</h3><div class="invlist">${ITEM_KEYS.map(k => `<div><img src="${ICONS[k]}" alt=""><span>[${ITEMS[k].key}] ${k === 'gren' ? GREN_TYPES[throwKind('gren')].name : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].name : ITEMS[k].name}<small>${k === 'gren' ? GREN_TYPES[throwKind('gren')].desc : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].desc : ITEMS[k].desc}</small></span><strong>${player.inv[k]}/${itemMax(k)}</strong></div>`).join('')}</div>`;
   $('loadout').innerHTML = invLayout(left, detail);
   updateKeybar($('loadout'));
 }
@@ -334,6 +343,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyX') useItem('adren');
   else if (e.code === 'KeyV') knife();
   else if (e.code === 'KeyC') useAbility();
+  else if (e.code === 'KeyZ') doPing();
   else if ((e.code === 'Escape' || e.code === 'KeyP') && !locked) pause();
 });
 
@@ -343,6 +353,7 @@ addEventListener('mousedown', e => {
   if (state !== 'playing') return;
   if (needClick) { needClick = false; $('clickHint').hidden = true; lockPointer(); return; } // back from a station via Esc
   if (e.button === 0) { mouseDown = true; clickQueued = .15; }
+  if (e.button === 1) { e.preventDefault(); doPing(); }
   if (e.button === 2) rmb = true;
 });
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) rmb = false; });
@@ -426,6 +437,8 @@ function cardHTML(w, action, c) {
     <div class="wperk">${w.maker}: ${mkOf(w).perk || ''}</div>
     <table>${statRows(w, c)}</table>
     ${el ? `<div class="elem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
+    ${w.unique && UNIQUES[w.unique] ? `<div class="duniq"><b>Egyedi:</b> ${UNIQUES[w.unique].trick}</div>` : ''}
+    ${w.anoint && ANOINTS[w.anoint] ? `<div class="danoint"><b>Felkenés:</b> ${ANOINTS[w.anoint]}</div>` : ''}
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
     <div class="act">${action}</div>`;
 }
@@ -436,6 +449,8 @@ function updateHUD() {
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot]; card = gearCard(focus.it, `<span><kbd>F</kbd>A zsákba</span><span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>`, true); }
     else if (focus.w) card = cardHTML(focus.w, `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : player.bag.length < BAG_MAX ? `Táskába ${player.bag.length}/${BAG_MAX}` : 'Tele a táska'}</span><span><kbd>F</kbd>tartsd: Csere</span>`, curW());
+    else if (focus.type === 'crate') prompt = '<b>[E]</b> Utánpótlás-láda felvétele';
+    else if (focus.type === 'repair') prompt = `<b>[E]</b> Generátor javítása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
     else if (!['box', 'ammo', 'drop', 'gear'].includes(focus.type)) prompt = areaPrompt(focus);
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;
@@ -461,9 +476,9 @@ function updateHUD() {
   $('vig').style.opacity = clamp((1 - player.hp / maxHp()) * 1.1, 0, .7);
   if (mission) {
     const M = mission, left = Math.max(0, M.job.dur - M.t);
-    setHTML('timer', M.phase === 'evac' ? 'EVAKUÁCIÓ' : M.job.bounty && !M.bountyDone ? 'FEJVADÁSZAT' : fmtTime(left));
+    setHTML('timer', M.phase === 'evac' ? 'EVAKUÁCIÓ' : objectiveTimer(M) || fmtTime(left));
     $('timer').classList.toggle('evac', M.phase === 'evac');
-    setHTML('left', M.job.bounty && !M.bountyDone ? `Célpont: ${(BOUNTIES[M.job.bounty] || BOUNTIES.butcher).name} · ${alive()} zombi a pályán` : M.phase === 'lull' ? `Pihenő · ${Math.ceil(M.phaseT)} mp` :
+    setHTML('left', M.job.bounty && !M.bountyDone ? `Célpont: ${(BOUNTIES[M.job.bounty] || BOUNTIES.butcher).name} · ${alive()} zombi a pályán` : !M.evacWarn && M.phase !== 'evac' && objectiveLine(M) ? objectiveLine(M) : M.phase === 'lull' ? `Pihenő · ${Math.ceil(M.phaseT)} mp` :
       M.phase === 'evac' ? (M.boardT > 0 ? `Beszállás · ${Math.ceil(M.boardT)} mp${M.boardWarn ? ' · MEGÁLLT: vissza a furgonhoz!' : ' · maradj a furgonnál'}` : truck.parked ? `A furgon vár még ${Math.max(0, Math.ceil(45 - (M.parkT || 0)))} mp · [E] beszállás` : 'Jön a furgon · menj a zöld jelzéshez') :
       M.evacWarn ? `A furgon ${Math.ceil(left)} mp múlva ér ide · indulj a zöld jelzéshez` : `${M.wave}. hullám · ${alive()} zombi a pályán`);
     updateEvacMark(M.phase === 'evac' || !!M.evacWarn);
@@ -476,7 +491,7 @@ function updateHUD() {
   setHTML('hint', hint);
   $('rlhint').hidden = !hint || player.ads > .6; $('rlhint').firstChild.textContent = hint;
   $('rlfill').style.width = player.reloading ? reloadProgress() * 100 + '%' : '0';
-  setHTML('powers', Object.entries(powers).filter(([, t]) => t > 0).map(([k, t]) => `<span class="pw">${POWERS[k].label} ${Math.ceil(t)}<i style="width:${t / 15 * 100}%"></i></span>`).join('') +
+  setHTML('powers', Object.keys(player.perks || {}).filter(k => player.perks[k] && PERKS[k]).map(k => `<span class="pw perk" style="color:#${PERKS[k].color.toString(16).padStart(6, '0')}">${PERKS[k].name}</span>`).join('') + Object.entries(powers).filter(([, t]) => t > 0).map(([k, t]) => `<span class="pw">${POWERS[k].label} ${Math.ceil(t)}<i style="width:${t / 15 * 100}%"></i></span>`).join('') +
     (player.adrenT > 0 ? `<span class="pw adren">Adrenalin ${Math.ceil(player.adrenT)}<i style="width:${player.adrenT / 12 * 100}%"></i></span>` : ''));
   if (card && bannerT > 0) $('banner').style.opacity = .25;
   // crosshair
@@ -532,7 +547,7 @@ function frame(t) {
     if (!(state === 'playing' || netLive())) return;
     updateFx(dt);
     updateProjs(dt);
-    updateItemDrops(dt); updateGearDrops(dt);
+    updateItemDrops(dt); updateGearDrops(dt); updatePings(dt);
     updateAreas(dt);
     updateMapFx(dt);
     if (state === 'playing') updateSellHold(dt);

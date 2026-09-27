@@ -141,6 +141,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
   z.g.position.set(z.pos.x, -2.2, z.pos.z);
   scene.add(z.g); zombies.push(z);
   burst(new V3(z.pos.x, .1, z.pos.z), 0x2a2116, 12, 2.5, .8);
+  if (mission) mission.spawned = (mission.spawned || 0) + 1;
   if (!seenKinds.has(kind) && !K.boss) { seenKinds.add(kind); if (K.desc) banner(`ÚJ: ${K.name.toUpperCase()}`, K.desc); }
   return z;
 }
@@ -150,6 +151,7 @@ function zHeadPos(z) { return tmpV.set(z.pos.x, (z.K.crawl ? 1 : 2) * z.scale + 
 function hurtZombie(z, amt, o = {}) {
   if (NET.client && mission) return netHit(z, amt, o); // a party member's hit goes to the host
   if (z.dead) return;
+  if (z.invulnT > 0) { z.flash = .08; return; } // a bounty boss between phases
   if (o.remote) { if (o.insta && !z.K.boss) amt = Math.max(amt, z.hp); } // the sender already applied their own bonuses
   else {
     if (z.markT > 0) amt *= 1.5;                                   // Vadász: Jelölés
@@ -167,6 +169,8 @@ function hurtZombie(z, amt, o = {}) {
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit);
   if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
+  if (o.burnDps) { z.burnT = Math.max(z.burnT, o.burnT || 3); z.burnDps = Math.max(z.burnDps, o.burnDps); z.burnBy = o.remote || null; }
+  if (!o.remote) weaponOnHit(z, amt, o);
   if (z.hp <= 0) killZombie(z, o);
   else if (!o.dot && !o.remote) addPoints(10);
 }
@@ -192,6 +196,7 @@ function popBloater(z) {
   explode(new V3(z.pos.x, 1, z.pos.z), { r: 4.2, zdmg: 90 + zombieHp() * .9, pr: 3.8, pdmg: 45, color: 0x9dff3a });
 }
 function killZombie(z, o) {
+  if (mission) mission.kc = (mission.kc || 0) + 1; // the whole party's kills (objective jobs)
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1;
   if (z.bounty) bountyKilled(z);
   if (o.remote) { // a party member's kill: they get the points and roll the loot
@@ -200,6 +205,7 @@ function killZombie(z, o) {
     return netKill(z, o);
   }
   player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1;
+  weaponOnKill(z, o);
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(z.K.points || (o.melee ? 130 : o.head ? 100 : 60));
@@ -237,7 +243,7 @@ function hasSight(from, to) {
   ray.set(from, d.normalize()); ray.far = len;
   return ray.intersectObjects(rayBlockers, false).length === 0;
 }
-function gunslingerFire(z) {
+function gunslingerFire(z, dmg = 9) {
   z.armR.updateMatrixWorld(true);
   const from = z.armR.localToWorld(new V3(0, -.95, 0));
   // aims roughly at you, misses a lot
@@ -256,7 +262,7 @@ function gunslingerFire(z) {
   if (!hit && wall) burst(end, 0xffc070, 4, 2, .3);
   const dist = z.pos.distanceTo(player.pos);
   SND.zshot(clamp(.7 - dist / 45, .12, .7));
-  if (hit) { if (liveWorld()) hurtPlayer(9); }
+  if (hit) { if (liveWorld()) hurtPlayer(dmg); }
   else if (t > 0 && miss < 2.5) SND.whiz();
   z.gunKick = .5;
 }
@@ -306,6 +312,7 @@ function clearZombieStuff() {
 
 function updateZombies(dt) {
   let groanBudget = 1;
+  aimSetup();
   for (let i = zombies.length - 1; i >= 0; i--) {
     const z = zombies[i], K = z.K;
     if (z.dead) {
@@ -560,15 +567,15 @@ function updateHealthBars() {
   for (let i = n; i < hbPool.length; i++) hbPool[i].hidden = true;
   const boss = zombies.find(z => z.K.boss && !z.dead);
   $('bossbar').hidden = !boss;
-  if (boss) { const p = Math.max(0, boss.hp / boss.maxHp * 100) + '%'; $('bossfill').style.width = p; $('bosslag').style.width = p; $('bossname').textContent = boss.K.name.toUpperCase(); }
+  if (boss) { const p = Math.max(0, boss.hp / boss.maxHp * 100) + '%'; $('bossfill').style.width = p; $('bosslag').style.width = p; $('bossname').textContent = (boss.bounty && BOUNTIES[boss.bounty] ? `${BOUNTIES[boss.bounty].name} · ${boss.phase || 1}. fázis${boss.invulnT > 0 ? ' · immunis' : ''}` : boss.K.name).toUpperCase(); }
 }
 
 // ---------- bounties: one very strong boss, guaranteed legendary loot ----------
 const BOUNTIES = {
-  butcher: { name: 'A Mészáros', desc: 'Nekiront, és a földbe csapja a bárdját. Hívja a sétálókat.', hp: 3.2, tint: 0x6a1010, summon: ['walker', 12, 3] },
-  pyre:    { name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 2.8, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
-  queen:   { name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 3, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
-  shade:   { name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 2.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
+  butcher: { name: 'A Mészáros', desc: 'Nekiront, és a földbe csapja a bárdját. Hívja a sétálókat.', hp: 5.5, tint: 0x6a1010, summon: ['walker', 12, 3] },
+  pyre:    { name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 5, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
+  queen:   { name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 5.2, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
+  shade:   { name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
   const B = BOUNTIES[key] || BOUNTIES.butcher, all = activeSpawns();
@@ -576,25 +583,43 @@ function spawnBounty(key) {
   const z = spawnZombieAt('butcher', sx, sz);
   z.bounty = key; z.hp *= B.hp; z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale);
   const tint = new THREE.Color(B.tint); z.mats.forEach(m => m.color && m.color.lerp(tint, .45));
-  z.sumT = 6; z.novaT = 8; z.blinkT = 10;
+  z.sumT = 6; z.novaT = 8; z.blinkT = 10; z.phase = 1; z.dmg *= 1.2; z.throwT = 4;
   banner(B.name.toUpperCase(), B.desc); SND.roar();
   return z;
 }
+const PHASE_TXT = { 2: 'Dühöngés: gyorsabb, erősebb, és bárdot hajít.', 3: 'Utolsó erő: minden képessége elszabadul.' };
 function bountyTick(z, dt, dist) {
   const B = BOUNTIES[z.bounty]; if (!B) return;
-  if (!z.enraged && z.hp < z.maxHp * .5) { z.enraged = true; z.speed *= 1.3; z.sumT = 1; banner('FELDÜHÖDÖTT', B.name); SND.roar(); }
+  const want = z.hp > z.maxHp * .66 ? 1 : z.hp > z.maxHp * .33 ? 2 : 3;
+  if (want > (z.phase || 1)) { // a new phase: a moment of immunity, a shockwave of adds, and everything gets worse
+    z.phase = want; z.invulnT = 2.5; z.dmg *= 1.25; z.speed *= 1.15; z.enraged = true; z.sumT = 1.5;
+    banner(`${B.name.toUpperCase()} · ${want}. FÁZIS`, PHASE_TXT[want]); SND.roar();
+    for (let k = 0; k < 32; k++) { const a = k / 32 * 6.28; burst(new V3(z.pos.x + Math.sin(a) * 3, .3, z.pos.z + Math.cos(a) * 3), B.tint, 2, 3, .6); }
+    for (let k = 0; k < 3 + 2 * want; k++) { const a = rand(0, 6.28); spawnZombieAt(pick(['runner', 'walker', 'walker', 'brute', 'leaper']), z.pos.x + Math.sin(a) * 4, z.pos.z + Math.cos(a) * 4, .6); }
+  }
+  if (z.invulnT > 0) { z.invulnT -= dt; if (Math.random() < dt * 25) burst(new V3(z.pos.x + rand(-1, 1), rand(.5, 2.5) * z.scale, z.pos.z + rand(-1, 1)), 0xfff0b0, 1, 1.5, .4); }
+  if (z.phase >= 2) { // thrown cleaver, with a tell
+    z.throwT -= dt;
+    if (z.throwT < .5 && !z.throwTold) { z.throwTold = true; burst(new V3(z.pos.x, 2.4 * z.scale, z.pos.z), 0xfff0a0, 6, .5, .35); tn(900, .06, .12, 'square', 500); }
+    if (z.throwT <= 0) { z.throwT = z.phase === 3 ? 2.6 : 4; z.throwTold = false; if (dist < 38) gunslingerFire(z, 22 * (1 + .03 * (round - 1))); }
+  }
+  if (z.phase === 3) {
+    if (z.bounty === 'pyre' && (z.hazT = (z.hazT == null ? 2 : z.hazT) - dt) <= 0) { z.hazT = 5; addFireZone(new V3(player.pos.x, 0, player.pos.z), 3.5, 6, 18); }
+    if (z.bounty === 'queen' && (z.bruteT = (z.bruteT == null ? 4 : z.bruteT) - dt) <= 0) { z.bruteT = 12; const a = rand(0, 6.28); spawnZombieAt('brute', z.pos.x + Math.sin(a) * 3, z.pos.z + Math.cos(a) * 3, .5); }
+    if (z.bounty === 'butcher') z.bossT = Math.min(z.bossT, 2.5);
+  }
   if ((z.sumT -= dt) <= 0) { // calls its brood
-    const [kind, every, n] = B.summon; z.sumT = every * (z.enraged ? .6 : 1);
+    const [kind, every, n] = B.summon; z.sumT = every * (z.phase === 3 ? .45 : z.phase === 2 ? .7 : 1);
     if (alive() < aliveCap() + 8) for (let k = 0; k < n; k++) { const a = rand(0, 6.28); spawnZombieAt(kind, z.pos.x + Math.sin(a) * 2.5, z.pos.z + Math.cos(a) * 2.5, .5); }
   }
   if (B.nova && (z.novaT -= dt) <= 0) { // ring of fire
-    z.novaT = z.enraged ? 6 : 9;
+    z.novaT = z.phase === 3 ? 4.5 : z.phase === 2 ? 6 : 9;
     for (let k = 0; k < 24; k++) { const a = k / 24 * 6.28; burst(new V3(z.pos.x + Math.sin(a) * 5, .2, z.pos.z + Math.cos(a) * 5), 0xff7a1a, 3, 2, .6); }
     SND.explode();
-    if (dist < 6.5 && liveWorld()) hurtPlayer(28);
+    hurtAt(z.pos, 6.5, 28 * (z.phase || 1));
   }
   if (B.blink && (z.blinkT -= dt) <= 0 && dist > 5) { // vanishes and comes out behind you
-    z.blinkT = z.enraged ? 7 : 10;
+    z.blinkT = z.phase === 3 ? 4 : z.phase === 2 ? 7 : 10;
     burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6);
     const f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
     z.pos.set(player.pos.x - f.x * 4, 0, player.pos.z - f.z * 4); collide(z.pos, .7);
@@ -611,6 +636,25 @@ function bountyKilled(z) {
 }
 function bountyLoot(pos) {
   const p = new V3(pos.x, 0, pos.z);
-  spawnDrop(makeWeapon(pick(BASES), 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0)));
+  spawnDrop(makeWeapon(pick(BASES), Math.random() < .15 ? 5 : 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0))); // sometimes a unique
   spawnGearDrop(makeGear(null, 4, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
+}
+
+// ---------- unique tricks and anointments that fire on hits and kills (the shooter's side) ----------
+function weaponOnHit(z, amt, o) {
+  const w = o.w; if (!w || o.dot) return;
+  if (w.unique === 'honey') player.hp = Math.min(maxHp(), player.hp + amt * .02);
+  if (w.unique === 'silent' && o.head) explode(zHeadPos(z), { r: 3.5, zdmg: amt * .5, pr: .01, pdmg: .001, color: 0xb0c8ff });
+  if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
+  if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
+}
+function weaponOnKill(z, o) {
+  const w = o.w;
+  if (z.markT > 0 && augOn('plague')) for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 8) q.markT = Math.max(q.markT || 0, 6);
+  if (!w) return;
+  if (w.unique === 'granny') w.ammo = w.mag;
+  if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
+  if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
+  if (w.anoint === 'killheal') player.hp = Math.min(maxHp(), player.hp + maxHp() * .06);
+  if (w.anoint === 'boom' && Math.random() < .2) explode(new V3(z.pos.x, 1, z.pos.z), { r: 4, zdmg: zombieHp() * .8, pr: .01, pdmg: .001 });
 }

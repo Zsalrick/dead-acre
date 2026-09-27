@@ -112,7 +112,7 @@ const TABS = {
   controls() {
     const k = [['W A S D', 'mozgás'], ['Shift', 'sprint'], ['Space', 'ugrás'], ['Bal egér', 'lövés'], ['Jobb egér', 'célzás'], ['R', 'újratöltés'],
       ['1 · 2 · görgő', 'fegyverváltás'], ['E', 'vásárlás, kapuk, állomások, furgon'], ['F', 'földön lévő fegyver a táskába'], ['F (nyomva)', 'csere: a kézben lévő a táskába megy (ha tele, a földre)'], ['F (páncélnál)', 'földön lévő páncél a zsákba'], ['V', 'kés'],
-      ['H', 'gyógycsomag'], ['G', 'gránát'], ['Q', 'dobókés'], ['X', 'adrenalin'], ['C', 'kasztképesség'], ['I · Tab', 'leltár: kéz és táska'], ['Esc', 'szünet, leltár, munka feladása']];
+      ['H', 'gyógycsomag'], ['G', 'gránát'], ['Q', 'dobókés'], ['X', 'adrenalin'], ['C', 'kasztképesség'], ['Z · középső egérgomb', 'pingelés: megjelöl egy helyet vagy zombit a csapatnak'], ['I · Tab', 'leltár: kéz és táska'], ['Esc', 'szünet, leltár, munka feladása']];
     return `<h2>Irányítás</h2><div class="keys big">${k.map(([a, b]) => `<kbd>${a}</kbd><span>${b}</span>`).join('')}</div>
       <p class="note">Ha a böngésző nem engedi befogni az egeret, az egér az ablakon belül is fordít, és a nyilakkal is lehet nézni.</p>`;
   },

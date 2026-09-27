@@ -122,6 +122,14 @@ const MODS = {
   horde: { name: 'HORDA', sub: 'Kétszer annyian jönnek, de gyengébbek.', label: 'Horda' },
   elite: { name: 'ELIT', sub: 'Az arany szeműek kétszer annyit bírnak, és biztosan zsákmányt ejtenek.', label: 'Elit zombik' },
 };
+// perk machines (one per area, CoD style): bought with points, last for the job
+const PERKS = {
+  jug:    { name: 'Juggernaut', desc: '+50% max életerő erre a munkára', cost: 2500, color: 0xff4a4a },
+  speed:  { name: 'Gyorskezű', desc: '+30% újratöltési sebesség', cost: 2000, color: 0x4aff8a },
+  tap:    { name: 'Duplacsapás', desc: '+25% tűzgyorsaság', cost: 2000, color: 0xffd04a },
+  runner: { name: 'Futóláb', desc: '+15% mozgás és végtelen sprint', cost: 1500, color: 0x4ac8ff },
+  second: { name: 'Második esély', desc: 'egyszer elesés helyett 50% élettel felállsz', cost: 1500, color: 0xff8aff },
+};
 const STATION_INFO = {
   forge: 'Fegyverkovács: szintemelés, ritkaság-emelés, elem.',
   trap:  'Tűzcsapda: 20 mp-ig lángba borítja a kaput, minden átkelő zombi elég.',
@@ -261,7 +269,7 @@ function activeSpawns() {
 
 // ---------- loading ----------
 function loadMap(id, seed) {
-  MAP_ID = id; MAP = MAPS[id];
+  MAP_ID = id; MAP = MAPS[id]; mapSeed = seed;
   scene.remove(mapGroup); mapGroup = new THREE.Group(); scene.add(mapGroup);
   obstacles.length = 0; rayBlockers.length = 0; rayBlockers.push(ground);
   lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0;
@@ -339,6 +347,24 @@ function buildArea(a) {
   // the unique station
   const [type, x, z] = a.station, pos = new V3(x, 0, z), c = a.core, cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
   a.st = { type, pos };
+  // the back corners of the area: a perk machine in one, a loot chest in the other (whichever is farther from the station)
+  const deep = a.side === 'n' ? [c.minZ + 2.5] : a.side === 's' ? [c.maxZ - 2.5] : a.side === 'e' ? [c.maxX - 2.5] : [c.minX + 2.5];
+  const corners = (a.side === 'n' || a.side === 's' ? [[c.minX + 2.5, deep[0]], [c.maxX - 2.5, deep[0]]] : [[deep[0], c.minZ + 2.5], [deep[0], c.maxZ - 2.5]])
+    .sort((p, q) => Math.hypot(q[0] - x, q[1] - z) - Math.hypot(p[0] - x, p[1] - z));
+  const keys = Object.keys(PERKS), pk = keys[Math.floor(mulberry(Math.round(mapSeed + c.minX * 7 + c.minZ * 13))() * keys.length)], P = PERKS[pk];
+  const [mx, mz] = corners[0], [chx, chz] = corners[1];
+  a.perk = { key: pk, pos: new V3(mx, 0, mz) };
+  addBox(mx, mz, 1.1, .8, 2.1, matStd({ color: 0x2a2a30, metalness: .4, roughness: .5 }));
+  addBox(mx, mz, 1.12, .82, .5, new THREE.MeshBasicMaterial({ color: P.color }), 1.35, false);
+  glowSprite(P.color, 2.4, new V3(mx, 1.7, mz)); pointLight(P.color, 1.2, 8, mx, 2.2, mz);
+  label([P.name.toUpperCase()], '#' + P.color.toString(16).padStart(6, '0'), 1.6, mx, 2.7, mz);
+  a.chest = { pos: new V3(chx, 0, chz), open: false };
+  const chest = new THREE.Group(), wood = new THREE.MeshLambertMaterial({ map: woodTex, color: 0x9a6a3a }), band = matStd({ color: 0xb8923a, metalness: .8, roughness: .35 });
+  const cb = new THREE.Mesh(unitBox, wood); cb.scale.set(1.3, .6, .8); cb.position.y = .3; chest.add(cb);
+  const lid = new THREE.Group(); lid.position.set(0, .6, -.4); const lm = new THREE.Mesh(unitBox, wood); lm.scale.set(1.32, .22, .82); lm.position.set(0, .11, .4); lid.add(lm);
+  [-.45, .45].forEach(bx => { const b = new THREE.Mesh(unitBox, band); b.scale.set(.08, .24, .84); b.position.set(bx, .11, .4); lid.add(b); });
+  chest.add(lid); chest.position.set(chx, 0, chz); put(chest); a.chest.lid = lid;
+  obstacles.push({ minX: chx - .65, maxX: chx + .65, minZ: chz - .4, maxZ: chz + .4, h: .9 });
   if (type === 'forge') {
     const metal = matStd({ color: 0x2c2d31, metalness: .6, roughness: .5 });
     addBox(x, z, 1.4, .6, .8, metal); addBox(x, z, 1.9, .5, .15, metal, .8);
@@ -447,22 +473,30 @@ function unlockArea(k) {
 // ---------- stations ----------
 const trapState = [];
 const turrets = [];
-// returns false when it could not be placed; opts.rate speeds up fire, station marks the one rented at a tower
+// returns false when it could not be placed; opts: rate (fire speed), station (the rented one at a tower),
+// n (how many; the Ikertorony augment places two small ones), dmgMul, shield (dome: -50% damage inside), rocket (explosive shots)
 function deployTurret(cost, dur = 60, opts = {}) {
   if (opts.station ? turrets.some(t => t.station) : turrets.some(t => !t.station)) return false;
   if (player.points < cost) return false;
   player.points -= cost; SND.buy();
-  const fwd = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
-  const p = player.pos.clone().addScaledVector(fwd, 1.6); clampBounds(p, .5);
-  const g = new THREE.Group(), metal = matStd({ color: 0x3a4250, metalness: .6, roughness: .4 });
-  for (let i = 0; i < 3; i++) { const l = new THREE.Mesh(unitBox, metal); l.scale.set(.08, 1.1, .08); l.position.set(Math.sin(i * 2.1) * .3, .5, Math.cos(i * 2.1) * .3); l.rotation.set(Math.cos(i * 2.1) * .3, 0, -Math.sin(i * 2.1) * .3); g.add(l); }
-  const head = new THREE.Group(); head.position.y = 1.15; g.add(head);
-  const body = new THREE.Mesh(unitBox, metal); body.scale.set(.35, .3, .5); head.add(body);
-  const barrel = new THREE.Mesh(unitBox, metal); barrel.scale.set(.08, .08, .6); barrel.position.z = .5; head.add(barrel);
-  const eye = new THREE.Mesh(new THREE.BoxGeometry(.1, .06, .02), basic(0x7fb8ff)); eye.position.set(0, .06, .26); head.add(eye);
-  g.position.copy(p); scene.add(g);
-  turrets.push({ g, head, t: dur, cd: .5, rate: opts.rate || 1, station: !!opts.station });
-  banner('LÖVEGTORONY TELEPÍTVE', `${Math.round(dur)} másodpercig lő mindenre, ami mozog.`);
+  const n = opts.n || 1, fwd = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), side = new V3(-fwd.z, 0, fwd.x);
+  for (let k = 0; k < n; k++) {
+    const p = player.pos.clone().addScaledVector(fwd, 1.6).addScaledVector(side, n > 1 ? (k ? 1.2 : -1.2) : 0); clampBounds(p, .5);
+    const g = new THREE.Group(), metal = matStd({ color: opts.rocket ? 0x5a3a30 : 0x3a4250, metalness: .6, roughness: .4 });
+    for (let i = 0; i < 3; i++) { const l = new THREE.Mesh(unitBox, metal); l.scale.set(.08, 1.1, .08); l.position.set(Math.sin(i * 2.1) * .3, .5, Math.cos(i * 2.1) * .3); l.rotation.set(Math.cos(i * 2.1) * .3, 0, -Math.sin(i * 2.1) * .3); g.add(l); }
+    const head = new THREE.Group(); head.position.y = 1.15; g.add(head);
+    const body = new THREE.Mesh(unitBox, metal); body.scale.set(.35, .3, .5); head.add(body);
+    const barrel = new THREE.Mesh(unitBox, metal); barrel.scale.set(opts.rocket ? .18 : .08, opts.rocket ? .18 : .08, .6); barrel.position.z = .5; head.add(barrel);
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(.1, .06, .02), basic(opts.shield ? 0x7fe8ff : 0x7fb8ff)); eye.position.set(0, .06, .26); head.add(eye);
+    if (n > 1) g.scale.setScalar(.75);
+    if (opts.shield) {
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x6fd8ff, transparent: true, opacity: .1, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      g.add(dome);
+    }
+    g.position.copy(p); scene.add(g);
+    turrets.push({ g, head, t: dur, cd: .5, rate: opts.rate || 1, station: !!opts.station, dmgMul: opts.dmgMul || 1, shield: !!opts.shield, rocket: !!opts.rocket });
+  }
+  banner(n > 1 ? 'IKERTORONY' : opts.shield ? 'PAJZSTORONY' : opts.rocket ? 'RAKÉTATORONY' : 'LÖVEGTORONY TELEPÍTVE', `${Math.round(dur)} másodpercig lő mindenre, ami mozog.`);
   return true;
 }
 function updateTurret(dt) {
@@ -481,12 +515,13 @@ function fireTurret(turret) {
   const aim = new V3(best.pos.x, 1.2 * best.scale, best.pos.z);
   turret.head.lookAt(aim);
   if (turret.cd > 0) return;
-  turret.cd = .18 / turret.rate;
+  turret.cd = (turret.rocket ? 1.2 : .18) / turret.rate;
   const dir = aim.clone().sub(from), len = dir.length();
   ray.set(from, dir.normalize()); ray.far = len;
   if (ray.intersectObjects(rayBlockers, false).length) return;
-  tracer(from.clone().addScaledVector(dir, .7), aim, 0x9fc8ff, .015);
-  hurtZombie(best, (20 + zombieHp() * .09) * SK.turret(), { color: '#9fc8ff' });
+  tracer(from.clone().addScaledVector(dir, .7), aim, turret.rocket ? 0xffa050 : 0x9fc8ff, turret.rocket ? .04 : .015);
+  if (turret.rocket) { explode(aim, { r: 3.5, zdmg: (60 + zombieHp() * .8) * SK.turret(), pr: .01, pdmg: .001 }); return; }
+  hurtZombie(best, (20 + zombieHp() * .09) * SK.turret() * turret.dmgMul, { color: '#9fc8ff' });
   if (rk('e_fire')) { best.burnT = 2; best.burnDps = Math.max(best.burnDps, zombieHp() * .15); }
   const s = Math.max(0, 1 - player.pos.distanceTo(from) / 40);
   nz(.08, 2400, .25 * s, 'bandpass', .8); tn(160, .05, .08 * s, 'square', 60);
@@ -526,6 +561,8 @@ function areaFocus() {
     const a = AREAS[k];
     if (!a.unlocked && near(a.gate, 3.2)) return { type: 'gate', area: k };
     if (a.unlocked && near(a.st.pos, a.st.type === 'well' ? 3.4 : 2.4)) return { type: a.st.type, area: k };
+    if (a.unlocked && a.perk && near(a.perk.pos, 2)) return { type: 'perk', area: k };
+    if (a.unlocked && a.chest && !a.chest.open && near(a.chest.pos, 2)) return { type: 'chest', area: k };
   }
   if (mission && mission.phase === 'evac' && truck.parked && near(truck.pos, 4)) return { type: 'truck' };
   return null;
@@ -539,6 +576,8 @@ function areaPrompt(f) {
     case 'trap': return st.active > 0 ? `Csapda ég · ${Math.ceil(st.active)} mp` : st.cd > 0 ? `Csapda töltődik · ${Math.ceil(st.cd)} mp` : `<b>[E]</b> Tűzcsapda · ${SK.cost(st.cost)} pont${lack(SK.cost(st.cost))}`;
     case 'tower': { const t = turrets.find(t => t.station); return t ? `Lövegtorony aktív · ${Math.ceil(t.t)} mp` : `<b>[E]</b> Lövegtorony telepítése · ${SK.cost(st.cost)} pont${lack(SK.cost(st.cost))}`; }
     case 'truck': return '<b>[E]</b> Beszállás és indulás';
+    case 'perk': { const P = PERKS[a.perk.key]; return player.perks && player.perks[a.perk.key] ? `${P.name} · már megvan` : `<b>[E]</b> ${P.name} · ${P.desc} · ${SK.cost(P.cost)} pont${lack(SK.cost(P.cost))}`; }
+    case 'chest': return '<b>[E]</b> Zsákmányláda kinyitása';
   }
   return '';
 }
@@ -551,6 +590,21 @@ function areaInteract(f) {
     case 'trap': return activateTrap(st);
     case 'tower': return deployTurret(SK.cost(st.cost), 75, { station: true }) || SND.deny();
     case 'truck': return extract();
+    case 'perk': {
+      const k = AREAS[f.area].perk.key, P = PERKS[k], c = SK.cost(P.cost); player.perks = player.perks || {};
+      if (player.perks[k] || player.points < c) return SND.deny();
+      player.points -= c; player.perks[k] = true; SND.power(); banner(P.name.toUpperCase(), P.desc);
+      if (k === 'jug') player.hp = maxHp();
+      return;
+    }
+    case 'chest': { // a one-time chest in each area: a good gun and a piece of armor, rolled for whoever opens it
+      const ch = AREAS[f.area].chest; ch.open = true; ch.lid.rotation.x = -1.6; SND.pickup(3);
+      const p = ch.pos.clone();
+      spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.5)), lootLvl(1)), p.clone().add(new V3(-.8, 0, 1.2)));
+      spawnGearDrop(makeGear(null, Math.max(2, rollRarity(.4)), lootLvl(1)), p.clone().add(new V3(.8, 0, 1.2)));
+      burst(p.clone().setY(1), 0xffd070, 30, 4, .8); banner('ZSÁKMÁNYLÁDA', 'Ritka vagy jobb fegyver és páncél.');
+      return;
+    }
   }
 }
 
@@ -571,7 +625,7 @@ function keepClearPoints() {
   BOX_SPOTS.forEach(([x, z]) => pts.push([x, z, 3.2]));
   SPAWNS.forEach(([x, z]) => pts.push([x, z, 3]));
   lamps.forEach(l => pts.push([l.x, l.z, 1.5]));
-  for (const k in AREAS) { const a = AREAS[k]; pts.push([a.gate.x, a.gate.z, 5], [a.st.pos.x, a.st.pos.z, 4]); a.spawns.forEach(([x, z]) => pts.push([x, z, 3])); }
+  for (const k in AREAS) { const a = AREAS[k]; pts.push([a.gate.x, a.gate.z, 5], [a.st.pos.x, a.st.pos.z, 4]); if (a.perk) pts.push([a.perk.pos.x, a.perk.pos.z, 2.5]); if (a.chest) pts.push([a.chest.pos.x, a.chest.pos.z, 2.5]); a.spawns.forEach(([x, z]) => pts.push([x, z, 3])); }
   return pts;
 }
 const overlaps = (x, z, r) => obstacles.some(o => x > o.minX - r && x < o.maxX + r && z > o.minZ - r && z < o.maxZ + r);
