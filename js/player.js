@@ -232,7 +232,7 @@ function shotMul(w) {
   return m;
 }
 // fire-rate multiplier: anointment, the Haystack's spin-up, the Double Tap perk
-const rateMul = w => (w.anoint === 'ability' && player.buf && player.buf.ability > 0 ? 1.5 : 1) * (w.unique === 'haystack' ? 1 + (player.uHeat || 0) : 1) * (player.perks && player.perks.tap ? 1.25 : 1);
+const rateMul = w => (w.anoint === 'ability' && player.buf && player.buf.ability > 0 ? 1.5 : 1) * (now < (player.overT || 0) ? 1.4 : 1) * (w.unique === 'haystack' ? 1 + (player.uHeat || 0) : 1) * (player.perks && player.perks.tap ? 1.25 : 1);
 function shoot() {
   const w = curW(), b = w.base; player.shotsN += w.pellets || 1;
   if (!(player.stormT > 0) && !(w.unique === 'hydra' && now < (player.hydraUntil || 0))) w.ammo--; // Tűzvihar: the mag does not drain
@@ -257,7 +257,7 @@ function shoot() {
     const a = Math.random() * Math.PI * 2, r = Math.tan(spread) * Math.sqrt(Math.random());
     const dir = fwd.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
     ray.set(camera.position, dir); ray.far = b.range;
-    let end = camera.position.clone().addScaledVector(dir, b.range), pierce = b.pierce || 1;
+    let end = camera.position.clone().addScaledVector(dir, b.range), pierce = (b.pierce || 1) + rk('s_pierce');
     const seen = new Set();
     for (const h of ray.intersectObjects(targets, false)) {
       const z = h.object.userData.z;
@@ -268,7 +268,7 @@ function shoot() {
         const head = !!h.object.userData.head, weak = !!h.object.userData.weak; // a boss's weak point counts as a head, and hurts more
         const t = tally.get(z) || { amt: 0, head: false, crit: false };
         const crit = forceCrit || Math.random() < critChance();
-        t.amt += w.dmg * sm * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1) * (weak ? 3 : 1);
+        t.amt += w.dmg * sm * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1) * (weak ? 3 : 1) * (rk('h_long') && h.distance > 25 ? 1 + .1 * rk('h_long') : 1);
         t.head = t.head || head || weak; t.crit = t.crit || crit; tally.set(z, t);
         burst(h.point, 0x5a0a0a, 3, 2.2, .4);
         if (--pierce <= 0) { end = h.point; break; }
@@ -404,6 +404,7 @@ function updatePlayer(dt) {
   collide(player.pos, .42);
   if (Math.hypot(player.vel.x, player.vel.z) > .6) player.stillT = now; // Bulwark: standing still
   if (!ff) updateVitals(dt);
+  if (!ff && rk('e_drone') && turrets.some(t => Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 6)) player.hp = Math.min(maxHp(), player.hp + 6 * rk('e_drone') * dt); // Javítódrón
   // ads
   const w = curW();
   const adsTarget = rmb && !player.sprint && player.knifeT <= 0 ? 1 : 0;
@@ -458,7 +459,7 @@ function updateVM(dt) {
 // Every fall in the same job leaves less time. Out of time: solo the job fails, in a party you wait for a mate.
 function startFFYL() {
   const M = mission; M.downs = (M.downs || 0) + 1;
-  player.ffyl = player.ffylMax = Math.max(5, 15 - 3 * (M.downs - 1)) + U('swind');
+  player.ffyl = player.ffylMax = Math.max(5, 15 - 3 * (M.downs - 1)) + U('swind') + 3 * rk('m_soul');
   player.ffylK = player.kills; player.hp = 0; player.sprint = false; player.shake = .4;
   SND.hurt(); SND.down(); // the box in the middle says it; no banner on top of it
   $('ffyl').hidden = false; renderer.domElement.style.filter = 'saturate(.25) contrast(1.15)';

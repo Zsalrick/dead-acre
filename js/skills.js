@@ -1,5 +1,5 @@
 ﻿// ================= CLASSES & SKILL TREES =================
-// Each class: a passive, an active ability (C) and a 4-row tree of 12 skills bought with merit tokens.
+// Each class: a passive, an active ability (C) and a 5-row tree of 15 skills bought with merit tokens.
 // Row r opens once 3·r points are spent in the tree. Tokens: job stars (+1 for the Butcher) and +1 per level.
 const CLASSES = {
   soldier: {
@@ -19,6 +19,9 @@ const CLASSES = {
       ['s_heavy', 'Géppuskás', 1, () => 'nehézfegyverrel nem lassulsz, és +15% sebzés'],
       ['s_wind', 'Második szél', 1, () => 'munkánként egyszer a halálos ütést 1 életerővel túléled'],
       ['s_supply', 'Utánpótlás', 1, () => 'a Tűzvihar minden fegyvered tartalékát feltölti'],
+      ['s_pierce', 'Átütő erő', 1, () => 'minden golyó eggyel több zombin megy át'],
+      ['s_blast', 'Robbanó hüvely', 2, r => `kritikus találatnál ${10 * r}% eséllyel kis robbanás`],
+      ['s_iron', 'Vasakarat', 2, r => `a Tűzvihar alatt -${15 * r}% elszenvedett sebzés`],
     ],
   },
   hunter: {
@@ -38,6 +41,9 @@ const CLASSES = {
       ['h_exec', 'Kivégzés', 1, () => 'dupla sebzés a 25% élet alatti zombikra'],
       ['h_boss', 'Nagyvad', 1, () => '+20% sebzés a Mészárosra'],
       ['h_luck', 'Zsákmányvadász', 1, () => 'jobb ritkaság a zombikból eső fegyvereken'],
+      ['h_long', 'Távoli cél', 2, r => `+${10 * r}% sebzés 25 m-en túli célra`],
+      ['h_ricochet', 'Gellert', 1, () => 'fejlövéses ölés után a golyó a legközelebbi zombira pattan'],
+      ['h_bounty', 'Díjvadász', 2, r => `+${12 * r}% sebzés elitekre és főellenségekre`],
     ],
   },
   engineer: {
@@ -57,6 +63,9 @@ const CLASSES = {
       ['e_fire', 'Gyújtólövedék', 1, () => 'a tornyok felgyújtják a célt'],
       ['e_discount', 'Mérnöki kedvezmény', 1, () => '-20% a doboz, a lőszer, a csapda és a lövegtorony ára'],
       ['e_overload', 'Túlterhelés', 1, () => 'a Szerelőtorony kétszer olyan gyorsan lő'],
+      ['e_chain', 'Láncrobbanás', 1, () => 'robbanással ölt zombi 30% eséllyel maga is felrobban'],
+      ['e_drone', 'Javítódrón', 2, r => `a tornyaid 6 m-es körében +${6 * r} életerő/mp`],
+      ['e_overclock', 'Túlhajtás', 1, () => 'a Szerelőtorony után 8 mp-ig +40% tűzgyorsaság'],
     ],
   },
   medic: {
@@ -76,6 +85,9 @@ const CLASSES = {
       ['m_revive', 'Feltámadás', 1, () => 'munkánként egyszer elesés helyett 50% élettel felállsz'],
       ['m_holy', 'Szentföld', 1, () => 'a Szentelt kör égeti a benne álló zombikat'],
       ['m_plenty', 'Bőség', 1, () => '+1 gyógycsomag hely, és minden munkát tele gyógycsomaggal kezdesz'],
+      ['m_soul', 'Szívós lélek', 2, r => `a Harcolj az életedért ideje +${3 * r} mp`],
+      ['m_steal', 'Életlopás', 2, r => `a sebzésed ${r}%-a visszatér életerőként (találatonként legfeljebb 2%)`],
+      ['m_sanct', 'Menedék', 1, () => 'a Szentelt körben feleannyi sebzést kapsz'],
     ],
   },
 };
@@ -119,7 +131,7 @@ const SK = {
   speed: () => .04 * rk('h_light'),
   reload: () => .08 * rk('s_hands'),
   ammo: () => .15 * rk('s_ammo'),
-  taken: () => (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .05 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
+  taken: () => (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < 6 ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .05 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
     * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1),
   med: () => Math.round((70 + 20 * rk('m_bless')) * (isCls('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),
@@ -149,6 +161,7 @@ function useAbility() {
   if (!profile || !profile.cls || state !== 'playing') return;
   if (player.abilCd > 0) return SND.deny();
   const c = profile.cls;
+  if (c === 'engineer' && rk('e_overclock')) player.overT = now + 8; // Túlhajtás
   if (c === 'soldier') {
     player.stormT = 8 + 3 * rk('s_storm');
     if (rk('s_supply')) player.slots.forEach(w => { if (w) w.reserve = resMax(w); });
@@ -207,7 +220,7 @@ function skillsTab() {
         ${hbtn('Ezt választom', `cls:${k}`)}</article>`).join('')}</div>`;
   }
   const C = CLASSES[P.cls], spent = treeSpent();
-  const rows = [0, 1, 2, 3].map(r => {
+  const rows = [0, 1, 2, 3, 4].map(r => {
     const need = r * 3, open = spent >= need;
     return `<div class="trow${open ? '' : ' locked'}"><div class="tlabel">${r + 1}. szint<small>${open ? 'nyitva' : `zárva · ${need} pont kell (${spent}/${need})`}</small></div>` +
       C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => {
