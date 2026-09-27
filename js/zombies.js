@@ -73,9 +73,10 @@ function mkZombie(kind) {
   const legs = [add(ZG.leg, pants, legL, 0, -.4, 0), add(ZG.leg, pants, legR, 0, -.4, 0)];
   if (K.crawl) { legL.visible = legR.visible = false; upper.position.y = .3; }
   else parts.push(...legs);
-  add(ZG.eye, eyeMats[kind], upper, -.1, 1.07, .235); add(ZG.eye, eyeMats[kind], upper, .1, 1.07, .235);
+  const decos = [];
+  add(ZG.eye, eyeMats[kind], upper, -.1, 1.07, .235).castShadow = false; add(ZG.eye, eyeMats[kind], upper, .1, 1.07, .235).castShadow = false;
   if (!K.ghost) { // decoration: no shadows, not hit boxes
-    const deco = (mat, parent, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(unitBox, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); return m; };
+    const deco = (mat, parent, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(unitBox, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); decos.push(m); return m; };
     deco(zMouth, upper, 0, .93, .215, .24, .08, .02); deco(zBone, upper, 0, .958, .222, .18, .022, .01); // a gaping mouth with teeth
     head.rotation.z = rand(-.18, .18); head.rotation.x = rand(-.1, .15);
     if (Math.random() < .55) deco(zHair, upper, rand(-.04, .04), 1.255, -.03, .44, .07, rand(.3, .44));
@@ -116,10 +117,10 @@ function mkZombie(kind) {
   head.userData.head = true;
   const mats = [skin, cloth, pants];
   if (K.ghost) mats.forEach(m => { m.transparent = true; m.opacity = .12; m.depthWrite = false; });
-  return { g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
+  return { decos, g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
 }
 // ×1.12 per threat level: guns (+7.5% per level, rarity, upgrades, gear) can keep up instead of falling hopelessly behind
-function zombieHp() { return 100 * Math.pow(1.12, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .12 * jobTier()); }
+function zombieHp() { return 100 * Math.pow(1.1, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .08 * jobTier()); }
 // the job's level: zombies and loot scale with it, so the world keeps pace with you forever
 const jobLvl = () => (mission && mission.job.lvl) || (profile ? profile.level : 1);
 const jobTier = () => (mission && mission.job.tier) || 0; // Rémálom +N: endless difficulty past 5 stars
@@ -147,7 +148,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
   const K = KINDS[kind], m = mkZombie(kind);
   const z = {
     kind, K, ...m, pos: new V3(x, 0, zz),
-    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg * (1 + .12 * jobTier()), scale: K.scale(),
+    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg * (1 + .15 * jobTier()), scale: K.scale(),
     armor: K.armor ? zombieHp() * K.armor : 0, leapCd: rand(1, 3), crouch: 0, leap: null, buffT: 0, broodT: 4, bossT: 5, op: .12,
     heading: 0, side: Math.random() < .5 ? -1 : 1, strafeT: rand(2, 4), walkT: rand(0, 6), rise: 1, atkCd: 0, windup: 0,
     burnT: 0, burnDps: 0, burnAcc: 0, slowT: 0, flash: 0, groanT: rand(1, 6), dead: false, deathT: 0,
@@ -163,7 +164,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
   scene.add(z.g); zombies.push(z);
   burst(new V3(z.pos.x, .1, z.pos.z), 0x2a2116, 12, 2.5, .8);
   if (mission) mission.spawned = (mission.spawned || 0) + 1;
-  if (!seenKinds.has(kind) && !K.boss) { seenKinds.add(kind); if (K.desc) banner(`ÚJ: ${K.name.toUpperCase()}`, K.desc); }
+  if (!seenKinds.has(kind) && !K.boss) { seenKinds.add(kind); if (K.desc) popText(`Új ellenség: ${K.name} · ${K.desc}`, '#ff8a70'); }
   return z;
 }
 const tmpV = new V3();
@@ -243,7 +244,7 @@ function killZombie(z, o) {
 // what a kill drops; in a party each killer rolls their own
 function dropLoot(z, p) {
   const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() + (NET.mode ? .05 * (partySize() - 1) : 0) : 0; // harder jobs and bigger parties roll better loot
-  const uq = q => mission && (mission.job.diff >= 5 || jobTier() > 0) && Math.random() < .012 + .003 * jobTier() ? 5 : q; // 'Mi a fasz?' and Rémálom: 1-2% of guns are uniques
+  const uq = q => { const T = jobTier(); if (T) { q = Math.max(q, 2); if (Math.random() < .04 * T) q = Math.max(q, 4); } return mission && (mission.job.diff >= 5 || T > 0) && Math.random() < .012 + .003 * T ? 5 : q; }; // Rémálom: at least rare, often legendary // 'Mi a fasz?' and Rémálom: 1-2% of guns are uniques
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
     spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
@@ -494,6 +495,7 @@ function updateZombies(dt) {
         }
       } else if (dist < reachD && z.atkCd <= 0) z.windup = .38;
     }
+    const far = dist > 24; if (z.far !== far) { z.far = far; for (const d of z.decos || []) d.visible = !far; for (const p of z.parts) p.castShadow = !far; } // detail and shadows only up close
     // groans
     z.groanT -= dt;
     if (z.groanT <= 0) { z.groanT = rand(3, 9); if (dist < 26 && groanBudget-- > 0) SND.groan(.3 * (1 - dist / 26) * (z.kind === 'brute' ? 1.6 : 1), -Math.sin(angDiff(Math.atan2(-(z.pos.x - player.pos.x), -(z.pos.z - player.pos.z)) - player.yaw))); }

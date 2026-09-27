@@ -1,4 +1,5 @@
-﻿// ================= RENDERER / SCENES =================
+﻿const OWN = new WeakSet(); // textures and materials made for one object only: freed with it (disposeTree)
+// ================= RENDERER / SCENES =================
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 // filmic curve: deep blacks, lamps and fire roll off instead of clipping (gfx.js may lower the pixel ratio / shadows per quality)
@@ -113,7 +114,7 @@ function drawTextSprite(s) {
   g.shadowColor = '#000'; g.shadowBlur = 8;
   lines.forEach((l, i) => g.fillText(l, w / 2, h / 2 + (i - (lines.length - 1) / 2) * LH));
   if (s.material.map) s.material.map.dispose();
-  s.material.map = new THREE.CanvasTexture(c); s.material.needsUpdate = true;
+  s.material.map = new THREE.CanvasTexture(c); OWN.add(s.material.map); OWN.add(s.material); s.material.needsUpdate = true;
   // keep the old on-screen letter height: `scale` used to cover a 256px canvas with 110px (1 line) or 52px (multi-line) text
   const k = scale / 256 * (lines.length > 1 ? 52 : 110) / FS;
   s.scale.set(w * k, h * k, 1);
@@ -482,4 +483,36 @@ function buildMinigun(g, M, m, world, add, rb, bx, cz) {
   U.sightY = .1;
   if (!world) { g.updateMatrixWorld(true); U.sightY = Math.max(U.sightY, new THREE.Box3().setFromObject(g).max.y + .006); }
   return g;
+}
+
+// free the GPU side of a subtree: every geometry (shared ones just upload again when next used), and the textures and
+// materials that were made for this object alone (in OWN)
+function disposeTree(o) {
+  o.traverse(n => {
+    if (n.geometry) n.geometry.dispose();
+    for (const m of n.material ? [].concat(n.material) : []) { if (m.map && OWN.has(m.map)) m.map.dispose(); if (OWN.has(m)) m.dispose(); }
+  });
+}
+// the static parts of a map, merged into one mesh per material: hundreds of draw calls become a few dozen.
+// The originals stay (hidden) for bullets and sight lines; anything that moves, opens or blows up is left alone.
+function mergeStatic() {
+  const BU = THREE.BufferGeometryUtils; if (!BU) return;
+  const roots = new Set([truck.g, ...mapSpin, ...props.filter(p => p.type === 'boom').map(p => p.g)]);
+  for (const k in AREAS) { roots.add(AREAS[k].barricade); if (AREAS[k].chest && AREAS[k].chest.lid) roots.add(AREAS[k].chest.lid.parent); }
+  const skip = new Set([box.mesh, ...lamps.map(l => l.bulb)]), by = new Map();
+  mapGroup.updateMatrixWorld(true);
+  const walk = o => { for (const c of o.children) {
+    if (roots.has(c)) continue;
+    if (c.isMesh && !skip.has(c) && c.visible && !Array.isArray(c.material) && !c.material.transparent && c.geometry.attributes.uv && c.geometry.attributes.normal) { let l = by.get(c.material); if (!l) by.set(c.material, l = []); l.push(c); }
+    if (c.children.length) walk(c);
+  } };
+  walk(mapGroup);
+  for (const [mat, list] of by) {
+    if (list.length < 3) continue;
+    const geos = list.map(m => { const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); g.morphAttributes = {}; return g.applyMatrix4(m.matrixWorld); });
+    const merged = BU.mergeBufferGeometries(geos); geos.forEach(g => g.dispose());
+    if (!merged) continue;
+    const mm = new THREE.Mesh(merged, mat); mm.castShadow = list.some(m => m.castShadow); mm.receiveShadow = true;
+    mapGroup.add(mm); list.forEach(m => m.visible = false);
+  }
 }

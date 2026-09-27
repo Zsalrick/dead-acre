@@ -118,11 +118,11 @@ function updateMission(dt) {
   if (updateObjective(M, dt) === 'fail') return finishJob(false);
   if (noClock(M.job) && !objDone(M)) { // objective jobs: no clock, the pressure rises every minute
     if (M.job.bounty && !M.bountyBoss && M.t > 4) M.bountyBoss = spawnBounty(M.job.bounty);
-    if ((M.huntT = (M.huntT || 0) + dt) > 60) { M.huntT = 0; round++; $('round').textContent = round; M.rt = (M.rt || 0) + 1; if (NET.mode && player.down) netRevive(); } // no waves here: the downed get up every minute
+    if ((M.huntT = (M.huntT || 0) + dt) > 60) { M.huntT = 0; round++; $('round').textContent = round; M.rt = (M.rt || 0) + 1; if (NET.mode && (player.down || player.ffyl > 0)) netRevive(); } // no waves here: the downed get up every minute
   }
   if (!M.evacWarn && left <= EVAC_WARN) { // the pickup spot is known 40 s early: the last wave becomes a run across the map
     M.evacWarn = true; M.departT = -1; placeVan(M.pickup, false);
-    if (NET.mode && player.down) netRevive(); // everyone gets a last chance to make it to the van
+    if (NET.mode && (player.down || player.ffyl > 0)) netRevive(); // everyone gets a last chance to make it to the van
     truck.beacon.visible = truck.beam.visible = true;
     banner('A FURGON ÚTON VAN', `${EVAC_WARN} mp múlva ér a zöld jelzéshez. Indulj!`); SND.roundEnd();
     if (!M.bossDone) { // the Butcher comes from 30-45 m off the van, to cut off your run rather than camp the door
@@ -145,7 +145,7 @@ function updateMission(dt) {
       if (M.phase === 'wave') { M.phase = 'lull'; M.phaseT = LULL_T; M.lullWait = 0; M.cleared = false; banner('A HULLÁM VÉGE', 'Öld meg a maradékot, aztán pihenhetsz.'); SND.roundEnd(); }
       else {
         M.phase = 'wave'; M.phaseT = WAVE_T; M.wave++;
-        if (NET.mode && player.down) netRevive();
+        if (NET.mode && (player.down || player.ffyl > 0)) netRevive();
         if (M.wave > 1) round++;
         $('round').textContent = round;
         const r = $('round'); r.classList.remove('pulse'); void r.offsetWidth; r.classList.add('pulse');
@@ -204,13 +204,15 @@ function finishJob(success, abandoned) {
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
   truck.beacon.visible = truck.beam.visible = false; $('evacMark').hidden = true; $('intro').hidden = true;
-  clearGearDrops();
+  clearGearDrops(); clearFx();
   const w = settleWeapons(success, M);
   // dying after the clock ran out (during evac) still pays a quarter of the fee
-  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned && M.phase === 'evac' ? Math.round(J.reward * .25) : 0;
+  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
   const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)));
   P.cash += cash; stats.cash += cash;
   const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts;
+  let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique
+  if (success && J.tier) { tierBonus = Math.random() < .3 ? makeUnique(null, J.lvl) : makeWeapon(pick(BASES), 4, J.lvl); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   const levelUps = addXp(xp);
   const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
   if (success && J.bounty) stats.bounties = (stats.bounties || 0) + 1;
@@ -222,11 +224,11 @@ function finishJob(success, abandoned) {
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   NET.revs = 0;
-  showResults({ acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  showResults({ tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {
-  mission = null; netJobEnded(); clearGearDrops(); settleWeapons(true, M); clearZombieStuff();
+  mission = null; netJobEnded(); clearGearDrops(); clearFx(); settleWeapons(true, M); clearZombieStuff();
   $('flash').style.opacity = 0; $('intro').hidden = true; $('evacMark').hidden = true;
   profile.inv = player.inv; saveProfile(); showHub();
 }
@@ -402,11 +404,7 @@ addEventListener('mousemove', e => {
 
 // ================= FX / WORLD UPDATE =================
 function updateFx(dt) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i]; p.t -= dt;
-    if (p.t <= 0 || p.m.position.y < -.1) { scene.remove(p.m); particles.splice(i, 1); continue; }
-    p.v.y -= 9.8 * dt; p.m.position.addScaledVector(p.v, dt); p.m.scale.setScalar(Math.max(.05, p.t / p.life));
-  }
+  updateParticles(dt);
   for (let i = tracers.length - 1; i >= 0; i--) {
     const t = tracers[i]; t.t -= dt; t.m.material.opacity = Math.max(0, t.t / .07) * .85;
     if (t.t <= 0) { scene.remove(t.m); t.m.material.dispose(); tracers.splice(i, 1); }

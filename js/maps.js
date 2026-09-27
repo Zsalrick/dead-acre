@@ -53,7 +53,7 @@ function lamp(x, z) {
   addBox(x, z, .2, .2, 4.2, poleMat);
   const bulb = put(new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), basic(0xffc070))); bulb.position.set(x, 4.25, z);
   const glow = glowSprite(0xffa040, 2.2, bulb.position);
-  const light = pointLight(0xffa040, 1.7, 20, x, 4, z);
+  const light = lamps.filter(l => l.light.isLight).length < 8 ? pointLight(0xffa040, 1.7, 20, x, 4, z) : { intensity: 0 };
   lamps.push({ x, z, light, bulb, glow, flicker: false });
 }
 // a building: solid walls + gable roof + a dark door on one side
@@ -461,7 +461,7 @@ function bigMap(B) {
 }
 function loadMap(id, seed) {
   MAP_ID = id; MAP = bigMap(MAPS[id]); mapSeed = seed;
-  scene.remove(mapGroup); mapGroup = new THREE.Group(); scene.add(mapGroup);
+  scene.remove(mapGroup); disposeTree(mapGroup); mapGroup = new THREE.Group(); scene.add(mapGroup);
   obstacles.length = 0; rayBlockers.length = 0; rayBlockers.push(ground);
   lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0;
   turrets.forEach(t => scene.remove(t.g)); turrets.length = 0;
@@ -496,7 +496,7 @@ function loadMap(id, seed) {
   generateProps(seed);
   baseFog = lerp(L.fogD[0], L.fogD[1], mulberry(seed + 1)());
   lamps.forEach((l, i) => { l.flicker = mulberry(seed + 7 + i)() < .35; });
-  clearMod();
+  clearMod(); mergeStatic();
 }
 function allRectsBound() {
   const all = [MAIN_RECT, ...Object.values(AREAS).map(a => a.core)];

@@ -459,7 +459,7 @@ function startFFYL() {
   const M = mission; M.downs = (M.downs || 0) + 1;
   player.ffyl = player.ffylMax = Math.max(5, 15 - 3 * (M.downs - 1)) + U('swind');
   player.ffylK = player.kills; player.hp = 0; player.sprint = false; player.shake = .4;
-  banner('HARCOLJ AZ ÉLETEDÉRT', 'Ölj meg egy zombit, és felállsz!'); SND.hurt(); SND.down();
+  SND.hurt(); SND.down(); // the box in the middle says it; no banner on top of it
   $('ffyl').hidden = false; renderer.domElement.style.filter = 'saturate(.25) contrast(1.15)';
 }
 function endFFYLView() { player.ffyl = 0; $('ffyl').hidden = true; renderer.domElement.style.filter = ''; }

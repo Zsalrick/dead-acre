@@ -14,8 +14,8 @@ function spawnDrop(w, pos) {
   const d = { w, g, gun, t: 75, pos: g.position }; drops.push(d); return d;
 }
 function removeDrop(d) {
-  scene.remove(d.g);
-  d.g.children.forEach(o => { if (o.material) { if (o.material.map && o.material.map !== glowTex) o.material.map.dispose(); o.material.dispose(); } if (o.geometry && o.isMesh) o.geometry.dispose(); });
+  scene.remove(d.g); d.g.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+  d.g.children.forEach(o => { if (o.material) { if (o.material.map && o.material.map !== glowTex) o.material.map.dispose(); o.material.dispose(); } });
   drops.splice(drops.indexOf(d), 1);
 }
 

@@ -1,13 +1,25 @@
 ﻿// ================= FX =================
 const particles = [];
 const partGeo = new THREE.BoxGeometry(.07, .07, .07);
-const partMats = {};
+const PART_MAX = 400, partIM = new THREE.InstancedMesh(partGeo, new THREE.MeshBasicMaterial(), PART_MAX), partO = new THREE.Object3D(), partC = new THREE.Color();
+partIM.frustumCulled = false; partIM.count = 0; partIM.setColorAt(0, partC); scene.add(partIM);
+function updateParticles(dt) { // one draw call for every speck of blood, dirt and spark
+  let n = 0;
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i]; p.t -= dt;
+    if (p.t <= 0 || p.pos.y < -.1) { particles[i] = particles[particles.length - 1]; particles.pop(); continue; }
+    p.v.y -= 9.8 * dt; p.pos.addScaledVector(p.v, dt);
+  }
+  for (const p of particles) { partO.position.copy(p.pos); partO.scale.setScalar(Math.max(.05, p.t / p.life)); partO.updateMatrix(); partIM.setMatrixAt(n, partO.matrix); partIM.setColorAt(n, partC.setHex(p.c)); n++; }
+  partIM.count = n; partIM.instanceMatrix.needsUpdate = true; if (partIM.instanceColor) partIM.instanceColor.needsUpdate = true;
+}
+function clearFx() { // the job is over: no frozen sparks or tracers behind the results screen
+  particles.length = 0; partIM.count = 0;
+  tracers.forEach(t => { scene.remove(t.m); t.m.material.dispose(); }); tracers.length = 0;
+}
 function burst(pos, color, n, speed = 3, life = .5) {
-  if (!partMats[color]) partMats[color] = new THREE.MeshBasicMaterial({ color });
-  for (let i = 0; i < n && particles.length < 350; i++) {
-    const m = new THREE.Mesh(partGeo, partMats[color]);
-    m.position.copy(pos); scene.add(m);
-    particles.push({ m, v: new V3(rand(-1, 1), rand(.2, 1.4), rand(-1, 1)).multiplyScalar(speed), t: life * rand(.6, 1), life });
+  for (let i = 0; i < n && particles.length < PART_MAX; i++) {
+    particles.push({ pos: pos.clone(), c: color, v: new V3(rand(-1, 1), rand(.2, 1.4), rand(-1, 1)).multiplyScalar(speed), t: life * rand(.6, 1), life });
   }
 }
 const tracers = [];

@@ -33,7 +33,10 @@ function makeJob() {
     reward: Math.round(reward * (type === 'survive' ? 1 : 1.15) / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl), xp: 120 * diff + (boss ? 150 : 0) + (mod ? 50 : 0) };
 }
 function rollBoard() {
-  profile.jobs = [makeJob(), makeJob(), makeJob()];
+  profile.jobs = []; // three different jobs, on different maps while there are enough maps
+  const nMaps = MAP_IDS.filter(id => MAPS[id].minLevel <= profile.level).length;
+  for (let k = 0; profile.jobs.length < 3 && k < 60; k++) { const j = makeJob(); if (!profile.jobs.some(o => o.title === j.title || (o.map === j.map && profile.jobs.length < nMaps))) profile.jobs.push(j); }
+  while (profile.jobs.length < 3) profile.jobs.push(makeJob());
   if (!profile.jobs.some(j => j.diff === 1)) profile.jobs[0] = Object.assign(makeJob(), { diff: 1, boss: false }); // always one easy job
   const j = profile.jobs[0]; j.dur = 300; j.reward = Math.round((470 + profile.level * 35) / 10) * 10; j.xp = 120; j.lvl = profile.level;
   if (profile.level >= 3) profile.jobs.push(makeBounty());
@@ -279,6 +282,7 @@ function showResults(r) {
       <div>Pénz<strong>+$${r.cash}</strong></div><div>XP<strong>+${r.xp}</strong></div><div>Érdemérem<strong>+${r.tokens}</strong></div></div>
     ${r.board ? `<h3>Csapat</h3><table class="mtable"><tr><th>Játékos</th><th>Ölés</th><th>Felélesztés</th></tr>${r.board.sort((a, b) => b.k - a.k).map(p => `<tr><td>${esc(p.n)}${p.me ? ' (te)' : ''}</td><td>${p.k}</td><td>${p.r}</td></tr>`).join('')}</table>` : ''}
     ${r.levelUps ? `<p class="lvlup">Szintet léptél: ${profile.level}. szint! ${MAP_IDS.filter(id => MAPS[id].minLevel === profile.level).map(id => `Új pálya: ${MAPS[id].name}.`).join(' ')}</p>` : ''}
+    ${r.tierBonus ? `<h3>Rémálom-jutalom</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}
     ${r.lost.length ? `<h3>Elveszett fegyverek</h3><ul class="wlist">${wl(r.lost, 'lost')}</ul>` : ''}
     ${r.gear.length ? `<h3>${r.success ? 'Hazavitt páncél' : 'Elveszett páncél'}</h3><ul class="wlist">${r.gear.map(it => `<li class="${r.success ? '' : 'lost'}" style="color:${RARITIES[it.q].color}">${it.name} <small>Lv ${it.level} ${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}</small></li>`).join('')}</ul>` : ''}

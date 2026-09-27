@@ -416,9 +416,9 @@ function applySnapshot(g, hostPeer) {
   if (Array.isArray(g.bk) && !M.bountyDone) { M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }, M.job.bounty); banner('A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
   Object.assign(M, { t: +g.t || 0, phase: g.ph, phaseT: +g.pt || 0, wave: +g.w || 1, cleared: !!g.cl, evacWarn: !!g.ew, pickup: g.pk | 0, boardT: +g.bt || 0, parkT: +g.pa || 0 });
   if (round !== g.r) { round = +g.r || 1; $('round').textContent = round; }
-  if (M.wave > was.w) { banner(`${M.wave}. HULLÁM`, `A veszély ${round}. szintre nőtt.`); SND.roundStart(); if (player.down) netRevive(); }
+  if (M.wave > was.w) { banner(`${M.wave}. HULLÁM`, `A veszély ${round}. szintre nőtt.`); SND.roundStart(); if (player.down || player.ffyl > 0) netRevive(); }
   else if (M.phase === 'lull' && was.ph === 'wave') { banner('A HULLÁM VÉGE', 'Öljétek meg a maradékot.'); SND.roundEnd(); }
-  if (M.evacWarn && !was.ew && player.down) netRevive();
+  if (M.evacWarn && !was.ew && (player.down || player.ffyl > 0)) netRevive();
   if (M.evacWarn && !was.ew) { banner('A FURGON ÚTON VAN', `${EVAC_WARN} mp múlva ér a zöld jelzéshez. Induljatok!`); SND.roundEnd(); }
   if (M.phase === 'evac' && was.ph !== 'evac') { banner('IDŐ LEJÁRT', `Itt a furgon! [E], aztán ${BOARD_T} mp-ig mellette.`); SND.roundEnd(); }
   // the van
@@ -451,7 +451,7 @@ function applySnapshot(g, hostPeer) {
   if (Array.isArray(g.bb)) { const bz = NET.zById.get(g.bb[0]); if (bz) { if (!bz.bounty && BOUNTIES[g.bb[1]]) { bz.bounty = g.bb[1]; const tint = new THREE.Color(BOUNTIES[g.bb[1]].tint); bz.mats.forEach(m => m.color && m.color.lerp(tint, .45)); } bz.phase = g.bb[2]; bz.invulnT = g.bb[3] ? .5 : 0; } }
   NET.hz = Array.isArray(g.hz) ? g.hz : [];
   M.kc = +g.kc || 0;
-  if (g.rt != null && M.rt != null && g.rt !== M.rt && player.down) netRevive(); M.rt = g.rt;
+  if (g.rt != null && M.rt != null && g.rt !== M.rt && (player.down || player.ffyl > 0)) netRevive(); M.rt = g.rt;
   if (M.gen && g.gh != null) { const hp = +g.gh * M.gen.max; if (hp < M.gen.hp - 1) M.gen.hitT = now; M.gen.hp = hp; }
   if (M.crates) M.crates.forEach((c, i) => { if ((g.cr & (1 << i)) && !c.got) takeCrate(i, true); });
   if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
