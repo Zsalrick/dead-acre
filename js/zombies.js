@@ -103,7 +103,7 @@ function zombieHp() { return 100 * Math.pow(1.12, round - 1) * Math.pow(1.08, jo
 // the job's level: zombies and loot scale with it, so the world keeps pace with you forever
 const jobLvl = () => (mission && mission.job.lvl) || (profile ? profile.level : 1);
 const jobTier = () => (mission && mission.job.tier) || 0; // Rémálom +N: endless difficulty past 5 stars
-const lootLvl = (x = 0) => Math.max(1, jobLvl() + x + Math.floor(Math.random() * 3) - 1);
+const lootLvl = (x = 0) => clamp(jobLvl() + x + Math.floor(Math.random() * 3) - 1, 1, LEVEL_CAP + 2 * jobTier()); // gear tops out at 30, Rémálom tiers push it past
 // any kind can turn up at any threat; below its usual threat (min) it is rarer the further below it is
 function pickKind() {
   const opts = Object.keys(KINDS).filter(k => !KINDS[k].max || zombies.filter(z => !z.dead && z.kind === k).length < KINDS[k].max);

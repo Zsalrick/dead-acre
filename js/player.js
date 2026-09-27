@@ -368,9 +368,11 @@ function updateWeapon(dt) {
 
 // ================= PLAYER UPDATE =================
 function updatePlayer(dt) {
-  if (player.down) { // down in a party: lie still, look around, wait for the next wave
-    camera.position.set(player.pos.x, .45, player.pos.z); camera.rotation.set(player.pitch * .5, player.yaw, .4); camera.fov = SET.fov; camera.updateProjectionMatrix();
-    $('vig').style.opacity = .85; return;
+  if (player.down) { // down in a party: watch a living teammate over the shoulder until someone picks you up
+    const mate = [...NET.avatars.values()].find(a => !a.down);
+    if (mate) { camera.position.set(mate.pos.x + Math.sin(mate.yaw) * 3.2, 2.6, mate.pos.z + Math.cos(mate.yaw) * 3.2); camera.lookAt(mate.pos.x, 1.4, mate.pos.z); $('vig').style.opacity = .35; }
+    else { camera.position.set(player.pos.x, .45, player.pos.z); camera.rotation.set(player.pitch * .5, player.yaw, .4); $('vig').style.opacity = .85; }
+    camera.fov = SET.fov; camera.updateProjectionMatrix(); return;
   }
   const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (keys.ArrowLeft) player.yaw += dt * 2.4; if (keys.ArrowRight) player.yaw -= dt * 2.4;

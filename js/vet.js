@@ -1,4 +1,4 @@
-// ================= VETERAN RANK (endless progression, like Borderlands' badass rank) =================
+﻿// ================= VETERAN RANK (endless progression, like Borderlands' badass rank) =================
 // Every level-up and every challenge tier earns a veteran point. Points buy small, never-capped stat ranks;
 // each rank adds a little less than the one before (n^0.8), so there is always something to earn but no runaway.
 const VET = {
@@ -22,7 +22,7 @@ function chTier(c) { // tiers reached and the next goal
   while (v >= goal) { tier++; goal = Math.round(goal * m); }
   return { v, tier, goal, prev: tier ? Math.round(goal / m) : 0 };
 }
-const vetEarned = () => profile ? (profile.level - 1) + CHALLENGES.reduce((a, c) => a + chTier(c).tier, 0) : 0;
+const vetEarned = () => profile ? (profile.level - 1) + (profile.vetXp || 0) + CHALLENGES.reduce((a, c) => a + chTier(c).tier, 0) : 0;
 const vetSpent = () => profile && profile.vet ? Object.values(profile.vet).reduce((a, n) => a + n, 0) : 0;
 const vetAvail = () => vetEarned() - vetSpent();
 function vetTab() {

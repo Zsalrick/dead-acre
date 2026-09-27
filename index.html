@@ -669,6 +669,24 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 .matetag b{color:var(--pc)}.matetag i{display:block;width:70px;height:4px;background:rgba(0,0,0,.6)}.matetag em{display:block;height:100%;background:var(--pc)}
 .matetag.down span{padding:2px 8px;background:#b3141b;color:#fff;letter-spacing:.08em}
 .jtier{margin:0;color:#b05cff;font-weight:700;font-size:12px;letter-spacing:.08em}
+.jobmap{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:16px;align-items:start}
+.jsvg{width:100%;height:auto;border:1px solid rgba(232,226,208,.14);background:#070908}
+.jsvg .grid{stroke:rgba(232,226,208,.04);stroke-width:1}
+.jsvg .tree{fill:#16201a}
+.jsvg .river{fill:none;stroke:#1a3040;stroke-width:9;opacity:.8}
+.jsvg .road{fill:none;stroke:#3a342a;stroke-width:3;stroke-dasharray:8 6}
+.jsvg .county{fill:#f2a33a;font:700 14px 'Chakra Petch',sans-serif;letter-spacing:.3em}.jsvg .county.sm{fill:#8f8b7c;font-size:11px;letter-spacing:.12em}
+.jsvg .loc rect{fill:#e8e2d0;stroke:#000;stroke-width:2}.jsvg .loc text{fill:#e8e2d0;font:700 12px 'Chakra Petch',sans-serif;text-anchor:middle;letter-spacing:.06em}
+.jsvg .loc.locked rect{fill:#3a3a36}.jsvg .loc.locked text{fill:#6b6960}.jsvg .loc .lk{font-size:10px}
+.jsvg .jm{cursor:pointer}.jsvg .jm line{stroke:var(--jc);stroke-width:1.5;opacity:.5}
+.jsvg .jm .dot{fill:var(--jc);stroke:#000;stroke-width:2}
+.jsvg .jm .ring{fill:none;stroke:var(--jc);stroke-width:2;opacity:.8;transform-box:fill-box;transform-origin:center;animation:jping 1.8s ease-out infinite}
+.jsvg .jm text{fill:var(--jc);font:700 11px 'Chakra Petch',sans-serif;text-anchor:middle;letter-spacing:.1em;paint-order:stroke;stroke:#000;stroke-width:3px}
+.jsvg .jm.on .dot{stroke:#fff;stroke-width:3}.jsvg .jm:hover .dot{stroke:#fff}
+@keyframes jping{from{transform:scale(.6);opacity:.9}to{transform:scale(1.8);opacity:0}}
+@media (prefers-reduced-motion:reduce){.jsvg .jm .ring{animation:none}}
+@media (max-width:1000px){.jobmap{grid-template-columns:1fr}}
+.rdy{color:#6dff9a}.nrdy{color:#ff8a70}.parts{color:var(--lantern)}
 </style>
 
 <div id="game">
@@ -767,12 +785,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=8" charset="utf-8"></script>
-<script src="js/audio.js?v=8" charset="utf-8"></script>
-<script src="js/music.js?v=8" charset="utf-8"></script>
-<script src="js/world.js?v=8" charset="utf-8"></script>
-<script src="js/maps.js?v=8" charset="utf-8"></script>
-<script src="js/fx.js?v=8" charset="utf-8"></script>
+<script src="js/data.js?v=9" charset="utf-8"></script>
+<script src="js/audio.js?v=9" charset="utf-8"></script>
+<script src="js/music.js?v=9" charset="utf-8"></script>
+<script src="js/world.js?v=9" charset="utf-8"></script>
+<script src="js/maps.js?v=9" charset="utf-8"></script>
+<script src="js/fx.js?v=9" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -780,20 +798,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=8" charset="utf-8"></script>
-<script src="js/player.js?v=8" charset="utf-8"></script>
-<script src="js/zombies.js?v=8" charset="utf-8"></script>
-<script src="js/loot.js?v=8" charset="utf-8"></script>
-<script src="js/upgrades.js?v=8" charset="utf-8"></script>
-<script src="js/gear.js?v=8" charset="utf-8"></script>
-<script src="js/vet.js?v=8" charset="utf-8"></script>
-<script src="js/inv.js?v=8" charset="utf-8"></script>
-<script src="js/save.js?v=8" charset="utf-8"></script>
-<script src="js/menu.js?v=8" charset="utf-8"></script>
-<script src="js/skills.js?v=8" charset="utf-8"></script>
-<script src="js/hub.js?v=8" charset="utf-8"></script>
-<script src="js/game.js?v=8" charset="utf-8"></script>
-<script src="js/jobs.js?v=8" charset="utf-8"></script>
+<script src="js/gfx.js?v=9" charset="utf-8"></script>
+<script src="js/player.js?v=9" charset="utf-8"></script>
+<script src="js/zombies.js?v=9" charset="utf-8"></script>
+<script src="js/loot.js?v=9" charset="utf-8"></script>
+<script src="js/upgrades.js?v=9" charset="utf-8"></script>
+<script src="js/gear.js?v=9" charset="utf-8"></script>
+<script src="js/vet.js?v=9" charset="utf-8"></script>
+<script src="js/inv.js?v=9" charset="utf-8"></script>
+<script src="js/save.js?v=9" charset="utf-8"></script>
+<script src="js/menu.js?v=9" charset="utf-8"></script>
+<script src="js/skills.js?v=9" charset="utf-8"></script>
+<script src="js/hub.js?v=9" charset="utf-8"></script>
+<script src="js/game.js?v=9" charset="utf-8"></script>
+<script src="js/jobs.js?v=9" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=8" charset="utf-8"></script>
-<script src="js/net.js?v=8" charset="utf-8"></script>
+<script src="js/p2p.js?v=9" charset="utf-8"></script>
+<script src="js/net.js?v=9" charset="utf-8"></script>

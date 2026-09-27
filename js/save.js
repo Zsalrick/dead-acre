@@ -43,10 +43,11 @@ function saveProfile() { if (profile) { profile.at = Date.now(); store.set(SLOT_
 const deleteProfile = n => store.del(SLOT_KEY(n));
 
 // ---------- progression ----------
-const xpNeed = l => 300 + 250 * l;
+const LEVEL_CAP = 30; // like The Division: past the cap, XP fills veteran points
+const xpNeed = l => 300 + 250 * Math.min(l, LEVEL_CAP);
 function addXp(n) {
   let ups = 0; profile.xp += n;
-  while (profile.xp >= xpNeed(profile.level)) { profile.xp -= xpNeed(profile.level); profile.level++; ups++; }
+  while (profile.xp >= xpNeed(profile.level)) { profile.xp -= xpNeed(profile.level); if (profile.level < LEVEL_CAP) { profile.level++; ups++; } else profile.vetXp = (profile.vetXp || 0) + 1; }
   return ups;
 }
 function noteFound(w) {

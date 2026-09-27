@@ -61,17 +61,17 @@ async function partyLeave() {
 }
 function partyMembers() {
   if (!NET.pr) return [];
-  return NET.pr.peers().filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, n: p.presence.m.n, lv: +p.presence.m.lv || 1, c: p.presence.m.c, h: !!p.presence.m.h, st: p.presence.m.st }));
+  return NET.pr.peers().filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, n: p.presence.m.n, lv: +p.presence.m.lv || 1, c: p.presence.m.c, h: !!p.presence.m.h, st: p.presence.m.st, rdy: !!p.presence.m.rdy }));
 }
 function onPartyChange() {
-  const k = JSON.stringify(partyMembers().map(m => [m.n, m.lv, m.c, m.h, m.st]));
+  const k = JSON.stringify(partyMembers().map(m => [m.n, m.lv, m.c, m.h, m.st, m.rdy]));
   if (k === NET.keyParty) return; NET.keyParty = k;
   if (NET.host) setLobby();
   if (state === 'hub') renderHub();
 }
 function publishMember() {
   if (!NET.pr) return;
-  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base' }, job: NET.host ? NET.job : null }).catch(() => {});
+  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0 }, job: NET.host ? NET.job : null }).catch(() => {});
 }
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;
@@ -90,7 +90,7 @@ function partyPanel() {
   const codeBox = NET.p2p ? `<div class="pcode"><span class="pcodebig">KÓD: ${NET.showCode ? NET.code.toUpperCase() : '•••••'}</span>
       <div class="pcodebtns">${hbtn(NET.showCode ? 'Elrejt' : 'Megmutat', 'preveal')}${hbtn(NET.copied ? 'Másolva ✓' : 'Kód másolása', 'pcopy')}</div></div>` : '';
   return `<div class="party in"><div class="phead"><b>Csapat · ${mem.length} fő · ${NET.host ? 'te vagy a vezető' : 'tag vagy'}</b>${hbtn(NET.leaveArmed ? 'Biztos kilépsz? Kattints újra' : 'Kilépés', 'pleave')}</div>${codeBox}
-    <div class="pmem">${mem.map(m => `<span class="pm${m.h ? ' host' : ''}"><b>${esc(m.n)}</b>${m.me ? ' (te)' : ''} · ${m.lv}. szint · ${CLASSES[m.c] ? CLASSES[m.c].name : 'nincs kaszt'}${m.h ? ' · vezető' : ''}${m.st === 'job' ? ' · munkán' : ''}</span>`).join('')}</div>
+    <div class="pmem">${mem.map(m => `<span class="pm${m.h ? ' host' : ''}"><b>${esc(m.n)}</b>${m.me ? ' (te)' : ''} · ${m.lv}. szint · ${CLASSES[m.c] ? CLASSES[m.c].name : 'nincs kaszt'}${m.h ? ' · vezető' : m.rdy ? ' · <b class="rdy">KÉSZ</b>' : ' · <b class="nrdy">nem kész</b>'}${m.st === 'job' ? ' · munkán' : ''}</span>`).join('')}</div>${NET.host ? '' : hbtn(NET.ready ? 'Mégsem vagyok kész' : 'Kész vagyok', 'pready')}
     <span class="note">${NET.host ? 'Te választod a munkát: amikor elvállalsz egyet, a csapat veled jön.' : 'A csapatvezető választ munkát; amikor elindítja, veled is automatikusan indul.'}</span></div>`;
 }
 function partyAction(kind, a) {
@@ -101,6 +101,7 @@ function partyAction(kind, a) {
     if (!NET.leaveArmed) { NET.leaveArmed = true; clearTimeout(NET.leaveT); NET.leaveT = setTimeout(() => { NET.leaveArmed = false; if (state === 'hub') renderHub(); }, 4000); return renderHub(); }
     NET.leaveArmed = false; clearTimeout(NET.leaveT); partyLeave();
   }
+  if (kind === 'pready') { NET.ready = !NET.ready; publishMember(); renderHub(); }
   if (kind === 'preveal') { NET.showCode = !NET.showCode; renderHub(); }
   if (kind === 'pcopy' && NET.code) {
     const done = () => { NET.copied = true; renderHub(); setTimeout(() => { NET.copied = false; if (state === 'hub') renderHub(); }, 2000); };
@@ -119,7 +120,7 @@ function netJobStarted(opts) {
   publishMember(); setLobby();
 }
 function netJobEnded() {
-  NET.mode = null; NET.client = false; NET.targets = null; player.down = false;
+  NET.mode = null; NET.client = false; NET.targets = null; player.down = false; NET.ready = false;
   NET.zById.clear(); if (NET.host) NET.job = null;
   NET.avatars.forEach(a => { scene.remove(a.g); if (a.tag) a.tag.remove(); }); NET.avatars.clear();
   if (NET.pr) NET.pr.presence({ p: null, g: null }).catch(() => {});
@@ -172,7 +173,7 @@ function updateAvatars(dt, peers) {
     const q = sampleAt(a.buf, tr - 110);
     a.pos.x = q.x; a.pos.z = q.z;
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
-    a.down = !!P.dn; a.hp = +P.hp || 0; a.mh = +P.mh || 100; a.au = Array.isArray(P.au) ? P.au : null;
+    a.down = !!P.dn; a.kc = +P.kc || 0; a.rvc = +P.rvc || 0; a.hp = +P.hp || 0; a.mh = +P.mh || 100; a.au = Array.isArray(P.au) ? P.au : null;
     a.yaw = q.yw; a.pitch = q.pt;
     // body: yaw on the whole figure, pitch shared by the torso, head, arms and gun; legs walk with speed
     const speed = Math.hypot(a.vel.x, a.vel.z); a.walkT += dt * (2 + speed * 1.9);
@@ -326,7 +327,7 @@ function buildSnapshot() {
 function myPresence() {
   const w = curW();
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
-    pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
+    pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, kc: player.kills, rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
     wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down ? 1 : 0, h: NET.hits, a: NET.acts };
 }
@@ -552,13 +553,13 @@ function updatePings(dt) {
 }
 
 // ---------- reviving a downed mate: hold E next to them ----------
-const REVIVE_T = 2.5;
+const reviveT = () => 10 * (1 - .15 * U('revive')); // 10 s, faster with the upgrade
 function reviveFocus() {
   if (!NET.mode || player.down) return null;
   for (const [peer, a] of NET.avatars) if (a.down && Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z) < 2.2) return { type: 'revive', peer, name: a.name };
   return null;
 }
-function reviveMate(peer) { pushRoll(NET.rv, [++NET.seq, peer], 6); SND.power(); popText('Felélesztetted a társad', '#6dff9a'); }
+function reviveMate(peer) { NET.revs = (NET.revs || 0) + 1; pushRoll(NET.rv, [++NET.seq, peer], 6); SND.power(); popText('Felélesztetted a társad', '#6dff9a'); }
 // ---------- teammates on screen: name + HP over their head, and a party list ----------
 function updateMatesHud() {
   const box = $('mates'), W = innerWidth, H = innerHeight; if (!box) return;

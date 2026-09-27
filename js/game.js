@@ -196,6 +196,7 @@ function settleWeapons(success, M) {
 }
 function finishJob(success, abandoned) {
   const M = mission, J = M.job, P = profile, party = NET.mode ? partySize() : 1;
+  const board = NET.mode ? [{ n: myName(), k: player.kills, r: NET.revs || 0, me: true }, ...[...NET.avatars.values()].map(a => ({ n: a.name, k: a.kc || 0, r: a.rvc || 0 }))] : null;
   mission = null; state = 'results';
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
@@ -216,7 +217,8 @@ function finishJob(success, abandoned) {
   if (success) { stats.jobs++; bm.done++; } else { stats.fails++; bm.fail++; }
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
-  showResults({ job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  NET.revs = 0;
+  showResults({ board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
 function hurtAt(pos, r, d) {
   const me = NET.selfPos && player.pos !== NET.selfPos ? NET.selfPos : player.pos, zt = zTarget; zTarget = null;
@@ -594,8 +596,8 @@ function takeLoot(f, swap) {
 let reviveHold = 0;
 function updateSellHold(dt) {
   if (focus && focus.type === 'revive') { // hold E next to a downed mate
-    if (keys.KeyE) { reviveHold += dt; if (reviveHold >= REVIVE_T) { reviveMate(focus.peer); reviveHold = 0; } } else reviveHold = 0;
-    $('hold').hidden = reviveHold <= 0; $('holdLbl').textContent = 'Felélesztés…'; $('holdfill').style.width = reviveHold / REVIVE_T * 100 + '%'; return;
+    if (keys.KeyE) { reviveHold += dt; if (reviveHold >= reviveT()) { reviveMate(focus.peer); reviveHold = 0; } } else reviveHold = 0;
+    $('hold').hidden = reviveHold <= 0; $('holdLbl').textContent = 'Felélesztés…'; $('holdfill').style.width = reviveHold / reviveT() * 100 + '%'; return;
   }
   reviveHold = 0;
   if (focus && focus.type === 'gear') { if (keys.KeyF && !fLatch) { takeGear(focus.gd); focus = null; fLatch = true; } else if (!keys.KeyF) fLatch = false; $('hold').hidden = true; return; }
