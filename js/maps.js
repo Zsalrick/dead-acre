@@ -113,6 +113,64 @@ function logPile(x, z, n = 9) {
   }
   obstacles.push({ minX: x - 2.5, maxX: x + 2.5, minZ: z - 1.6, maxZ: z + 1.6, h: 2 });
 }
+// western storefront: solid body, a tall false front on the street side (face = +1: street toward +z), boardwalk, porch, sign
+const glassLit = basic(0xffb45a), glassDark = basic(0x101418), doorMat = matStd({ color: 0x140c08 });
+function storefront(x, z, w, d, h, mat, sign, face, lit, signCol = '#e8c890') {
+  addBox(x, z, w, d, h, mat);
+  addBox(x, z, w + .3, d + .3, .25, roofMat, h, false);
+  const fz = z + face * d / 2;
+  addBox(x, fz - face * .14, w + .4, .3, h + 2.2, mat, 0, false);
+  addBox(x, fz + face * .03, 1.6, .06, 2.4, doorMat, 0, false);
+  [-1, 1].forEach((s, i) => addBox(x + s * w * .3, fz + face * .04, 1.7, .06, 1.3, lit & (1 << i) ? glassLit : glassDark, 1, false));
+  addBox(x, fz + face * .04, 2.2, .06, 1, lit & 4 ? glassLit : glassDark, h - 1.6, false);
+  addBox(x, fz + face * 1.25, w, 2.5, .16, boardMat, 0, false);
+  addBox(x, fz + face * 1.3, w, 2.6, .14, roofMat, 3.1, false);
+  [-1, 1].forEach(s => addBox(x + s * (w / 2 - .2), fz + face * 2.4, .2, .2, 3.1, poleMat));
+  // painted sign flat on the false front (a billboard sprite would cut into the facade)
+  const s = textSprite([sign], signCol, 3), sm = new THREE.MeshBasicMaterial({ map: s.material.map, transparent: true, depthWrite: false });
+  const sg = put(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sm));
+  sg.scale.set(s.scale.x, s.scale.y, 1); sg.position.set(x, h + 1.1, fz + face * .06); sg.rotation.y = face > 0 ? 0 : Math.PI;
+  sg.onBeforeRender = () => { if (sm.map !== s.material.map) { sm.map = s.material.map; sm.needsUpdate = true; } }; // font loaded late
+  addBox(x, fz + face * .03, Math.min(w, s.scale.x * .85), .05, 1.4, matStd({ color: 0x2a2018 }), h + .4, false);
+}
+function waterTower(x, z) {
+  const wood = matStd({ map: plankTex, color: 0x8a7058 });
+  for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBox(x + a * 2.2, z + b * 2.2, .35, .35, 9, poleMat);
+  addBox(x, z, 5.4, 5.4, .3, wood, 8.8, false);
+  put(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4.2, 16), wood)).position.set(x, 11.2, z);
+  put(new THREE.Mesh(new THREE.ConeGeometry(3.4, 2, 16), roofMat)).position.set(x, 14.3, z);
+  label(['DEAD ACRE'], '#d8d0b8', 2.2, x, 11.4, z + 3.2);
+}
+function wagon(x, z, turn) {
+  const wood = matStd({ map: woodTex, color: 0x7a5a3a }), L = 4.2, W = 1.8, [hx, hz] = turn ? [W / 2, L / 2] : [L / 2, W / 2];
+  addBox(x, z, hx * 2, hz * 2, .7, wood, .7); // collider reaches the ground
+  const cover = put(new THREE.Mesh(new THREE.CylinderGeometry(1, 1, L * .8, 12, 1, true, 0, Math.PI), matStd({ color: 0xc8bca0, side: THREE.DoubleSide })));
+  cover.rotation.set(0, turn ? Math.PI / 2 : 0, Math.PI / 2); // half cylinder: arch on top, axis along the wagon
+  cover.position.set(x, 1.4, z); rayBlockers.push(cover);
+  for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const t = put(new THREE.Mesh(new THREE.CylinderGeometry(.6, .6, .12, 14), wood));
+    t.rotation.set(turn ? 0 : Math.PI / 2, 0, turn ? Math.PI / 2 : 0);
+    t.position.set(x + (turn ? a * (W / 2 + .1) : a * L * .32), .6, z + (turn ? b * L * .32 : b * (W / 2 + .1)));
+  }
+}
+// quarry rock: a flat-shaded dodecahedron, collider = the square inside it
+const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+const rockMats = [0x7a746a, 0x8e877a, 0x5e5a54].map(c => matStd({ color: c, flatShading: true }));
+function rock(x, z, r, h, rng, solid = true, y = 0) {
+  const m = put(new THREE.Mesh(rockGeo, rockMats[Math.floor(rng() * 3)]));
+  m.scale.set(r, h, r * (.85 + rng() * .3)); m.rotation.set(rng() * .5, rng() * 6.3, rng() * .5);
+  m.position.set(x, y + h * .55, z); m.castShadow = solid; m.receiveShadow = true; rayBlockers.push(m);
+  if (solid) obstacles.push({ minX: x - r * .72, maxX: x + r * .72, minZ: z - r * .72, maxZ: z + r * .72, h: h * 1.4 });
+}
+// tall floodlight: a map lamp (so the blackout mod and flicker work) with a cold, far-reaching beam
+function floodlight(x, z) {
+  addBox(x, z, .3, .3, 9, poleMat);
+  addBox(x, z, 1.4, .4, .7, matStd({ color: 0x2a2c30 }), 8.9, false);
+  const bulb = put(new THREE.Mesh(new THREE.BoxGeometry(1.1, .45, .1), basic(0xe8f0ff))); bulb.position.set(x, 9.2, z);
+  const glow = glowSprite(0xbcd4ff, 4, bulb.position);
+  const light = pointLight(0xcfe0ff, 1.7, 38, x, 8.6, z);
+  lamps.push({ x, z, light, bulb, glow, flicker: false });
+}
 
 // ---------- the maps ----------
 const MODS = {
@@ -222,6 +280,128 @@ const MAPS = {
       south: { side: 's', at: 0, name: 'Tópart', cost: 750, core: { minX: -14, maxX: 14, minZ: 34, maxZ: 56 }, spawns: [[-10, 53], [10, 53]], station: ['well', 0, 45] },
       north: { side: 'n', at: 0, name: 'Erdei tábor', cost: 1250, core: { minX: -14, maxX: 14, minZ: -56, maxZ: -34 }, spawns: [[-10, -53], [10, -53]], station: ['tower', 5, -38] },
       west:  { side: 'w', at: 0, name: 'Hordóraktár', cost: 1000, core: { minX: -56, maxX: -34, minZ: -12, maxZ: 12 }, spawns: [[-53, -9], [-53, 9]], station: ['trap', -37, 7] },
+    },
+  },
+  town: {
+    name: 'Dead Acre főutca', desc: 'Elhagyott westernváros: széles főutca, két oldalt boltok, köztük sikátorok, mögöttük udvarok.', minLevel: 4,
+    main: { minX: -45, maxX: 45, minZ: -30, maxZ: 30 }, look: { tex: 'dirt', ground: 0xb8a07a, fog: 0x1a130d, fogD: [.018, .026], fence: 0xb09878 },
+    vans: [[-30, 5], [30, -5], [-42, -25], [40, 26]], ammo: [0, -4.5], boxSpots: [[8, 2], [-26, -24], [26, -24], [-26, 24], [6, 23]],
+    spawns: [[-43, -7], [-43, -14], [-42, 24], [-26, -28], [8, -28], [43, -24], [43, 6], [26, 28], [-25, 28]],
+    lamps: [[-26, -7], [-9, 7], [8, -7], [26, 7], [-33, -22], [36, -22]],
+    // alleys between the storefronts stay open, and so does the lot under the water tower
+    clear: [[0, 16, 6], [-20, 2, 3], [24, 3, 3], ...[-42, -26, -9, 8, 24.5, 41.5].flatMap(x => [-10, -13, -16].map(z => [x, z, 2.5])),
+      ...[-41.5, -25, 25.75, 41.75].flatMap(x => [10, 13, 16].map(z => [x, z, 2.5]))],
+    props: [['car', 1.5], ['barrel', 2], ['boom', 1.5], ['crate', 2], ['stack', 1.5], ['hay', 1.5]], propN: [22, 30],
+    build() {
+      const plank = c => matStd({ map: plankTex, color: c });
+      storefront(-34, -13, 10, 8, 5.5, plank(0x9a8a70), 'SZATÓCS', 1, 1);
+      storefront(-18, -13, 10, 8, 6, matStd({ map: stoneTex, color: 0xb0a898 }), 'BANK', 1, 4, '#e8d070');
+      storefront(0, -13, 10, 8, 7, plank(0x8a5a3a), 'SALOON', 1, 7, '#ff9a4a');
+      storefront(16, -13, 10, 8, 8, plank(0x6a7a7a), 'HOTEL', 1, 2);
+      storefront(33, -13, 10, 8, 5, plank(0xa09a88), 'BORBÉLY', 1, 0);
+      storefront(-33, 13, 10, 8, 5.5, plank(0x7a8a9a), 'POSTA', -1, 2);
+      storefront(-17, 13, 10, 8, 5, plank(0x8a9a78), 'PATIKA', -1, 5, '#9fe0a0');
+      storefront(17, 13, 10, 8, 6, barnMat, 'ISTÁLLÓ', -1, 0);
+      waterTower(0, 16);
+      // the church at the east end: white boards, a steeple and a cross
+      const white = plank(0xd8d4c8);
+      house(34, 15, 8, 11, 6.5, white, 0x2a2224, 'n');
+      addBox(34, 11.2, 3, 3, 11, white);
+      put(new THREE.Mesh(new THREE.ConeGeometry(2.4, 4, 4), roofMat)).position.set(34, 13, 11.2);
+      addBox(34, 11.2, .25, .25, 2, basic(0x3a3230), 15, false); addBox(34, 11.2, 1.2, .25, .25, basic(0x3a3230), 16.2, false);
+      put(new THREE.Mesh(new THREE.CircleGeometry(.8, 16), basic(0xffc070))).position.set(34, 8.5, 9.68);
+      wagon(-20, 2, false); wagon(24, 3, false);
+      // hitching rails and a trough along the boardwalks
+      const rail = matStd({ map: woodTex, color: 0x6a5038 });
+      [[-26, -5.2], [8, 5.2]].forEach(([x, z]) => { addBox(x, z, 3.4, .15, .12, rail, 1, false); [-1.6, 1.6].forEach(d => addBox(x + d, z, .15, .15, 1.1, rail)); });
+      addBox(-9, 5.6, 2.6, .8, .6, rail);
+      // in the areas: the bank's vault, the sheriff's jail
+      addBox(-63, 0, 4, 10, 4.5, matStd({ map: stoneTex, color: 0x9a948a }));
+      const vd = put(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, .3, 20), matStd({ color: 0x8a8e94, metalness: .7, roughness: .35 }))); vd.rotation.z = Math.PI / 2; vd.position.set(-60.9, 2, 0);
+      house(55, -8, 8, 5, 4, plank(0x8a7a60), 0x2b2a2c, 'n');
+      label(['SERIFF'], '#e8c890', 2, 55, 5.6, -5);
+    },
+    areas: {
+      bank:     { side: 'w', at: 0, name: 'Bankszéf', cost: 1000, core: { minX: -67, maxX: -45, minZ: -12, maxZ: 12 }, spawns: [[-64, -9], [-64, 9]], station: ['forge', -56, -6] },
+      sheriff:  { side: 'e', at: 0, name: 'Seriffiroda', cost: 1250, core: { minX: 45, maxX: 67, minZ: -12, maxZ: 12 }, spawns: [[64, -9], [64, 9]], station: ['tower', 49, 7] },
+      cemetery: { side: 's', at: 0, name: 'Csizmadomb', cost: 750, core: { minX: -12, maxX: 12, minZ: 30, maxZ: 52 }, spawns: [[-9, 49], [9, 49]], station: ['trap', 6, 34], graves: true },
+    },
+  },
+  quarry: {
+    name: 'Kőbánya', desc: 'Nyitott kőfejtő: sziklafal körben, nagy üres gödör, messzire látni. A peremről jönnek.', minLevel: 7,
+    main: { minX: -42, maxX: 42, minZ: -38, maxZ: 38 }, look: { tex: 'asphalt', ground: 0xa89c88, fog: 0x11151b, fogD: [.014, .02], fence: 0x9a9488 },
+    vans: [[-30, -22], [30, -24], [-34, 27], [31, 28]], ammo: [4, 10], boxSpots: [[12, -6], [-16, 6], [28, -4], [-6, 22], [-28, -8], [2, -24]],
+    spawns: [[-36, -34], [0, -35], [36, -34], [-39, -9], [-39, 13], [39, -11], [39, 22], [-22, 35], [22, 35]],
+    lamps: [[-20, 20], [22, 20]],
+    clear: [[-26, 16, 5], [28, 16, 4], [8, 20, 5], [24, -14, 3], [-4, 4, 6], [-12, -21, 3], [-9, -16, 3], [14, 4, 4], [-18, -6, 4]],
+    props: [['boom', 2.5], ['barrel', 2], ['crate', 1.5], ['stack', 1], ['logs', .5], ['car', .6]], propN: [14, 20],
+    build() {
+      const rng = mulberry(91), M = this.main, cliff = matStd({ color: 0x77716a, flatShading: true });
+      // the rim: boulders along the fence, with openings for the gates, the van lanes and the spawn ramps
+      const open = { w: [0, -22, 27, -9, 13], e: [12, -24, 28, -11, 22], s: [0, -22, 22] };
+      const edge = (side, from, to, at) => {
+        for (let t = from; t <= to; t += 3.5 + rng() * 1.5) {
+          if (open[side].some((o, i) => Math.abs(t - o) < (i ? 5 : 6))) continue;
+          const r = 3 + rng() * 1.3, off = 1.2 + rng();
+          if (side === 'w') rock(M.minX - off, t, r, r * (.8 + rng() * .5), rng);
+          if (side === 'e') rock(M.maxX + off, t, r, r * (.8 + rng() * .5), rng);
+          if (side === 's') rock(t, M.maxZ + off, r, r * (.8 + rng() * .5), rng);
+        }
+      };
+      edge('w', -32, 36); edge('e', -32, 36); edge('s', -36, 36);
+      // the north face: two stepped cliffs with a ramp between them
+      [-1, 1].forEach(s => {
+        addBox(s * 15, -34.5, 22, 7, 8, cliff); addBox(s * 15, -29.5, 22, 3, 3.5, cliff);
+        for (let k = 0; k < 4; k++) rock(s * (6 + k * 5.5), -35 + rng() * 2, 2.5 + rng() * 2, 2 + rng() * 2, rng, false, 7);
+        rock(s * 5, -36.5, 1.6, 2.5, rng);
+      });
+      // the pit wall beyond the fence
+      for (let i = 0; i < 68; i++) {
+        const a = i / 34 * Math.PI * 2, r = (i < 34 ? 12 : 30) + rng() * 6, x = Math.sin(a) * (M.maxX + r), z = -Math.cos(a) * (M.maxZ + r);
+        if (Object.values(this.areas).some(A => x > A.core.minX - 6 && x < A.core.maxX + 6 && z > A.core.minZ - 6 && z < A.core.maxZ + 6)) continue;
+        rock(x, z, 7 + rng() * 5, 8 + rng() * 8, rng, false);
+      }
+      // conveyor from the hopper up onto the cliff
+      const belt = put(new THREE.Mesh(unitBox, matStd({ color: 0x2a2a2c }))), a = [-8, 1.3, -13], b = [-16, 8.4, -31];
+      const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz);
+      belt.scale.set(1.3, .3, L); belt.rotation.order = 'YXZ'; belt.rotation.set(-Math.asin(dy / L), Math.atan2(dx, dz), 0);
+      belt.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); belt.castShadow = true; rayBlockers.push(belt);
+      for (const t of [.25, .5, .75]) addBox(a[0] + dx * t, a[2] + dz * t, .3, .3, a[1] + dy * t, matStd({ color: 0x8a6a1a }));
+      addBox(-8, -12, 2.4, 2.4, 1.6, matStd({ color: 0x6a5a3a, metalness: .4, roughness: .6 }));
+      // tower crane
+      const yellow = matStd({ color: 0xc8a020, roughness: .7 });
+      addBox(24, -14, 3, 3, .8, matStd({ color: 0x6a6a66 })); addBox(24, -14, 1, 1, 18, yellow);
+      addBox(28, -14, 24, .8, .9, yellow, 17.6, false); addBox(19, -14, 2.4, 1.6, 1.6, matStd({ color: 0x4a4a4e }), 16.8, false);
+      addBox(25.5, -14, 1.6, 1.4, 1.4, yellow, 16.6, false);
+      addBox(35, -14, .06, .06, 11, basic(0x222222), 6.6, false); addBox(35, -14, 2.2, 1.4, 1.2, rockMats[0], 5.4, false);
+      put(new THREE.Mesh(new THREE.SphereGeometry(.2, 8, 6), basic(0xff3020))).position.set(40, 18.3, -14);
+      // site cabins (two stacked) and a haul truck
+      const cabin = (x, z, y, col, lit) => {
+        addBox(x, z, 8, 3, 2.8, matStd({ color: col }), y, !y);
+        addBox(x - 1.8, z + 1.52, 2.4, .05, .9, lit ? glassLit : glassDark, y + 1.3, false);
+        addBox(x + 2.2, z + 1.52, 1, .05, 2.1, doorMat, y, false);
+      };
+      cabin(-26, 16, 0, 0x3a5a7a, true); cabin(-26, 16, 2.8, 0xb8a040, false); cabin(28, 16, 0, 0x8a3a2a, true);
+      addBox(-26, 16, 8.3, 3.3, .15, roofMat, 5.6, false);
+      addBox(8, 20, 7.4, 3.4, 1.2, matStd({ color: 0x2a2a2a }), .9);
+      addBox(9.3, 20, 4.8, 3.6, 1.8, yellow, 2.1, false); addBox(5.2, 20, 1.8, 2.8, 1.8, yellow, 2.1, false);
+      addBox(4.3, 20, .06, 2.2, .9, glassDark, 2.8, false);
+      for (const [wx, wz] of [[5.6, 18.2], [5.6, 21.8], [10.6, 18.2], [10.6, 21.8]]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(1, 1, .8, 14), tireMat)); w.rotation.x = Math.PI / 2; w.position.set(wx, 1, wz); }
+      // rock piles and gravel mounds in the pit; a slurry puddle in the middle
+      for (const [cx, cz, n] of [[14, 4, 3], [-18, -6, 4], [-30, 34, 2]]) for (let k = 0; k < n; k++) rock(cx + (rng() - .5) * 3, cz + (rng() - .5) * 3, 1.2 + rng(), 1 + rng(), rng);
+      const gravel = matStd({ color: 0x8a8274, flatShading: true });
+      for (const [x, z, r] of [[-30, -28, 3.5], [16, 30, 3]]) { const m = put(new THREE.Mesh(new THREE.ConeGeometry(r, r * .7, 9), gravel)); m.position.set(x, r * .35, z); m.receiveShadow = true; rayBlockers.push(m); obstacles.push({ minX: x - r * .6, maxX: x + r * .6, minZ: z - r * .6, maxZ: z + r * .6, h: r * .5 }); }
+      const pond = put(new THREE.Mesh(new THREE.CircleGeometry(5, 24), matStd({ color: 0x1a242a, roughness: .12, metalness: .5 })));
+      pond.rotation.x = -Math.PI / 2; pond.scale.set(1.3, 1, 1); pond.position.set(-4, .03, 4);
+      [[-20, -24], [20, -26], [-30, 6], [30, 4], [0, 28]].forEach(([x, z]) => floodlight(x, z));
+      // in the areas: the machine shop shed and the control tower's hut
+      shed(-55, 6, 8, 6, 4); addBox(-55, 6, 3, 1.4, 1.1, matStd({ color: 0x3a3c40, metalness: .5 }));
+      addBox(50, 3, 5, 3, 3, matStd({ color: 0x5a5e62 })); label(['KŐBÁNYA KFT.'], '#d8d0b8', 2, 50, 4.4, 4.7);
+    },
+    areas: {
+      west:  { side: 'w', at: 0, name: 'Gépműhely', cost: 1000, core: { minX: -64, maxX: -42, minZ: -12, maxZ: 12 }, spawns: [[-61, -9], [-61, 9]], station: ['forge', -54, -4] },
+      east:  { side: 'e', at: 12, name: 'Irányítótorony', cost: 1250, core: { minX: 42, maxX: 64, minZ: 0, maxZ: 24 }, spawns: [[61, 3], [61, 21]], station: ['tower', 46, 19] },
+      south: { side: 's', at: 0, name: 'Zagytó', cost: 750, core: { minX: -12, maxX: 12, minZ: 38, maxZ: 60 }, spawns: [[-9, 57], [9, 57]], station: ['well', 0, 48] },
     },
   },
 };
