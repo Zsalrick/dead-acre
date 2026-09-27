@@ -58,6 +58,7 @@ const WEEKLY = [
   { id: 'hard', txt: n => `Teljesíts ${n} legalább 4 csillagos munkát`, n: [5, 5], get: s => s.hard || 0 },
   { id: 'bounty', txt: n => `Teljesíts ${n} fejvadászatot`, n: [3, 3], get: s => s.bounties || 0 },
 ];
+const featuredMap = () => MAP_IDS[weekKey() % MAP_IDS.length]; // this week's featured map: +25% XP and better loot
 const dayKey = () => new Date().toLocaleDateString('sv'), weekKey = () => Math.floor((Date.now() / 864e5 + 3) / 7);
 function rollContracts() {
   const P = profile, mk = (D, lvl) => ({ id: D.id, n: Math.round(D.n[0] + Math.random() * (D.n[1] - D.n[0])), base: D.get(stats) || 0, got: false, lvl });

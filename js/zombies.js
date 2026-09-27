@@ -253,7 +253,7 @@ function killZombie(z, o) {
 // what a kill drops; in a party each killer rolls their own
 function dropLoot(z, p) {
   if (mission && mission.job.bounty && !z.K.boss && Math.random() < .6) return; // a bounty's adds mostly drop nothing
-  const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() + (NET.mode ? .05 * (partySize() - 1) : 0) : 0; // harder jobs and bigger parties roll better loot
+  const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() + (NET.mode ? .05 * (partySize() - 1) : 0) + (mission.job.map === featuredMap() ? .1 : 0) : 0; // harder jobs and bigger parties roll better loot
   const uq = q => { const T = jobTier(); if (T) { q = Math.max(q, 2); if (Math.random() < .013 * T) q = Math.max(q, 4); } return mission && (mission.job.diff >= 5 || T > 0) && Math.random() < .012 + .003 * T ? 5 : q; }; // Rémálom: at least rare, sometimes legendary; 'Mi a fasz?' and Rémálom: 1-2% uniques
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
