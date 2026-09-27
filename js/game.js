@@ -207,7 +207,7 @@ function finishJob(success, abandoned) {
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
   truck.beacon.visible = truck.beam.visible = false; $('evacMark').hidden = true; $('intro').hidden = true;
-  clearGearDrops(); clearFx();
+  clearGearDrops(); clearFx(); if (M.esc) scene.remove(M.esc.a.g);
   const w = settleWeapons(success, M);
   // dying after the clock ran out (during evac) still pays a quarter of the fee
   const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little

@@ -26,7 +26,7 @@ function makeJob() {
   const mod = Math.random() < (diff >= 2 ? .6 : .25) ? pick(Object.keys(MODS)) : null; // maps often come with a twist
   const boss = diff >= 3 && (diff === 5 || Math.random() < .35);
   const [title0, client] = pick(JOB_TEXT[map]);
-  const type = diff >= 2 ? pick(['survive', 'survive', 'survive', 'exterminate', 'defense', 'supply']) : 'survive';
+  const type = diff >= 2 ? pick(['survive', 'survive', 'survive', 'exterminate', 'defense', 'supply', 'escort']) : 'survive';
   const title = type === 'survive' ? title0 : `${JOB_TYPES[type].name}: ${title0}`;
   const reward = Math.round((250 + 180 * Math.pow(diff, 1.4) + lvl * 35) * (dur / 300) * (mod ? 1.2 : 1) * (boss ? 1.3 : 1) / 10) * 10;
   return { map, diff, dur, mod, boss, title, client, type, goal: type === 'exterminate' ? 50 + 25 * diff : type === 'supply' ? 5 + diff : 0,

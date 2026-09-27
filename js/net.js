@@ -223,6 +223,7 @@ let AIM = null;
 function aimSetup() {
   AIM = NET.targets ? NET.targets.slice() : null;
   if (mission && mission.gen && mission.gen.hp > 0) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(mission.gen.target);
+  if (mission && mission.esc && mission.esc.target.alive) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(mission.esc.target);
   if (AIM) { NET.selfPos = player.pos; NET.selfVel = player.vel; }
 }
 function netAim(z) {
@@ -238,7 +239,7 @@ function netAim(z) {
 function netAimEnd() { if (!AIM) return; player.pos = NET.selfPos; player.vel = NET.selfVel; zTarget = null; }
 // a zombie aimed at a remote player: the damage goes to them instead of the host
 function netRedirectHurt(d) {
-  if (zTarget && zTarget.gen) { if (mission && mission.gen) { mission.gen.hp -= d * .5; mission.gen.hitT = now; } return true; } // the generator is sturdier than a person
+  if (zTarget && zTarget.gen) { const M = mission; if (M && zTarget.esc && M.esc) { M.esc.hp -= d; M.esc.hitT = now; } else if (M && M.gen) { M.gen.hp -= d * .5; M.gen.hitT = now; } return true; } // the generator is sturdier than a person
   if (!zTarget || !zTarget.remote) return false;
   pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10, hurtSrc], 16);
   return true;
@@ -322,7 +323,7 @@ function buildSnapshot() {
     t: Math.round(M.t * 10) / 10, ph: M.phase, pt: Math.round((M.phaseT || 0) * 10) / 10, w: M.wave, r: round, cl: M.cleared ? 1 : 0,
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
-    kc: M.kc || 0, rt: M.rt || 0, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, cr: M.crates ? M.crates.reduce((m, c, i) => m | (c.got ? 1 << i : 0), 0) : 0, od: M.objDone ? 1 : 0,
+    kc: M.kc || 0, rt: M.rt || 0, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0] : null, cr: M.crates ? M.crates.reduce((m, c, i) => m | (c.got ? 1 << i : 0), 0) : 0, od: M.objDone ? 1 : 0,
     tr: trapState.map(T => Math.max(0, Math.round(T.active * 10) / 10)), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
@@ -392,7 +393,7 @@ function netHostAct(type, arg) {
   if (type === 'trap' && trapState[arg] && trapState[arg].active <= 0 && trapState[arg].cd <= 0) trapState[arg].active = 20;
   if (type === 'crate') takeCrate(arg | 0, true);
   if (type === 'mark' && Array.isArray(arg)) for (const id of arg.slice(0, 40)) { const z = NET.zById.get(id); if (z && !z.dead) z.markT = 10; }
-  if (type === 'repair' && M.gen && M.gen.hp > 0) M.gen.hp = Math.min(M.gen.max, M.gen.hp + M.gen.max * .25);
+  if (type === 'repair') { const T = M.gen || M.esc; if (T && T.hp > 0) T.hp = Math.min(T.max, T.hp + T.max * .25); }
   if (type === 'board' && M.phase === 'evac' && truck.parked && !(M.boardT > 0) && !M.leaving) { M.boardT = BOARD_T; banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); }
 }
 
@@ -452,6 +453,7 @@ function applySnapshot(g, hostPeer) {
   NET.hz = Array.isArray(g.hz) ? g.hz : [];
   M.kc = +g.kc || 0;
   if (g.rt != null && M.rt != null && g.rt !== M.rt && (player.down || player.ffyl > 0)) netRevive(); M.rt = g.rt;
+  if (M.esc && Array.isArray(g.es)) { const E = M.esc, hp = (+g.es[2] || 0) / 1000 * E.max; if (hp < E.hp - 1) E.hitT = now; E.hp = hp; E.net = new V3((+g.es[0] || 0) / 10, 0, (+g.es[1] || 0) / 10); E.moving = !!g.es[3]; }
   if (M.gen && g.gh != null) { const hp = +g.gh * M.gen.max; if (hp < M.gen.hp - 1) M.gen.hitT = now; M.gen.hp = hp; }
   if (M.crates) M.crates.forEach((c, i) => { if ((g.cr & (1 << i)) && !c.got) takeCrate(i, true); });
   if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
@@ -505,7 +507,7 @@ function updateProxies(dt) {
 function clientMission(dt) {
   const M = mission; if (!M) return;
   if (M.job.test) testRefill();
-  if (M.gen) updateObjective(M, dt); // lamp and sparks only; the host decides the outcome
+  if (M.gen || M.esc) updateObjective(M, dt); // looks only; the host decides the outcome
   if (M.leaving) {
     M.leaving += dt;
     truck.g.position.x += truck.dir * dt * (4 + M.leaving * 6);
@@ -630,6 +632,7 @@ function updateCompass() {
   for (const a of NET.avatars.values()) h += at(bear(a.pos.x, a.pos.z), 'cm', `${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small>`, a.col);
   if (truck.beacon.visible) h += at(bear(truck.pos.x, truck.pos.z), 'cv', 'FURGON');
   if (mission.gen) h += at(bear(mission.gen.pos.x, mission.gen.pos.z), 'cv', 'GENERÁTOR');
+  if (mission.esc && mission.esc.target.alive) h += at(bear(mission.esc.pos.x, mission.esc.pos.z), 'cv', 'TÚLÉLŐ');
   if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
 }
 
