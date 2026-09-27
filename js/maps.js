@@ -179,6 +179,7 @@ const MODS = {
   blood: { name: 'VÉRHOLD', sub: 'A zombik gyorsabbak, de másfélszer annyi pontot érnek.', label: 'Vérhold' },
   dark:  { name: 'ÁRAMSZÜNET', sub: 'A lámpák nem működnek.', label: 'Áramszünet' },
   horde: { name: 'HORDA', sub: 'Kétszer annyian jönnek, de gyengébbek.', label: 'Horda' },
+  storm: { name: 'VIHAR', sub: 'Zuhog az eső, villámlik, alig látni. A zaj elnyeli a lövéseid: +15% pont.', label: 'Vihar' },
   elite: { name: 'ELIT', sub: 'Az arany szeműek kétszer annyit bírnak, és biztosan zsákmányt ejtenek.', label: 'Elit zombik' },
 };
 // perk machines (one per area, CoD style): bought with points, last for the job
@@ -986,14 +987,34 @@ function applyMod(key) {
   if (key === 'dark') lamps.forEach(l => { l.bulb.visible = l.glow.visible = false; l.light.intensity = 0; });
   if (key === 'horde') { roundMod.hp = .6; roundMod.spawns = 1.8; roundMod.points = .7; }
   if (key === 'elite') roundMod.elite = true;
+  if (key === 'storm') { scene.fog.density = baseFog * 1.6; roundMod.points = 1.15; scene.fog.color.setHex(0x0a0e14); scene.background.setHex(0x0a0e14); }
+  rain.visible = key === 'storm';
 }
 function updateMapFx(dt) {
   mapSpin.forEach(m => m.rotation.z += dt * .4);
+  if (rain.visible) updateRain(dt);
   for (const s of mapLabels) s.material.opacity = clamp(1.5 - Math.hypot(s.position.x - player.pos.x, s.position.z - player.pos.z) / 16, .12, 1); // signs fade with distance
   if (activeMod === 'dark') return;
   for (const l of lamps) {
     if (!l.flicker) continue;
     const on = Math.sin(now * 23 + l.x) + Math.sin(now * 7.3 + l.z) > -.6 || Math.random() < .02;
     l.light.intensity = on ? 1.7 : .15; l.bulb.visible = l.glow.visible = on;
+  }
+}
+
+// rain: a box of streaks that follows the camera; now and then the sky flashes and thunder rolls in a moment later
+const RAIN_N = 1400, rainPos = new Float32Array(RAIN_N * 6);
+for (let i = 0; i < RAIN_N; i++) { const x = rand(-30, 30), y = rand(0, 22), z = rand(-30, 30); rainPos.set([x, y, z, x + .05, y - .6, z], i * 6); }
+const rainGeo = new THREE.BufferGeometry(); rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rain = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0x8aa0b8, transparent: true, opacity: .35, depthWrite: false }));
+rain.visible = false; rain.frustumCulled = false; scene.add(rain);
+let boltT = 6;
+function updateRain(dt) {
+  const a = rainGeo.attributes.position.array, fall = 26 * dt;
+  for (let i = 0; i < RAIN_N; i++) { const o = i * 6; a[o + 1] -= fall; a[o + 4] -= fall; if (a[o + 4] < 0) { a[o + 1] += 22; a[o + 4] += 22; } }
+  rainGeo.attributes.position.needsUpdate = true; rain.position.set(camera.position.x, 0, camera.position.z);
+  if ((boltT -= dt) <= 0) { // lightning
+    boltT = rand(6, 14); const f = $('flash'); f.style.background = '#cfe0ff'; f.style.opacity = .55; flashT = .35; setTimeout(() => { if (f.style.background.includes('207')) f.style.background = ''; }, 450);
+    setTimeout(() => { if (activeMod === 'storm') { nz(2.5, 120, .9, 'lowpass', .7); tn(40, 1.8, .4, 'sine', 28); } }, rand(300, 1400));
   }
 }

@@ -462,7 +462,7 @@ function applySnapshot(g, hostPeer) {
 function resurrect(z) { z.dead = false; z.predDead = 0; z.deathT = 0; z.g.rotation.z = 0; z.g.visible = true; z.upper.children.forEach(c => c.visible = true); }
 function proxyDie(z) {
   if (z.dead) return;
-  z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1;
+  z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1; bloodPool(z.pos.x, z.pos.z, z.scale);
   burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 10, 3);
   if (z.K.bloat && z.net && z.net.fl & 256) { z.g.visible = false; burst(new V3(z.pos.x, 1, z.pos.z), 0x9dff3a, 30, 6, .7); SND.explode(); }
 }

@@ -14,7 +14,7 @@ function updateParticles(dt) { // one draw call for every speck of blood, dirt a
   partIM.count = n; partIM.instanceMatrix.needsUpdate = true; if (partIM.instanceColor) partIM.instanceColor.needsUpdate = true;
 }
 function clearFx() { // the job is over: no frozen sparks or tracers behind the results screen
-  particles.length = 0; partIM.count = 0;
+  particles.length = 0; partIM.count = 0; decals.length = 0; decalIM.count = 0;
   tracers.forEach(t => { scene.remove(t.m); t.m.material.dispose(); }); tracers.length = 0;
 }
 function burst(pos, color, n, speed = 3, life = .5) {
@@ -251,4 +251,20 @@ function telegraph(pos, r, color, t, fn) {
     m.scale.setScalar(.15 + u * r); m.material.opacity = .4 + .5 * Math.abs(Math.sin(u * 18)); requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
+}
+
+const DECAL_N = 80, decalIM = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 14), new THREE.MeshBasicMaterial({ color: 0x220202, transparent: true, opacity: .72, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), DECAL_N);
+const decals = [], decalO = new THREE.Object3D(); let decalI = 0;
+decalIM.count = 0; decalIM.frustumCulled = false; decalIM.renderOrder = 1; scene.add(decalIM);
+function bloodPool(x, z, s = 1) { // where a zombie fell: a dark pool that stays for a while
+  decals[decalI] = { x, z, s: s * rand(.6, 1.3), r: rand(0, 6.28), t: 30 }; decalI = (decalI + 1) % DECAL_N;
+}
+function updateDecals(dt) {
+  let n = 0;
+  for (const d of decals) {
+    if (!d || d.t <= 0) continue; d.t -= dt;
+    const k = d.s * Math.min(1, (30 - d.t) * 4) * Math.min(1, d.t / 3); // grows in, shrinks away
+    decalO.position.set(d.x, .02, d.z); decalO.rotation.set(-Math.PI / 2, 0, d.r); decalO.scale.set(k, k * .8, 1); decalO.updateMatrix(); decalIM.setMatrixAt(n++, decalO.matrix);
+  }
+  decalIM.count = n; decalIM.instanceMatrix.needsUpdate = true;
 }

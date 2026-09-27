@@ -409,7 +409,7 @@ addEventListener('mousemove', e => {
 
 // ================= FX / WORLD UPDATE =================
 function updateFx(dt) {
-  updateParticles(dt);
+  updateParticles(dt); updateDecals(dt);
   for (let i = tracers.length - 1; i >= 0; i--) {
     const t = tracers[i]; t.t -= dt; t.m.material.opacity = Math.max(0, t.t / .07) * .85;
     if (t.t <= 0) { scene.remove(t.m); t.m.material.dispose(); tracers.splice(i, 1); }

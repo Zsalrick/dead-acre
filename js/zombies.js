@@ -223,7 +223,7 @@ function popBloater(z) {
 function killZombie(z, o) {
   if (z.dummy) { z.dead = true; z.deathT = 0; z.fallDir = 1; if (!o.remote) { hitmarker(true); SND.kill(); } if (mission && mission.dummyQ) mission.dummyQ.push({ t: 2.5, spot: z.spot }); return; }
   if (mission) mission.kc = (mission.kc || 0) + 1; // the whole party's kills (objective jobs)
-  z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1;
+  z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1; bloodPool(z.pos.x, z.pos.z, z.scale);
   if (z.bounty) bountyKilled(z);
   if (o.remote) { // a party member's kill: they get the points and roll the loot
     burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 14, 3.5);

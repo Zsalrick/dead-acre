@@ -424,7 +424,7 @@ function updateVM(dt) {
   vm.bobT += dt * (2 + speed * 1.7);
   vm.bobA = lerp(vm.bobA || 0, (1 - ads * .9) * Math.min(1, speed / 5) * (player.onGround ? 1 : .3), Math.min(1, dt * 8));
   // target pose: the smoothed layer blends ADS, sprint, reload, switch and off-hand actions into each other
-  let x = lerp(.2, 0, ads), y = lerp(-.18, -sightY, ads), z = lerp(-.5, -.4, ads), rx = 0, ry = 0, rz = 0;
+  let x = lerp(.23, 0, ads), y = lerp(-.2, -sightY, ads), z = lerp(-.52, -.4, ads), rx = 0, ry = 0, rz = 0;
   if (player.sprint) { ry += .55; rx -= .15; x -= .04; y -= .03; }
   const RL = player.reloading && RELOADS[w.base.rl];
   if (RL) {
