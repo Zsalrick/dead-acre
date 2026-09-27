@@ -48,7 +48,8 @@ function glowSprite(color, size, pos) {
   s.scale.set(size, size, 1); s.position.copy(pos); return put(s);
 }
 function pointLight(color, i, d, x, y, z) { const l = new THREE.PointLight(color, i, d, 1.5); l.position.set(x, y, z); return put(l); }
-function label(lines, color, size, x, y, z) { const s = textSprite(lines, color, size); s.position.set(x, y, z); return put(s); }
+const mapLabels = [];
+function label(lines, color, size, x, y, z) { const s = textSprite(lines, color, size); s.position.set(x, y, z); mapLabels.push(s); return put(s); }
 function lamp(x, z) {
   addBox(x, z, .2, .2, 4.2, poleMat);
   const bulb = put(new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), basic(0xffc070))); bulb.position.set(x, 4.25, z);
@@ -520,7 +521,7 @@ function loadMap(id, seed) {
   MAP_ID = id; MAP = bigMap(MAPS[id]); mapSeed = seed;
   scene.remove(mapGroup); disposeTree(mapGroup); mapGroup = new THREE.Group(); scene.add(mapGroup);
   obstacles.length = 0; rayBlockers.length = 0; rayBlockers.push(ground);
-  lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0;
+  lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0; mapLabels.length = 0;
   turrets.forEach(t => scene.remove(t.g)); turrets.length = 0;
   MAIN_RECT = MAP.main; SPAWNS = MAP.spawns; BOX_SPOTS = MAP.boxSpots;
   // look
@@ -988,6 +989,7 @@ function applyMod(key) {
 }
 function updateMapFx(dt) {
   mapSpin.forEach(m => m.rotation.z += dt * .4);
+  for (const s of mapLabels) s.material.opacity = clamp(1.5 - Math.hypot(s.position.x - player.pos.x, s.position.z - player.pos.z) / 16, .12, 1); // signs fade with distance
   if (activeMod === 'dark') return;
   for (const l of lamps) {
     if (!l.flicker) continue;

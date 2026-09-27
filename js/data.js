@@ -126,6 +126,7 @@ function makeWeapon(base, q, level, mk) {
   };
   w.maxRes = Math.round(base.res * (1 + q * .1) * (1 + (M.res || 0)));
   w.ammo = w.mag; w.reserve = w.maxRes;
+  w.roll = Math.round(Object.values(r).reduce((a, v) => a + (v + 1) / 2, 0) / 5 * 100); // roll quality: 100% is a perfect gun
   const top = Object.keys(r).reduce((a, b) => r[a] > r[b] ? a : b);
   if (q === 4) { const L = pick(LEGENDS); w.name = L[0]; w.flavor = L[1]; }
   else w.name = [q > 0 ? pick(PREFIX[top]) : null, w.element ? ELEMENTS[w.element].word : null, base.name].filter(Boolean).join(' ');
@@ -208,3 +209,10 @@ function drawIcon(k) {
 }
 const ICONS = {}, ICON_CANVAS = {};
 ITEM_KEYS.forEach(k => { ICON_CANVAS[k] = drawIcon(k); ICONS[k] = ICON_CANVAS[k].toDataURL(); });
+
+// the forge's calibration: every stat roll again; rarity, level, maker, element, anointment and unique trick stay
+function recalWeapon(w) {
+  const b = BASES.find(x => x.id === w.base.id) || w.base, n = makeWeapon(b, Math.min(4, w.q), w.level, w.mk), k = w.unique ? 1.12 : 1;
+  Object.assign(w, { dmg: Math.round(n.dmg * k), rpm: n.rpm, mag: n.mag, reload: n.reload, spread: n.spread, roll: n.roll });
+  return w;
+}

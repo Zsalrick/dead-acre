@@ -15,7 +15,7 @@ const stashMax = () => 40 + 10 * U('stash'), gearMax = () => 40 + 10 * U('stash'
 const reroll = () => 50 + 40 * profile.level;
 // the base's own gunsmith: dollars instead of points, so old favourites can keep up
 const PARTS = [1, 2, 5, 15, 40, 80]; // salvage yield by rarity
-const HFORGE = { level: w => 2 + Math.floor(w.level / 5), anoint: () => 12, cap: () => Math.max(1, profile.level - 2), rarity: w => [8, 20, 45, 100][w.q] };
+const HFORGE = { recal: w => 10 + Math.floor(w.level / 3), level: w => 2 + Math.floor(w.level / 5), anoint: () => 12, cap: () => profile.level >= LEVEL_CAP ? LEVEL_CAP + 2 * (profile.tier || 0) : Math.max(1, profile.level - 2), rarity: w => [8, 20, 45, 100][w.q] };
 const ITEM_PRICE = { med: 120, gren: 100, knife: 90, adren: 180 };
 const shopPrice = w => Math.round(sellValue(w) * 4 / 10) * 10;
 
@@ -31,7 +31,7 @@ function makeJob() {
   const title = type === 'survive' ? title0 : `${JOB_TYPES[type].name}: ${title0}`;
   const reward = Math.round((250 + 180 * Math.pow(diff, 1.4) + lvl * 35) * (dur / 300) * (mod ? 1.2 : 1) * (boss ? 1.3 : 1) / 10) * 10;
   return { map, diff, dur, mod, boss, title, client, type, goal: type === 'exterminate' ? 50 + 25 * diff : type === 'supply' ? 5 + diff : 0,
-    reward: Math.round(reward * (type === 'survive' ? 1 : 1.15) / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl), xp: 120 * diff + (boss ? 150 : 0) + (mod ? 50 : 0) };
+    reward: Math.round(reward * (type === 'survive' ? 1 : type === 'escort' ? .9 : 1.15) / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl), xp: 120 * diff + (boss ? 150 : 0) + (mod ? 50 : 0) };
 }
 function rollBoard() {
   profile.jobs = []; // three different jobs, on different maps while there are enough maps
@@ -41,24 +41,26 @@ function rollBoard() {
   if (!profile.jobs.some(j => j.diff === 1)) profile.jobs[0] = Object.assign(makeJob(), { diff: 1, boss: false }); // always one easy job
   const j = profile.jobs[0]; j.dur = 300; j.reward = Math.round((470 + profile.level * 35) / 10) * 10; j.xp = 120; j.lvl = profile.level;
   if (profile.level >= 3) profile.jobs.push(makeBounty());
-  if (profile.level >= LEVEL_CAP) { // Rémálom +N after the cap: clear it to unlock the next one
-    const T = (profile.tier || 0) + 1, j = Object.assign(makeJob(), {});
-    j.diff = 5; j.tier = T; j.lvl = LEVEL_CAP + 2 * T; j.boss = true; j.dur = Math.max(j.dur, 480);
-    j.reward = Math.round(j.reward * 1.4 * (1 + .15 * T) / 10) * 10; j.xp = Math.round(j.xp * 1.3 * (1 + .15 * T));
-    j.title = `Rémálom +${T}: ${j.title.replace(/^.*?: /, '')}`;
-    profile.jobs.push(j);
+  if (profile.level >= LEVEL_CAP) { // Rémálom +N after the cap: pick any tier you have unlocked, clear the top one to unlock the next
+    const j = Object.assign(makeJob(), {}); j.diff = 5; j.boss = true; j.dur = Math.max(j.dur, 480); j.base = { reward: j.reward, xp: j.xp, title: j.title.replace(/^.*?: /, '') };
+    setTier(j, profile.tierSel ? Math.min(profile.tierSel, (profile.tier || 0) + 1) : (profile.tier || 0) + 1); profile.jobs.push(j);
   }
+}
+function setTier(j, T) { // pay, XP and parts grow faster than zombie health (~+26% a tier)
+  j.tier = T; j.lvl = LEVEL_CAP + 2 * T;
+  j.reward = Math.round(j.base.reward * 1.4 * Math.pow(1.3, T) / 10) * 10; j.xp = Math.round(j.base.xp * 1.3 * Math.pow(1.25, T));
+  j.title = `Rémálom +${T}: ${j.base.title}`;
 }
 // a bounty: one strong boss, no clock, guaranteed legendary gun + armor
 function makeBounty() {
   const lvl = profile.level, key = pick(Object.keys(BOUNTIES).filter(k => lvl >= (BOUNTIES[k].minLvl || 3))), B = BOUNTIES[key];
   const map = pick(MAP_IDS.filter(id => MAPS[id].minLevel <= lvl)), diff = Math.min(5, 2 + Math.floor(lvl / 6));
   return { map, diff, dur: 0, mod: null, boss: false, bounty: key, title: `Fejvadászat: ${B.name}`, client: 'Megyei seriff',
-    reward: Math.round((700 + 300 * diff + lvl * 60) / 10) * 10, xp: 350 + 120 * diff, lvl: Math.min(LEVEL_CAP, lvl) };
+    reward: Math.round((700 + 300 * diff + lvl * 60) * 1.6 / 10) * 10, xp: 350 + 120 * diff, lvl: Math.min(LEVEL_CAP, lvl) }; // ×1.6: a bounty out-pays a regular job
 }
 function rollShop() {
   const lvl = profile.level;
-  profile.shop = [0, 1, 2, 3].map(() => packW(makeWeapon(pick(BASES), rollRarity(.15 + lvl * .02), lvl + 1)));
+  profile.shop = [0, 1, 2, 3].map(() => packW(makeWeapon(pick(BASES), Math.min(4, rollRarity(.15 + lvl * .02)), lvl + 1))); // uniques only drop
   profile.gshop = [0, 1, 2].map(() => makeGear(null, rollRarity(.15 + lvl * .02), lvl + 1));
 }
 
@@ -83,7 +85,7 @@ function jobCard(j, i, notReady) {
   const btn = NET.code && !NET.host ? 'A vezető választ' : notReady ? `Várakozás · ${notReady} nem kész` : NET.code ? 'Elvállaljuk' : 'Elvállalom';
   return `<article class="job${B ? ' bounty' : ''}" style="--dc:${B ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1]}">
     <div class="jhead"><span class="jmap">${M.name}</span><span class="jstars" title="${DIFF_NAMES[j.diff - 1]}">${stars(j.diff)}</span></div>
-    <h3>${j.title}</h3><p class="jclient">Megbízó: ${j.client} · <b>${DIFF_NAMES[j.diff - 1]}</b></p>${j.tier ? `<p class="jtier">RÉMÁLOM +${j.tier} · +${12 * j.tier}% zombi életerő és sebzés · jobb zsákmány</p>` : ''}
+    <h3>${j.title}</h3><p class="jclient">Megbízó: ${j.client} · <b>${DIFF_NAMES[j.diff - 1]}</b></p>${j.tier ? `<p class="jtier">RÉMÁLOM +${j.tier} · zóna Lv ${j.lvl} · +${10 + 5 * j.tier} ⚙ és garantált legendás a teljesítésért</p>${j.base ? `<div class="tiersel">${hbtn('−', `tier:${i}:-1`, j.tier <= 1)}<b>+${j.tier}</b>${hbtn('+', `tier:${i}:1`, j.tier >= (profile.tier || 0) + 1)}<small>Feloldva: +${(profile.tier || 0) + 1}-ig</small></div>` : ''}` : ''}
     <ul class="jfacts">${B ? `<li class="jboss"><b>${B.name}</b>: ${B.desc}</li><li class="jleg">Garantált legendás fegyver és páncél</li><li class="jleg">Lehetséges egyedi: ${(B.loot || []).map(k => UNIQUES[k].name).join(', ')}</li><li>Nincs időkorlát · ${lv}. szintű zombik</li>`
       : `${j.type && j.type !== 'survive' ? `<li class="jtype">${JOB_TYPES[j.type].desc(j)}</li>` : ''}<li>${noClock(j) ? 'Nincs időkorlát' : `<b>${fmtTime(j.dur)}</b> ${j.type === 'defense' ? 'védelem' : 'túlélés'}`} · <b>${lv}.</b> szintű zóna</li><li>${START_THREAT[j.diff - 1]}. szintű veszélytől</li>`}
       ${weak ? `<li class="jwarn">Vigyázz: a legjobb fegyvered Lv ${gl}, a zóna ${lv}. szintű. Itt nagyon kevés leszel.</li>` : ''}${j.mod ? `<li class="jmod">${MODS[j.mod].label}: ${MODS[j.mod].sub}</li>` : ''}${j.boss && !B ? '<li class="jboss">A Mészáros is eljön</li>' : ''}</ul>
@@ -121,7 +123,7 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
-const KEY_LABEL = { KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+const KEY_LABEL = { KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 const hbtn = (label, act, off, key) => `<button class="sbtn" data-act="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const hhold = (label, act, off, key) => `<button class="sbtn hold" data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
@@ -158,7 +160,8 @@ const HUB = {
     const pp = P.parts || 0;
     if (w) acts += hbtn(w.level + 2 > HFORGE.cap() ? `Kovács: szintkorlát (${HFORGE.cap()})` : `Kovács: +2 szint · ${HFORGE.level(w)} ⚙`, `hforge:level:${sl}:${i}`, pp < HFORGE.level(w) || w.level + 2 > HFORGE.cap(), 'KeyG') +
       (w.q < 4 ? hbtn(`Kovács: ${RARITIES[w.q + 1].name} · ${HFORGE.rarity(w)} ⚙`, `hforge:rarity:${sl}:${i}`, pp < HFORGE.rarity(w), 'KeyV') : '') +
-      (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '');
+      (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '') +
+      hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC');
     const cmp = sl === 'L' ? lists.L[1 - i] : lists.L[0] || lists.L[1];
     const hands = lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('');
     const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${hands}</div>
@@ -217,6 +220,7 @@ const HUB = {
     const left = `<h3>Fegyverek</h3><div class="tiles">${guns || emptyTile('Elfogyott', 'Munka után megújul')}</div>
       <h3>Páncél</h3><div class="tiles">${gear || emptyTile('Elfogyott', 'Munka után megújul')}</div>
       <h3>Felszerelés</h3><div class="tiles">${cons}</div>
+      <h3>Szerencsekerék <small>pénzért bármi kijöhet, a semmitől a legendásig</small></h3><div class="slist">${srow('Pörgetés', `${SLOT_TXT}`, `$${slotCost()}`, 'slot', P.cash < slotCost() || P.stash.length >= stashMax(), 'Pörgetés')}${P.lastSlot ? `<p class="note">Legutóbb: ${P.lastSlot}</p>` : ''}</div>
       <h3>Gránát- és késfajták <small>egyszer veszed meg, utána szabadon választható</small></h3><div class="slist">${throwRows()}</div>`;
     return `<div class="hubhead"><h2>Bolt</h2></div><p class="lede">A kínálat minden munka után megújul. A vett fegyver a raktárba, a páncél a páncélraktárba kerül.</p>
       ${invLayout(left, detail)}`;
@@ -241,6 +245,8 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'jsel') { jobSel = +a; return renderHub(); }
   if (kind === 'claim') claimContract(a);
+  if (kind === 'slot' && P.stash.length < stashMax() && pay(slotCost())) spinSlot();
+  if (kind === 'tier') { const j = P.jobs[+a]; if (j && j.tier && j.base) { const T = clamp(j.tier + +c, 1, (P.tier || 0) + 1); setTier(j, T); P.tierSel = T; } }
   if (kind === 'junk') P.junkQ = clamp(+a, -1, 2);
   if (kind === 'testground') { if (NET.code && !NET.host) return; return startJob(testJob()); }
   if (kind === 'job') { if (!P.cls) { hubTab = 'skills'; return renderHub(); } if (NET.code && (!NET.host || partyMembers().some(m => !m.me && !m.rdy))) return; return startJob(P.jobs[+a]); }
@@ -250,8 +256,8 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'reroll' && pay(reroll())) rollBoard();
   if (kind === 'hforge') { // hforge:level|rarity:L|B|S:i
     const [, what, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]);
-    const ok = what === 'level' ? w && w.level + 2 <= HFORGE.cap() : what === 'rarity' ? w && w.q < 4 : w && w.q >= 2, cost = w && HFORGE[what] ? HFORGE[what](w) : 1e9;
-    if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'level') levelUpWeapon(w, 2); else if (what === 'rarity') rarityUp(w); else w.anoint = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); list[+i] = packW(w); SND.explode(); }
+    const ok = what === 'level' ? w && w.level + 2 <= HFORGE.cap() : what === 'rarity' ? w && w.q < 4 : what === 'recal' ? !!w : w && w.q >= 2, cost = w && HFORGE[what] ? HFORGE[what](w) : 1e9;
+    if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'level') levelUpWeapon(w, 2); else if (what === 'rarity') rarityUp(w); else if (what === 'recal') recalWeapon(w); else w.anoint = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); list[+i] = packW(w); SND.explode(); }
   }
   if (kind === 'up' && U(a) < UPGRADES[a].max && pay(upCost(a))) P.up[a] = U(a) + 1;
   if (kind === 'item') { const n = a === 'knife' ? 3 : 1; if (P.inv[a] < itemMax(a) && pay(ITEM_PRICE[a])) P.inv[a] = Math.min(itemMax(a), P.inv[a] + n); }
@@ -312,4 +318,16 @@ function throwRows() {
     return srow(`${D.name}${on ? ' <span class="vrank">nálad</span>' : ''}`, D.desc, own ? '' : `$${D.price}`, `ttype:${slot}:${key}`, on || (!own && profile.cash < D.price), on ? 'Kiválasztva' : own ? 'Kiválaszt' : 'Megveszem');
   };
   return Object.entries(GREN_TYPES).map(([k, D]) => row('g', k, D)).join('') + Object.entries(KNIFE_TYPES).map(([k, D]) => row('k', k, D)).join('');
+}
+
+// ---------- the slot machine: a cash sink with a jackpot ----------
+const slotCost = () => 400 + 120 * profile.level, SLOT_TXT = '55% semmi vagy pénz vissza · 25% ⚙ · 15% fegyver · 4% legendás · 1% egyedi';
+function spinSlot() {
+  const P = profile, r = Math.random(), lv = P.level;
+  let msg;
+  if (r < .35) msg = 'Semmi. A gép nyert.';
+  else if (r < .55) { const c = Math.round(slotCost() * rand(.5, 2)); P.cash += c; msg = `$${c} vissza`; }
+  else if (r < .80) { const n = 4 + Math.floor(Math.random() * 10); P.parts = (P.parts || 0) + n; msg = `+${n} ⚙`; }
+  else { const q = r < .95 ? Math.max(1, rollRarity(.4)) : r < .99 ? 4 : 5, w = makeWeapon(pick(BASES), q, lv); P.stash.push(packW(w)); noteFound(w); msg = `${w.name} (${w.unique ? 'egyedi' : RARITIES[w.q].name}) a raktárba`; if (q >= 4) { banner('JACKPOT!', w.name); SND.legend(w.unique); } }
+  P.lastSlot = msg; SND.sell();
 }

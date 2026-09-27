@@ -135,7 +135,7 @@ function updateTestGround(M, dt) {
 function buildEscort(M) {
   const a = makeAvatar({ n: 'Túlélő', c: null }); scene.add(a.g); a.gunG.visible = false;
   const start = new V3(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 4.5), [gx, gz] = MAP.vans[M.pickup];
-  const max = 2600 * (1 + .3 * (M.job.diff - 1));
+  const max = 900 * (1 + .3 * (M.job.diff - 1));
   const end = new V3(gx, 0, gz - Math.sign(gz || 1) * 3), far = BOX_SPOTS.map(([x, z]) => new V3(x, 0, z)).sort((p, q) => Math.min(q.distanceTo(start), q.distanceTo(end)) - Math.min(p.distanceTo(start), p.distanceTo(end)))[0];
   M.esc = { a, pos: a.pos.copy(start), vel: new V3(), goal: far || end, route: far ? [end] : [], leg: 1, hp: max, max, hitT: -9, side: 0, sideT: 0, last: start.clone(), lastT: 0, waiting: false };
   M.esc.target = { pos: M.esc.pos, vel: M.esc.vel, alive: true, gen: true, esc: true };
@@ -147,6 +147,11 @@ function updateEscort(M, dt) { // host / solo: walk, wait, sidestep when stuck, 
   const to = E.goal.clone().sub(E.pos); to.y = 0; const d = to.length();
   if (d < 2.5 && E.route.length) { E.goal = E.route.shift(); E.leg++; banner('MEGVAN A HOLMIJA', 'Most irány a furgon!'); SND.power(); return; } // first their things, then the van
   if (d < 2.5) { E.target.alive = false; E.vel.set(0, 0, 0); return objectiveDone(M, 'A TÚLÉLŐ BIZTONSÁGBAN'); }
+  if ((E.ambushT = (E.ambushT == null ? 18 : E.ambushT) - dt) <= 0) { // an ambush every 20 s: they come for the survivor
+    E.ambushT = 20; const s = activeSpawns().reduce((b, q) => Math.hypot(q[0] - E.pos.x, q[1] - E.pos.z) < Math.hypot(b[0] - E.pos.x, b[1] - E.pos.z) ? q : b);
+    for (let k = 0; k < 2 + M.job.diff; k++) { const z = spawnZombieAt(pick(['runner', 'walker', 'walker']), s[0] + rand(-2, 2), s[1] + rand(-2, 2)); z.tgt = E.target; z.tgtT = 6; }
+    popText('Rajtaütés! A túlélőre mennek.', '#ff8a70');
+  }
   if (!near) { E.vel.set(0, 0, 0); return; }
   to.divideScalar(d);
   if (E.sideT > 0) { E.sideT -= dt; to.set(to.x + -to.z * E.side * 1.6, 0, to.z + to.x * E.side * 1.6).normalize(); }

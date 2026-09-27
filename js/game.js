@@ -216,6 +216,7 @@ function finishJob(success, abandoned) {
   const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts;
   let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun
   if (success && stats.jobs === 0 && !J.test) { tierBonus = makeWeapon(pick(BASES), 2, Math.max(1, P.level)); P.stash.push(packW(tierBonus)); noteFound(tierBonus); }
+  if (success && J.tier) P.parts = (P.parts || 0) + 10 + 5 * J.tier; // Rémálom pays parts too
   if (success && J.tier) { tierBonus = Math.random() < .3 ? makeUnique(null, J.lvl) : makeWeapon(pick(BASES), 4, J.lvl); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   const levelUps = addXp(xp);
   const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
@@ -419,7 +420,8 @@ function updateFx(dt) {
     n.t -= dt; n.pos.y += dt * 1.3; n.pos.x += n.vx * dt;
     v.copy(n.pos).project(camera);
     if (n.t <= 0 || v.z > 1) { n.el.hidden = true; continue; }
-    n.el.style.transform = `translate(${v.x * W + W}px,${-v.y * H + H}px) translate(-50%,-50%)`;
+    const k = clamp(1.4 - n.pos.distanceTo(camera.position) / 40, .55, 1); // far away numbers are smaller
+    n.el.style.transform = `translate(${v.x * W + W}px,${-v.y * H + H}px) translate(-50%,-50%) scale(${k.toFixed(2)})`;
     n.el.style.opacity = Math.min(1, n.t * 2.5);
   }
   for (let i = drops.length - 1; i >= 0; i--) {
@@ -485,7 +487,7 @@ function updateHUD() {
     else if (focus.w) card = cardHTML(focus.w, `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : player.bag.length < bagMax() ? `Táskába ${player.bag.length}/${bagMax()}` : 'Tele a táska'}</span><span><kbd>F</kbd>tartsd: Csere</span>`, curW());
     else if (focus.type === 'revive') prompt = `<b>[E]</b> nyomva: ${esc(focus.name)} felélesztése`;
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Utánpótlás-láda felvétele';
-    else if (focus.type === 'repair') prompt = `<b>[E]</b> Generátor javítása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
+    else if (focus.type === 'repair') prompt = `<b>[E]</b> ${mission && mission.esc ? 'Túlélő ellátása' : 'Generátor javítása'} (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
     else if (!['box', 'ammo', 'drop', 'gear'].includes(focus.type)) prompt = areaPrompt(focus);
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;

@@ -148,7 +148,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
   const K = KINDS[kind], m = mkZombie(kind);
   const z = {
     kind, K, ...m, pos: new V3(x, 0, zz),
-    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg * (1 + .15 * jobTier()), scale: K.scale(),
+    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg * (1 + .08 * jobTier()), scale: K.scale(),
     armor: K.armor ? zombieHp() * K.armor : 0, leapCd: rand(1, 3), crouch: 0, leap: null, buffT: 0, broodT: 4, bossT: 5, op: .12,
     heading: 0, side: Math.random() < .5 ? -1 : 1, strafeT: rand(2, 4), walkT: rand(0, 6), rise: 1, atkCd: 0, windup: 0,
     burnT: 0, burnDps: 0, burnAcc: 0, slowT: 0, flash: 0, groanT: rand(1, 6), dead: false, deathT: 0,
@@ -251,8 +251,9 @@ function killZombie(z, o) {
 }
 // what a kill drops; in a party each killer rolls their own
 function dropLoot(z, p) {
+  if (mission && mission.job.bounty && !z.K.boss && Math.random() < .6) return; // a bounty's adds mostly drop nothing
   const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() + (NET.mode ? .05 * (partySize() - 1) : 0) : 0; // harder jobs and bigger parties roll better loot
-  const uq = q => { const T = jobTier(); if (T) { q = Math.max(q, 2); if (Math.random() < .04 * T) q = Math.max(q, 4); } return mission && (mission.job.diff >= 5 || T > 0) && Math.random() < .012 + .003 * T ? 5 : q; }; // Rémálom: at least rare, often legendary // 'Mi a fasz?' and Rémálom: 1-2% of guns are uniques
+  const uq = q => { const T = jobTier(); if (T) { q = Math.max(q, 2); if (Math.random() < .013 * T) q = Math.max(q, 4); } return mission && (mission.job.diff >= 5 || T > 0) && Math.random() < .012 + .003 * T ? 5 : q; }; // Rémálom: at least rare, sometimes legendary; 'Mi a fasz?' and Rémálom: 1-2% uniques
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
     spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
@@ -619,7 +620,7 @@ const BOUNTIES = {
   pyre:    { loot: ['ash', 'bigbang'], name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 5, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
   queen:   { loot: ['honey', 'haystack'], name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 5.2, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
   frost:   { minLvl: 8, loot: ['glacier', 'honey'], name: 'A Jégkirály', desc: 'Fagyhullámot bocsát ki, ami lelassít. Futókat hív.', hp: 5.2, tint: 0x6ac8ff, frost: true, summon: ['runner', 10, 3] },
-  titan:   { minLvl: 10, loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 5.8, tint: 0x8a929a, slam: true, plate: .6, summon: ['armored', 14, 2] },
+  titan:   { minLvl: 10, loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 4.6, tint: 0x8a929a, slam: true, plate: .6, summon: ['armored', 22, 2] },
   shade:   { loot: ['silent', 'rod', 'sebastian'], name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
@@ -695,7 +696,7 @@ function bountyTick(z, dt, dist) {
 // the bounty is done: everyone in the party gets a legendary gun and a legendary piece of armor, then the van comes
 function bountyKilled(z) {
   const M = mission; if (!M || M.bountyDone) return;
-  M.bountyDone = true; M.bountyAt = [z.pos.x, z.pos.z];
+  M.bountyDone = true; M.bountyAt = [z.pos.x, z.pos.z]; (stats.bk || (stats.bk = {}))[z.bounty] = 1;
   M.job.dur = M.t + EVAC_WARN + 1;
   bountyLoot(z.pos, z.bounty);
   banner(`${(BOUNTIES[z.bounty] || BOUNTIES.butcher).name.toUpperCase()} ELESETT`, 'Legendás zsákmány! Szedd fel, aztán irány a furgon.');

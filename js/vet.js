@@ -38,6 +38,7 @@ function vetTab() {
   return `<div class="hubhead"><h2>Veterán</h2></div>
     <p class="lede">Minden szintlépés és minden kihívás-fokozat ad egy veterán pontot. A pontokért kis, de sosem véget érő bónuszokat veszel; minden rang egy kicsit kevesebbet ad, mint az előző, de a fejlődésnek nincs plafonja.</p>
     <div class="vtop"><div>Veterán rang<strong>${vetEarned()}</strong></div><div>Elkölthető pont<strong class="cash">${avail}</strong></div></div>
+    ${collectionLog()}
     <div class="gtop"><section><h3>Bónuszok</h3><div class="slist">${rows}</div></section><section><h3>Kihívások</h3><div class="chals">${ch}</div></section></div>`;
 }
 
@@ -71,7 +72,7 @@ function claimContract(i) {
   if (!c || c.got || cProg(c, weekly) < c.n) return;
   c.got = true;
   if (weekly) { // the weekly cache: an exotic piece, parts and cash
-    const it = makeExotic(null, profile.level); if (P.gearStash.length < gearMax()) P.gearStash.push(it); else P.cash += gearValue(it);
+    const it = makeExotic(null, profile.level); (stats.exo || (stats.exo = {}))[it.exo] = 1; if (P.gearStash.length < gearMax()) P.gearStash.push(it); else P.cash += gearValue(it);
     P.parts = (P.parts || 0) + 40; P.cash += 3000 + 300 * P.level; banner('HETI KONTRAKT KÉSZ', `${it.name} (egzotikus) · +40 ⚙`);
   } else { const r = dailyReward(); P.cash += r.cash; P.parts = (P.parts || 0) + r.parts; }
   SND.power();
@@ -83,4 +84,20 @@ function contractsStrip() {
     return `<div class="ctr${weekly ? ' wk' : ''}${c.got ? ' got' : ''}"><b>${weekly ? 'HETI' : 'NAPI'}</b><span>${cDef(c, weekly).txt(c.n)}<small>${Math.max(0, Math.floor(p))} / ${c.n} · ${rw}</small><i><em style="width:${Math.max(0, p) / c.n * 100}%"></em></i></span>${c.got ? '<em class="ok">✓</em>' : done ? hbtn('Átvétel', `claim:${i}`) : ''}</div>`;
   };
   return `<div class="contracts">${P.daily.list.map((c, i) => row(c, i, false)).join('')}${row(P.weekly.c, 'w', true)}</div>`;
+}
+
+// ---------- collection log: every unique, exotic, anointment and bounty; where to farm what you're missing ----------
+function collectionLog() {
+  const S = stats, from = k => Object.keys(BOUNTIES).filter(b => BOUNTIES[b].loot.includes(k)).map(b => BOUNTIES[b].name).join(', ');
+  const chip = (got, name, sub, col) => `<div class="cchip${got ? ' got' : ''}" style="--cc:${col}"><b>${got ? name : '???'}</b><small>${sub}</small></div>`;
+  const U = Object.keys(UNIQUES).map(k => chip(S.uniq && S.uniq[k], UNIQUES[k].name, from(k) ? `Forrás: ${from(k)}` : 'Bárhol eshet', RARITIES[5].color));
+  const E = Object.keys(EXOTICS).map(k => chip(S.exo && S.exo[k], EXOTICS[k].name, GEAR_SLOTS[EXOTICS[k].slot], EXO_COL));
+  const A = Object.keys(ANOINTS).map(k => chip(S.ano && S.ano[k], ANOINTS[k], 'Felkenés', '#b46cff'));
+  const B = Object.keys(BOUNTIES).map(k => chip(S.bk && S.bk[k], BOUNTIES[k].name, `${BOUNTIES[k].minLvl || 3}. szinttől`, '#ff8c1a'));
+  const n = (o, all) => `${Object.keys(o || {}).length} / ${all}`;
+  return `<section class="collog"><h3>Gyűjtemény</h3>
+    <h4>Egyedi fegyverek <small>${n(S.uniq, U.length)}</small></h4><div class="cgrid">${U.join('')}</div>
+    <h4>Egzotikus páncélok <small>${n(S.exo, E.length)}</small></h4><div class="cgrid">${E.join('')}</div>
+    <h4>Felkenések <small>${n(S.ano, A.length)}</small></h4><div class="cgrid">${A.join('')}</div>
+    <h4>Fejvadász-célpontok <small>${n(S.bk, B.length)}</small></h4><div class="cgrid">${B.join('')}</div></section>`;
 }

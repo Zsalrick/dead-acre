@@ -105,6 +105,7 @@ function weaponDetail(w, cmp, actions) {
       ${drow('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2))}
       ${drow('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2))}
       ${drow('Hatótáv', `${b.range} m`, c ? arrow(b.range, c.base.range) : '')}
+      ${w.roll != null ? drow('Dobás minősége', `${w.roll}%`, c && c.roll != null ? arrow(w.roll, c.roll) : '', w.roll >= 90 ? 'szinte tökéletes' : w.roll >= 70 ? 'jó dobás' : 'kalibrálható a kovácsnál', w.roll >= 90 ? 'core' : '') : ''}
     </table>
     ${el ? `<div class="delem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
     ${w.unique && UNIQUES[w.unique] ? `<div class="duniq"><b>Egyedi:</b> ${UNIQUES[w.unique].trick}</div>` : ''}

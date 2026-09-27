@@ -58,5 +58,7 @@ function noteFound(w) {
   const id = w.base.id;
   if (stats.found[id] == null || w.q > stats.found[id]) stats.found[id] = w.q;
   if (w.q >= 4 && !w.counted) { w.counted = true; stats.legendaries++; }
+  if (w.unique) (stats.uniq || (stats.uniq = {}))[w.unique] = 1; // the collection log
+  if (w.anoint) (stats.ano || (stats.ano = {}))[w.anoint] = 1;
 }
 function tickStats(dt) { stats.time += dt; }
