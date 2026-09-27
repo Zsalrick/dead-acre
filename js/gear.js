@@ -1,0 +1,126 @@
+﻿// ================= GEAR (helmet · chest · legs · boots) =================
+// every piece has armor (adds to the shield bar), 1–3 rolled attributes by rarity, and a brand.
+// Each worn piece gives its brand's core bonus; wearing 2/3/4 pieces of one brand unlocks its set bonuses.
+const GEAR_SLOTS = { head: 'Sisak', chest: 'Mellvért', legs: 'Nadrág', boots: 'Csizma' };
+const GEAR_KEYS = Object.keys(GEAR_SLOTS);
+const GEAR_NAMES = {
+  head: ['Rohamsisak', 'Terepsapka', 'Bányászsisak', 'Gázálarc'], chest: ['Golyóálló mellény', 'Taktikai mellény', 'Bőrkabát', 'Lemezpáncél'],
+  legs: ['Terepnadrág', 'Térdvédős nadrág', 'Munkásnadrág', 'Páncélozott nadrág'], boots: ['Bakancs', 'Gumicsizma', 'Rohambakancs', 'Futócipő'],
+};
+const GEAR_LEGENDS = { head: 'A Sírásó kalapja', chest: 'Az Utolsó Szentmise', legs: 'Hajnalig', boots: 'Hét mérföld' };
+// flat: a plain number that grows with level · otherwise a fraction shown as %
+const GSTATS = {
+  hp:      { name: 'Max életerő',      roll: [6, 14], flat: true },
+  armor:   { name: 'Páncél',           roll: [8, 16], flat: true },
+  stam:    { name: 'Állóképesség',     roll: [8, 18], flat: true },
+  dmg:     { name: 'Fegyversebzés',    roll: [.03, .07] },
+  crit:    { name: 'Kritikus esély',   roll: [.02, .05] },
+  critDmg: { name: 'Kritikus sebzés',  roll: [.06, .14] },
+  head:    { name: 'Fejlövés-sebzés',  roll: [.05, .12] },
+  reload:  { name: 'Újratöltés',       roll: [.04, .09] },
+  speed:   { name: 'Mozgás',           roll: [.02, .05] },
+  regen:   { name: 'Regeneráció',      roll: [.08, .18] },
+  ammo:    { name: 'Tartalék lőszer',  roll: [.06, .14] },
+  expl:    { name: 'Robbanás-sebzés',  roll: [.06, .14] },
+  red:     { name: 'Sebzéscsökkentés', roll: [.02, .04] },
+  points:  { name: 'Pont ölésért',     roll: [.04, .1] },
+};
+const BRANDS = {
+  ranger:    { name: 'Ranger Supply',      color: '#9fcf6a', tag: 'Mesterlövész',  core: ['head', .08],  sets: [[2, 'crit', .05], [3, 'critDmg', .2], [4, 'head', .3]] },
+  bulwark:   { name: 'Bulwark Industries', color: '#8fb0d8', tag: 'Tank',          core: ['armor', 15],  sets: [[2, 'hp', 30], [3, 'red', .08], [4, 'armor', 80]] },
+  gravetide: { name: 'Gravetide',          color: '#e06a58', tag: 'Sebzés',        core: ['dmg', .04],   sets: [[2, 'dmg', .08], [3, 'critDmg', .25], [4, 'dmg', .15]] },
+  hollis:    { name: 'Hollis & Hart',      color: '#e8d08a', tag: 'Túlélő',        core: ['regen', .12], sets: [[2, 'hp', 25], [3, 'regen', .4], [4, 'red', .1]] },
+  sable:     { name: 'Sable Line',         color: '#9a8aff', tag: 'Mozgékony',     core: ['speed', .03], sets: [[2, 'reload', .12], [3, 'speed', .08], [4, 'stam', 50]] },
+  cinder:    { name: 'Cinder Works',       color: '#ff9a4a', tag: 'Robbantó',      core: ['expl', .1],   sets: [[2, 'expl', .15], [3, 'ammo', .25], [4, 'points', .2]] },
+};
+// the brand bonus of one piece grows with its rarity
+const coreVal = it => { const [k, v] = BRANDS[it.brand].core, x = v * (1 + .15 * it.q); return GSTATS[k].flat ? Math.round(x) : Math.round(x * 100) / 100; };
+const fmtG = (k, v) => GSTATS[k].flat ? `+${Math.round(v)}` : `+${Math.round(v * 100)}%`;
+function rollG(k, q, level) {
+  const S = GSTATS[k], v = rand(S.roll[0], S.roll[1]) * (1 + q * .12);
+  return S.flat ? Math.round(v * (1 + .06 * (level - 1))) : Math.round(v * (1 + .03 * (level - 1)) * 100) / 100;
+}
+function makeGear(slot, q, level, brand) {
+  slot = slot || pick(GEAR_KEYS); brand = brand || pick(Object.keys(BRANDS));
+  const keys = Object.keys(GSTATS).filter(k => k !== 'armor'), stats = {}, n = [1, 1, 2, 2, 3][q];
+  while (Object.keys(stats).length < n) { const k = pick(keys); if (!(k in stats)) stats[k] = rollG(k, q, level); }
+  const armor = Math.round({ head: 12, chest: 20, legs: 14, boots: 10 }[slot] * (1 + .08 * (level - 1)) * (1 + q * .15) * rand(.9, 1.1));
+  return { slot, brand, q, level, armor, stats, name: q === 4 ? GEAR_LEGENDS[slot] : `${BRANDS[brand].name.split(' ')[0]} ${pick(GEAR_NAMES[slot])}` };
+}
+const gearValue = it => Math.round([40, 100, 220, 450, 900][it.q] * (1 + .08 * (it.level - 1)));
+const gearPrice = it => Math.round(gearValue(it) * 4 / 10) * 10;
+
+// ---------- totals (cached; call gearChanged() after the worn set changes) ----------
+let gearCache = null;
+const wornGear = () => profile && profile.gear ? GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean) : [];
+function brandCounts() { const c = {}; wornGear().forEach(it => c[it.brand] = (c[it.brand] || 0) + 1); return c; }
+function gearTotals() {
+  if (gearCache) return gearCache;
+  const t = {}, add = (k, v) => t[k] = (t[k] || 0) + v, count = brandCounts();
+  for (const it of wornGear()) { add('armor', it.armor); for (const k in it.stats) add(k, it.stats[k]); add(BRANDS[it.brand].core[0], coreVal(it)); }
+  for (const b in count) for (const [n, k, v] of BRANDS[b].sets) if (count[b] >= n) add(k, v);
+  if (profile && profile.vet) for (const k in profile.vet) if (VET[k] && profile.vet[k] > 0) add(k, vetVal(k, profile.vet[k])); // veteran ranks (vet.js)
+  return gearCache = t;
+}
+const G = k => gearTotals()[k] || 0;
+const gearChanged = () => { gearCache = null; };
+
+// ---------- cards ----------
+function gearCard(it, act, worn) {
+  const B = BRANDS[it.brand], cnt = brandCounts()[it.brand] || 0;
+  const rows = [`<li class="arm"><span>Páncél</span><b>+${it.armor}</b></li>`,
+    `<li class="core" style="color:${B.color}"><span>${GSTATS[B.core[0]].name} <small>márka</small></span><b>${fmtG(B.core[0], coreVal(it))}</b></li>`,
+    ...Object.entries(it.stats).map(([k, v]) => `<li><span>${GSTATS[k].name}</span><b>${fmtG(k, v)}</b></li>`)].join('');
+  const sets = B.sets.map(([n, k, v]) => `<li class="${cnt >= n ? 'on' : ''}"><span>${n} db</span>${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('');
+  return `<div class="wcard mini gcard" style="--rc:${RARITIES[it.q].color};--bc:${B.color}"><div class="head"><div class="lvl">Lv ${it.level}</div>
+    <div class="rar">${RARITIES[it.q].name} · ${GEAR_SLOTS[it.slot]}</div><div class="name">${it.name}</div>
+    <div class="sub"><span style="color:${B.color}">${B.name}</span> · ${B.tag}${worn != null ? ` · ${cnt}/4 viselve` : ''}</div></div>
+    <ul class="gstats">${rows}</ul><ul class="gsets">${sets}</ul>${act ? `<div class="act">${act}</div>` : ''}</div>`;
+}
+function gearSummary() {
+  const t = gearTotals(), keys = Object.keys(GSTATS).filter(k => t[k]);
+  const sets = Object.entries(brandCounts()).map(([b, n]) => `<li><b style="color:${BRANDS[b].color}">${BRANDS[b].name}</b> <span>${n} db${BRANDS[b].sets.filter(s => n >= s[0]).map(s => ` · ${GSTATS[s[1]].name} ${fmtG(s[1], s[2])}`).join('')}</span></li>`).join('');
+  return `<div class="gsum"><ul class="mlist">${keys.map(k => `<li><b>${GSTATS[k].name}</b><span>${fmtG(k, t[k])}</span></li>`).join('') || '<li><span>Nincs rajtad páncél.</span></li>'}</ul>
+    ${sets ? `<h3>Aktív szettek</h3><ul class="mlist">${sets}</ul>` : ''}</div>`;
+}
+
+// ---------- gear dropped during a job: walk over it to bag it; it is yours if you extract ----------
+const gearDrops = [];
+function spawnGearDrop(it, pos) {
+  const col = new THREE.Color(RARITIES[it.q].color), g = new THREE.Group();
+  const m = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color: 0x2e2f2a, emissive: col, emissiveIntensity: .35, roughness: .6 }));
+  m.scale.set(.5, .32, .38); m.position.y = .45; g.add(m);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 2 + it.q * .8, 6, 1, true),
+    new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }));
+  beam.position.y = 1 + it.q * .4; g.add(beam);
+  g.position.set(pos.x + rand(-.5, .5), 0, pos.z + rand(-.5, .5)); scene.add(g);
+  const lv = textSprite([`LV ${it.level}`], RARITIES[it.q].color, .5); lv.position.y = 1.05; g.add(lv);
+  gearDrops.push({ it, g, m, t: 90, pos: g.position });
+}
+function updateGearDrops(dt) {
+  for (let i = gearDrops.length - 1; i >= 0; i--) {
+    const d = gearDrops[i]; d.t -= dt;
+    d.m.rotation.y += dt * 1.5; d.g.visible = d.t > 8 || Math.sin(now * 14) > 0;
+    if (d.t <= 0) removeGearDrop(d);
+  }
+}
+function removeGearDrop(d) { scene.remove(d.g); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
+function takeGear(d) { d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
+function clearGearDrops() { while (gearDrops.length) { const d = gearDrops.pop(); scene.remove(d.g); } }
+
+// ---------- weapons: two in hand (L, fixed slots), up to five in the bag (B), the stash at home (S) ----------
+const BAG_MAX = 5;
+// a gun moved into a hand slot swaps with what was there; hands may never end up empty
+function moveGun(lists, from, i, to, j) {
+  const src = lists[from], dst = lists[to], w = src && src[i];
+  if (!w || !dst) return false;
+  if (to === 'L') {
+    const old = dst[j]; if (from === 'L' && i === j) return false;
+    dst[j] = w;
+    if (from === 'L') src[i] = old; else if (old) src[i] = old; else src.splice(i, 1);
+    return true;
+  }
+  if (dst.length >= (to === 'B' ? BAG_MAX : MAX_STASH)) return false;
+  if (from === 'L') { if (src.filter(Boolean).length < 2) return false; src[i] = null; } else src.splice(i, 1);
+  dst.push(w); return true;
+}

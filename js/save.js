@@ -1,0 +1,55 @@
+﻿// ================= CAREER SAVES (3 slots) =================
+// each slot is one career: cash, level, weapon stash, permanent upgrades, items, job board and stats.
+// localStorage lives per viewer and can be blocked (private mode, previews), so every access is guarded
+const SLOTS = 3, SLOT_KEY = n => `deadacre.career.${n}`;
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const emptyStats = () => ({ bounties: 0, jobs: 0, fails: 0, kills: 0, heads: 0, earned: 0, cash: 0, time: 0, legendaries: 0, boxSpins: 0, bestThreat: 0, killsBy: {}, found: {}, byMap: {} });
+let profile = null, slot = 0, stats = emptyStats();
+
+const packW = w => w ? Object.assign({}, w, { base: w.base.id }) : null;
+function unpackW(o) {
+  if (!o) return null;
+  const w = Object.assign({}, o, { base: BASES.find(b => b.id === o.base) || BASES[0] });
+  if (w.base.single && w.reload > 1.2) w.reload = +(w.reload / 2.8 * w.base.reload).toFixed(2); // saves from before round-by-round loading
+  if (!w.sv) { w.dmg = Math.round(w.dmg * Math.pow(1.08, w.level - 1) / (1 + .075 * (w.level - 1))); w.sv = 2; } // saves from before exponential levels
+  if (!w.mk) { w.mk = Object.keys(MAKERS).find(k => MAKERS[k].name === w.maker) || 'kessler'; w.maker = MAKERS[w.mk].name; } // saves from before maker perks
+  return w;
+}
+function newProfile(n) {
+  return { v: 2, slot: n, name: `Zsoldos ${n}`, cash: 300, xp: 0, level: 1, loadout: [packW(makeWeapon(BASES[0], 0, 1)), null], bag: [], stash: [], gear: {}, gearStash: [], gshop: [],
+    inv: { med: 1, gren: 2, knife: 4, adren: 1 }, up: {}, cls: null, skills: {}, tokens: 0, stats: emptyStats(), jobs: [], shop: [], created: Date.now(), at: Date.now() };
+}
+const readProfile = n => { const p = store.get(SLOT_KEY(n)); return p && p.v === 2 ? p : null; };
+function openProfile(n) {
+  slot = n; profile = readProfile(n) || newProfile(n);
+  stats = profile.stats = Object.assign(emptyStats(), profile.stats);
+  player.up = profile.up;
+  Object.assign(profile, { bag: profile.bag || [], gear: profile.gear || {}, gearStash: profile.gearStash || [], gshop: profile.gshop || [] });
+  profile.vet = profile.vet || {};
+  gearChanged();
+  profile.name = profile.name || `Zsoldos ${n}`;
+  profile.skills = profile.skills || {}; profile.tokens = profile.tokens || 0; if (profile.cls === undefined) profile.cls = null;
+  if (!profile.jobs.length) rollBoard();
+  if (!profile.shop.length || !profile.gshop.length) rollShop();
+  saveProfile();
+}
+function saveProfile() { if (profile) { profile.at = Date.now(); store.set(SLOT_KEY(slot), profile); } }
+const deleteProfile = n => store.del(SLOT_KEY(n));
+
+// ---------- progression ----------
+const xpNeed = l => 300 + 250 * l;
+function addXp(n) {
+  let ups = 0; profile.xp += n;
+  while (profile.xp >= xpNeed(profile.level)) { profile.xp -= xpNeed(profile.level); profile.level++; ups++; }
+  return ups;
+}
+function noteFound(w) {
+  const id = w.base.id;
+  if (stats.found[id] == null || w.q > stats.found[id]) stats.found[id] = w.q;
+  if (w.q === 4 && !w.counted) { w.counted = true; stats.legendaries++; }
+}
+function tickStats(dt) { stats.time += dt; }

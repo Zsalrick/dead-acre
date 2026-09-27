@@ -1,0 +1,364 @@
+﻿// ================= RENDERER / SCENES =================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.autoClear = false;
+$('game').prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0f18);
+scene.fog = new THREE.FogExp2(0x0a0f18, .03);
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, .05, 300);
+camera.rotation.order = 'YXZ';
+scene.add(camera);
+
+const vmScene = new THREE.Scene();
+const vmCamera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, .01, 10);
+vmScene.add(new THREE.AmbientLight(0x7888a0, .8));
+const vmSun = new THREE.DirectionalLight(0xffe2c0, 1); vmSun.position.set(1, 2, 1.5); vmScene.add(vmSun);
+const vmRoot = new THREE.Group(); vmScene.add(vmRoot);
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = vmCamera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix(); vmCamera.updateProjectionMatrix();
+});
+
+// lights
+const hemi = new THREE.HemisphereLight(0x5a6f99, 0x1d1710, .6); scene.add(hemi);
+const moon = new THREE.DirectionalLight(0xa4b6ff, .55);
+moon.position.set(-30, 50, -20); moon.castShadow = true;
+moon.shadow.mapSize.set(2048, 2048);
+Object.assign(moon.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 1, far: 150 });
+moon.shadow.bias = -.0006;
+scene.add(moon);
+const muzzleLight = new THREE.PointLight(0xffb060, 0, 9, 2); scene.add(muzzleLight);
+const boomLight = new THREE.PointLight(0xff8a30, 0, 18, 2); scene.add(boomLight);
+
+// ================= TEXTURES =================
+function canvasTex(size, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c);
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); }
+  t.anisotropy = 4;
+  return t;
+}
+const groundTex = canvasTex(256, (g, s) => {
+  const img = g.createImageData(s, s);
+  for (let i = 0; i < s * s; i++) {
+    const v = 32 + Math.random() * 24;
+    img.data[i * 4] = v * 1.08; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v * .68; img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  for (let i = 0; i < 70; i++) {
+    g.fillStyle = Math.random() < .5 ? `rgba(70,82,44,${rand(.15, .35)})` : `rgba(20,16,10,${rand(.15, .35)})`;
+    g.beginPath(); g.arc(Math.random() * s, Math.random() * s, rand(4, 26), 0, 7); g.fill();
+  }
+}, 34);
+const woodTex = canvasTex(128, (g) => {
+  g.fillStyle = '#6b4a2b'; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 6; i++) { g.fillStyle = `rgba(0,0,0,${rand(.1, .25)})`; g.fillRect(0, i * 22, 128, 2); }
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(255,220,170,${rand(.02, .06)})`; g.fillRect(Math.random() * 128, Math.random() * 128, rand(10, 40), 1); }
+  g.strokeStyle = '#3a2614'; g.lineWidth = 10; g.strokeRect(5, 5, 118, 118);
+  g.beginPath(); g.moveTo(8, 8); g.lineTo(120, 120); g.stroke();
+});
+const plankTex = canvasTex(128, (g) => {
+  g.fillStyle = '#4a3624'; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 8; i++) { g.fillStyle = `rgba(0,0,0,${rand(.2, .45)})`; g.fillRect(i * 16, 0, 2, 128); }
+  for (let i = 0; i < 50; i++) { g.fillStyle = `rgba(255,220,170,${rand(.02, .05)})`; g.fillRect(Math.random() * 128, Math.random() * 128, 1, rand(10, 40)); }
+});
+plankTex.wrapS = plankTex.wrapT = THREE.RepeatWrapping;
+const barnTex = canvasTex(128, (g) => {
+  g.fillStyle = '#5a1f17'; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 8; i++) { g.fillStyle = `rgba(0,0,0,${rand(.25, .5)})`; g.fillRect(i * 16, 0, 2, 128); }
+  for (let i = 0; i < 80; i++) { g.fillStyle = `rgba(200,180,150,${rand(.03, .1)})`; g.fillRect(Math.random() * 128, Math.random() * 128, rand(1, 3), rand(4, 20)); }
+});
+barnTex.wrapS = barnTex.wrapT = THREE.RepeatWrapping; barnTex.repeat.set(3, 1);
+const glowTex = canvasTex(64, (g) => {
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.25, 'rgba(255,220,150,.8)'); gr.addColorStop(1, 'rgba(255,160,60,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+});
+// canvas is sized to the measured text, so long labels never get clipped
+let textSprites = [];
+function textSprite(lines, color, scale, glow) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+  s.userData.text = [lines, color, scale, glow];
+  drawTextSprite(s); if (textSprites) textSprites.push(s);
+  return s;
+}
+// the display font may still be loading at startup; redraw the labels made so far once it is ready
+if (document.fonts) document.fonts.load('64px "Black Ops One"').then(() => { textSprites.forEach(drawTextSprite); textSprites = null; }).catch(() => {});
+function drawTextSprite(s) {
+  const [lines, color, scale, glow] = s.userData.text;
+  const FS = 64, LH = 74, PAD = 28, font = `${FS}px "Black Ops One", Impact, sans-serif`;
+  const c = document.createElement('canvas'), g = c.getContext('2d');
+  g.font = font;
+  let w = Math.ceil(Math.max(...lines.map(l => g.measureText(l).width)) + PAD * 2), h = lines.length * LH + PAD;
+  if (glow) w = h = Math.max(w, h);
+  c.width = w; c.height = h;
+  if (glow) {
+    const gr = g.createRadialGradient(w / 2, h / 2, w * .08, w / 2, h / 2, w / 2);
+    gr.addColorStop(0, glow); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  }
+  g.font = font; g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = '#000'; g.shadowBlur = 8;
+  lines.forEach((l, i) => g.fillText(l, w / 2, h / 2 + (i - (lines.length - 1) / 2) * LH));
+  if (s.material.map) s.material.map.dispose();
+  s.material.map = new THREE.CanvasTexture(c); s.material.needsUpdate = true;
+  // keep the old on-screen letter height: `scale` used to cover a 256px canvas with 110px (1 line) or 52px (multi-line) text
+  const k = scale / 256 * (lines.length > 1 ? 52 : 110) / FS;
+  s.scale.set(w * k, h * k, 1);
+}
+
+// ================= WORLD =================
+const obstacles = [];   // AABBs for movement
+const rayBlockers = []; // meshes that stop bullets
+const matStd = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: .95, metalness: 0 }, o));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(320, 320), matStd({ map: groundTex, color: 0x9a9a88 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+scene.add(ground); rayBlockers.push(ground);
+let mapGroup = new THREE.Group(); scene.add(mapGroup); // everything a map builds lives here so loading another map is one swap
+
+const unitBox = new THREE.BoxGeometry(1, 1, 1);
+function addBox(x, z, w, d, h, mat, y = 0, collide = true) {
+  const m = new THREE.Mesh(unitBox, mat);
+  m.scale.set(w, h, d); m.position.set(x, y + h / 2, z);
+  m.castShadow = m.receiveShadow = true;
+  mapGroup.add(m); rayBlockers.push(m);
+  if (collide) obstacles.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: y + h });
+  return m;
+}
+const crateMat = new THREE.MeshLambertMaterial({ map: woodTex });
+const fenceMat = matStd({ map: plankTex });
+const barnMat = matStd({ map: barnTex });
+const roofMat = matStd({ color: 0x2b2a2c, roughness: .8 });
+const stoneMat = new THREE.MeshLambertMaterial({ color: 0x6b6a66 });
+const barkMat = new THREE.MeshLambertMaterial({ color: 0x1e1812 });
+const poleMat = matStd({ color: 0x2a2520 });
+// the barn, lamps, stations, box, props and so on are built per map in maps.js
+// sky
+const starGeo = new THREE.BufferGeometry(), sp = [];
+for (let i = 0; i < 600; i++) { const v = new V3().randomDirection ? new V3().randomDirection() : new V3(rand(-1, 1), rand(0, 1), rand(-1, 1)).normalize(); if (v.y < .05) v.y = -v.y + .05; sp.push(v.x * 200, v.y * 200, v.z * 200); }
+starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: .7, fog: false })));
+const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(8, 20, 16), new THREE.MeshBasicMaterial({ color: 0xe4e9ff, fog: false }));
+moonMesh.position.set(-90, 110, -80); scene.add(moonMesh);
+
+// ================= COLLISION =================
+function collide(p, r) {
+  clampBounds(p, r);
+  for (const o of obstacles) {
+    const cx = clamp(p.x, o.minX, o.maxX), cz = clamp(p.z, o.minZ, o.maxZ);
+    const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 >= r * r) continue;
+    if (d2 > 1e-8) { const d = Math.sqrt(d2); p.x = cx + dx / d * r; p.z = cz + dz / d * r; }
+    else {
+      const l = p.x - o.minX, rr = o.maxX - p.x, t = p.z - o.minZ, bt = o.maxZ - p.z, m = Math.min(l, rr, t, bt);
+      if (m === l) p.x = o.minX - r; else if (m === rr) p.x = o.maxX + r; else if (m === t) p.z = o.minZ - r; else p.z = o.maxZ + r;
+    }
+  }
+}
+function blockedAt(x, z, r) {
+  if (!inBounds(x, z, r)) return true;
+  for (const o of obstacles) if (x > o.minX - r && x < o.maxX + r && z > o.minZ - r && z < o.maxZ + r) return true;
+  return false;
+}
+
+// ================= GUN MODELS =================
+const sharedCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
+const gunMatCache = {};
+function gunMats(color, world) {
+  const k = color + world;
+  if (!gunMatCache[k]) {
+    const M = world ? THREE.MeshLambertMaterial : THREE.MeshStandardMaterial;
+    const o = (metalness, roughness) => world ? {} : { metalness, roughness };
+    gunMatCache[k] = {
+      metal: new M(Object.assign({ color: 0x3c4046 }, o(.7, .38))),
+      steel: new M(Object.assign({ color: 0x8a9098 }, o(.85, .28))),
+      dark: new M(Object.assign({ color: 0x16181b }, o(.5, .5))),
+      rub: new M(Object.assign({ color: 0x23252a }, o(.05, .85))),
+      wood: new M(Object.assign({ color: 0x6a4222 }, o(0, .7))),
+      brass: new M(Object.assign({ color: 0xb8923a }, o(.8, .35))),
+      glass: new M(Object.assign({ color: 0x1a3040, emissive: 0x0a2030 }, o(.2, .1))),
+      accent: new M({ color, emissive: color, emissiveIntensity: world ? .8 : .45 }),
+    };
+  }
+  return gunMatCache[k];
+}
+// rounded-edge box (profile rounded in x/y, softly bevelled ends), cached per size
+const gunGeo = {};
+function roundBox(w, h, d, r) {
+  const key = `rb${w.toFixed(3)},${h.toFixed(3)},${d.toFixed(3)},${r.toFixed(3)}`;
+  if (gunGeo[key]) return gunGeo[key];
+  r = Math.max(.001, Math.min(r, w / 2 - .0015, h / 2 - .0015));
+  const bs = Math.min(r * .4, d * .15), ww = w / 2 - bs, hh = h / 2 - bs, rr = Math.max(.0005, r - bs);
+  const s = new THREE.Shape();
+  s.moveTo(-ww + rr, -hh); s.lineTo(ww - rr, -hh); s.quadraticCurveTo(ww, -hh, ww, -hh + rr);
+  s.lineTo(ww, hh - rr); s.quadraticCurveTo(ww, hh, ww - rr, hh); s.lineTo(-ww + rr, hh);
+  s.quadraticCurveTo(-ww, hh, -ww, hh - rr); s.lineTo(-ww, -hh + rr); s.quadraticCurveTo(-ww, -hh, -ww + rr, -hh);
+  const depth = Math.max(.001, d - 2 * bs);
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: bs, bevelSize: bs, bevelSegments: 2, curveSegments: 4 });
+  g.translate(0, 0, -depth / 2); g.computeVertexNormals();
+  return gunGeo[key] = g;
+}
+const cylGeo = (r, len, seg = 18) => gunGeo[`c${r.toFixed(4)},${len.toFixed(4)},${seg}`] || (gunGeo[`c${r.toFixed(4)},${len.toFixed(4)},${seg}`] = new THREE.CylinderGeometry(r, r, len, seg));
+const torusGeo = (r, t, arc) => gunGeo[`t${r},${t},${arc}`] || (gunGeo[`t${r},${t},${arc}`] = new THREE.TorusGeometry(r, t, 6, 16, arc));
+
+function buildGun(w, world) {
+  const b = w.base, m = b.model, M = gunMats(rarColor(w), world), g = new THREE.Group(), U = g.userData;
+  const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, p = g) => { const e = new THREE.Mesh(geo, mat); e.position.set(x, y, z); e.rotation.set(rx, ry, rz); p.add(e); return e; };
+  const rb = (w_, h, d, r, mat, x, y, z, rx, ry, rz, p) => add(roundBox(w_, h, d, r), mat, x, y, z, rx, ry, rz, p);
+  const bx = (w_, h, d, mat, x, y, z, rx, ry, rz, p) => { const e = add(unitBox, mat, x, y, z, rx, ry, rz, p); e.scale.set(w_, h, d); return e; };
+  const cz = (r, len, mat, x, y, z, seg, p) => add(cylGeo(r, len, seg), mat, x, y, z, Math.PI / 2, 0, 0, p); // cylinder along z
+  const L = m.len, H = m.h, W = .062;
+  const rifle = !!(m.stock || L > .3), pistol = !rifle && !m.drum && !b.energy;
+  const bodyMat = M.metal, furn = ['shotgun', 'dbarrel', 'lever', 'crossbow', 'launcher', 'revolver'].includes(b.id) ? M.wood : M.rub;
+  const by = H * .15, bz = -L / 2 - m.barrel / 2, muzzle = -L / 2 - m.barrel;
+
+  // receiver / frame
+  if (pistol) {
+    rb(W * 1.02, H * .56, L * 1.02, .012, bodyMat, 0, H * .2, 0);                         // slide
+    rb(W * .94, H * .5, L * .86, .01, M.rub, 0, -H * .2, L * .05);                           // frame
+    for (let i = 0; i < 5; i++) bx(W * 1.05, H * .34, .004, M.dark, 0, H * .22, L * .32 + i * .012); // slide serrations
+    bx(.004, H * .2, L * .22, M.dark, W / 2 + .002, H * .28, -L * .08);                       // ejection port
+    bx(.01, .012, .01, M.dark, 0, H * .5, L * .44); bx(.006, .012, .006, M.dark, 0, H * .5, -L * .44); // sights
+  } else {
+    rb(W, H, L, .014, bodyMat, 0, 0, 0);
+    bx(.004, H * .3, L * .2, M.dark, W / 2 + .002, H * .12, -L * .06);                       // ejection port
+    if (rifle) bx(.03, .012, .022, M.dark, 0, H / 2 + .006, L * .42);                         // charging handle
+  }
+  [-1, 1].forEach(sd => bx(.003, H * .12, L * .55, M.accent, sd * (W / 2 + .002), -H * .08, 0)); // rarity stripe
+  if (rifle && !m.scope && !m.bow) { // top rail
+    rb(W * .6, .012, L * .78, .003, M.dark, 0, H / 2 + .006, -L * .06);
+    for (let i = 0; i < 9; i++) bx(W * .66, .007, .008, M.dark, 0, H / 2 + .014, -L * .42 + i * L * .09);
+  }
+  // trigger group
+  add(torusGeo(H * .26, .005, Math.PI), M.dark, 0, -H / 2, L * .12, 0, Math.PI / 2, Math.PI);
+  bx(.008, H * .3, .01, M.steel, 0, -H / 2 - H * .12, L * .1, .35);
+  // grip
+  rb(W * .8, H * 1.25, H * .5, .014, furn === M.wood && pistol ? M.rub : furn, 0, -H * .88, L * .3, .32);
+  for (let i = 0; i < 4; i++) bx(W * .84, .004, H * .45, M.dark, 0, -H * .6 - i * H * .16, L * .3 + i * H * .05, .32); // grip texture
+
+  // barrel(s)
+  if (m.multi) {
+    const sp = new THREE.Group(); sp.position.set(0, by, bz); g.add(sp); U.spinner = sp;
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; cz(m.br * .3, m.barrel, M.dark, Math.cos(a) * m.br * .7, Math.sin(a) * m.br * .7, 0, 10, sp); }
+    [-.4, 0, .38].forEach(t => cz(m.br * 1.12, .025, M.metal, 0, 0, m.barrel * t, 20, sp));
+    cz(m.br * .35, m.barrel * 1.02, M.steel, 0, 0, 0, 10, sp);
+  } else if (m.double) {
+    [-1, 1].forEach(sd => { cz(m.br, m.barrel, M.dark, sd * m.br * 1.02, by, bz, 18); cz(m.br * 1.08, .02, M.steel, sd * m.br * 1.02, by, muzzle + .01, 18); });
+    bx(.006, .006, m.barrel, M.steel, 0, by + m.br * .9, bz);                                 // rib
+  } else {
+    cz(m.br, m.barrel, M.dark, 0, by, bz, 20);
+    if (!b.energy && !m.bow && m.barrel > .1) { // muzzle device with ports
+      cz(m.br * 1.35, .04, M.metal, 0, by, muzzle + .02, 20);
+      [-1, 1].forEach(sd => bx(.004, m.br * 1.2, .02, M.dark, sd * m.br * 1.35, by, muzzle + .02));
+    }
+    bx(.006, .022, .008, M.dark, 0, by + m.br + .011, muzzle + .035);                        // front sight post
+  }
+  // handguard with vents on rifles
+  if (rifle && !m.pump && !m.double && !m.bow && !m.multi && m.barrel > .16) {
+    const hl = m.barrel * .58, hz = -L / 2 - hl / 2;
+    rb(W * 1.12, H * .72, hl, .016, M.rub, 0, by - H * .05, hz);
+    for (let i = 0; i < 3; i++) [-1, 1].forEach(sd => bx(.004, H * .18, hl * .16, M.dark, sd * W * .57, by - H * .05, hz - hl * .3 + i * hl * .3));
+  }
+
+  // magazine / swapped part (a group, so the reload can drop it and slide it back)
+  const magGroup = (x, y, z) => { const mg = new THREE.Group(); mg.position.set(x, y, z); g.add(mg); U.mag = mg; return mg; };
+  if (m.mag) {
+    if (pistol) {
+      const mg = magGroup(0, -H * .88, L * .3); mg.rotation.x = .32;
+      rb(W * .6, H * 1.05, H * .4, .006, M.dark, 0, 0, 0, 0, 0, 0, mg);
+      rb(W * .7, .012, H * .46, .004, M.steel, 0, -H * .6, 0, 0, 0, 0, mg);                   // base plate, just below the grip
+      U.port = new V3(0, -H * 1.5, L * .38);
+    } else {
+      const mg = magGroup(0, -H / 2, -L * .12);
+      rb(W * .62, m.mag * .56, H * .5, .007, M.dark, 0, -m.mag * .28, 0, 0, 0, 0, mg);
+      rb(W * .62, m.mag * .5, H * .5, .007, M.dark, 0, -m.mag * .74, -m.mag * .08, -.28, 0, 0, mg); // curved lower half
+      rb(W * .7, .012, H * .56, .004, M.steel, 0, -m.mag - .004, -m.mag * .16, -.28, 0, 0, mg);
+      U.port = new V3(0, -H / 2 - m.mag, -L * .12);
+    }
+  }
+  if (m.drum) { // revolver / launcher cylinder, built along its own y so reloads spin it with rotation.y
+    const d = new THREE.Group(); d.position.set(0, 0, -L * .12); d.rotation.x = Math.PI / 2; g.add(d); U.drum = d;
+    add(cylGeo(H * .5, L * .36, 20), M.metal, 0, 0, 0, 0, 0, 0, d);
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; bx(.008, L * .3, .008, M.dark, Math.cos(a) * H * .5, 0, Math.sin(a) * H * .5, 0, 0, 0, d); }
+    add(cylGeo(H * .12, L * .38, 10), M.steel, 0, 0, 0, 0, 0, 0, d);
+    U.port = new V3(-H * .5, 0, -L * .12);
+    if (!rifle) { bx(.012, .03, .022, M.dark, 0, H * .52, L * .44, -.5); bx(.008, .008, m.barrel * .9, M.steel, 0, by + m.br + .004, bz); } // hammer + top rib
+  }
+  if (m.box) {
+    const mg = magGroup(0, -H * .8, -L * .08);
+    rb(W * 1.6, H * .9, H * .9, .01, M.accent, 0, 0, 0, 0, 0, 0, mg);
+    rb(W * 1.62, H * .12, H * .92, .004, M.dark, 0, H * .38, 0, 0, 0, 0, mg);
+    for (let i = 0; i < 5; i++) add(cylGeo(.007, .035, 8), M.brass, -W * .9, H * .35 - i * .012, -H * .2 + i * .02, 0, 0, Math.PI / 2, mg); // belt rounds
+    U.port = new V3(-W, -H * 1.1, -L * .08);
+  }
+  if (m.tank) {
+    const mg = magGroup(0, -H * .95, -L * .02);
+    add(cylGeo(H * .42, L * .5, 20), M.accent, 0, 0, 0, Math.PI / 2, 0, 0, mg);
+    [-1, 1].forEach(sd => add(new THREE.SphereGeometry(H * .42, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.accent, 0, 0, sd * L * .25, sd * Math.PI / 2, 0, 0, mg));
+    add(cylGeo(.008, L * .3, 8), M.steel, W * .4, H * .45, 0, Math.PI / 2, 0, 0, mg);           // fuel line
+    add(new THREE.SphereGeometry(.01, 8, 6), new THREE.MeshBasicMaterial({ color: 0x5ab8ff }), 0, by - m.br * 1.2, muzzle + .01); // pilot light
+    U.port = new V3(-W, -H * 1.2, 0);
+  }
+  if (b.energy && !m.tank) {
+    const mg = magGroup(0, -H * .6, -L * .05);
+    rb(W * .75, H * .45, H * .7, .008, M.accent, 0, 0, 0, 0, 0, 0, mg);
+    [-1, 1].forEach(sd => bx(.003, H * .3, H * .5, M.dark, sd * W * .38, 0, 0, 0, 0, 0, mg));
+    U.port = new V3(0, -H * .85, -L * .05);
+    const n = m.coil ? 5 : 3;
+    for (let i = 0; i < n; i++) cz(m.br * (m.coil ? 2.2 : 1.9), .014, M.accent, 0, by, -L / 2 - .025 - i * (m.coil ? .032 : .045), 20);
+    if (m.coil) cz(m.br * .5, m.barrel * 1.05, new THREE.MeshBasicMaterial({ color: 0x9fe6ff }), 0, by, bz, 10);
+  }
+
+  // stock (first person keeps a short one: the rest would sit behind the camera and fill the screen)
+  if (m.stock) {
+    const st = world ? m.stock : m.stock * .4;
+    if (furn === M.wood) rb(W * .82, H * .9, st, .016, M.wood, 0, -H * .14, L / 2 + st / 2, .06);
+    else {
+      cz(.012, st * .7, M.dark, 0, -H * .05, L / 2 + st * .35, 10);
+      rb(W * .8, H * .95, st * .38, .014, M.rub, 0, -H * .12, L / 2 + st * .78);
+      rb(W * .84, H * 1, .012, .004, M.dark, 0, -H * .12, L / 2 + st - .006);                 // butt pad
+    }
+  }
+  if (m.sight) { // rear aperture + front post
+    rb(.026, .03, .02, .004, M.dark, 0, H / 2 + .02, L * .3);
+    rb(.018, .036, .014, .003, M.dark, 0, H / 2 + .018, -L * .42);
+  }
+  if (m.scope) {
+    const sy = H / 2 + .05;
+    cz(.022, L * .55, M.dark, 0, sy, -L * .05, 20);
+    cz(.03, .05, M.dark, 0, sy, -L * .05 - L * .3, 20); cz(.027, .04, M.dark, 0, sy, -L * .05 + L * .29, 20);
+    cz(.028, .004, M.glass, 0, sy, -L * .05 - L * .33, 20); cz(.025, .004, M.glass, 0, sy, -L * .05 + L * .31, 20);
+    add(cylGeo(.009, .025, 10), M.dark, 0, sy + .03, -L * .05); add(cylGeo(.009, .02, 10), M.dark, .03, sy, -L * .05, 0, 0, Math.PI / 2); // turrets
+    [-.15, .12].forEach(t => rb(.034, .05, .014, .004, M.dark, 0, H / 2 + .02, L * t));        // rings
+    bx(.001, .02, .06, M.accent, .022, sy, -L * .05);
+  }
+  if (m.pump) {
+    rb(W * 1.2, H * .55, m.barrel * .38, .018, M.wood, 0, by - m.br * 1.9, bz + m.barrel * .1);
+    for (let i = 0; i < 5; i++) bx(W * 1.24, .004, .006, M.dark, 0, by - m.br * 1.9 - H * .1, bz + m.barrel * (-.05 + i * .06));
+    cz(m.br * .75, m.barrel * .9, M.dark, 0, by - m.br * 1.9, bz - m.barrel * .04, 16);         // tube magazine
+  }
+  if (m.lever) add(torusGeo(H * .38, .006, Math.PI * 1.3), M.steel, 0, -H * .95, L * .22, 0, Math.PI / 2, Math.PI * .85);
+  if (m.bow) {
+    rb(.05, .03, .06, .008, M.dark, 0, by, muzzle + .02);                                    // riser
+    [-1, 1].forEach(sd => rb(.24, .018, .03, .008, M.wood, sd * .13, by + .02, muzzle + .03 + .02, 0, sd * .35, 0));
+    bx(.5, .003, .003, M.accent, 0, by + .02, muzzle + .14);                                  // string
+    bx(.006, .006, L * .9, M.steel, 0, H / 2 + .006, -L * .1);                                // bolt rail
+  }
+  if (b.single || b.rl === 'break') U.port = U.port || new V3(-W * .6, -H * .2, -L * .05);
+  U.port = U.port || new V3(0, -H, -L * .1);
+  U.muzzleZ = muzzle;
+  U.muzzleY = by;
+  U.sightY = H / 2 + (m.scope ? .05 : m.sight ? .04 : pistol ? .022 : .005);
+  if (U.mag) U.magY = U.mag.position.y;
+  // aim line sits just above the tallest part (rails, handles, sights), so nothing on the gun covers the crosshair while aiming
+  if (!world && !m.scope) { g.updateMatrixWorld(true); U.sightY = Math.max(U.sightY, new THREE.Box3().setFromObject(g).max.y + .006); }
+  return g;
+}

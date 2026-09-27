@@ -1,0 +1,157 @@
+﻿'use strict';
+const $ = id => document.getElementById(id);
+const V3 = THREE.Vector3;
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+// names typed by other players are shown as text, never as HTML
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]).slice(0, 40);
+const smooth = t => t * t * (3 - 2 * t);
+// small seeded PRNG so a saved map seed rebuilds the same layout
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const B = 38; // arena half-size
+
+// ================= DATA =================
+const RARITIES = [
+  { name: 'Közönséges',     color: '#d4d4d4', w: 60, elem: 0 },
+  { name: 'Nem mindennapi', color: '#45d35b', w: 26, elem: .12 },
+  { name: 'Ritka',          color: '#3a8dff', w: 10, elem: .35 },
+  { name: 'Epikus',         color: '#b05cff', w: 3.5, elem: .6 },
+  { name: 'Legendás',       color: '#ff8c1a', w: .5, elem: 1 },
+];
+const ELEMENTS = {
+  fire:  { name: 'Tűz',   word: 'Hellfire',  color: '#ff6a2a', hex: 0xff6a2a, desc: 'Felgyújtja a célt (3 mp)' },
+  shock: { name: 'Villám', word: 'Storm',    color: '#7d8dff', hex: 0x7d8dff, desc: 'Átugrik egy közeli zombira' },
+  cryo:  { name: 'Fagy',  word: 'Frostbite', color: '#8ff0ff', hex: 0x8ff0ff, desc: 'Lelassítja a célt (2,5 mp)' },
+};
+// weapon categories (skills and makers both key off these)
+const CAT = { ar: 'rifle', burst: 'rifle', lmg: 'heavy', minigun: 'heavy', dmr: 'marks', sniper: 'marks', crossbow: 'marks', lever: 'marks',
+  smg: 'smg', mpistol: 'smg', pistol: 'pistol', deagle: 'pistol', revolver: 'pistol', shotgun: 'shotgun', autoshot: 'shotgun', dbarrel: 'shotgun',
+  launcher: 'explosive', raygun: 'energy', tesla: 'energy', flamer: 'energy' };
+// makers: every gun a maker builds carries its signature perk; one base can come from several makers.
+// rpm/mag/reload/res/acc are baked into the rolled stats, dmg/head/crit/critDmg apply live when the gun hits
+const MAKERS = {
+  xfcv:       { name: 'XFCV Tactical',     perk: '+10% fejlövés-sebzés',       head: .1,    cats: ['rifle', 'marks', 'pistol', 'smg'] },
+  kessler:    { name: 'Kessler Arms',      perk: '+8% sebzés',                 dmg: .08,    cats: ['rifle', 'heavy', 'pistol', 'shotgun', 'explosive'] },
+  voss:       { name: 'Voss & Sons',       perk: '+10% tűzgyorsaság',          rpm: .1,     cats: ['smg', 'rifle', 'heavy', 'shotgun', 'energy'] },
+  harrow:     { name: 'Harrow Ordnance',   perk: '+5% kritikus esély',         crit: .05,   cats: ['marks', 'rifle', 'pistol', 'explosive'] },
+  ironmark:   { name: 'Ironmark',          perk: '+25% tárkapacitás',          mag: .25,    cats: ['heavy', 'smg', 'rifle', 'shotgun', 'energy'] },
+  novak:      { name: 'Novak Works',       perk: '+15% gyorsabb újratöltés',   reload: .15, cats: ['pistol', 'smg', 'shotgun', 'marks', 'explosive'] },
+  crane:      { name: 'Crane & Rook',      perk: '+20% kritikus sebzés',       critDmg: .2, cats: ['marks', 'pistol', 'rifle', 'shotgun'] },
+  bellwether: { name: 'Bellwether',        perk: '+30% tartalék lőszer',       res: .3,     cats: ['heavy', 'shotgun', 'smg', 'energy', 'explosive'] },
+  ostrava:    { name: 'Ostrava Precision', perk: '+20% pontosság',             acc: .2,     cats: ['rifle', 'marks', 'smg', 'energy', 'pistol'] },
+};
+const CAT_NAMES = { rifle: 'gépkarabély', heavy: 'nehézfegyver', marks: 'mesterlövész', smg: 'géppisztoly', pistol: 'pisztoly', shotgun: 'sörétes', explosive: 'robbanó', energy: 'energia' };
+const makersFor = b => Object.keys(MAKERS).filter(k => MAKERS[k].cats.includes(CAT[b.id]) && !(b.fixedMag && MAKERS[k].mag));
+const mkOf = w => (w && MAKERS[w.mk]) || {};
+const PREFIX = {
+  dmg: ['Vicious', 'Brutal', 'Savage'], rate: ['Rapid', 'Frantic', 'Hasty'], mag: ['Extended', 'Hungry', 'Deep'],
+  reload: ['Swift', 'Nimble', 'Slick'], acc: ['Steady', 'True', 'Precise'],
+};
+const LEGENDS = [
+  ['Gravedigger', 'A hat láb csak javaslat.'], ['Harvest Moon', 'Learatod, amit vetettek.'],
+  ['Last Rites', 'Gyorsan mondva. Sokszor mondva.'], ['Widowmaker', 'Ma éjjel senki nem megy haza.'],
+  ['Bonesaw', 'Tiszta vágás, piszkos munka.'], ['Requiem', 'Minden dalnak vége van.'],
+  ["Dead Man's Hand", 'Ászok és nyolcasok, egész éjjel.'], ['Carrion Call', 'A varjak hálásak.'],
+];
+// model: len/h receiver, barrel length/radius, mag height, stock length + flags
+// rl: reload animation style (mag · box · cell · revolver · shell · break) · single: loads one round at a time, reload = seconds per round
+const BASES = [
+  { id: 'pistol', name: 'Pistol', dmg: 30, rpm: 380, mag: 12, res: 96, reload: 1.3, spread: 1.4, mode: 'semi', range: 80, zoom: 1.3, snd: 'light', kick: .012, rl: 'mag',
+    model: { len: .2, h: .09, barrel: .06, br: .016, mag: .1 } },
+  { id: 'deagle', name: 'Hand Cannon', dmg: 120, rpm: 170, mag: 7, res: 56, reload: 1.8, spread: 1.1, mode: 'semi', range: 90, zoom: 1.35, snd: 'heavy', kick: .04, headMult: 2.5, rl: 'mag',
+    model: { len: .25, h: .12, barrel: .1, br: .024, mag: .12 } },
+  { id: 'mpistol', name: 'Machine Pistol', dmg: 18, rpm: 950, mag: 22, res: 176, reload: 1.5, spread: 3, mode: 'auto', range: 60, zoom: 1.3, snd: 'light', kick: .006, rl: 'mag',
+    model: { len: .24, h: .1, barrel: .07, br: .015, mag: .2 } },
+  { id: 'revolver', name: 'Revolver', dmg: 95, rpm: 150, mag: 6, res: 42, reload: 2.1, spread: .9, mode: 'semi', range: 90, zoom: 1.35, snd: 'heavy', kick: .03, headMult: 2.5, rl: 'revolver',
+    model: { len: .18, h: .11, barrel: .17, br: .022, drum: true } },
+  { id: 'smg', name: 'SMG', dmg: 22, rpm: 850, mag: 32, res: 256, reload: 1.9, spread: 2.5, mode: 'auto', range: 70, zoom: 1.4, snd: 'light', kick: .006, rl: 'mag',
+    model: { len: .34, h: .11, barrel: .12, br: .018, mag: .22, stock: .16 } },
+  { id: 'ar', name: 'Assault Rifle', dmg: 36, rpm: 620, mag: 30, res: 240, reload: 2.3, spread: 1.7, mode: 'auto', range: 110, zoom: 1.5, snd: 'mid', kick: .009, rl: 'mag',
+    model: { len: .46, h: .12, barrel: .24, br: .02, mag: .2, stock: .24, sight: true } },
+  { id: 'burst', name: 'Burst Rifle', dmg: 44, rpm: 900, burst: 3, burstDelay: .3, mag: 24, res: 192, reload: 2.2, spread: 1.2, mode: 'burst', range: 110, zoom: 1.6, snd: 'mid', kick: .008, rl: 'mag',
+    model: { len: .44, h: .13, barrel: .2, br: .02, mag: .17, stock: .22, sight: true } },
+  { id: 'lever', name: 'Lever Rifle', dmg: 100, rpm: 120, mag: 8, res: 64, reload: .5, single: true, spread: .7, mode: 'semi', range: 130, zoom: 1.7, snd: 'heavy', kick: .03, pierce: 2, rl: 'shell',
+    model: { len: .34, h: .1, barrel: .42, br: .019, stock: .27, lever: true } },
+  { id: 'lmg', name: 'LMG', dmg: 34, rpm: 720, mag: 100, res: 300, reload: 4.6, spread: 3.1, mode: 'auto', range: 100, zoom: 1.4, snd: 'mid', kick: .008, rl: 'box',
+    model: { len: .56, h: .15, barrel: .32, br: .026, box: true, stock: .24 } },
+  { id: 'minigun', name: 'Minigun', dmg: 24, rpm: 1300, mag: 200, res: 600, reload: 5.2, spread: 3.4, mode: 'auto', range: 90, zoom: 1.15, snd: 'light', kick: .004, spin: true, rl: 'box',
+    model: { len: .46, h: .16, barrel: .4, br: .05, box: true, multi: true } },
+  { id: 'shotgun', name: 'Pump Shotgun', dmg: 28, pellets: 8, rpm: 75, mag: 6, res: 48, reload: .5, single: true, spread: 5, mode: 'semi', range: 36, zoom: 1.25, snd: 'boom', kick: .05, rl: 'shell',
+    model: { len: .44, h: .12, barrel: .38, br: .028, stock: .24, pump: true } },
+  { id: 'autoshot', name: 'Auto Shotgun', dmg: 16, pellets: 8, rpm: 260, mag: 10, res: 60, reload: 2.5, spread: 5.5, mode: 'auto', range: 30, zoom: 1.2, snd: 'boom', kick: .035, rl: 'mag',
+    model: { len: .46, h: .13, barrel: .3, br: .03, mag: .14, stock: .2 } },
+  { id: 'dbarrel', name: 'Double Barrel', dmg: 26, pellets: 10, rpm: 260, mag: 2, fixedMag: true, res: 40, reload: 2, spread: 7, mode: 'semi', range: 28, zoom: 1.2, snd: 'boom', kick: .06, rl: 'break',
+    model: { len: .3, h: .1, barrel: .42, br: .024, double: true, stock: .28 } },
+  { id: 'flamer', name: 'Flamethrower', dmg: 9, pellets: 3, rpm: 900, mag: 100, res: 300, reload: 3.2, spread: 7, mode: 'auto', range: 18, zoom: 1.15, snd: 'flame', kick: .002, flame: true, pierce: 3, rl: 'box',
+    model: { len: .5, h: .13, barrel: .3, br: .035, tank: true, stock: .18 } },
+  { id: 'dmr', name: 'Marksman Rifle', dmg: 95, rpm: 260, mag: 10, res: 80, reload: 2.5, spread: 1, adsSpread: .05, mode: 'semi', range: 150, zoom: 2.3, snd: 'heavy', kick: .022, pierce: 2, scopeView: true, rl: 'mag',
+    model: { len: .52, h: .12, barrel: .3, br: .02, mag: .12, stock: .26, scope: true } },
+  { id: 'sniper', name: 'Sniper Rifle', dmg: 260, rpm: 48, mag: 5, res: 35, reload: 3.2, spread: 5, adsSpread: 0, mode: 'semi', range: 220, zoom: 4, snd: 'heavy', kick: .05, pierce: 4, headMult: 3, scopeView: true, rl: 'mag',
+    model: { len: .56, h: .12, barrel: .46, br: .022, mag: .1, stock: .3, scope: true } },
+  { id: 'crossbow', name: 'Crossbow', dmg: 200, rpm: 55, mag: 1, fixedMag: true, res: 30, reload: 0.9, spread: .6, adsSpread: .05, mode: 'semi', range: 120, zoom: 1.8, snd: 'bow', kick: .02, pierce: 3, headMult: 3, rl: 'break', tracer: 0xc9b89a,
+    model: { len: .34, h: .08, barrel: .12, br: .014, stock: .26, bow: true } },
+  { id: 'launcher', name: 'Grenade Launcher', dmg: 220, rpm: 70, mag: 4, res: 24, reload: .6, single: true, spread: 1, mode: 'semi', range: 60, zoom: 1.3, snd: 'thump', kick: .05, lob: true, splash: 4.5, rl: 'shell',
+    model: { len: .34, h: .12, barrel: .24, br: .045, drum: true, stock: .2 } },
+  { id: 'raygun', name: 'Ray Gun', dmg: 110, rpm: 230, mag: 20, res: 100, reload: 2.9, spread: 1.2, mode: 'semi', range: 120, zoom: 1.35, snd: 'ray', kick: .018, splash: 2.2, energy: true, rl: 'cell',
+    model: { len: .22, h: .13, barrel: .14, br: .03 } },
+  { id: 'tesla', name: 'Tesla Gun', dmg: 58, rpm: 300, mag: 30, res: 150, reload: 2.6, spread: .8, mode: 'auto', range: 45, zoom: 1.3, snd: 'zap', kick: .006, chain: 3, energy: true, rl: 'cell', tracer: 0x7fd8ff,
+    model: { len: .3, h: .13, barrel: .16, br: .03, coil: true } },
+];
+
+function rollRarity(luck = 0) {
+  const ws = RARITIES.map((r, i) => r.w * Math.pow(1 + luck, i));
+  let x = Math.random() * ws.reduce((a, b) => a + b);
+  for (let i = 0; i < ws.length; i++) { x -= ws[i]; if (x <= 0) return i; }
+  return 0;
+}
+
+function makeWeapon(base, q, level, mk) {
+  mk = mk || pick(makersFor(base));
+  const M = MAKERS[mk], r = {};
+  for (const k of ['dmg', 'rate', 'mag', 'reload', 'acc']) r[k] = rand(-1, 1);
+  const lv = Math.pow(1.08, level - 1); // ×1.08 per level, the same as zombie health: endless, but always even
+  const w = {
+    base, q, level, mk, maker: M.name, sv: 2,
+    dmg: Math.round(base.dmg * lv * (1 + q * .14) * (1 + r.dmg * .15)),
+    pellets: base.pellets || 1,
+    rpm: Math.round(base.rpm * (1 + q * .04) * (1 + r.rate * .12) * (1 + (M.rpm || 0))),
+    mag: base.fixedMag ? base.mag : Math.max(2, Math.round(base.mag * (1 + q * .08) * (1 + r.mag * .2) * (1 + (M.mag || 0)))),
+    reload: +(base.reload * (1 - q * .05) * (1 - r.reload * .15) * (1 - (M.reload || 0))).toFixed(2),
+    spread: base.spread * (1 - q * .06) * (1 - r.acc * .22) * (1 - (M.acc || 0)),
+    element: base.flame ? 'fire' : base.chain ? null : Math.random() < RARITIES[q].elem ? pick(Object.keys(ELEMENTS)) : null,
+  };
+  w.maxRes = Math.round(base.res * (1 + q * .1) * (1 + (M.res || 0)));
+  w.ammo = w.mag; w.reserve = w.maxRes;
+  const top = Object.keys(r).reduce((a, b) => r[a] > r[b] ? a : b);
+  if (q === 4) { const L = pick(LEGENDS); w.name = L[0]; w.flavor = L[1]; }
+  else w.name = [q > 0 ? pick(PREFIX[top]) : null, w.element ? ELEMENTS[w.element].word : null, base.name].filter(Boolean).join(' ');
+  return w;
+}
+const fireRate = w => w.base.mode === 'burst' ? w.base.burst / (w.base.burstDelay + (w.base.burst - 1) * 60 / w.rpm) : w.rpm / 60;
+// sustained DPS: a full magazine plus its reload, so a double barrel doesn't look like the best gun in the game
+const dps = w => Math.round(w.dmg * w.pellets * w.mag / (w.mag / fireRate(w) + (w.base.single ? w.reload * w.mag : w.reload)));
+const accuracy = w => Math.round(clamp(100 - w.spread * 9, 5, 99));
+const rarColor = w => RARITIES[w.q].color;
+const sellValue = w => Math.round([60, 150, 320, 650, 1300][w.q] * (1 + .08 * (w.level - 1)));
+
+const ITEMS = {
+  med:   { name: 'Gyógycsomag', key: 'H', max: 3, color: '#ff5a5a', desc: '+70 életerő azonnal' },
+  gren:  { name: 'Gránát',      key: 'G', max: 4, color: '#8fd35a', desc: '1,8 mp után robban, 5 m sugárban' },
+  knife: { name: 'Dobókés',     key: 'Q', max: 8, color: '#d8d8d8', desc: 'Nagy sebzés, fejre dupla' },
+  adren: { name: 'Adrenalin',   key: 'X', max: 2, color: '#7fc4ff', desc: '12 mp: végtelen sprint, +30% sebesség, gyors újratöltés' },
+};
+const ITEM_KEYS = Object.keys(ITEMS);
+function drawIcon(k) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), col = ITEMS[k].color;
+  g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 5; g.lineCap = 'round';
+  if (k === 'med') { g.fillRect(8, 14, 48, 38); g.fillStyle = '#fff'; g.fillRect(27, 20, 10, 26); g.fillRect(19, 28, 26, 10); }
+  else if (k === 'gren') { g.beginPath(); g.arc(32, 38, 18, 0, 7); g.fill(); g.fillStyle = '#444'; g.fillRect(26, 12, 12, 10); g.beginPath(); g.arc(44, 14, 6, 0, 7); g.stroke(); }
+  else if (k === 'knife') { g.beginPath(); g.moveTo(10, 54); g.lineTo(44, 20); g.lineTo(56, 8); g.lineTo(50, 22); g.lineTo(18, 56); g.closePath(); g.fill(); g.fillStyle = '#6b4a2b'; g.fillRect(6, 50, 14, 8); }
+  else { g.fillRect(12, 26, 34, 12); g.fillStyle = '#fff'; g.fillRect(16, 29, 18, 6); g.beginPath(); g.moveTo(46, 32); g.lineTo(60, 32); g.stroke(); g.beginPath(); g.moveTo(8, 22); g.lineTo(8, 42); g.stroke(); }
+  return c;
+}
+const ICONS = {}, ICON_CANVAS = {};
+ITEM_KEYS.forEach(k => { ICON_CANVAS[k] = drawIcon(k); ICONS[k] = ICON_CANVAS[k].toDataURL(); });

@@ -1,0 +1,165 @@
+﻿// ================= SETTINGS =================
+// per-viewer preferences, kept in localStorage (guarded: it can be blocked)
+const SET_KEY = 'deadacre.settings';
+const SET_DEF = { sens: 1, adsSens: .8, invertY: false, fov: 75, master: .8, music: .5, sfx: 1 };
+const SET = Object.assign({}, SET_DEF, (() => { try { return JSON.parse(localStorage.getItem(SET_KEY)) || {}; } catch (e) { return {}; } })());
+function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch (e) {} applyVolumes(); }
+
+// ================= MUSIC =================
+// small generative tracks: a chord progression, pad, bass, arpeggio, a seeded melody and light drums.
+// 3 for the base and 3 per map; the playlist rotates every ~40 bars and crossfades between places.
+let out = null, musicBus = null, echo = null;
+function applyVolumes() {
+  if (!ac) return;
+  out.gain.value = SET.master; master.gain.value = .45 * SET.sfx; musicBus.gain.value = .65 * SET.music;
+}
+function initMusic() { // called once from initAudio: reroutes sfx through `out` and adds the music bus with an echo send
+  out = ac.createGain(); out.connect(ac.destination);
+  master.disconnect(); master.connect(out);
+  musicBus = ac.createGain(); musicBus.connect(out);
+  echo = ac.createDelay(1); echo.delayTime.value = .36;
+  const fb = ac.createGain(), lp = ac.createBiquadFilter(); fb.gain.value = .32; lp.type = 'lowpass'; lp.frequency.value = 1800;
+  echo.connect(lp).connect(fb).connect(echo); lp.connect(musicBus);
+  applyVolumes();
+}
+
+const MIN = [0, 2, 3, 5, 7, 8, 10], DOR = [0, 2, 3, 5, 7, 9, 10], PHR = [0, 1, 3, 5, 7, 8, 10], HMIN = [0, 2, 3, 5, 7, 8, 11];
+// pat strings: 16 steps per bar, 1 = hit
+const MUSIC = {
+  hub: [
+    { name: 'Hajnal előtt', bpm: 72, root: 45, scale: DOR, prog: [0, 5, 3, 4], pad: 'tri', cut: 1400, bass: { wave: 'sine', pat: '1000000010000000' }, arp: { wave: 'triangle', every: 4, vol: .05 }, lead: { wave: 'sine', dens: .12 }, seed: 11 },
+    { name: 'Olajlámpa', bpm: 88, root: 50, scale: MIN, prog: [0, 5, 2, 6], pad: 'saw', cut: 900, bass: { wave: 'triangle', pat: '1000001010000000' }, arp: { wave: 'square', every: 2, vol: .022 }, lead: { wave: 'triangle', dens: .16 }, drums: { kick: '1000000010000000', hat: '0000100000001000' }, seed: 22 },
+    { name: 'Fegyverolaj', bpm: 98, root: 40, scale: DOR, prog: [0, 0, 3, 4], pad: 'tri', cut: 1100, bass: { wave: 'sawtooth', pat: '1010001010100010' }, lead: { wave: 'square', dens: .18 }, drums: { kick: '1000001000100000', hat: '0010001000100010', snare: '0000100000001000' }, seed: 33 },
+  ],
+  farm: [
+    { name: 'Kukoricás', bpm: 112, root: 43, scale: HMIN, prog: [0, 3, 4, 0], cut: 2400, bass: { wave: 'triangle', pat: '1000100010001000' }, arp: { wave: 'square', every: 1, vol: .018 }, lead: { wave: 'triangle', dens: .14 }, drums: { kick: '1000000010000000', hat: '0010001000100010' }, seed: 41 },
+    { name: 'A csűr mögött', bpm: 84, root: 45, scale: MIN, prog: [0, 6, 5, 4], pad: 'tri', cut: 1200, bass: { wave: 'sine', pat: '1000000000100000' }, arp: { wave: 'triangle', every: 2, vol: .04 }, lead: { wave: 'sine', dens: .1 }, seed: 42 },
+    { name: 'Szélmalom', bpm: 124, root: 38, scale: HMIN, prog: [0, 0, 4, 4, 3, 3, 4, 4], cut: 1600, bass: { wave: 'sawtooth', pat: '1010101010101010' }, arp: { wave: 'square', every: 2, vol: .02 }, lead: { wave: 'square', dens: .12 }, drums: { kick: '1000100010001000', hat: '0010001000100010', snare: '0000100000001000' }, seed: 43 },
+  ],
+  chapel: [
+    { name: 'Harangszó', bpm: 60, root: 41, scale: PHR, prog: [0, 1, 0, 6], pad: 'organ', cut: 2000, bass: { wave: 'sine', pat: '1000000000000000' }, lead: { wave: 'sine', dens: .08, bell: true }, seed: 51 },
+    { name: 'Kripta', bpm: 70, root: 44, scale: HMIN, prog: [0, 5, 1, 4], pad: 'organ', cut: 1600, bass: { wave: 'triangle', pat: '1000000010000000' }, arp: { wave: 'triangle', every: 4, vol: .04 }, lead: { wave: 'sine', dens: .1, bell: true }, drums: { kick: '1000000000000000' }, seed: 52 },
+    { name: 'Gyertyafény', bpm: 92, root: 38, scale: PHR, prog: [0, 1, 6, 0], pad: 'saw', cut: 700, bass: { wave: 'sawtooth', pat: '1000100010001000' }, arp: { wave: 'triangle', every: 2, vol: .035 }, lead: { wave: 'triangle', dens: .13 }, drums: { kick: '1000000010000000', snare: '0000000000001000' }, seed: 53 },
+  ],
+  gas: [
+    { name: 'Route 9', bpm: 120, root: 40, scale: MIN, prog: [0, 5, 6, 4], pad: 'saw', cut: 800, bass: { wave: 'sawtooth', pat: '1111111111111111', vol: .06 }, arp: { wave: 'square', every: 2, vol: .02 }, lead: { wave: 'square', dens: .1 }, drums: { kick: '1000100010001000', hat: '0010001000100010', snare: '0000100000001000' }, seed: 61 },
+    { name: 'Neon', bpm: 104, root: 45, scale: DOR, prog: [0, 3, 0, 4], pad: 'saw', cut: 1000, bass: { wave: 'sawtooth', pat: '1000101010001010' }, arp: { wave: 'triangle', every: 1, vol: .025 }, lead: { wave: 'triangle', dens: .14 }, drums: { kick: '1000000010000000', hat: '1010101010101010' }, seed: 62 },
+    { name: 'Kiégett', bpm: 132, root: 42, scale: PHR, prog: [0, 1, 0, 1, 6, 6, 0, 1], cut: 1400, bass: { wave: 'sawtooth', pat: '1011101110111011', vol: .05 }, lead: { wave: 'square', dens: .1 }, drums: { kick: '1000100010001000', hat: '0010001000100010', snare: '0000100000001000' }, seed: 63 },
+  ],
+  mill: [
+    { name: 'Fűrészpor', bpm: 100, root: 43, scale: DOR, prog: [0, 6, 5, 6], pad: 'tri', cut: 1200, bass: { wave: 'triangle', pat: '1000001000100000' }, lead: { wave: 'triangle', dens: .12 }, drums: { tom: '1000001000100100', hat: '0010001000100010' }, seed: 71 },
+    { name: 'Erdőszél', bpm: 80, root: 47, scale: MIN, prog: [0, 4, 5, 3], pad: 'tri', cut: 1300, arp: { wave: 'triangle', every: 2, vol: .04 }, lead: { wave: 'sine', dens: .1 }, drums: { tom: '1000000000100000' }, seed: 72 },
+    { name: 'Rönkök', bpm: 116, root: 40, scale: HMIN, prog: [0, 0, 5, 4], cut: 1500, bass: { wave: 'sawtooth', pat: '1010001010100010' }, arp: { wave: 'square', every: 2, vol: .02 }, lead: { wave: 'square', dens: .1 }, drums: { kick: '1000000010100000', tom: '0000100100001001', hat: '1010101010101010' }, seed: 73 },
+  ],
+};
+const mhz = m => 440 * Math.pow(2, (m - 69) / 12);
+const deg = (T, d) => T.root + T.scale[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7); // scale degree -> midi
+const chord = (T, d) => [0, 2, 4].map(k => deg(T, d + k));
+function voice(t, f, dur, vol, wave, cut, atk = .01, dst = mus.bus) {
+  const o = ac.createOscillator(), g = ac.createGain(), fl = ac.createBiquadFilter();
+  o.type = wave; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = cut;
+  g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(fl).connect(g).connect(dst); o.start(t); o.stop(t + dur + .05);
+  return g;
+}
+function hit(t, kind) {
+  const b = mus.bus;
+  if (kind === 'kick' || kind === 'tom') {
+    const o = ac.createOscillator(), g = ac.createGain(), [f0, f1, v] = kind === 'kick' ? [120, 42, .5] : [190, 95, .3];
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + .14);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + .28);
+    o.connect(g).connect(b); o.start(t); o.stop(t + .3);
+  } else {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), hat = kind === 'hat';
+    s.buffer = noiseBuf; f.type = hat ? 'highpass' : 'bandpass'; f.frequency.value = hat ? 7000 : 1700;
+    g.gain.setValueAtTime(hat ? .07 : .18, t); g.gain.exponentialRampToValueAtTime(.001, t + (hat ? .04 : .14));
+    s.connect(f).connect(g).connect(b); s.start(t, Math.random() * .5); s.stop(t + .16);
+  }
+}
+// a seeded melody: one phrase per progression cycle, mostly chord tones, sometimes a passing note
+function melody(T) {
+  const r = mulberry(T.seed), bars = [];
+  for (let b = 0; b < T.prog.length; b++) {
+    const steps = [];
+    for (let s = 0; s < 16; s++) {
+      const strong = s % 4 === 0;
+      if (r() < T.lead.dens * (strong ? 2.2 : .7)) steps[s] = { d: T.prog[b] + [0, 2, 4, 7][Math.floor(r() * 4)] + (r() < .25 ? 1 : 0), len: 1 + Math.floor(r() * 3) };
+    }
+    bars.push(steps);
+  }
+  return bars;
+}
+
+let mus = null, musWant = null;
+function startTrack(key, idx) {
+  const T = MUSIC[key][idx], bus = ac.createGain(), t = ac.currentTime;
+  bus.gain.setValueAtTime(.0001, t); bus.gain.exponentialRampToValueAtTime(1, t + 2.5); bus.connect(musicBus);
+  mus = { key, idx, T, bus, step: 0, next: t + .15, mel: T.lead ? melody(T) : null };
+}
+function stopTrack() {
+  if (!mus) return;
+  const b = mus.bus, t = ac.currentTime;
+  b.gain.cancelScheduledValues(t); b.gain.setValueAtTime(b.gain.value, t); b.gain.linearRampToValueAtTime(0, t + 2);
+  setTimeout(() => b.disconnect(), 2600);
+  mus = null;
+}
+// the place decides the playlist; a new place picks a random track from it
+function playMusic(key) {
+  musWant = key;
+  if (!ac || (mus && mus.key === key)) return;
+  stopTrack(); startTrack(key, Math.floor(Math.random() * MUSIC[key].length));
+}
+const nowPlaying = () => mus ? mus.T.name : '—';
+function musicTick() {
+  if (!ac || !mus) { if (ac && musWant) playMusic(musWant); return; }
+  if (mus.next < ac.currentTime - .2) mus.next = ac.currentTime + .05; // tab was asleep: skip ahead instead of bursting
+  const T = mus.T, st = 60 / T.bpm / 4, barLen = st * 16;
+  while (mus.next < ac.currentTime + .4) {
+    const t = mus.next, s = mus.step % 16, bar = Math.floor(mus.step / 16), pi = bar % T.prog.length, d = T.prog[pi], ch = chord(T, d);
+    if (s === 0 && T.pad) {
+      const [w, cut] = T.pad === 'saw' ? ['sawtooth', T.cut] : T.pad === 'organ' ? ['square', 900] : ['triangle', 2000];
+      ch.forEach(m => { voice(t, mhz(m) * 1.003, barLen * 1.05, .03, w, cut, barLen * .35); voice(t, mhz(m) * .997, barLen * 1.05, .03, w, cut, barLen * .35); });
+      if (T.pad === 'organ') ch.forEach(m => voice(t, mhz(m + 12), barLen, .02, 'sine', 3000, barLen * .3));
+    }
+    if (T.bass && T.bass.pat[s] === '1') voice(t, mhz(deg(T, d) - 12), st * 1.8, T.bass.vol || .12, T.bass.wave, 500 + (T.cut || 800) * .3);
+    if (T.arp && s % T.arp.every === 0) { const k = (s / T.arp.every) % 4; voice(t, mhz(ch[[0, 1, 2, 1][k]] + 12), st * T.arp.every * 1.4, T.arp.vol, T.arp.wave, T.cut || 1500); }
+    if (mus.mel && Math.floor(bar / T.prog.length) % 3 !== 2) { // the lead rests every third cycle
+      const n = mus.mel[pi][s];
+      if (n) { const g = voice(t, mhz(deg(T, n.d) + 12), st * n.len * (T.lead.bell ? 4 : 1.2), T.lead.bell ? .07 : .05, T.lead.wave, 2600, .01); g.connect(echo); }
+    }
+    if (T.drums) for (const k in T.drums) if (T.drums[k][s] === '1') hit(t, k);
+    mus.next += st; mus.step++;
+    if (mus.step >= 16 * Math.max(32, T.prog.length * 8)) { const key = mus.key, i = (mus.idx + 1) % MUSIC[key].length; stopTrack(); startTrack(key, i); return; }
+  }
+}
+setInterval(musicTick, 100);
+// browsers only start audio after a gesture: the first click or key anywhere wakes it up
+['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => initAudio(), { once: true }));
+
+// ================= SETTINGS SCREEN =================
+const SET_UI = [
+  ['sens', 'Egérérzékenység', .2, 3, .05, v => `${v.toFixed(2)}×`],
+  ['adsSens', 'Érzékenység célzáskor', .2, 1.5, .05, v => `${v.toFixed(2)}×`],
+  ['fov', 'Látószög (FOV)', 60, 100, 1, v => `${v}°`],
+  ['master', 'Fő hangerő', 0, 1, .05, v => `${Math.round(v * 100)}%`],
+  ['music', 'Zene', 0, 1, .05, v => `${Math.round(v * 100)}%`],
+  ['sfx', 'Effektek', 0, 1, .05, v => `${Math.round(v * 100)}%`],
+];
+function openSettings() {
+  const row = ([k, n, a, b, st, f]) => `<label class="setrow"><span>${n}${k === 'music' && mus ? `<small>♪ ${nowPlaying()}</small>` : ''}</span>
+    <input type="range" min="${a}" max="${b}" step="${st}" value="${SET[k]}" data-set="${k}"><output id="out_${k}">${f(SET[k])}</output></label>`;
+  $('settingsBody').innerHTML = '<h3>Irányítás</h3>' + SET_UI.slice(0, 3).map(row).join('') +
+    `<label class="setrow"><span>Függőleges egér megfordítása</span><input type="checkbox" data-set="invertY"${SET.invertY ? ' checked' : ''}><output></output></label>` +
+    '<h3>Hang</h3>' + SET_UI.slice(3).map(row).join('');
+  $('settings').hidden = false;
+}
+function closeSettings() { $('settings').hidden = true; }
+$('settingsBody').addEventListener('input', e => {
+  const k = e.target.dataset.set; if (!k) return;
+  SET[k] = e.target.type === 'checkbox' ? e.target.checked : +e.target.value;
+  const u = SET_UI.find(r => r[0] === k); if (u) $('out_' + k).textContent = u[5](SET[k]);
+  saveSettings();
+});
+$('settingsReset').onclick = () => { Object.assign(SET, SET_DEF); saveSettings(); openSettings(); };
+$('settingsClose').onclick = closeSettings;
+document.querySelectorAll('[data-settings]').forEach(b => b.onclick = openSettings);

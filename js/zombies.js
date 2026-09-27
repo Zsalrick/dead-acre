@@ -1,0 +1,616 @@
+﻿// ================= ZOMBIES =================
+const zombies = [];
+const ZG = {
+  torso: new THREE.BoxGeometry(.62, .8, .36), head: new THREE.BoxGeometry(.42, .42, .42),
+  arm: new THREE.BoxGeometry(.16, .72, .16), leg: new THREE.BoxGeometry(.21, .8, .22), eye: new THREE.BoxGeometry(.09, .05, .02),
+  pus: new THREE.SphereGeometry(.09, 8, 6),
+};
+const SKIN = [0x6f8a5c, 0x7c8f6a, 0x8a9a74, 0x5f7456, 0x94a07c];
+const CLOTH = [0x3b3f4f, 0x5a3a2a, 0x2e4a3a, 0x4a4a42, 0x6a5a3a, 0x3a2a3f];
+const hatMat = new THREE.MeshLambertMaterial({ color: 0x3b2a1c });
+const revolverMat = new THREE.MeshStandardMaterial({ color: 0x2a2c30, metalness: .7, roughness: .4 });
+const acidMat = new THREE.MeshBasicMaterial({ color: 0x9dff3a });
+
+// w: spawn weight for round r · max: cap alive at once · ranged: [too close, comfortable] distance band
+const KINDS = {
+  walker:     { name: 'Sétáló', min: 1, w: () => 10, hp: 1, dmg: 34, eye: 0xffcc33, lean: .12,
+                speed: r => Math.min(2.7, 1.3 + r * .09) * rand(.85, 1.15), scale: () => rand(.92, 1.06) },
+  crawler:    { name: 'Mászó', desc: 'Alacsonyan jön, nehéz eltalálni.', min: 2, w: () => 2.2, hp: .6, dmg: 25, eye: 0xffcc33, lean: 1.25, crawl: true,
+                speed: () => rand(2.3, 2.9), scale: () => 1 },
+  runner:     { name: 'Futó', desc: 'Gyors. Nagyon gyors.', min: 3, w: r => Math.min(6, (r - 2) * 1.2), hp: .8, dmg: 30, eye: 0xffee88, lean: .45,
+                speed: () => rand(3.8, 4.6), scale: () => .95 },
+  bloater:    { name: 'Puffadt', desc: 'Közelről felrobban. Lődd szét a többiek között!', min: 3, w: () => 1.6, max: 4, hp: 1.5, dmg: 0, eye: 0x9dff3a, lean: .05,
+                skin: 0x8f9a3c, bloat: true, speed: () => 1.7, scale: () => 1.1 },
+  gunslinger: { name: 'Pisztolyos', desc: 'Revolvere van. Célozni nem tud.', min: 4, w: r => 1.3 + r * .05, max: 3, hp: 1.1, dmg: 34, eye: 0xff8a1a, lean: .06,
+                ranged: [8, 15], gun: true, speed: () => 2.3, scale: () => 1 },
+  spitter:    { name: 'Köpködő', desc: 'Savat köp. Ne állj a tócsában.', min: 6, w: () => 1.3, max: 3, hp: 1, dmg: 34, eye: 0x9dff3a, lean: .2,
+                ranged: [9, 16], spit: true, speed: () => 2, scale: () => 1 },
+  brute:      { name: 'Behemót', desc: 'Sokat bír, nagyot üt. Mindig ritka zsákmányt ejt.', min: 5, w: r => Math.min(1.5, .4 * (r - 4)), hp: 4.5, dmg: 55,
+                eye: 0xff2a2a, lean: .12, skin: 0x4f5f44, speed: () => 1.6, scale: () => 1.45 },
+  leaper:     { name: 'Ugró', desc: 'Messziről rád veti magát. Amikor leguggol, lépj félre!', min: 5, w: () => 1.6, max: 4, hp: .7, dmg: 28, eye: 0xff5ad8, lean: .5,
+                leap: true, skin: 0x7a8a6a, speed: () => 3, scale: () => .95 },
+  armored:    { name: 'Páncélos', desc: 'Sisak és mellény: testlövésre alig sebződik, amíg a páncél le nem esik. Célozz fejre!', min: 6, w: () => 1.6, hp: 1.2, armor: 1.2, dmg: 40,
+                eye: 0x9fd0ff, lean: .1, speed: r => Math.min(2.4, 1.2 + r * .07), scale: () => 1.05 },
+  screamer:   { name: 'Sikoltó', desc: 'A sikolya felgyorsítja a közelben lévő zombikat. Őt lődd le először!', min: 7, w: () => 1.1, max: 2, hp: .9, dmg: 25, eye: 0xffffff, lean: .05,
+                ranged: [10, 18], scream: true, skin: 0xd8d4c8, speed: () => 2.4, scale: () => .95 },
+  phantom:    { name: 'Árny', desc: 'Szinte láthatatlan, amíg közel nem ér. Figyeld a szemeket.', min: 8, w: () => 1.3, max: 3, hp: .8, dmg: 34, eye: 0xb46cff, lean: .25,
+                ghost: true, skin: 0x2a2436, speed: () => 3.4, scale: () => 1 },
+  brood:      { name: 'Anyaboly', desc: 'Lassú és hatalmas, és folyamatosan porontyokat szül.', min: 9, w: () => .7, max: 1, hp: 6, dmg: 45, eye: 0xff9a2a, lean: .15,
+                brood: true, skin: 0x7a5a4a, speed: () => 1.1, scale: () => 1.6 },
+  spawnling:  { name: 'Poronty', desc: 'Az Anyaboly kicsinyei. Gyorsak, de egy lövés is elég nekik.', min: 9, w: () => 0, hp: .22, dmg: 12, eye: 0xff9a2a, lean: .3,
+                skin: 0x9a7a6a, speed: () => 4.6, scale: () => .55, points: 20 },
+  butcher:    { name: 'Mészáros', desc: 'Nehéz munkákon jön el az utolsó percekben. Nekiront, és a földbe csapja a bárdját.', min: 10, w: () => 0, hp: 30, dmg: 50, eye: 0xff2020, lean: .15,
+                boss: true, skin: 0x6a5048, speed: () => 2.3, scale: () => 2.1, points: 1000 },
+};
+const eyeMats = {};
+for (const k in KINDS) eyeMats[k] = new THREE.MeshBasicMaterial({ color: KINDS[k].eye });
+
+function pivot(g, x, y, z) { const p = new THREE.Group(); p.position.set(x, y, z); g.add(p); return p; }
+function mkZombie(kind) {
+  const K = KINDS[kind];
+  const skin = new THREE.MeshLambertMaterial({ color: K.skin || pick(SKIN) });
+  const cloth = new THREE.MeshLambertMaterial({ color: kind === 'gunslinger' ? 0x5a4630 : pick(CLOTH) });
+  const pants = new THREE.MeshLambertMaterial({ color: 0x2a2b2e });
+  const g = new THREE.Group();
+  const add = (geo, mat, parent, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
+  const legL = pivot(g, -.14, .8, 0), legR = pivot(g, .14, .8, 0);
+  const upper = pivot(g, 0, .8, 0);
+  const torso = add(ZG.torso, cloth, upper, 0, .4, 0);
+  const head = add(ZG.head, skin, upper, 0, 1.03, .02);
+  const armL = pivot(upper, -.41, .72, 0), armR = pivot(upper, .41, .72, 0);
+  const parts = [torso, head, add(ZG.arm, skin, armL, 0, -.34, 0), add(ZG.arm, skin, armR, 0, -.34, 0)];
+  const legs = [add(ZG.leg, pants, legL, 0, -.4, 0), add(ZG.leg, pants, legR, 0, -.4, 0)];
+  if (K.crawl) { legL.visible = legR.visible = false; upper.position.y = .3; }
+  else parts.push(...legs);
+  add(ZG.eye, eyeMats[kind], upper, -.1, 1.07, .235); add(ZG.eye, eyeMats[kind], upper, .1, 1.07, .235);
+  if (K.bloat) {
+    torso.scale.set(1.55, 1.15, 1.8);
+    for (let i = 0; i < 6; i++) add(ZG.pus, acidMat, upper, rand(-.4, .4), rand(.15, .7), rand(.3, .36));
+  }
+  if (K.spit) { head.scale.set(1.15, 1.2, 1.15); add(ZG.eye, acidMat, upper, 0, .9, .27).scale.set(2.4, 2.4, 1); }
+  const metal = new THREE.MeshLambertMaterial({ color: 0x5a6068 });
+  let armorParts = [];
+  if (K.armor) {
+    armorParts = [add(unitBox, metal, upper, 0, 1.27, .02), add(unitBox, metal, upper, 0, .45, 0), add(unitBox, metal, upper, 0, 1.13, .24)];
+    armorParts[0].scale.set(.5, .16, .5); armorParts[1].scale.set(.7, .62, .44); armorParts[2].scale.set(.42, .06, .04);
+  }
+  if (K.leap) { parts[2].scale.y = parts[3].scale.y = 1.3; }
+  if (K.scream) { add(unitBox, new THREE.MeshLambertMaterial({ color: 0xe8e4dc }), upper, 0, 1.0, -.2).scale.set(.46, .7, .12); add(unitBox, new THREE.MeshBasicMaterial({ color: 0x080404 }), upper, 0, .93, .225).scale.set(.14, .14, .02); }
+  if (K.brood) {
+    torso.scale.set(1.8, 1.3, 1.7);
+    const sac = new THREE.MeshLambertMaterial({ color: 0xc27a3a, emissive: 0x4a2008 });
+    for (let i = 0; i < 5; i++) add(ZG.pus, sac, upper, rand(-.45, .45), rand(.1, .75), rand(.28, .34)).scale.setScalar(rand(1.4, 2.2));
+  }
+  if (K.boss) {
+    add(unitBox, new THREE.MeshLambertMaterial({ color: 0xb8b0a0 }), upper, 0, .3, .19).scale.set(.58, .9, .04);
+    const steel = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: .8, roughness: .35 });
+    add(unitBox, new THREE.MeshLambertMaterial({ color: 0x3a2a1c }), armR, 0, -.78, 0).scale.set(.06, .22, .06);
+    add(unitBox, steel, armR, 0, -.98, .12).scale.set(.03, .32, .3);
+  }
+  if (K.gun) {
+    add(unitBox, hatMat, upper, 0, 1.25, .02).scale.set(.66, .04, .66);
+    add(unitBox, hatMat, upper, 0, 1.37, .02).scale.set(.36, .22, .36);
+    add(unitBox, revolverMat, armR, 0, -.8, .02).scale.set(.05, .24, .06);
+    add(unitBox, revolverMat, armR, 0, -.7, .07).scale.set(.05, .06, .1);
+  }
+  head.userData.head = true;
+  const mats = [skin, cloth, pants];
+  if (K.ghost) mats.forEach(m => { m.transparent = true; m.opacity = .12; m.depthWrite = false; });
+  return { g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
+}
+// ×1.12 per threat level: guns (+7.5% per level, rarity, upgrades, gear) can keep up instead of falling hopelessly behind
+function zombieHp() { return 100 * Math.pow(1.12, round - 1) * Math.pow(1.08, jobLvl() - 1); }
+// the job's level: zombies and loot scale with it, so the world keeps pace with you forever
+const jobLvl = () => (mission && mission.job.lvl) || (profile ? profile.level : 1);
+const lootLvl = (x = 0) => Math.max(1, jobLvl() + x + Math.floor(Math.random() * 3) - 1);
+// any kind can turn up at any threat; below its usual threat (min) it is rarer the further below it is
+function pickKind() {
+  const opts = Object.keys(KINDS).filter(k => !KINDS[k].max || zombies.filter(z => !z.dead && z.kind === k).length < KINDS[k].max);
+  const ws = opts.map(k => { const K = KINDS[k]; return Math.max(0, K.w(Math.max(round, K.min))) * (round >= K.min ? 1 : .3 * Math.pow(.72, K.min - round - 1)); });
+  let x = Math.random() * ws.reduce((a, b) => a + b);
+  for (let i = 0; i < opts.length; i++) if ((x -= ws[i]) <= 0) return opts[i];
+  return 'walker';
+}
+const seenKinds = new Set();
+function spawnZombie(kind) {
+  const all = activeSpawns(), d = ([x, z]) => Math.hypot(x - player.pos.x, z - player.pos.z);
+  // not in plain sight: closer than 30 m, inside ±55° of where you look, with a clear line
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), eye = new V3(player.pos.x, 1.6, player.pos.z);
+  const seen = ([x, z]) => { const D = d([x, z]); return D < 30 && ((x - player.pos.x) * fx + (z - player.pos.z) * fz) / D > .57 && hasSight(eye, new V3(x, 1.2, z)); };
+  const fair = all.filter(s => d(s) > 18), hidden = fair.filter(s => !seen(s)), near = hidden.filter(s => d(s) < 45);
+  const evac = mission && (mission.phase === 'evac' || mission.evacWarn) ? hidden.filter(([x, z]) => Math.hypot(x - truck.pos.x, z - truck.pos.z) < 32) : [];
+  const [sx, sz] = pick(evac.length && Math.random() < .35 ? evac : near.length ? near : hidden.length ? hidden : fair.length ? fair : all);
+  return spawnZombieAt(kind || pickKind(), sx + rand(-1.2, 1.2), sz + rand(-1.2, 1.2));
+}
+function spawnZombieAt(kind, x, zz, rise = 1) {
+  const K = KINDS[kind], m = mkZombie(kind);
+  const z = {
+    kind, K, ...m, pos: new V3(x, 0, zz),
+    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg, scale: K.scale(),
+    armor: K.armor ? zombieHp() * K.armor : 0, leapCd: rand(1, 3), crouch: 0, leap: null, buffT: 0, broodT: 4, bossT: 5, op: .12,
+    heading: 0, side: Math.random() < .5 ? -1 : 1, strafeT: rand(2, 4), walkT: rand(0, 6), rise: 1, atkCd: 0, windup: 0,
+    burnT: 0, burnDps: 0, burnAcc: 0, slowT: 0, flash: 0, groanT: rand(1, 6), dead: false, deathT: 0,
+    shootT: rand(1.5, 3), ammo: 6, gunReload: 0, gunKick: 0, fuse: 0,
+  };
+  if (roundMod.elite && !K.boss && kind !== 'spawnling' && Math.random() < .25) { z.elite = true; z.hp *= 2; z.scale *= 1.08; }
+  z.rise = rise;
+  z.maxHp = z.hp; z.id = ++zidSeq;
+  if (NET.mode === 'host') NET.zById.set(z.id, z);
+  z.g.scale.setScalar(z.scale);
+  z.parts.forEach(p => p.userData.z = z);
+  z.g.position.set(z.pos.x, -2.2, z.pos.z);
+  scene.add(z.g); zombies.push(z);
+  burst(new V3(z.pos.x, .1, z.pos.z), 0x2a2116, 12, 2.5, .8);
+  if (!seenKinds.has(kind) && !K.boss) { seenKinds.add(kind); if (K.desc) banner(`ÚJ: ${K.name.toUpperCase()}`, K.desc); }
+  return z;
+}
+const tmpV = new V3();
+function zHeadPos(z) { return tmpV.set(z.pos.x, (z.K.crawl ? 1 : 2) * z.scale + z.g.position.y, z.pos.z).clone(); }
+
+function hurtZombie(z, amt, o = {}) {
+  if (NET.client && mission) return netHit(z, amt, o); // a party member's hit goes to the host
+  if (z.dead) return;
+  if (o.remote) { if (o.insta && !z.K.boss) amt = Math.max(amt, z.hp); } // the sender already applied their own bonuses
+  else {
+    if (z.markT > 0) amt *= 1.5;                                   // Vadász: Jelölés
+    if (z.K.boss && rk('h_boss')) amt *= 1.2;
+    if (o.w && rk('h_exec') && z.hp < z.maxHp * .25) amt *= 2;
+    if (powers.insta > 0 && !o.dot && !z.K.boss) amt = Math.max(amt, z.hp);
+  }
+  if (z.armor > 0 && !o.head && !o.dot && !o.melee) { // armour soaks most body damage until it breaks
+    z.armor -= amt; amt *= .25;
+    burst(new V3(z.pos.x, 1.3 * z.scale, z.pos.z), 0xc8d0d8, 2, 2, .25);
+    if (z.armor <= 0) { z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xc8d0d8, 16, 3.5, .6); o.color = '#c8d0d8'; }
+    else o.color = o.color || '#8a929a';
+  }
+  z.hp -= amt; z.flash = .08; z.hitT = now;
+  const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
+  if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit);
+  if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
+  if (z.hp <= 0) killZombie(z, o);
+  else if (!o.dot && !o.remote) addPoints(10);
+}
+function applyElement(z, w, amt) {
+  if (w.element === 'fire') { z.burnT = 3; z.burnBy = null; z.burnDps = Math.max(z.burnDps, w.dmg * w.pellets * fireRate(w) * .12); } // ~12% of the gun's DPS, the same for every gun
+  else if (w.element === 'cryo') z.slowT = 2.5;
+  else if (w.element === 'shock') {
+    let best = null, bd = 5;
+    for (const o of zombies) { if (o === z || o.dead) continue; const d = o.pos.distanceTo(z.pos); if (d < bd) { bd = d; best = o; } }
+    if (best) {
+      tracer(new V3(z.pos.x, 1.3 * z.scale, z.pos.z), new V3(best.pos.x, 1.3 * best.scale, best.pos.z), ELEMENTS.shock.hex, .03);
+      hurtZombie(best, amt * .5, { chain: true, color: ELEMENTS.shock.color });
+    }
+  }
+}
+function addPoints(n) {
+  if (powers.double > 0) n *= 2;
+  n = Math.round(n * roundMod.points * (1 + G('points')));
+  player.points += n; player.earned += n; stats.earned += n; popPoints(n);
+}
+function popBloater(z) {
+  z.exploded = true; z.dead = true; z.g.visible = false; z.deathT = 2.9;
+  explode(new V3(z.pos.x, 1, z.pos.z), { r: 4.2, zdmg: 90 + zombieHp() * .9, pr: 3.8, pdmg: 45, color: 0x9dff3a });
+}
+function killZombie(z, o) {
+  z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1;
+  if (z.bounty) bountyKilled(z);
+  if (o.remote) { // a party member's kill: they get the points and roll the loot
+    burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 14, 3.5);
+    if (z.K.bloat && !z.exploded) popBloater(z);
+    return netKill(z, o);
+  }
+  player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1;
+  if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
+  if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
+  addPoints(z.K.points || (o.melee ? 130 : o.head ? 100 : 60));
+  hitmarker(true); SND.kill();
+  burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 14, 3.5);
+  if (z.K.bloat && !z.exploded) popBloater(z);
+  dropLoot(z, new V3(z.pos.x, 0, z.pos.z));
+}
+// what a kill drops; in a party each killer rolls their own
+function dropLoot(z, p) {
+  const dLuck = mission ? .06 * (mission.job.diff - 1) : 0; // harder jobs roll better loot
+  if (z.K.boss) {
+    spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
+    spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
+    if (!z.bounty) banner('A MÉSZÁROS ELESETT', 'Epikus vagy jobb fegyvert hagyott maga után.'); SND.roar();
+  } else if (z.elite) {
+    spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.3 + dLuck)), lootLvl()), p);
+  } else if (z.kind === 'brood') spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.3)), lootLvl()), p);
+  else if (z.kind === 'brute') {
+    spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.3)), lootLvl()), p);
+    if (Math.random() < .2) spawnPower(p.clone().add(new V3(1.2, 0, 0)));
+  }
+  else if (z.K.gun && Math.random() < .3) spawnDrop(makeWeapon(BASES.find(b => b.id === 'revolver'), rollRarity(.1), lootLvl()), p);
+  else if (Math.random() < .06 * SK.drop()) spawnDrop(makeWeapon(pick(BASES), Math.max(round >= 6 ? 1 : 0, rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck)), lootLvl()), p);
+  else if (Math.random() < .02) spawnPower(p);
+  else if (Math.random() < .04) spawnItem(pick(['med', 'med', 'gren', 'gren', 'knife', 'knife', 'knife', 'adren']), p);
+  // gear: the boss always drops a piece, big and elite zombies often, the rest rarely
+  const gc = z.K.boss ? 1 : z.elite || ['brute', 'brood', 'armored', 'screamer'].includes(z.kind) ? .25 : .03 * SK.drop();
+  if (Math.random() < gc) spawnGearDrop(makeGear(null, z.K.boss ? Math.max(3, rollRarity(.3 + dLuck)) : rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck), z.K.boss ? lootLvl(2) : lootLvl()), p.clone().add(new V3(.8, 0, .8)));
+}
+
+// ---------- ranged attacks ----------
+function hasSight(from, to) {
+  const d = to.clone().sub(from), len = d.length();
+  ray.set(from, d.normalize()); ray.far = len;
+  return ray.intersectObjects(rayBlockers, false).length === 0;
+}
+function gunslingerFire(z) {
+  z.armR.updateMatrixWorld(true);
+  const from = z.armR.localToWorld(new V3(0, -.95, 0));
+  // aims roughly at you, misses a lot
+  const aim = new V3(player.pos.x + rand(-1.2, 1.2), player.pos.y + rand(.2, 2.2), player.pos.z + rand(-1.2, 1.2));
+  const dir = aim.sub(from).normalize();
+  ray.set(from, dir); ray.far = 60;
+  const wall = ray.intersectObjects(rayBlockers, false)[0];
+  const wallD = wall ? wall.distance : 60;
+  const P = new V3(player.pos.x, player.pos.y + .9, player.pos.z);
+  const t = P.sub(from).dot(dir), C = from.clone().addScaledVector(dir, t);
+  const miss = Math.hypot(C.x - player.pos.x, C.z - player.pos.z);
+  const hit = t > 0 && t < wallD && miss < .42 && C.y > player.pos.y && C.y < player.pos.y + 1.85;
+  const end = hit ? C : from.clone().addScaledVector(dir, wallD);
+  tracer(from, end, 0xffb050, .018);
+  burst(from, 0xffc070, 4, 1.5, .2);
+  if (!hit && wall) burst(end, 0xffc070, 4, 2, .3);
+  const dist = z.pos.distanceTo(player.pos);
+  SND.zshot(clamp(.7 - dist / 45, .12, .7));
+  if (hit) { if (liveWorld()) hurtPlayer(9); }
+  else if (t > 0 && miss < 2.5) SND.whiz();
+  z.gunKick = .5;
+}
+const zProjs = [], puddles = [];
+const acidGeo = new THREE.SphereGeometry(.14, 8, 6);
+const puddleGeo = new THREE.CircleGeometry(1.6, 20); puddleGeo.rotateX(-Math.PI / 2);
+function spit(z) {
+  const from = new V3(z.pos.x, 1.8 * z.scale, z.pos.z);
+  const T = clamp(z.pos.distanceTo(player.pos) / 12, .6, 1.6);
+  const target = new V3(player.pos.x + player.vel.x * T * .6, .05, player.pos.z + player.vel.z * T * .6);
+  const v = target.sub(from).divideScalar(T); v.y += .5 * 12 * T;
+  const m = new THREE.Mesh(acidGeo, acidMat); m.position.copy(from); scene.add(m);
+  zProjs.push({ m, v });
+  SND.spit();
+}
+function updateZProjs(dt) {
+  for (let i = zProjs.length - 1; i >= 0; i--) {
+    const p = zProjs[i], pos = p.m.position;
+    p.v.y -= 12 * dt; pos.addScaledVector(p.v, dt);
+    if (Math.random() < dt * 20) burst(pos, 0x9dff3a, 1, .5, .3);
+    const direct = pos.distanceTo(new V3(player.pos.x, player.pos.y + 1, player.pos.z)) < .7;
+    if (pos.y <= .05 || direct) {
+      if (direct && liveWorld()) hurtPlayer(15);
+      const pm = new THREE.Mesh(puddleGeo, new THREE.MeshBasicMaterial({ color: 0x7fe02a, transparent: true, opacity: .55, depthWrite: false }));
+      pm.position.set(pos.x, .03, pos.z); scene.add(pm);
+      puddles.push({ m: pm, t: 5 });
+      burst(pos, 0x9dff3a, 10, 2.5, .5);
+      scene.remove(p.m); zProjs.splice(i, 1);
+    }
+  }
+  let inAcid = false; // overlapping puddles don't stack
+  for (let i = puddles.length - 1; i >= 0; i--) {
+    const p = puddles[i]; p.t -= dt;
+    p.m.material.opacity = Math.min(.55, p.t * .4);
+    if (Math.hypot(p.m.position.x - player.pos.x, p.m.position.z - player.pos.z) < 1.5 && player.pos.y < .4) inAcid = true;
+    if (p.t <= 0) { scene.remove(p.m); p.m.material.dispose(); puddles.splice(i, 1); }
+  }
+  if (inAcid && liveWorld()) { player.acid = (player.acid || 0) + 14 * dt; if (player.acid >= 6) { player.acid -= 6; hurtPlayer(6, true); } }
+  else player.acid = 0;
+}
+function clearZombieStuff() {
+  zombies.forEach(z => scene.remove(z.g)); zombies.length = 0;
+  zProjs.forEach(p => scene.remove(p.m)); zProjs.length = 0;
+  puddles.forEach(p => scene.remove(p.m)); puddles.length = 0;
+  seenKinds.clear();
+}
+
+function updateZombies(dt) {
+  let groanBudget = 1;
+  for (let i = zombies.length - 1; i >= 0; i--) {
+    const z = zombies[i], K = z.K;
+    if (z.dead) {
+      z.deathT += dt;
+      z.upper.rotation.x = lerp(z.upper.rotation.x, K.crawl ? 1.5 : -1.4, dt * 6);
+      z.g.rotation.z = lerp(z.g.rotation.z, (K.crawl ? .3 : 1.45) * z.fallDir, Math.min(1, dt * 5));
+      z.g.position.y = z.deathT > 1.4 ? -(z.deathT - 1.4) * 1.2 : .2 * z.scale * Math.min(1, z.deathT * 4);
+      if (z.deathT > 3) { scene.remove(z.g); z.mats.forEach(m => m.dispose()); zombies.splice(i, 1); NET.zById.delete(z.id); }
+      continue;
+    }
+    netAim(z); // in a party the host's zombies chase the nearest living player
+    // status effects
+    if (z.burnT > 0) {
+      z.burnT -= dt; z.burnAcc += z.burnDps * dt;
+      if (Math.random() < dt * 12) burst(new V3(z.pos.x + rand(-.2, .2), rand(.6, 1.9) * z.scale, z.pos.z + rand(-.2, .2)), 0xff7a20, 1, 1, .35);
+      if (z.burnAcc > 0 && (z.burnAcc >= z.burnDps * .5 || z.burnT <= 0)) { const a = z.burnAcc; z.burnAcc = 0; hurtZombie(z, a, { dot: true, color: ELEMENTS.fire.color, remote: z.burnBy || undefined }); if (z.dead) continue; }
+      if (z.burnT <= 0) z.burnDps = 0;
+    }
+    z.slowT -= dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
+    const fuseBlink = z.fuse > 0 && Math.sin(now * 40) > 0;
+    const em = z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0;
+    for (const m of z.mats) m.emissive.setHex(em);
+
+    if (z.rise > 0) {
+      z.rise = Math.max(0, z.rise - dt * .9);
+      z.g.position.set(z.pos.x, -2.2 * z.rise, z.pos.z);
+      z.armL.rotation.x = z.armR.rotation.x = -2.6;
+      continue;
+    }
+    const dx = player.pos.x - z.pos.x, dz = player.pos.z - z.pos.z, dist = Math.hypot(dx, dz);
+    const toPlayer = Math.atan2(dx, dz);
+    if (K.ghost) { // fades in only when close or just shot
+      z.op = lerp(z.op, dist < 7 || now - (z.hitT || -9) < 1.5 ? .9 : .1, Math.min(1, dt * 4));
+      for (const m of z.mats) m.opacity = z.op;
+    }
+    if (z.bounty) bountyTick(z, dt, dist);
+    if (K.leap && updateLeaper(z, dt, dist)) continue;
+    if (K.boss && updateBoss(z, dt, dist, toPlayer)) continue;
+    let ang = toPlayer, spMul = 1, move = dist > 1.05;
+    const via = routeTarget(z.pos); // player is behind a fence: walk through the gate
+    if (via) { ang = Math.atan2(via.x - z.pos.x, via.z - z.pos.z); move = true; }
+    else if (K.ranged) {
+      z.strafeT -= dt; if (z.strafeT <= 0) { z.strafeT = rand(1.5, 4); z.side *= -1; }
+      if (dist < K.ranged[0]) ang += Math.PI;                              // back off
+      else if (dist < K.ranged[1]) { ang += z.side * Math.PI / 2; spMul = .55; } // strafe
+    }
+    // around obstacles: a detour, once picked, is kept for a moment so zombies don't dither against long walls
+    if (z.detourT > 0) { z.detourT -= dt; if (!blockedAt(z.pos.x + Math.sin(z.detourA) * 1.1, z.pos.z + Math.cos(z.detourA) * 1.1, .4)) ang = z.detourA; else z.detourT = 0; }
+    else if (move && blockedAt(z.pos.x + Math.sin(ang) * 1.1, z.pos.z + Math.cos(ang) * 1.1, .4)) {
+      for (const off of [.7, -.7, 1.4, -1.4, 2.1, -2.1, 2.6, -2.6]) {
+        const a = ang + off * z.side;
+        if (!blockedAt(z.pos.x + Math.sin(a) * 1.1, z.pos.z + Math.cos(a) * 1.1, .4)) { ang = a; z.detourA = a; z.detourT = .8; break; }
+      }
+    }
+    // barely moved for 2 s: try the other way round; stuck far away for 6 s: replaced by a fresh spawn
+    if ((z.chkT = (z.chkT || 0) + dt) > 2) {
+      const moved = Math.hypot(z.pos.x - (z.chkX ?? z.pos.x), z.pos.z - (z.chkZ ?? z.pos.z));
+      if (move && moved < .3) z.side *= -1;
+      z.stuckT = moved < .5 && dist > 25 && !K.boss ? (z.stuckT || 0) + z.chkT : 0;
+      z.chkT = 0; z.chkX = z.pos.x; z.chkZ = z.pos.z;
+      if (z.stuckT >= 6) { scene.remove(z.g); z.mats.forEach(m => m.dispose()); zombies.splice(i, 1); NET.zById.delete(z.id); netAimEnd(); spawnZombie(z.kind); continue; }
+    }
+    let dh = ((ang - z.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    z.heading += dh * Math.min(1, dt * 7);
+    const sp = z.speed * spMul * (z.slowT > 0 ? .45 : 1) * (z.windup > 0 ? .35 : 1) * (z.fuse > 0 ? .3 : 1) * (z.buffT > 0 ? 1.45 : 1);
+    let mx = 0, mz = 0;
+    if (move) { mx = Math.sin(z.heading) * sp * dt; mz = Math.cos(z.heading) * sp * dt; }
+    for (const o of zombies) {
+      if (o === z || o.dead || o.rise > 0) continue;
+      const ox = z.pos.x - o.pos.x, oz = z.pos.z - o.pos.z, d2 = ox * ox + oz * oz, rr = .38 * (z.scale + o.scale);
+      if (d2 < rr * rr && d2 > 1e-6) { const d = Math.sqrt(d2), push = (rr - d) * .5; mx += ox / d * push; mz += oz / d * push; }
+    }
+    z.pos.x += mx; z.pos.z += mz;
+    collide(z.pos, .35 * z.scale);
+    // animation
+    const moving = Math.hypot(mx, mz) / Math.max(dt, 1e-4);
+    z.walkT += dt * (2 + moving * 2.2);
+    // poses ease toward their targets instead of snapping, so states blend into each other
+    const bl = 1 - Math.exp(-dt * 9), ease = (o, k, v) => { o[k] += (v - o[k]) * bl; };
+    z.amp = lerp(z.amp || 0, Math.min(.75, .15 + moving * .18), bl); // smoothed stride: crowd pushes don't twitch the legs
+    const sw = Math.sin(z.walkT) * z.amp;
+    z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
+    ease(z.upper.rotation, 'x', K.lean);
+    z.upper.rotation.z = Math.sin(z.walkT * .5) * .06;
+    if (K.crawl) { z.armL.rotation.x = -1.3 + sw * 1.2; z.armR.rotation.x = -1.3 - sw * 1.2; }
+    else {
+      const reach = -1.35 + Math.sin(z.walkT * .7) * .12;
+      ease(z.armL.rotation, 'x', reach - (z.windup > 0 ? .9 : 0));
+      if (!K.gun) ease(z.armR.rotation, 'x', reach + .1 - (z.windup > 0 ? .9 : 0));
+    }
+    if (K.bloat) z.torso.scale.x = 1.55 + Math.sin(now * (z.fuse > 0 ? 30 : 3)) * (z.fuse > 0 ? .15 : .04);
+    z.g.position.set(z.pos.x, Math.abs(Math.sin(z.walkT)) * .05, z.pos.z);
+    z.g.rotation.y = K.ranged ? toPlayer : z.heading;
+    // attacks
+    z.atkCd -= dt;
+    if (K.bloat) {
+      if (z.fuse > 0) { z.fuse -= dt; if (z.fuse <= 0) { popBloater(z); continue; } }
+      else if (dist < 2.2) { z.fuse = .75; SND.fuse(); }
+    } else if (K.gun) {
+      z.gunKick = Math.max(0, z.gunKick - dt * 4);
+      if (z.gunReload > 0) { z.gunReload -= dt; z.armR.rotation.x = -.4; z.armR.rotation.z = now * 12; }
+      else {
+        z.armR.rotation.x += (-1.5 - z.gunKick - z.armR.rotation.x) * Math.min(1, dt * 14);
+        z.armR.rotation.z += (0 - z.armR.rotation.z) * Math.min(1, dt * 10);
+        z.shootT -= dt;
+        const eye = new V3(z.pos.x, 1.6, z.pos.z);
+        if (z.shootT < .35 && !z.told && dist < 30) { // aim tell: a glint and the hammer click just before the shot
+          z.told = true;
+          burst(new V3(z.pos.x + Math.sin(z.heading) * .5, 1.55 * z.scale, z.pos.z + Math.cos(z.heading) * .5), 0xfff0a0, 4, .3, .25);
+          tn(1500, .03, clamp(.25 - dist / 150, .04, .25), 'square');
+        }
+        if (z.shootT <= 0 && dist < 30) {
+          z.shootT = rand(1.5, 2.6); z.told = false;
+          if (hasSight(eye, new V3(player.pos.x, player.pos.y + 1.4, player.pos.z))) gunslingerFire(z);
+          if (--z.ammo <= 0) { z.ammo = 6; z.gunReload = 2.6; z.armR.rotation.z = 0; }
+        }
+      }
+    } else if (K.scream) {
+      z.shootT -= dt;
+      if (z.shootT <= 0 && dist < 26) {
+        z.shootT = rand(6, 9); z.screamT = .8;
+        SND.scream(clamp(.45 - dist / 60, .1, .45));
+        burst(new V3(z.pos.x, 1.8 * z.scale, z.pos.z), 0xffffff, 18, 5, .5);
+        for (const o of zombies) if (o !== z && !o.dead && o.pos.distanceTo(z.pos) < 14) o.buffT = 5;
+      }
+      if ((z.screamT -= dt) > 0) z.upper.rotation.x = -.5;
+    } else if (K.brood) {
+      z.broodT -= dt;
+      if (z.broodT <= 0) {
+        z.broodT = 5;
+        if (zombies.filter(o => !o.dead && o.kind === 'spawnling').length < 6) for (let k = 0; k < 2; k++) {
+          const a = rand(0, 6.28); spawnZombieAt('spawnling', z.pos.x + Math.sin(a) * 1.4, z.pos.z + Math.cos(a) * 1.4, .35);
+        }
+        burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0xc27a3a, 14, 3, .6); SND.spit();
+      }
+    } else if (K.spit && dist > 4) {
+      z.shootT -= dt;
+      if (z.shootT <= 0 && dist < 22) { z.shootT = rand(3, 4.5); spit(z); }
+    }
+    if (!K.bloat) {
+      const reachD = 1.45 * z.scale;
+      if (z.windup > 0) {
+        z.windup -= dt;
+        if (z.windup <= 0) {
+          z.atkCd = 1.1;
+          if (dist < reachD + .35 && liveWorld()) hurtPlayer(z.dmg * (1 + .03 * (round - 1)));
+          if (!K.crawl) z.armL.rotation.x = z.armR.rotation.x = -.6;
+        }
+      } else if (dist < reachD && z.atkCd <= 0) z.windup = .38;
+    }
+    // groans
+    z.groanT -= dt;
+    if (z.groanT <= 0) { z.groanT = rand(3, 9); if (dist < 26 && groanBudget-- > 0) SND.groan(.22 * (1 - dist / 26) * (z.kind === 'brute' ? 1.6 : 1)); }
+  }
+  netAimEnd();
+  updateZProjs(dt);
+}
+
+// ---------- special movers ----------
+// leaper: crouch for a beat (the tell), then jump in an arc to where you are heading
+function updateLeaper(z, dt, dist) {
+  z.leapCd -= dt;
+  if (z.leap) {
+    const L = z.leap; L.t += dt; const u = Math.min(1, L.t / L.dur);
+    z.pos.x = lerp(L.from.x, L.to.x, u); z.pos.z = lerp(L.from.z, L.to.z, u); collide(z.pos, .3);
+    z.g.position.set(z.pos.x, Math.sin(u * Math.PI) * 1.8, z.pos.z); z.g.rotation.y = z.heading = L.ang;
+    z.armL.rotation.x = z.armR.rotation.x = -2.2; z.upper.rotation.x = .3;
+    if (u >= 1) {
+      z.leap = null; z.leapCd = rand(3.5, 5);
+      burst(new V3(z.pos.x, .1, z.pos.z), 0x3a3020, 10, 2.5, .5);
+      if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 1.9 && liveWorld()) hurtPlayer(z.dmg * (1 + .03 * (round - 1)));
+    }
+    return true;
+  }
+  if (z.crouch > 0) {
+    z.crouch -= dt;
+    z.upper.rotation.x += (1.1 - z.upper.rotation.x) * Math.min(1, dt * 12);
+    z.g.position.set(z.pos.x, -.18, z.pos.z);
+    if (z.crouch <= 0) {
+      const to = player.pos.clone().addScaledVector(player.vel, .35), d = Math.hypot(to.x - z.pos.x, to.z - z.pos.z);
+      if (d > 10) to.sub(z.pos).setLength(10).add(z.pos);
+      z.leap = { t: 0, dur: .7, from: z.pos.clone(), to, ang: Math.atan2(to.x - z.pos.x, to.z - z.pos.z) };
+      SND.leap();
+    }
+    return true;
+  }
+  if (z.leapCd <= 0 && dist > 4 && dist < 10 && !routeTarget(z.pos)) { z.crouch = .45; return true; }
+  return false;
+}
+// the Butcher: winds up, charges in a straight line, and slams the ground when you are close
+function updateBoss(z, dt, dist, toPlayer) {
+  z.bossT -= dt;
+  const face = a => { z.heading += (((a - z.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 6); z.g.rotation.y = z.heading; };
+  if (z.bossState === 'windup' || z.bossState === 'slamup') {
+    z.stateT -= dt; face(toPlayer);
+    z.armR.rotation.x += (-2.8 - z.armR.rotation.x) * Math.min(1, dt * 8);
+    if (z.stateT <= 0) {
+      if (z.bossState === 'windup') { z.bossState = 'charge'; z.stateT = 1.4; z.chargeAng = z.heading; z.hitDone = false; }
+      else {
+        z.bossState = null; z.bossT = rand(1.5, 2.5); z.armR.rotation.x = -.3;
+        SND.slam(); player.shake = Math.max(player.shake, .5);
+        burst(new V3(z.pos.x + Math.sin(z.heading) * 2, .2, z.pos.z + Math.cos(z.heading) * 2), 0x3a3020, 30, 5, .8);
+        if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 3.6 && liveWorld()) hurtPlayer(45);
+      }
+    }
+    z.g.position.set(z.pos.x, 0, z.pos.z);
+    return true;
+  }
+  if (z.bossState === 'charge') {
+    z.stateT -= dt;
+    z.pos.x += Math.sin(z.chargeAng) * 10 * dt; z.pos.z += Math.cos(z.chargeAng) * 10 * dt;
+    const before = z.pos.clone(); collide(z.pos, .7);
+    z.walkT += dt * 16; const sw = Math.sin(z.walkT) * .8; z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
+    z.g.position.set(z.pos.x, 0, z.pos.z); z.g.rotation.y = z.heading = z.chargeAng;
+    if (!z.hitDone && dist < 2.2 && liveWorld()) { z.hitDone = true; hurtPlayer(z.dmg * (1 + .03 * (round - 1))); player.shake = .6; }
+    if (z.stateT <= 0 || before.distanceTo(z.pos) > .05) { z.bossState = null; z.bossT = rand(5, 8); }
+    return true;
+  }
+  if (z.bossT <= 0 && dist > 6 && dist < 30 && !routeTarget(z.pos)) { z.bossState = 'windup'; z.stateT = .9; SND.roar(); return true; }
+  if (dist < 3 && z.atkCd <= 0) { z.bossState = 'slamup'; z.stateT = .7; z.atkCd = 2.5; return true; }
+  return false; // otherwise walks like everyone else
+}
+
+// ---------- health bars: the zombie under the crosshair + anything hit recently ----------
+const hbPool = [];
+function hbEl(i) {
+  if (!hbPool[i]) {
+    const e = document.createElement('div'); e.className = 'hb';
+    e.innerHTML = '<span></span><i><b></b></i>'; $('hbars').appendChild(e); hbPool[i] = e;
+  }
+  return hbPool[i];
+}
+function updateHealthBars() {
+  const parts = [];
+  for (const z of zombies) if (!z.dead) parts.push(...z.parts);
+  ray.set(camera.position, new V3(0, 0, -1).applyQuaternion(camera.quaternion)); ray.far = 70;
+  const h = ray.intersectObjects(rayBlockers.concat(parts), false)[0];
+  const looked = h && h.object.userData.z;
+  const W = innerWidth / 2, H = innerHeight / 2, v = new V3();
+  let n = 0;
+  for (const z of zombies) {
+    if (z.dead || z.rise > .5 || z.K.boss || (z.K.ghost && z.op < .4) || (z !== looked && !(now - (z.hitT || -99) < 2.5))) continue;
+    v.set(z.pos.x, (z.K.crawl ? 1.1 : 2.25) * z.scale + z.g.position.y, z.pos.z).project(camera);
+    if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) continue;
+    const e = hbEl(n++);
+    e.hidden = false;
+    e.classList.toggle('big', z.kind === 'brute');
+    e.style.transform = `translate(${v.x * W + W}px,${-v.y * H + H}px) translate(-50%,-100%)`;
+    e.firstChild.textContent = (z.elite ? 'Elit ' : '') + (z.kind === 'walker' ? '' : z.K.name);
+    e.querySelector('b').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
+  }
+  for (let i = n; i < hbPool.length; i++) hbPool[i].hidden = true;
+  const boss = zombies.find(z => z.K.boss && !z.dead);
+  $('bossbar').hidden = !boss;
+  if (boss) { const p = Math.max(0, boss.hp / boss.maxHp * 100) + '%'; $('bossfill').style.width = p; $('bosslag').style.width = p; $('bossname').textContent = boss.K.name.toUpperCase(); }
+}
+
+// ---------- bounties: one very strong boss, guaranteed legendary loot ----------
+const BOUNTIES = {
+  butcher: { name: 'A Mészáros', desc: 'Nekiront, és a földbe csapja a bárdját. Hívja a sétálókat.', hp: 3.2, tint: 0x6a1010, summon: ['walker', 12, 3] },
+  pyre:    { name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 2.8, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
+  queen:   { name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 3, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
+  shade:   { name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 2.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
+};
+function spawnBounty(key) {
+  const B = BOUNTIES[key] || BOUNTIES.butcher, all = activeSpawns();
+  const [sx, sz] = all.reduce((b, s) => Math.abs(Math.hypot(s[0] - player.pos.x, s[1] - player.pos.z) - 38) < Math.abs(Math.hypot(b[0] - player.pos.x, b[1] - player.pos.z) - 38) ? s : b);
+  const z = spawnZombieAt('butcher', sx, sz);
+  z.bounty = key; z.hp *= B.hp; z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale);
+  const tint = new THREE.Color(B.tint); z.mats.forEach(m => m.color && m.color.lerp(tint, .45));
+  z.sumT = 6; z.novaT = 8; z.blinkT = 10;
+  banner(B.name.toUpperCase(), B.desc); SND.roar();
+  return z;
+}
+function bountyTick(z, dt, dist) {
+  const B = BOUNTIES[z.bounty]; if (!B) return;
+  if (!z.enraged && z.hp < z.maxHp * .5) { z.enraged = true; z.speed *= 1.3; z.sumT = 1; banner('FELDÜHÖDÖTT', B.name); SND.roar(); }
+  if ((z.sumT -= dt) <= 0) { // calls its brood
+    const [kind, every, n] = B.summon; z.sumT = every * (z.enraged ? .6 : 1);
+    if (alive() < aliveCap() + 8) for (let k = 0; k < n; k++) { const a = rand(0, 6.28); spawnZombieAt(kind, z.pos.x + Math.sin(a) * 2.5, z.pos.z + Math.cos(a) * 2.5, .5); }
+  }
+  if (B.nova && (z.novaT -= dt) <= 0) { // ring of fire
+    z.novaT = z.enraged ? 6 : 9;
+    for (let k = 0; k < 24; k++) { const a = k / 24 * 6.28; burst(new V3(z.pos.x + Math.sin(a) * 5, .2, z.pos.z + Math.cos(a) * 5), 0xff7a1a, 3, 2, .6); }
+    SND.explode();
+    if (dist < 6.5 && liveWorld()) hurtPlayer(28);
+  }
+  if (B.blink && (z.blinkT -= dt) <= 0 && dist > 5) { // vanishes and comes out behind you
+    z.blinkT = z.enraged ? 7 : 10;
+    burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6);
+    const f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    z.pos.set(player.pos.x - f.x * 4, 0, player.pos.z - f.z * 4); collide(z.pos, .7);
+    burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6); SND.leap();
+  }
+}
+// the bounty is done: everyone in the party gets a legendary gun and a legendary piece of armor, then the van comes
+function bountyKilled(z) {
+  const M = mission; if (!M || M.bountyDone) return;
+  M.bountyDone = true; M.bountyAt = [z.pos.x, z.pos.z];
+  M.job.dur = M.t + EVAC_WARN + 1;
+  bountyLoot(z.pos);
+  banner(`${(BOUNTIES[z.bounty] || BOUNTIES.butcher).name.toUpperCase()} ELESETT`, 'Legendás zsákmány! Szedd fel, aztán irány a furgon.');
+}
+function bountyLoot(pos) {
+  const p = new V3(pos.x, 0, pos.z);
+  spawnDrop(makeWeapon(pick(BASES), 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0)));
+  spawnGearDrop(makeGear(null, 4, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
+}
