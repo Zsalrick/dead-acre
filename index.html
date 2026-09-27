@@ -751,6 +751,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 .jsvg .loc.feat rect{fill:#ffd23f}.jsvg .fring{fill:none;stroke:#ffd23f;stroke-width:2;opacity:.6}.jsvg .loc .ft{fill:#ffd23f}
 .featb{color:#ffd23f;font-size:10px;letter-spacing:.1em;margin-left:6px}
 .hostpick{display:grid;gap:2px;margin-bottom:10px;padding:10px 14px;border:1px solid #f2a33a;background:rgba(242,163,58,.08)}.hostpick small{font-size:10px;letter-spacing:.2em;color:#f2a33a}.hostpick b{font-size:16px}.hostpick span{font-size:12px;color:#cfc6b0}
+.subnav{display:flex;gap:4px;margin:-4px 0 14px;border-bottom:1px solid rgba(232,226,208,.12)}
+.sbtab{font:inherit;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:8px 14px;background:none;border:0;border-bottom:2px solid transparent;color:#8f8b7c;cursor:pointer}
+.sbtab:hover{color:#e8e2d0}.sbtab.on{color:#e8e2d0;border-bottom-color:#f2a33a}
+.junk{display:flex;align-items:center;gap:4px;margin-right:14px}.junk b{font-size:11px;letter-spacing:.1em;color:#8f8b7c;margin-right:4px}
+.chip{font:inherit;font-size:11px;padding:4px 9px;background:rgba(255,255,255,.04);border:1px solid rgba(232,226,208,.15);color:#cfc6b0;cursor:pointer}.chip.on{background:#f2a33a;color:#000;border-color:#f2a33a}
+.hubbody .dact{padding:8px 12px;gap:4px}.hubbody .dact .sbtn{padding:5px 9px;font-size:11px}
+#hub{padding-bottom:52px}
+@media (max-height:820px){.hubbody .dhead img{max-height:84px}}
 </style>
 
 <div id="game">
@@ -830,8 +838,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
         </div>
       </header>
       <nav class="hubnav">
-        <button class="mbtn" data-hub="jobs">Munkák</button><button class="mbtn" data-hub="arsenal">Fegyverek</button><button class="mbtn" data-hub="gear">Páncél</button>
-        <button class="mbtn" data-hub="skills">Képességek</button><button class="mbtn" data-hub="upgrades">Fejlesztések</button><button class="mbtn" data-hub="vet">Veterán</button><button class="mbtn" data-hub="shop">Bolt</button>
+        <button class="mbtn" data-hub="jobs">Munkák</button><button class="mbtn" data-hub="arsenal" data-group="kit">Felszerelés</button>
+        <button class="mbtn" data-hub="skills" data-group="grow">Fejlődés</button><button class="mbtn" data-hub="shop">Bolt</button>
         <button class="mbtn" data-hub="career">Karrier</button>
       </nav>
       <section id="hubBody" class="hubbody"></section>
