@@ -106,6 +106,7 @@ const SK = {
     if (rk('s_rage') && player.hp < maxHp() * .3) m += .25;
     if (exoOn('berserk')) m += .5 * clamp(1 - player.hp / maxHp(), 0, 1);
     if (player.bloodN && now < player.bloodT) m += .05 * player.bloodN; // Gravetide: Vérszomj
+    m += .02 * masteryTier(w.base.id); // weapon mastery
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
   crit: w => .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),

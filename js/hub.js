@@ -231,6 +231,8 @@ const HUB = {
       ['Keresett pénz', `$${stats.cash}`], ['Legendás fegyverek', stats.legendaries], ['Játékidő', ptime]];
     const maps = MAP_IDS.map(id => { const m = stats.byMap[id] || {}; return `<li><b>${MAPS[id].name}</b><span>${profile.level >= MAPS[id].minLevel ? `${m.done || 0} kész · ${m.fail || 0} elbukott` : `${MAPS[id].minLevel}. szinttől`}</span></li>`; }).join('');
     return `<div class="hubhead"><h2>Karrier</h2></div><label class="charname">Karakter neve <input id="charName" maxlength="24" value="${esc(profile.name)}"></label><div class="stats wide">${cells.map(([a, b]) => `<div>${a}<strong>${b}</strong></div>`).join('')}</div>
+      <h3>Fegyvermesterség <small>ölések fegyvertípusonként · szintenként +2% sebzés azzal a típussal</small></h3><div class="mastery">${BASES.map(b => { const n = (stats.byBase || {})[b.id] || 0, t = masteryTier(b.id), next = MASTERY[t], prev = t ? MASTERY[t - 1] : 0;
+        return `<div class="mst${t ? ' on' : ''}"><img src="${gunShot(b, Math.min(4, t))}" alt=""><b>${b.name}</b><small>${t ? `${MASTERY_NAMES[t - 1]} · +${2 * t}%` : 'még nincs szint'}</small><i><em style="width:${next ? Math.min(100, (n - prev) / (next - prev) * 100) : 100}%"></em></i><small>${n}${next ? ` / ${next}` : ' · max'}</small></div>`; }).join('')}</div>
       <div class="mcols"><section><h3>Pályák</h3><ul class="mlist">${maps}</ul></section>
       <section><h3>Ölések fajtánként</h3><ul class="mlist cols2">${Object.entries(KINDS).sort((a, b) => (stats.killsBy[b[0]] || 0) - (stats.killsBy[a[0]] || 0)).map(([k, K]) => `<li class="${stats.killsBy[k] ? '' : 'zero'}"><b>${K.name}</b><span>${stats.killsBy[k] || '–'}</span></li>`).join('')}</ul></section></div>`;
   },

@@ -297,7 +297,7 @@ function netKill(z, o) {
 // the killer's side: points, stats and their own loot roll
 function netOwnKill(e) {
   const [, , ki, head, pts, x, zz, elite] = e, kind = KIND_IDS[ki]; if (!kind) return;
-  player.kills++; stats.kills++; stats.killsBy[kind] = (stats.killsBy[kind] || 0) + 1; myKill(curW(), KINDS[kind].name, head);
+  player.kills++; stats.kills++; stats.killsBy[kind] = (stats.killsBy[kind] || 0) + 1; myKill(curW(), KINDS[kind].name, head); noteBaseKill(curW());
   if (head) { player.heads++; stats.heads++; }
   if (rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(+pts || 60); hitmarker(true); SND.kill();

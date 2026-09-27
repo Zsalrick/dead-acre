@@ -241,6 +241,7 @@ function killZombie(z, o) {
   if (brand4('cinder') && !o.w && !o.melee && !o.dot && Math.random() < .4) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .9, pr: .01, pdmg: .001, color: 0xff9a4a }), 120);
   if (o.head && o.w && exoOn('quick')) o.w.ammo = o.w.mag;
   if (o.head && !z.K.boss) headPop(z);
+  noteBaseKill(o.w);
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(z.K.points || (o.melee ? 130 : o.head ? 100 : 60));
