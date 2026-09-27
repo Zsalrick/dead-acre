@@ -721,6 +721,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 #chatIn{font:inherit;font-size:13px;padding:7px 10px;background:rgba(10,12,11,.92);color:#e8e2d0;border:1px solid #f2a33a;outline:none}
 .kf .kv{color:#9a968a;font-weight:600}
 .tiles.shared{outline:1px dashed rgba(125,211,255,.35);outline-offset:4px}
+.contracts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.ctr{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(232,226,208,.12);border-left:3px solid #f2a33a;font-size:13px}
+.ctr>b{font-size:10px;letter-spacing:.14em;color:#f2a33a}.ctr.wk{border-left-color:#ff5a3a}.ctr.wk>b{color:#ff5a3a}
+.ctr span{display:grid;gap:3px}.ctr small{color:#8f8b7c;font-size:11px}.ctr i{display:block;height:4px;background:rgba(255,255,255,.1)}.ctr i em{display:block;height:100%;background:#f2a33a}
+.ctr.got{opacity:.5}.ctr .ok{font-style:normal;color:#6dff9a;font-weight:700}.ctr .sbtn{padding:6px 10px}
+@media (max-width:1100px){.contracts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 
 <div id="game">

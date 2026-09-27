@@ -136,7 +136,7 @@ const HUB = {
       const tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase();
       return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy})" style="--jc:${col}"><line x1="0" y1="0" x2="${-dx}" y2="${-dy}"/><circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 10 : 8}"/><text y="-24">${tag}</text></g>`;
     }).join('');
-    return partyPanel() + `<div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
+    return partyPanel() + `${contractsStrip()}<div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
       <div class="jobmap"><svg viewBox="0 0 900 440" class="jsvg" role="img" aria-label="Munkatérkép">${MAP_ART}${locs}${marks}</svg><div class="jside">${jobCard(J[jobSel], jobSel, notReady)}</div></div>`;
   },
   arsenal() {
@@ -233,6 +233,7 @@ $('hubBody').addEventListener('click', e => {
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'jsel') { jobSel = +a; return renderHub(); }
+  if (kind === 'claim') claimContract(a);
   if (kind === 'testground') { if (NET.code && !NET.host) return; return startJob(testJob()); }
   if (kind === 'job') { if (!P.cls) { hubTab = 'skills'; return renderHub(); } if (NET.code && (!NET.host || partyMembers().some(m => !m.me && !m.rdy))) return; return startJob(P.jobs[+a]); }
   if (['cls', 'sk', 'respec', 'reclass', 'aug'].includes(kind)) skillAction(kind, a);

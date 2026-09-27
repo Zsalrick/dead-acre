@@ -40,3 +40,47 @@ function vetTab() {
     <div class="vtop"><div>Veterán rang<strong>${vetEarned()}</strong></div><div>Elkölthető pont<strong class="cash">${avail}</strong></div></div>
     <div class="gtop"><section><h3>Bónuszok</h3><div class="slist">${rows}</div></section><section><h3>Kihívások</h3><div class="chals">${ch}</div></section></div>`;
 }
+
+// ---------- daily and weekly contracts (Division projects): fresh goals every day, a big one every week ----------
+const CONTRACTS = [
+  { id: 'kills', txt: n => `Ölj meg ${n} zombit`, n: [150, 250], get: s => s.kills },
+  { id: 'heads', txt: n => `${n} fejlövéses ölés`, n: [40, 70], get: s => s.heads },
+  { id: 'jobs', txt: n => `Teljesíts ${n} munkát`, n: [2, 3], get: s => s.jobs },
+  { id: 'hard', txt: n => `Teljesíts ${n} legalább 4 csillagos munkát`, n: [1, 1], get: s => s.hard || 0 },
+  { id: 'bounty', txt: n => `Teljesíts ${n} fejvadászatot`, n: [1, 1], get: s => s.bounties || 0 },
+  { id: 'legend', txt: n => `Találj ${n} legendás tárgyat`, n: [1, 2], get: s => s.legendaries },
+  { id: 'cash', txt: n => `Keress $${n}-t munkákon`, n: [3000, 6000], get: s => s.cash },
+];
+const WEEKLY = [
+  { id: 'kills', txt: n => `Ölj meg ${n} zombit`, n: [1500, 1500], get: s => s.kills },
+  { id: 'jobs', txt: n => `Teljesíts ${n} munkát`, n: [12, 12], get: s => s.jobs },
+  { id: 'hard', txt: n => `Teljesíts ${n} legalább 4 csillagos munkát`, n: [5, 5], get: s => s.hard || 0 },
+  { id: 'bounty', txt: n => `Teljesíts ${n} fejvadászatot`, n: [3, 3], get: s => s.bounties || 0 },
+];
+const dayKey = () => new Date().toLocaleDateString('sv'), weekKey = () => Math.floor((Date.now() / 864e5 + 3) / 7);
+function rollContracts() {
+  const P = profile, mk = (D, lvl) => ({ id: D.id, n: Math.round(D.n[0] + Math.random() * (D.n[1] - D.n[0])), base: D.get(stats) || 0, got: false, lvl });
+  if (!P.daily || P.daily.day !== dayKey()) { const pool = CONTRACTS.filter(c => c.id !== 'bounty' || P.level >= 3).sort(() => Math.random() - .5); P.daily = { day: dayKey(), list: pool.slice(0, 3).map(D => mk(D)) }; }
+  if (!P.weekly || P.weekly.wk !== weekKey()) P.weekly = { wk: weekKey(), c: mk(pick(WEEKLY.filter(c => c.id !== 'bounty' || P.level >= 3))) };
+}
+const cDef = (c, weekly) => (weekly ? WEEKLY : CONTRACTS).find(d => d.id === c.id);
+const cProg = (c, weekly) => Math.min(c.n, (cDef(c, weekly).get(stats) || 0) - c.base);
+const dailyReward = () => ({ cash: 600 + 120 * profile.level, parts: 8 });
+function claimContract(i) {
+  const P = profile, weekly = i === 'w', c = weekly ? P.weekly.c : P.daily.list[+i];
+  if (!c || c.got || cProg(c, weekly) < c.n) return;
+  c.got = true;
+  if (weekly) { // the weekly cache: an exotic piece, parts and cash
+    const it = makeExotic(null, profile.level); if (P.gearStash.length < gearMax()) P.gearStash.push(it); else P.cash += gearValue(it);
+    P.parts = (P.parts || 0) + 40; P.cash += 3000 + 300 * P.level; banner('HETI KONTRAKT KÉSZ', `${it.name} (egzotikus) · +40 ⚙`);
+  } else { const r = dailyReward(); P.cash += r.cash; P.parts = (P.parts || 0) + r.parts; }
+  SND.power();
+}
+function contractsStrip() {
+  rollContracts();
+  const P = profile, row = (c, i, weekly) => {
+    const p = cProg(c, weekly), done = p >= c.n, rw = weekly ? 'egzotikus + 40 ⚙' : `$${dailyReward().cash} + ${dailyReward().parts} ⚙`;
+    return `<div class="ctr${weekly ? ' wk' : ''}${c.got ? ' got' : ''}"><b>${weekly ? 'HETI' : 'NAPI'}</b><span>${cDef(c, weekly).txt(c.n)}<small>${Math.max(0, Math.floor(p))} / ${c.n} · ${rw}</small><i><em style="width:${Math.max(0, p) / c.n * 100}%"></em></i></span>${c.got ? '<em class="ok">✓</em>' : done ? hbtn('Átvétel', `claim:${i}`) : ''}</div>`;
+  };
+  return `<div class="contracts">${P.daily.list.map((c, i) => row(c, i, false)).join('')}${row(P.weekly.c, 'w', true)}</div>`;
+}

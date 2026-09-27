@@ -218,7 +218,7 @@ function finishJob(success, abandoned) {
   P.tokens = (P.tokens || 0) + tokens;
   P.inv = player.inv;
   const bm = stats.byMap[J.map] || (stats.byMap[J.map] = { done: 0, fail: 0 });
-  if (success) { stats.jobs++; bm.done++; } else { stats.fails++; bm.fail++; }
+  if (success) { stats.jobs++; bm.done++; if (J.diff >= 4 && !J.test) stats.hard = (stats.hard || 0) + 1; } else { stats.fails++; bm.fail++; }
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   NET.revs = 0;
