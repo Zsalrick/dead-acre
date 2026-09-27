@@ -48,7 +48,7 @@ const CLASSES = {
   },
   engineer: {
     name: 'Mérnök', tag: 'Csavarkulcs', color: '#8fb8ff', desc: 'Tornyok, robbanások és olcsóbb felszerelés. A pálya az ő fegyvere.',
-    passive: '+20% robbanás-sebzés, és minden munkát +1 gránáttal kezdesz.',
+    passive: '+20% robbanás-sebzés, +12% sebzés energiafegyverrel, és minden munkát +1 gránáttal kezdesz.',
     ability: { name: 'Szerelőtorony', cd: 60, desc: 'Ingyen telepít egy lövegtornyot 25 mp-re.' },
     tree: [
       ['e_boom', 'Robbanóanyag', 3, r => `+${8 * r}% robbanás-sebzés (gránát, gránátvető, hordó)`],
@@ -113,7 +113,7 @@ const SK = {
     if (c === 'rifle' || c === 'heavy') m += (isCls('soldier') ? .1 : 0) + .06 * rk('s_rifle');
     if (c === 'heavy') m += .15 * rk('s_heavy');
     if (c === 'marks' || c === 'pistol') m += .06 * rk('h_marks');
-    if (c === 'energy') m += .08 * rk('e_cells');
+    if (c === 'energy') m += .08 * rk('e_cells') + (isCls('engineer') ? .12 : 0);
     if (c === 'shotgun' || c === 'smg') m += .06 * rk('m_zeal');
     if (rk('s_rage') && player.hp < maxHp() * .3) m += .25;
     if (exoOn('berserk')) m += .5 * clamp(1 - player.hp / maxHp(), 0, 1);

@@ -191,8 +191,7 @@ function hurtZombie(z, amt, o = {}) {
   }
   if (!o.remote && exoOn('cryo') && (z.slowT > 0 || (z.net && z.net.fl & 32))) amt *= 1.3; // Kriosztát
   if (!o.remote && rk('h_bounty') && (z.elite || z.K.boss)) amt *= 1 + .12 * rk('h_bounty'); // Díjvadász
-  if (!o.remote && !o.dot && rk('m_steal')) player.hp = Math.min(maxHp(), player.hp + Math.min(amt * .01 * rk('m_steal'), maxHp() * .02)); // Életlopás
-  if (!o.remote && o.crit && o.w && rk('s_blast') && Math.random() < .1 * rk('s_blast')) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * .6, pr: .01, pdmg: .001, color: 0xffb04a }), 0); // Robbanó hüvely
+  if (!o.remote) hitPerks(z, amt, o);
   z.hp -= amt; z.flash = .08; z.hitT = now; tallyHit(amt, o); if (!o.dot) z.flinch = .12;
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit, z);
@@ -238,16 +237,7 @@ function killZombie(z, o) {
   player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1; multiKill();
   myKill(o.w || (o.melee ? { name: 'Kés', q: 0 } : o.dot ? { name: 'Égés', q: 0 } : { name: 'Robbanás', q: 0 }), z.K.name, o.head);
   weaponOnKill(z, o);
-  if (exoOn('vamp')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .08);
-  if (brand4('gravetide')) { player.bloodN = Math.min(10, (now < (player.bloodT || 0) ? player.bloodN || 0 : 0) + 1); player.bloodT = now + 6; }
-  if (brand4('hollis')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .03);
-  if (brand4('sable') && player.sprint) player.stam = maxStam();
-  if (rk('h_ricochet') && o.head && o.w) { const q = zombies.filter(q => !q.dead && q !== z && q.pos.distanceTo(z.pos) < 10).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0]; if (q) { tracer(new V3(z.pos.x, 1.8, z.pos.z), new V3(q.pos.x, 1.6, q.pos.z), 0xffe0a0, .015); setTimeout(() => hurtZombie(q, o.w.dmg * SK.dmg(o.w) * 1.5, { w: o.w, chain: true, head: true }), 60); } } // Gellert
-  if (rk('e_chain') && !o.w && !o.melee && !o.dot && Math.random() < .3) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .8, pr: .01, pdmg: .001, color: 0xff9a4a }), 150); // Láncrobbanás
-  if (exoOn('bomber') && !o.w && !o.melee && !o.dot) player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 1); // Robbanómellény
-  if (brand4('cinder') && !o.w && !o.melee && !o.dot && Math.random() < .4) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .9, pr: .01, pdmg: .001, color: 0xff9a4a }), 120);
-  if (o.head && o.w && exoOn('quick')) o.w.ammo = o.w.mag;
-  if (o.head && !z.K.boss) headPop(z);
+  killPerks(z, o);
   noteBaseKill(o.w);
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
@@ -782,4 +772,24 @@ function bellHit(at) {
   if (player.down || Math.hypot(player.pos.x - at.x, player.pos.z - at.z) > 30) return;
   if (!hasSight(new V3(at.x, 2.6, at.z), new V3(player.pos.x, 1.6, player.pos.z))) return popText('A fedezék megvédett!', '#7dff7a');
   player.chillT = 2.2; player.shake = .9; hurtPlayer(14); popText('A harang elkábított!', '#d8c47a');
+}
+
+// what your gear and skills do when you kill: the same for the host, solo, and a party member's confirmed kills
+function killPerks(z, o) {
+  if (exoOn('vamp')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .08);
+  if (brand4('gravetide')) { player.bloodN = Math.min(10, (now < (player.bloodT || 0) ? player.bloodN || 0 : 0) + 1); player.bloodT = now + 6; }
+  if (brand4('hollis')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .03);
+  if (brand4('sable') && player.sprint) player.stam = maxStam();
+  if (rk('h_ricochet') && o.head && o.w && !o.chain) { const q = zombies.filter(q => !q.dead && q !== z && q.pos.distanceTo(z.pos) < 10).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0]; if (q) { tracer(new V3(z.pos.x, 1.8, z.pos.z), new V3(q.pos.x, 1.6, q.pos.z), 0xffe0a0, .015); setTimeout(() => hurtZombie(q, o.w.dmg * SK.dmg(o.w) * 1.5, { w: o.w, chain: true, head: true }), 60); } } // Gellert
+  if (rk('e_chain') && !o.w && !o.melee && !o.dot && Math.random() < .3) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .8, pr: .01, pdmg: .001, color: 0xff9a4a }), 150); // Láncrobbanás
+  if (exoOn('bomber') && !o.w && !o.melee && !o.dot) player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 1); // Robbanómellény
+  if (brand4('cinder') && !o.w && !o.melee && !o.dot && Math.random() < .4) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .9, pr: .01, pdmg: .001, color: 0xff9a4a }), 120);
+  if (o.head && o.w && exoOn('quick')) o.w.ammo = o.w.mag;
+  if (o.head && !z.K.boss && z.upper) headPop(z);
+}
+
+// on-hit skills, for the shooter (host, solo or party member): lifesteal capped at 6% max HP a second, crit blasts
+function hitPerks(z, amt, o) {
+  if (!o.dot && rk('m_steal')) { if (now - (player.stealT || 0) > 1) { player.stealT = now; player.stealN = 0; } const h = Math.min(amt * .01 * rk('m_steal'), maxHp() * .02, maxHp() * .06 - (player.stealN || 0)); if (h > 0) { player.stealN = (player.stealN || 0) + h; player.hp = Math.min(maxHp(), player.hp + h); } }
+  if (o.crit && o.w && !o.chain && rk('s_blast') && Math.random() < .1 * rk('s_blast')) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * .6, pr: .01, pdmg: .001, color: 0xffb04a }), 0);
 }

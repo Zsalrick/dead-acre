@@ -116,7 +116,7 @@ function renderHub() {
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   $('hubTokens').textContent = P.tokens || 0;
   $('hubCls').textContent = P.cls ? CLASSES[P.cls].name : 'nincs kaszt'; $('hubCls').style.setProperty('--cc', P.cls ? CLASSES[P.cls].color : '');
-  document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.classList.toggle('on', b.dataset.hub === hubTab || (b.dataset.group && HUB_GROUPS[b.dataset.group].some(([k]) => k === hubTab))));
+  document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.classList.toggle('on', !!(b.dataset.hub === hubTab || (b.dataset.group && HUB_GROUPS[b.dataset.group].some(([k]) => k === hubTab)))));
   const grp = Object.values(HUB_GROUPS).find(g => g.some(([k]) => k === hubTab)), sub = grp ? `<nav class="subnav">${grp.map(([k, t]) => `<button class="sbtab${k === hubTab ? ' on' : ''}" data-sub="${k}">${t}</button>`).join('')}</nav>` : '';
   const hb = $('hubBody'); hb.innerHTML = (NET.code && hubTab !== 'jobs' ? partyPanel() : '') + sub + HUB[hubTab](); // in a party the strip is on every tab hb.style.animation = 'none'; void hb.offsetWidth; hb.style.animation = '';
   updateKeybar($('hubBody'));
@@ -375,4 +375,9 @@ function hostPick() {
   const h = partyMembers().find(m => m.h), s = h && h.sel; if (!s || typeof s !== 'object') return '';
   const M = MAPS[s.m], d = clamp(+s.d || 1, 1, 5);
   return `<div class="hostpick"><small>A VEZETŐ VÁLASZTÁSA</small><b>${esc(String(s.t || ''))}</b><span>${M ? M.name : ''} · ${DIFF_NAMES[d - 1]}${+s.tr ? ` · Rémálom +${+s.tr}` : ''} · $${+s.r || 0}</span></div>`;
+}
+
+function hubCycle(d) { // Q / E: previous / next top tab
+  const tops = [...document.querySelectorAll('.mbtn[data-hub]')], i = tops.findIndex(b => b.classList.contains('on'));
+  const b = tops[(Math.max(0, i) + d + tops.length) % tops.length]; if (b) { hubTab = b.dataset.hub; renderHub(); }
 }

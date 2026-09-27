@@ -271,6 +271,9 @@ function netHit(z, amt, o) {
   if (z.markT > 0) amt *= 1.5;
   if (z.K.boss && rk('h_boss')) amt *= 1.2;
   if (o.w && rk('h_exec') && z.hp < z.maxHp * .25) amt *= 2;
+  if (rk('h_bounty') && (z.elite || z.K.boss)) amt *= 1 + .12 * rk('h_bounty');
+  if (exoOn('cryo') && z.net && z.net.fl & 32) amt *= 1.3;
+  hitPerks(z, amt, o);
   const insta = powers.insta > 0 && !o.dot && !z.K.boss;
   z.hp -= z.armor > 0 && !o.head && !o.dot && !o.melee && !insta ? amt * .25 : amt; z.flash = .08; z.hitT = now;
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
@@ -302,7 +305,7 @@ function netOwnKill(e) {
   if (rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(+pts || 60); hitmarker(true); SND.kill();
   const zid = e[8], lh = NET.lastHit.get(zid) || {}, pz = zombies.find(q => q.id === zid) || { pos: new V3(x / 10, 0, zz / 10), burnT: 0 };
-  weaponOnKill(pz, { w: lh.w, head: !!head }); NET.lastHit.delete(zid);
+  weaponOnKill(pz, { w: lh.w, head: !!head }); killPerks(pz.K ? pz : Object.assign(pz, { K: KINDS[kind] }), { w: lh.w, head: !!head }); NET.lastHit.delete(zid);
   dropLoot({ K: KINDS[kind], kind, elite: !!elite }, new V3(x / 10, 0, zz / 10));
 }
 
@@ -455,7 +458,8 @@ function applySnapshot(g, hostPeer) {
   NET.hz = Array.isArray(g.hz) ? g.hz : [];
   if (Array.isArray(g.ca) && !M.cache) { M.cache = { x: (+g.ca[0] || 0) / 10, z: (+g.ca[1] || 0) / 10, t: clamp(+g.ca[2] || 0, 0, 60) }; buildCache(M.cache); banner('UTÁNPÓTLÁS-LÁDA', 'A térkép túloldalán, 60 mp-ig nyitható.'); }
   for (const [, x, z, r, t, col, kind] of fresh('tl' + hostPeer, g.tl)) { // the host's warnings: same ring here; the frost wave chills us too
-    const at = new V3((+x || 0) / 10, 0, (+z || 0) / 10), R = clamp((+r || 0) / 10, .5, 20);
+    const at = new V3((+x || 0) / 10, 0, (+z || 0) / 10), R = clamp((+r || 0) / 10, .5, 30);
+    if (kind === 'bell') { tn(220, 1.6, .12, 'sine', 200); tn(330, 1.6, .06, 'sine', 300); popText('A harang mindjárt megszólal: fedezékbe!', '#d8c47a'); }
     telegraph(at, R, +col || 0xffffff, clamp((+t || 0) / 100, .1, 3), () => { if (kind === 'bell') bellHit(at); if (kind === 'frost' && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < R) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); } });
   }
   M.kc = +g.kc || 0;

@@ -363,6 +363,7 @@ addEventListener('keydown', e => {
   if (document.activeElement === $('chatIn')) return; // typing in the chat
   keys[e.code] = true;
   if (!$('settings').hidden) { if (e.code === 'Escape') closeSettings(); return; }
+  if (state === 'hub' && (e.code === 'KeyQ' || e.code === 'KeyE') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { hubCycle(e.code === 'KeyE' ? 1 : -1); return; }
   if (state === 'hub' && invKey(e, $('hubBody'))) return;
   if (state === 'paused' && !$('pause').hidden && invKey(e, $('loadout'))) return;
   if (state === 'station' && (e.code === 'Escape' || e.code === 'KeyE')) { closeStation(e.code === 'Escape'); return; }

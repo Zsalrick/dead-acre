@@ -101,7 +101,7 @@ const BASES = [
     model: { len: .34, h: .12, barrel: .24, br: .045, drum: true, stock: .2 } },
   { id: 'raygun', name: 'Ray Gun', dmg: 110, rpm: 230, mag: 20, res: 100, reload: 2.9, spread: 1.2, mode: 'semi', range: 120, zoom: 1.35, snd: 'ray', kick: .018, splash: 2.2, energy: true, rl: 'cell',
     model: { len: .22, h: .13, barrel: .14, br: .03 } },
-  { id: 'plasma', name: 'Plasma Carbine', dmg: 30, rpm: 520, mag: 40, res: 200, reload: 2.4, spread: 1.6, mode: 'auto', range: 90, zoom: 1.4, snd: 'ray', kick: .007, splash: 1.3, energy: true, rl: 'cell', tracer: 0xff6aff,
+  { id: 'plasma', name: 'Plasma Carbine', dmg: 35, rpm: 520, mag: 40, res: 200, reload: 2.4, spread: 1.6, mode: 'auto', range: 90, zoom: 1.4, snd: 'ray', kick: .007, splash: 1.3, energy: true, rl: 'cell', tracer: 0xff6aff,
     model: { len: .36, h: .13, barrel: .16, br: .028, coil: true, stock: .2 } },
   { id: 'tesla', name: 'Tesla Gun', dmg: 58, rpm: 300, mag: 30, res: 150, reload: 2.6, spread: .8, mode: 'auto', range: 45, zoom: 1.3, snd: 'zap', kick: .006, chain: 3, energy: true, rl: 'cell', tracer: 0x7fd8ff,
     model: { len: .3, h: .13, barrel: .16, br: .03, coil: true } },
