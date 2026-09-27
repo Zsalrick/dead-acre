@@ -45,11 +45,12 @@ async function partyJoin(code, host) {
   NET.joining = false;
   if (!pr) { NET.joinErr = NET.p2p && !host ? `Nincs ilyen kódú csapat, vagy nem elérhető (${code.toUpperCase()}).` : 'Nem sikerült csatlakozni.'; if (state === 'hub') renderHub(); return; }
   NET.joinErr = '';
-  Object.assign(NET, { pr, code, host, hadHost: false, seenJs: 0, last: {}, dirty: true });
+  Object.assign(NET, { pr, code, host, hadHost: false, seenJs: 0, last: {}, dirty: true, showCode: false, copied: false, leaveArmed: false });
   pr.onPeers(() => onPartyChange(), () => partyLeave());
   publishMember(); setLobby();
   if (state === 'hub') renderHub();
 }
+function fallbackCopy(t) { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e) {} a.remove(); }
 async function partyLeave() {
   const pr = NET.pr;
   Object.assign(NET, { pr: null, code: null, host: false, job: null, hadHost: false });
@@ -85,7 +86,10 @@ function partyPanel() {
         : '<span class="note">Most nincs nyitott csapat. Hozz létre egyet, és a barátaid csatlakozhatnak.</span>'}</div>`;
   }
   const mem = partyMembers();
-  return `<div class="party in"><div class="phead"><b>Csapat · ${mem.length} fő · ${NET.host ? 'te vagy a vezető' : 'tag vagy'}</b>${NET.p2p ? `<span class="pcodebig">KÓD: ${NET.code.toUpperCase()}</span>` : ''}${hbtn('Kilépés', 'pleave')}</div>
+  // the code is hidden until you ask (streams, screenshots); copying works without revealing it
+  const codeBox = NET.p2p ? `<div class="pcode"><span class="pcodebig">KÓD: ${NET.showCode ? NET.code.toUpperCase() : '•••••'}</span>
+      <div class="pcodebtns">${hbtn(NET.showCode ? 'Elrejt' : 'Megmutat', 'preveal')}${hbtn(NET.copied ? 'Másolva ✓' : 'Kód másolása', 'pcopy')}</div></div>` : '';
+  return `<div class="party in"><div class="phead"><b>Csapat · ${mem.length} fő · ${NET.host ? 'te vagy a vezető' : 'tag vagy'}</b>${hbtn(NET.leaveArmed ? 'Biztos kilépsz? Kattints újra' : 'Kilépés', 'pleave')}</div>${codeBox}
     <div class="pmem">${mem.map(m => `<span class="pm${m.h ? ' host' : ''}"><b>${esc(m.n)}</b>${m.me ? ' (te)' : ''} · ${m.lv}. szint · ${CLASSES[m.c] ? CLASSES[m.c].name : 'nincs kaszt'}${m.h ? ' · vezető' : ''}${m.st === 'job' ? ' · munkán' : ''}</span>`).join('')}</div>
     <span class="note">${NET.host ? 'Te választod a munkát: amikor elvállalsz egyet, a csapat veled jön.' : 'A csapatvezető választ munkát; amikor elindítja, veled is automatikusan indul.'}</span></div>`;
 }
@@ -93,7 +97,16 @@ function partyAction(kind, a) {
   if (kind === 'pcreate') partyJoin(Math.random().toString(36).slice(2, 7), true);
   if (kind === 'pjoin' && /^[a-z0-9]{1,8}$/.test(a)) partyJoin(a, false);
   if (kind === 'pjoinc') { const c = ($('pcode') ? $('pcode').value : '').toLowerCase().replace(/[^a-z0-9]/g, ''); if (c.length >= 4) partyJoin(c, false); }
-  if (kind === 'pleave') partyLeave();
+  if (kind === 'pleave') { // a second click within 4 s confirms
+    if (!NET.leaveArmed) { NET.leaveArmed = true; clearTimeout(NET.leaveT); NET.leaveT = setTimeout(() => { NET.leaveArmed = false; if (state === 'hub') renderHub(); }, 4000); return renderHub(); }
+    NET.leaveArmed = false; clearTimeout(NET.leaveT); partyLeave();
+  }
+  if (kind === 'preveal') { NET.showCode = !NET.showCode; renderHub(); }
+  if (kind === 'pcopy' && NET.code) {
+    const done = () => { NET.copied = true; renderHub(); setTimeout(() => { NET.copied = false; if (state === 'hub') renderHub(); }, 2000); };
+    const txt = NET.code.toUpperCase();
+    try { navigator.clipboard.writeText(txt).then(done, () => { fallbackCopy(txt); done(); }); } catch (e) { fallbackCopy(txt); done(); }
+  }
 }
 
 // ---------- job start / end ----------

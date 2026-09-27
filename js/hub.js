@@ -188,7 +188,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'job') { if (!P.cls) { hubTab = 'skills'; return renderHub(); } if (NET.code && !NET.host) return; return startJob(P.jobs[+a]); }
   if (['cls', 'sk', 'respec', 'reclass'].includes(kind)) skillAction(kind, a);
-  if (['pcreate', 'pjoin', 'pjoinc', 'pleave'].includes(kind)) return partyAction(kind, a);
+  if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetAvail() > 0) { P.vet[a] = (P.vet[a] || 0) + 1; gearChanged(); }
   if (kind === 'reroll' && pay(reroll())) rollBoard();
   if (kind === 'hforge') { // hforge:level|rarity:L|B|S:i
