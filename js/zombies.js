@@ -194,6 +194,7 @@ function hurtZombie(z, amt, o = {}) {
   if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
   if (o.burnDps) { z.burnT = Math.max(z.burnT, o.burnT || 3); z.burnDps = Math.max(z.burnDps, o.burnDps); z.burnBy = o.remote || null; }
   if (!o.remote) weaponOnHit(z, amt, o);
+  if (o.head && !o.remote && brand4('ranger')) z.markT = Math.max(z.markT || 0, 5);
   if (z.hp <= 0) killZombie(z, o);
   else if (!o.dot && !o.remote) addPoints(10);
 }
@@ -232,6 +233,10 @@ function killZombie(z, o) {
   myKill(o.w || (o.melee ? { name: 'Kés', q: 0 } : o.dot ? { name: 'Égés', q: 0 } : { name: 'Robbanás', q: 0 }), z.K.name, o.head);
   weaponOnKill(z, o);
   if (exoOn('vamp')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .08);
+  if (brand4('gravetide')) { player.bloodN = Math.min(10, (now < (player.bloodT || 0) ? player.bloodN || 0 : 0) + 1); player.bloodT = now + 6; }
+  if (brand4('hollis')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .03);
+  if (brand4('sable') && player.sprint) player.stam = maxStam();
+  if (brand4('cinder') && !o.w && !o.melee && !o.dot && Math.random() < .4) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .9, pr: .01, pdmg: .001, color: 0xff9a4a }), 120);
   if (o.head && o.w && exoOn('quick')) o.w.ammo = o.w.mag;
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
@@ -619,7 +624,10 @@ function spawnBounty(key) {
   z.bounty = key; z.hp *= B.hp; z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale);
   const tint = new THREE.Color(B.tint); z.mats.forEach(m => m.color && m.color.lerp(tint, .45));
   z.sumT = 6; z.novaT = 8; z.blinkT = 10; z.phase = 1; z.dmg *= 1.2; z.throwT = 4; z.slamT = 6;
-  if (B.plate) z.armor = z.hp * B.plate; // the Colossus: break the plating first (headshots skip it)
+  if (B.plate) z.armor = z.hp * B.plate;
+  const weak = new THREE.Mesh(new THREE.SphereGeometry(.22, 12, 8), new THREE.MeshBasicMaterial({ color: B.tint })); // the weak point: on the back, glowing
+  weak.position.set(0, .55, -.3); weak.userData.z = z; weak.userData.weak = true; z.upper.add(weak); z.parts.push(weak);
+  const wg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: B.tint, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); wg.scale.set(1.1, 1.1, 1); weak.add(wg); // the Colossus: break the plating first (headshots skip it)
   banner(B.name.toUpperCase(), B.desc); SND.roar();
   return z;
 }

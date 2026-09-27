@@ -42,6 +42,7 @@ const SND = {
   dry() { tn(1200, .02, .08); },
   reload() { nz(.05, 3000, .3, 'bandpass', 2); nz(.05, 2200, .3, 'bandpass', 2, .35); },
   knife() { nz(.12, 4000, .3, 'highpass', 1); },
+  legend(u) { [0, 1, 2, 3, 4].forEach(i => tn((u ? 330 : 392) * Math.pow(1.335, i % 3) * (i > 2 ? 2 : 1), .5, .07, 'triangle', 0, i * .09)); nz(1.2, 5000, .05, 'highpass', .5, .1); },
   pickup(q) { [0, 1, 2].forEach(i => tn(440 * Math.pow(1.26, i + q), .18, .09, 'triangle', 0, i * .07)); },
   buy() { tn(660, .08, .1, 'square'); tn(990, .12, .1, 'square', 0, .08); },
   heal() { [0, 1].forEach(i => tn(520 + i * 260, .2, .09, 'sine', 0, i * .1)); },

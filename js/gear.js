@@ -26,12 +26,12 @@ const GSTATS = {
   points:  { name: 'Pont ölésért',     roll: [.04, .1] },
 };
 const BRANDS = {
-  ranger:    { name: 'Ranger Supply',      color: '#9fcf6a', tag: 'Mesterlövész',  core: ['head', .08],  sets: [[2, 'crit', .05], [3, 'critDmg', .2], [4, 'head', .3]] },
-  bulwark:   { name: 'Bulwark Industries', color: '#8fb0d8', tag: 'Tank',          core: ['armor', 15],  sets: [[2, 'hp', 30], [3, 'red', .08], [4, 'armor', 80]] },
-  gravetide: { name: 'Gravetide',          color: '#e06a58', tag: 'Sebzés',        core: ['dmg', .04],   sets: [[2, 'dmg', .08], [3, 'critDmg', .25], [4, 'dmg', .15]] },
-  hollis:    { name: 'Hollis & Hart',      color: '#e8d08a', tag: 'Túlélő',        core: ['regen', .12], sets: [[2, 'hp', 25], [3, 'regen', .4], [4, 'red', .1]] },
-  sable:     { name: 'Sable Line',         color: '#9a8aff', tag: 'Mozgékony',     core: ['speed', .03], sets: [[2, 'reload', .12], [3, 'speed', .08], [4, 'stam', 50]] },
-  cinder:    { name: 'Cinder Works',       color: '#ff9a4a', tag: 'Robbantó',      core: ['expl', .1],   sets: [[2, 'expl', .15], [3, 'ammo', .25], [4, 'points', .2]] },
+  ranger:    { t4: ['Célpont kijelölve', 'A fejlövés 5 mp-re megjelöli a zombit: +50% sebzést kap mindenkitől.'], name: 'Ranger Supply',      color: '#9fcf6a', tag: 'Mesterlövész',  core: ['head', .08],  sets: [[2, 'crit', .05], [3, 'critDmg', .2], [4, 'head', .3]] },
+  bulwark:   { t4: ['Rendíthetetlen', 'Ha egy másodpercig egy helyben állsz, 35%-kal kevesebb sebzést kapsz.'], name: 'Bulwark Industries', color: '#8fb0d8', tag: 'Tank',          core: ['armor', 15],  sets: [[2, 'hp', 30], [3, 'red', .08], [4, 'armor', 80]] },
+  gravetide: { t4: ['Vérszomj', 'Minden ölés +5% sebzés 6 mp-ig, 10-szer halmozható. Ha megütnek, elveszik.'], name: 'Gravetide',          color: '#e06a58', tag: 'Sebzés',        core: ['dmg', .04],   sets: [[2, 'dmg', .08], [3, 'critDmg', .25], [4, 'dmg', .15]] },
+  hollis:    { t4: ['Második lélegzet', 'Minden ölés a max életerőd 3%-át visszatölti.'], name: 'Hollis & Hart',      color: '#e8d08a', tag: 'Túlélő',        core: ['regen', .12], sets: [[2, 'hp', 25], [3, 'regen', .4], [4, 'red', .1]] },
+  sable:     { t4: ['Szélvész', 'Sprint közben 30%-kal kevesebb sebzést kapsz, és az ölés visszatölti az állóképességet.'], name: 'Sable Line',         color: '#9a8aff', tag: 'Mozgékony',     core: ['speed', .03], sets: [[2, 'reload', .12], [3, 'speed', .08], [4, 'stam', 50]] },
+  cinder:    { t4: ['Láncreakció', 'A robbanással ölt zombi 40% eséllyel maga is felrobban.'], name: 'Cinder Works',       color: '#ff9a4a', tag: 'Robbantó',      core: ['expl', .1],   sets: [[2, 'expl', .15], [3, 'ammo', .25], [4, 'points', .2]] },
 };
 // the brand bonus of one piece grows with its rarity
 const coreVal = it => { const [k, v] = BRANDS[it.brand].core, x = v * (1 + .15 * it.q); return GSTATS[k].flat ? Math.round(x) : Math.round(x * 100) / 100; };
@@ -63,6 +63,7 @@ function makeExotic(key, level) {
   return Object.assign(it, { exo: key, name: E.name, armor: Math.round(it.armor * 1.1) });
 }
 const exoOn = k => wornGear().some(it => it.exo === k);
+const brand4 = k => wornGear().filter(it => it.brand === k).length >= 4; // four pieces of one brand switch on its talent
 const gCol = it => it.exo ? EXO_COL : RARITIES[it.q].color;
 const gearValue = it => Math.round([40, 100, 220, 450, 900][it.q] * (1 + .08 * (it.level - 1)));
 const gearPrice = it => Math.round(gearValue(it) * 4 / 10) * 10;

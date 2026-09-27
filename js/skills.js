@@ -105,6 +105,7 @@ const SK = {
     if (c === 'shotgun' || c === 'smg') m += .06 * rk('m_zeal');
     if (rk('s_rage') && player.hp < maxHp() * .3) m += .25;
     if (exoOn('berserk')) m += .5 * clamp(1 - player.hp / maxHp(), 0, 1);
+    if (player.bloodN && now < player.bloodT) m += .05 * player.bloodN; // Gravetide: Vérszomj
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
   crit: w => .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
@@ -117,7 +118,7 @@ const SK = {
   speed: () => .04 * rk('h_light'),
   reload: () => .08 * rk('s_hands'),
   ammo: () => .15 * rk('s_ammo'),
-  taken: () => (1 - .05 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
+  taken: () => (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .05 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
     * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1),
   med: () => Math.round((70 + 20 * rk('m_bless')) * (isCls('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),

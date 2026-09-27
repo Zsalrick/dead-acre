@@ -637,6 +637,7 @@ function updateCompass() {
 function killFeed(a, aCol, wName, wCol, b, bCol, head, verb) {
   const box = $('kfeed'); if (!box) return;
   const el = document.createElement('div'); el.className = 'kf';
+  if (verb && bCol && (bCol === RARITIES[4].color || bCol === RARITIES[5].color || bCol === EXO_COL)) el.classList.add('big');
   el.innerHTML = `<b style="color:${aCol}">${esc(a)}</b>${verb ? ` <i class="kv">${esc(verb)}</i>` : wName ? ` <i style="color:${wCol}">[${esc(wName)}]</i>` : ' <i>⟶</i>'} <b style="color:${bCol}">${esc(b)}</b>${head ? ' <em>FEJLÖVÉS</em>' : ''}`;
   box.prepend(el); while (box.children.length > 5) box.lastChild.remove();
   setTimeout(() => el.classList.add('out'), 4200); setTimeout(() => el.remove(), 4800);

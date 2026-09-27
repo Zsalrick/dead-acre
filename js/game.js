@@ -176,9 +176,12 @@ function extract() {
 // On a failed job, guns found during the job are lost too; what you brought and still hold comes back.
 function settleWeapons(success, M) {
   const carried = [...player.slots.filter(Boolean), ...player.bag];
-  const keep = success ? carried : carried.filter(w => w.owned);
+  let keep = success ? carried : carried.filter(w => w.owned);
   const lost = [...carried.filter(w => !keep.includes(w)), ...M.brought.filter(w => !carried.includes(w) && !(M.destroyed || []).includes(w))];
-  const P = profile, newOnes = keep.filter(w => !w.owned);
+  const P = profile, junkQ = P.junkQ == null ? -1 : P.junkQ, junk = success ? keep.filter(w => !w.owned && !w.unique && w.q <= junkQ) : [];
+  const junkParts = junk.reduce((a, w) => a + PARTS[w.q], 0); P.parts = (P.parts || 0) + junkParts; // auto-salvage: marked-as-junk rarities turn into parts at home
+  keep = keep.filter(w => !junk.includes(w));
+  const newOnes = keep.filter(w => !w.owned);
   const hands = player.slots.map(w => w && keep.includes(w) ? w : null), bag = player.bag.filter(w => keep.includes(w));
   if (!hands[0] && !hands[1] && bag.length) hands[0] = bag.shift();
   P.loadout = hands.map(w => packW(w || null)); P.bag = bag.map(packW);
@@ -194,7 +197,7 @@ function settleWeapons(success, M) {
     if (!success && !P.gear[it.slot]) P.gear[it.slot] = it; else toStash(it);
   }
   gearChanged();
-  return { kept: newOnes, lost, overflow, gear: success ? home : lostGear };
+  return { junkN: junk.length, junkParts, kept: newOnes, lost, overflow, gear: success ? home : lostGear };
 }
 function finishJob(success, abandoned) {
   const M = mission, J = M.job, P = profile, party = NET.mode ? partySize() : 1;
@@ -247,7 +250,7 @@ function hurtPlayer(d, quiet) {
   const hadShield = player.shield > 0;
   if (player.shield > 0) { const a = Math.min(player.shield, d); player.shield -= a; d -= a; }
   if (hadShield && player.shield <= 0 && (rk('m_burst') || exoOn('nova'))) explode(player.pos.clone().setY(1), { r: 5, zdmg: 150 + zombieHp(), pr: .01, pdmg: .001, color: 0xf2d27a });
-  player.hp -= d; player.lastHurt = now;
+  player.hp -= d; player.lastHurt = now; if (d > 0) player.bloodN = 0;
   if (player.hp <= 0 && rk('s_wind') && !mission.wind) { mission.wind = true; player.hp = 1; banner('MÁSODIK SZÉL', 'Még nem most.'); }
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }
   if (!quiet) { player.shake = .25; SND.hurt(); }

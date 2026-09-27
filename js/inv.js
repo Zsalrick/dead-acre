@@ -138,6 +138,7 @@ function gearDetail(it, cmp, actions) {
     ${it.exo && EXOTICS[it.exo] ? `<div class="duniq" style="border-color:${EXO_COL}"><b>Egzotikus tehetség:</b> ${EXOTICS[it.exo].talent}</div>` : ''}
     <table class="dtab" style="--bc:${B.color}">${rows}</table>
     <div class="dsets" style="--bc:${B.color}"><b>${B.name}</b> ${pipsB} <small>${cnt}/4 viselve</small><ul>${sets}</ul>
+      ${B.t4 ? `<p class="dt4${cnt >= 4 ? ' on' : ''}"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</p>` : ''}
       ${next ? `<p class="dnext">Még ${next[0] - cnt} darab: ${GSTATS[next[1]].name} ${fmtG(next[1], next[2])}</p>` : ''}</div>
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }

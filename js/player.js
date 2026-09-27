@@ -265,11 +265,11 @@ function shoot() {
         if (seen.has(z)) continue;
         seen.add(z);
         const fall = !b.flame && h.distance > b.range * .5 ? lerp(1, .4, (h.distance - b.range * .5) / (b.range * .5)) : 1;
-        const head = !!h.object.userData.head;
+        const head = !!h.object.userData.head, weak = !!h.object.userData.weak; // a boss's weak point counts as a head, and hurts more
         const t = tally.get(z) || { amt: 0, head: false, crit: false };
         const crit = forceCrit || Math.random() < critChance();
-        t.amt += w.dmg * sm * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1);
-        t.head = t.head || head; t.crit = t.crit || crit; tally.set(z, t);
+        t.amt += w.dmg * sm * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1) * (weak ? 3 : 1);
+        t.head = t.head || head || weak; t.crit = t.crit || crit; tally.set(z, t);
         burst(h.point, 0x5a0a0a, 3, 2.2, .4);
         if (--pierce <= 0) { end = h.point; break; }
       } else {
@@ -402,6 +402,7 @@ function updatePlayer(dt) {
     if (d < r && d > 1e-4) { const k = NET.client ? .25 : 1; player.pos.x += (z.pos.x + dx / d * r - player.pos.x) * k; player.pos.z += (z.pos.z + dz / d * r - player.pos.z) * k; } // a member's proxies glide: push softly, no camera jumps
   }
   collide(player.pos, .42);
+  if (Math.hypot(player.vel.x, player.vel.z) > .6) player.stillT = now; // Bulwark: standing still
   if (!ff) updateVitals(dt);
   // ads
   const w = curW();

@@ -9,7 +9,14 @@ function spawnDrop(w, pos) {
   beam.position.y = (2.6 + w.q * .9) / 2; g.add(beam);
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   halo.scale.set(1.6, 1.6, 1); halo.position.y = .7; g.add(halo);
-  const lv = textSprite([`LV ${w.level}`], canUse(w) ? rarColor(w) : '#ff5a4a', .55); lv.position.y = 1.45; g.add(lv);
+  const better = canUse(w) && typeof curW === 'function' && player.slots && player.slots.some(Boolean) && dps(w) > Math.max(...player.slots.filter(Boolean).map(dps));
+  const lv = textSprite([`${better ? '▲ ' : ''}LV ${w.level} ${w.base.name}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; g.add(lv);
+  if (w.q >= 4) { // legendary and unique: a fat beam, a ring on the ground and a sound you learn to love
+    const ring = new THREE.Mesh(new THREE.RingGeometry(.7, .95, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = .03; g.add(ring);
+    beam.scale.set(3.2, 2.2, 3.2); beam.position.y *= 2.2; halo.scale.set(3, 3, 1);
+    if (typeof SND !== 'undefined' && mission) SND.legend(w.unique);
+  }
   g.position.set(pos.x, 0, pos.z); scene.add(g);
   const d = { w, g, gun, t: 75, pos: g.position }; drops.push(d); return d;
 }
