@@ -71,7 +71,7 @@ function onPartyChange() {
 }
 function publishMember() {
   if (!NET.pr) return;
-  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0 }, job: NET.host ? NET.job : null }).catch(() => {});
+  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat }, job: NET.host ? NET.job : null }).catch(() => {});
 }
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;
@@ -114,7 +114,7 @@ function partyAction(kind, a) {
 function netJobStarted(opts) {
   if (!NET.pr) { NET.mode = null; NET.client = false; return; }
   NET.mode = opts.client ? 'client' : 'host'; NET.client = !!opts.client;
-  NET.hits = []; NET.acts = []; NET.kills = []; NET.dmgs = []; NET.drops = []; NET.pks = []; NET.zById.clear(); NET.last = {};
+  NET.hits = []; NET.acts = []; NET.kills = []; NET.dmgs = []; NET.kf = []; NET.drops = []; NET.pks = []; NET.zById.clear(); NET.last = {};
   player.down = false;
   if (NET.host) NET.job = { job: mission.job, seed: opts.seed, a: opts.a, b: opts.b, js: Date.now() };
   publishMember(); setLobby();
@@ -173,6 +173,8 @@ function updateAvatars(dt, peers) {
     const q = sampleAt(a.buf, tr - 110);
     a.pos.x = q.x; a.pos.z = q.z;
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
+    if (P.dn && !a.down) killFeed(String(P.dby || 'a horda').slice(0, 30), '#c9c1a8', '', '', a.name, a.col);
+    for (const [, wn, wq, kn, hd] of fresh('kf' + p.peer, P.kf)) killFeed(a.name, a.col, String(wn).slice(0, 40), RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0', String(kn).slice(0, 30), '#c9c1a8', hd);
     a.down = !!P.dn; a.kc = +P.kc || 0; a.rvc = +P.rvc || 0; a.hp = +P.hp || 0; a.mh = +P.mh || 100; a.au = Array.isArray(P.au) ? P.au : null;
     a.yaw = q.yw; a.pitch = q.pt;
     // body: yaw on the whole figure, pitch shared by the torso, head, arms and gun; legs walk with speed
@@ -238,7 +240,7 @@ function netAimEnd() { if (!AIM) return; player.pos = NET.selfPos; player.vel = 
 function netRedirectHurt(d) {
   if (zTarget && zTarget.gen) { if (mission && mission.gen) { mission.gen.hp -= d * .5; mission.gen.hitT = now; } return true; } // the generator is sturdier than a person
   if (!zTarget || !zTarget.remote) return false;
-  pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10], 16);
+  pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10, hurtSrc], 16);
   return true;
 }
 function netNearestToVan() {
@@ -296,7 +298,7 @@ function netKill(z, o) {
 // the killer's side: points, stats and their own loot roll
 function netOwnKill(e) {
   const [, , ki, head, pts, x, zz, elite] = e, kind = KIND_IDS[ki]; if (!kind) return;
-  player.kills++; stats.kills++; stats.killsBy[kind] = (stats.killsBy[kind] || 0) + 1;
+  player.kills++; stats.kills++; stats.killsBy[kind] = (stats.killsBy[kind] || 0) + 1; myKill(curW(), KINDS[kind].name, head);
   if (head) { player.heads++; stats.heads++; }
   if (rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(+pts || 60); hitmarker(true); SND.kill();
@@ -331,7 +333,7 @@ function myPresence() {
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, kc: player.kills, rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
-    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
+    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
 function fresh(key, list) {
@@ -345,6 +347,7 @@ function fresh(key, list) {
 function netTick(dt) {
   if (!NET.pr) return;
   const peers = NET.pr.peers(), me = peers.find(p => p.sameTab); NET.me = me ? me.peer : null;
+  for (const p of peers) if (!p.sameTab && p.presence && p.presence.m) for (const [, t] of fresh('ch' + p.peer, p.presence.m.ch)) chatAdd(p.presence.m.n, t);
   const host = peers.find(p => !p.sameTab && p.presence && p.presence.m && p.presence.m.h);
   if (!NET.host) {
     if (host) NET.hadHost = true;
@@ -454,7 +457,7 @@ function applySnapshot(g, hostPeer) {
   if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
   // kills credited to me, and damage the host's zombies did to me
   for (const e of fresh('k' + hostPeer, g.k)) if (e[1] === NET.me) netOwnKill(e);
-  for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && !player.down) hurtPlayer(+e[2] || 0);
+  for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && !player.down) { hurtSrc = typeof e[3] === 'string' ? e[3].slice(0, 30) : null; hurtPlayer(+e[2] || 0); hurtSrc = null; }
 }
 function resurrect(z) { z.dead = false; z.predDead = 0; z.deathT = 0; z.g.rotation.z = 0; z.g.visible = true; }
 function proxyDie(z) {
@@ -629,3 +632,46 @@ function updateCompass() {
   if (mission.gen) h += at(bear(mission.gen.pos.x, mission.gen.pos.z), 'cv', 'GENERÁTOR');
   if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
 }
+
+// ---------- kill feed, top right: who killed what with what, and who went down to what ----------
+function killFeed(a, aCol, wName, wCol, b, bCol, head) {
+  const box = $('kfeed'); if (!box) return;
+  const el = document.createElement('div'); el.className = 'kf';
+  el.innerHTML = `<b style="color:${aCol}">${esc(a)}</b>${wName ? ` <i style="color:${wCol}">[${esc(wName)}]</i>` : ' <i>⟶</i>'} <b style="color:${bCol}">${esc(b)}</b>${head ? ' <em>FEJLÖVÉS</em>' : ''}`;
+  box.prepend(el); while (box.children.length > 5) box.lastChild.remove();
+  setTimeout(() => el.classList.add('out'), 4200); setTimeout(() => el.remove(), 4800);
+}
+function myKill(w, kindName, head) {
+  const col = CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a', wq = w.unique ? 5 : w.q || 0;
+  killFeed(NET.mode ? myName() : 'Te', col, w.name, RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0', kindName, '#c9c1a8', head);
+  if (NET.mode && NET.kf) pushRoll(NET.kf, [++NET.seq, String(w.name).slice(0, 40), wq, kindName, head ? 1 : 0], 6);
+}
+// ---------- party chat: Enter opens it, Enter sends, Esc closes ----------
+NET.chat = [];
+function chatAdd(name, text, me) {
+  const log = $('chatLog'); if (!log) return;
+  const el = document.createElement('div'); el.className = 'cl' + (me ? ' me' : '');
+  const b = document.createElement('b'); b.textContent = String(name).slice(0, 24) + ': '; el.appendChild(b); el.appendChild(document.createTextNode(String(text).slice(0, 120)));
+  log.appendChild(el); while (log.children.length > 30) log.firstChild.remove();
+  setTimeout(() => el.classList.add('old'), 10000);
+  if (!me) tn(880, .05, .06, 'sine');
+}
+function chatOpen() {
+  const inp = $('chatIn'); if (!NET.code || !inp.hidden) return false;
+  for (const k in keys) keys[k] = false; mouseDown = rmb = false;
+  $('chat').classList.add('open'); inp.hidden = false; inp.value = ''; inp.focus(); return true;
+}
+function chatClose() { const inp = $('chatIn'); inp.blur(); inp.hidden = true; $('chat').classList.remove('open'); }
+$('chatIn').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+    const t = $('chatIn').value.trim().slice(0, 120);
+    if (t) { pushRoll(NET.chat, [Date.now(), t], 6); publishMember(); chatAdd(myName(), t, true); }
+    chatClose();
+  } else if (e.code === 'Escape') chatClose();
+});
+addEventListener('keydown', e => {
+  if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName) && ['playing', 'hub', 'paused', 'results'].includes(state) && chatOpen()) e.preventDefault();
+});
+function updateChatVis() { const on = !!NET.code && ['playing', 'hub', 'paused', 'results', 'intro'].includes(state); if ($('chat').hidden === on) $('chat').hidden = !on; }
+setInterval(updateChatVis, 250);

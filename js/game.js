@@ -236,6 +236,7 @@ function hurtAt(pos, r, d) {
   zTarget = zt;
   if (NET.mode === 'host') for (const [peer, a] of NET.avatars) if (!a.down && Math.hypot(a.pos.x - pos.x, a.pos.z - pos.z) < r) pushRoll(NET.dmgs, [++NET.seq, peer, Math.round(d * 10) / 10], 16);
 }
+let hurtSrc = null;
 function hurtPlayer(d, quiet) {
   if (netRedirectHurt(d)) return; // a host zombie hit another player
   if (!liveWorld() || (mission && mission.leaving) || player.down) return;
@@ -249,7 +250,7 @@ function hurtPlayer(d, quiet) {
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }
   if (!quiet) { player.shake = .25; SND.hurt(); }
   if (player.hp <= 0 && perk('second')) { player.perks.second = false; player.hp = maxHp() * .5; banner('MÁSODIK ESÉLY', 'Még egyszer.'); SND.power(); }
-  if (player.hp <= 0) { player.hp = 0; startFFYL(); } // on the ground: kill something before the clock runs out
+  if (player.hp <= 0) { player.hp = 0; player.downBy = hurtSrc || 'a horda'; killFeed(player.downBy, '#c9c1a8', '', '', 'Te', '#ff4a3a'); startFFYL(); } // on the ground: kill something before the clock runs out
 }
 
 // ================= INPUT =================
@@ -350,6 +351,7 @@ $('quitBtn').onclick = () => {
 addEventListener('blur', () => pause());
 
 addEventListener('keydown', e => {
+  if (document.activeElement === $('chatIn')) return; // typing in the chat
   keys[e.code] = true;
   if (!$('settings').hidden) { if (e.code === 'Escape') closeSettings(); return; }
   if (state === 'hub' && invKey(e, $('hubBody'))) return;

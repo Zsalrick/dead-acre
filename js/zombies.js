@@ -228,6 +228,7 @@ function killZombie(z, o) {
     return netKill(z, o);
   }
   player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1;
+  myKill(o.w || (o.melee ? { name: 'Kés', q: 0 } : o.dot ? { name: 'Égés', q: 0 } : { name: 'Robbanás', q: 0 }), z.K.name, o.head);
   weaponOnKill(z, o);
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
@@ -339,7 +340,7 @@ function updateZombies(dt) {
   let groanBudget = 1;
   aimSetup();
   for (let i = zombies.length - 1; i >= 0; i--) {
-    const z = zombies[i], K = z.K;
+    const z = zombies[i], K = z.K; hurtSrc = K.name; // whatever hurts a player in this pass is this zombie
     if (z.dead) {
       z.deathT += dt;
       z.upper.rotation.x = lerp(z.upper.rotation.x, K.crawl ? 1.5 : -1.4, dt * 6);
@@ -493,7 +494,7 @@ function updateZombies(dt) {
     z.groanT -= dt;
     if (z.groanT <= 0) { z.groanT = rand(3, 9); if (dist < 26 && groanBudget-- > 0) SND.groan(.3 * (1 - dist / 26) * (z.kind === 'brute' ? 1.6 : 1), -Math.sin(angDiff(Math.atan2(-(z.pos.x - player.pos.x), -(z.pos.z - player.pos.z)) - player.yaw))); }
   }
-  netAimEnd();
+  netAimEnd(); hurtSrc = null;
   updateZProjs(dt);
 }
 

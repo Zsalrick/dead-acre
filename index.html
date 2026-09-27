@@ -707,6 +707,18 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 #ffyl i{display:block;width:260px;height:6px;background:rgba(255,255,255,.12)}#ffyl em{display:block;height:100%;background:#ff4a3a}
 #ffyl span{font-weight:700;color:#ffb0a0;font-variant-numeric:tabular-nums}
 .jwarn{color:#ff8a70;font-weight:700}
+#kfeed{position:absolute;right:24px;top:16px;display:grid;justify-items:end;gap:4px;pointer-events:none;max-width:44vw}
+.kf{padding:4px 10px;background:rgba(0,0,0,.55);border-right:3px solid #b3141b;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;animation:kfin .18s ease-out;transition:opacity .5s}
+.kf i{font-style:normal;font-weight:700}.kf em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.1em;color:#ffd23f;margin-left:4px}
+.kf.out{opacity:0}
+@keyframes kfin{from{translate:30px 0;opacity:0}}
+#chat{position:fixed;left:24px;bottom:170px;width:min(380px,42vw);z-index:40;display:grid;gap:4px;pointer-events:none}
+#chatLog{display:grid;gap:2px;max-height:190px;overflow:hidden;align-content:end}
+.cl{font-size:13px;color:#e8e2d0;padding:2px 8px;background:rgba(0,0,0,.45);text-shadow:0 1px 2px #000;transition:opacity .6s;overflow-wrap:anywhere}
+.cl b{color:#f2a33a}.cl.me b{color:#7dd3ff}
+.cl.old{opacity:0}#chat.open .cl.old{opacity:.85}
+#chat.open{pointer-events:auto}#chat.open #chatLog{background:rgba(0,0,0,.35)}
+#chatIn{font:inherit;font-size:13px;padding:7px 10px;background:rgba(10,12,11,.92);color:#e8e2d0;border:1px solid #f2a33a;outline:none}
 </style>
 
 <div id="game">
@@ -732,6 +744,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
       <div id="shield" hidden><i id="shieldfill"></i></div><div id="hp"><i id="hpfill"></i></div><div id="stam"><i id="stamfill"></i></div><div id="hplbl"></div></div>
     <div id="br"><div id="hint"></div><div id="wname"></div><div id="wsub"></div>
       <div id="ammo" class="num"><span id="mag">0</span><span id="res">/ 0</span></div><div id="slots"></div></div>
+    <div id="kfeed" aria-live="off"></div>
     <div id="compass" aria-hidden="true"><div id="compassIn"></div></div>
     <div id="pings"></div>
     <div id="mates" hidden></div>
@@ -806,13 +819,14 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
   </div>
 </div>
 
+<div id="chat" hidden><div id="chatLog"></div><input id="chatIn" maxlength="120" placeholder="Üzenet a csapatnak… (Enter: küldés, Esc: mégse)" autocomplete="off" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=11" charset="utf-8"></script>
-<script src="js/audio.js?v=11" charset="utf-8"></script>
-<script src="js/music.js?v=11" charset="utf-8"></script>
-<script src="js/world.js?v=11" charset="utf-8"></script>
-<script src="js/maps.js?v=11" charset="utf-8"></script>
-<script src="js/fx.js?v=11" charset="utf-8"></script>
+<script src="js/data.js?v=12" charset="utf-8"></script>
+<script src="js/audio.js?v=12" charset="utf-8"></script>
+<script src="js/music.js?v=12" charset="utf-8"></script>
+<script src="js/world.js?v=12" charset="utf-8"></script>
+<script src="js/maps.js?v=12" charset="utf-8"></script>
+<script src="js/fx.js?v=12" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -820,20 +834,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=11" charset="utf-8"></script>
-<script src="js/player.js?v=11" charset="utf-8"></script>
-<script src="js/zombies.js?v=11" charset="utf-8"></script>
-<script src="js/loot.js?v=11" charset="utf-8"></script>
-<script src="js/upgrades.js?v=11" charset="utf-8"></script>
-<script src="js/gear.js?v=11" charset="utf-8"></script>
-<script src="js/vet.js?v=11" charset="utf-8"></script>
-<script src="js/inv.js?v=11" charset="utf-8"></script>
-<script src="js/save.js?v=11" charset="utf-8"></script>
-<script src="js/menu.js?v=11" charset="utf-8"></script>
-<script src="js/skills.js?v=11" charset="utf-8"></script>
-<script src="js/hub.js?v=11" charset="utf-8"></script>
-<script src="js/game.js?v=11" charset="utf-8"></script>
-<script src="js/jobs.js?v=11" charset="utf-8"></script>
+<script src="js/gfx.js?v=12" charset="utf-8"></script>
+<script src="js/player.js?v=12" charset="utf-8"></script>
+<script src="js/zombies.js?v=12" charset="utf-8"></script>
+<script src="js/loot.js?v=12" charset="utf-8"></script>
+<script src="js/upgrades.js?v=12" charset="utf-8"></script>
+<script src="js/gear.js?v=12" charset="utf-8"></script>
+<script src="js/vet.js?v=12" charset="utf-8"></script>
+<script src="js/inv.js?v=12" charset="utf-8"></script>
+<script src="js/save.js?v=12" charset="utf-8"></script>
+<script src="js/menu.js?v=12" charset="utf-8"></script>
+<script src="js/skills.js?v=12" charset="utf-8"></script>
+<script src="js/hub.js?v=12" charset="utf-8"></script>
+<script src="js/game.js?v=12" charset="utf-8"></script>
+<script src="js/jobs.js?v=12" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=11" charset="utf-8"></script>
-<script src="js/net.js?v=11" charset="utf-8"></script>
+<script src="js/p2p.js?v=12" charset="utf-8"></script>
+<script src="js/net.js?v=12" charset="utf-8"></script>
