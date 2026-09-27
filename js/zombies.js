@@ -620,6 +620,7 @@ const BOUNTIES = {
   frost:   { minLvl: 8, loot: ['glacier', 'honey'], name: 'A Jégkirály', desc: 'Fagyhullámot bocsát ki, ami lelassít. Futókat hív.', hp: 5.2, tint: 0x6ac8ff, frost: true, summon: ['runner', 10, 3] },
   titan:   { minLvl: 10, loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 4.6, tint: 0x8a929a, slam: true, plate: .6, summon: ['armored', 22, 2] },
   bell:    { minLvl: 30, loot: ['bells', 'silent'], name: 'A Harangozó', desc: 'Megkondítja a harangot: akit a hang egyenesen elér, megszédül. Bújj fedezék mögé!', hp: 5.5, tint: 0xd8c47a, bell: true, summon: ['screamer', 16, 2] },
+  doctor:  { minLvl: 13, loot: ['scalpel', 'honey'], name: 'A Főorvos', desc: 'Időnként meggyógyítja magát és a közeli zombikat. Ha a zöld kör alatt elég sebzést kap, megszakad.', hp: 5, tint: 0x6aff9a, heal: true, summon: ['runner', 11, 3] },
   shade:   { loot: ['silent', 'rod', 'sebastian'], name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
@@ -682,6 +683,16 @@ function bountyTick(z, dt, dist) {
     if (z.phase === 3) { z.chargeT = 1.6; z.speed *= 2.2; }
   }
   if (z.chargeT > 0 && (z.chargeT -= dt) <= 0) z.speed /= 2.2;
+  if (B.heal && (z.healT = (z.healT == null ? 8 : z.healT) - dt) <= 0 && !z.healing) { // the heal: a green ring; enough damage while it charges breaks it
+    z.healT = z.phase === 3 ? 7 : 10; z.healing = true; z.healHp = z.hp; const at = z.pos.clone();
+    tn(520, 1.4, .08, 'sine', 900); popText('A Főorvos gyógyítani készül: sebezd meg!', '#6aff9a');
+    telegraph(at, 10, 0x6aff9a, 1.6, () => {
+      z.healing = false; if (z.dead) return;
+      if (z.healHp - z.hp > z.maxHp * .06) { banner('MEGSZAKÍTVA', 'A gyógyítás elmaradt.'); SND.armorBreak(); return; }
+      for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 10) { q.hp = Math.min(q.maxHp, q.hp + q.maxHp * .08); burst(new V3(q.pos.x, 1.5, q.pos.z), 0x6aff9a, 6, 2, .5); }
+      SND.heal();
+    });
+  }
   if (B.bell && (z.bellT = (z.bellT == null ? 6 : z.bellT) - dt) <= 0) { // the bell: a huge ring you can't outrun, only hide from
     z.bellT = z.phase === 3 ? 7 : z.phase === 2 ? 9.5 : 12;
     const at = z.pos.clone(); tn(220, 1.6, .12, 'sine', 200); tn(330, 1.6, .06, 'sine', 300); popText('A harang mindjárt megszólal: fedezékbe!', '#d8c47a');
@@ -718,6 +729,7 @@ function weaponOnHit(z, amt, o) {
   if (w.unique === 'silent' && o.head) explode(zHeadPos(z), { r: 3.5, zdmg: amt * .5, pr: .01, pdmg: .001, color: 0xb0c8ff });
   if (w.unique === 'anvil') { if (z.armor > 0 && z.K.boss) z.armor -= z.maxHp * .1; else if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
   if (w.unique === 'bells' && (player.bellN = (player.bellN || 0) + 1) % 9 === 0) { burst(new V3(z.pos.x, 1.5, z.pos.z), 0xd8c47a, 20, 4, .6); tn(440, .9, .08, 'sine', 430); for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 6) { q.slowT = 2.5; q.flinch = .3; } }
+  if (w.unique === 'scalpel' && o.crit) { z.burnT = Math.max(z.burnT, 3); z.burnDps = Math.max(z.burnDps, amt * .5 / 3); z.burnW = w; }
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
 }

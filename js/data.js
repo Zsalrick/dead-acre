@@ -154,6 +154,7 @@ const UNIQUES = {
   anvil:     { base: 'deagle',   name: 'Üllő',            text: 'Kalapács kell ide, nem golyó.', trick: 'Egy lövéssel letépi a páncélt, és hátralöki a célt.' },
   hydra:     { base: 'autoshot', name: 'Hidra',           text: 'Vágj le egy fejet, kettő nő helyette.', trick: 'Minden ölés után 3 mp-ig nem fogy a tár.' },
   bells:     { base: 'burst',    name: 'Lélekharang',     text: 'Kinek szól a harang?', trick: 'Minden kilencedik találat megkondítja a harangot: a célpont körül minden zombi elkábul.' },
+  scalpel:   { base: 'mpistol',  name: 'Szike',           text: 'Nem fog fájni. Nagyon.', trick: 'A kritikus találat 3 mp-ig vérzést okoz: a sebzés fele még egyszer.' },
   bigbang:   { base: 'launcher', name: 'A Nagy Bumm',     text: 'Minek célozni?', trick: 'Minden gránát három kisebb bombára esik szét.' },
 };
 function makeUnique(key, level) {

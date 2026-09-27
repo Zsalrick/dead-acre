@@ -47,14 +47,18 @@ function glowSprite(color, size, pos) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   s.scale.set(size, size, 1); s.position.copy(pos); return put(s);
 }
-function pointLight(color, i, d, x, y, z) { const l = new THREE.PointLight(color, i, d, 1.5); l.position.set(x, y, z); return put(l); }
+const LIGHT_POOL = Array.from({ length: 16 }, () => { const l = new THREE.PointLight(0xffffff, 0, 10, 1.5); scene.add(l); return l; }); let lightNext = 0;
+function pointLight(color, i, d, x, y, z) { // from the pool; past 16 a map light only glows (a stand-in the code can still set)
+  const l = LIGHT_POOL[lightNext++]; if (!l) return { isLight: false, intensity: 0, position: new V3(), color: new THREE.Color(), distance: 0 };
+  l.color.setHex(color); l.intensity = i; l.distance = d; l.position.set(x, y, z); return l;
+}
 const mapLabels = [];
 function label(lines, color, size, x, y, z) { const s = textSprite(lines, color, size); s.position.set(x, y, z); mapLabels.push(s); return put(s); }
 function lamp(x, z) {
   addBox(x, z, .2, .2, 4.2, poleMat);
   const bulb = put(new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), basic(0xffc070))); bulb.position.set(x, 4.25, z);
   const glow = glowSprite(0xffa040, 2.2, bulb.position);
-  const light = lamps.filter(l => l.light.isLight).length < 8 ? pointLight(0xffa040, 1.7, 20, x, 4, z) : { intensity: 0 };
+  const light = lamps.filter(l => l.light.isLight).length < 7 ? pointLight(0xffa040, 1.7, 20, x, 4, z) : { intensity: 0 };
   lamps.push({ x, z, light, bulb, glow, flicker: false });
 }
 // a building: solid walls + gable roof + a dark door on one side
@@ -475,7 +479,7 @@ const MAPS = {
     name: 'Szent Lukács Kórház', desc: 'Kiürített megyei kórház: U alakú főépület, lezuhant mentőhelikopter a leszállón, mentőautók az udvaron.', minLevel: 13,
     main: { minX: -46, maxX: 46, minZ: -36, maxZ: 36 }, look: { tex: 'asphalt', ground: 0x8a8e88, fog: 0x0a1012, fogD: [.022, .03], fence: 0xb8bcc0 },
     vans: [[-36, 26], [36, 26], [-38, -30], [38, -4]], ammo: [6, 6], boxSpots: [[-8, 2], [10, -4], [-32, -14], [32, -20], [0, 28], [-18, 22]],
-    spawns: [[-43, -30], [43, -30], [-43, 28], [43, 28], [0, 33], [-20, 33], [20, 33], [-43, 0], [43, 20]],
+    spawns: [[-43, -30], [43, -30], [-43, 10], [43, 4], [0, 33], [-20, 33], [20, 33], [-43, 0], [43, 20]],
     lamps: [[-10, 6], [10, 6], [-28, 14], [28, 20], [0, -8], [-36, -20], [36, -26]],
     clear: [[0, -20, 19], [-22, -6, 10], [22, -6, 10], [0, 18, 8], [-30, 20, 4], [32, 14, 4], [-12, 8, 3], [12, 10, 3]],
     props: [['crate', 1.5], ['barrel', 1.5], ['stack', 1], ['car', 1.5], ['boom', 1.5]], propN: [16, 22],
@@ -570,6 +574,7 @@ function bigMap(B) {
 function loadMap(id, seed) {
   MAP_ID = id; MAP = bigMap(MAPS[id]); mapSeed = seed;
   scene.remove(mapGroup); disposeTree(mapGroup); mapGroup = new THREE.Group(); scene.add(mapGroup);
+  LIGHT_POOL.forEach(l => l.intensity = 0); lightNext = 0;
   obstacles.length = 0; rayBlockers.length = 0; rayBlockers.push(ground);
   lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0; mapLabels.length = 0;
   turrets.forEach(t => scene.remove(t.g)); turrets.length = 0;
