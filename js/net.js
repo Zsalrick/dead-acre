@@ -321,7 +321,7 @@ function buildSnapshot() {
     t: Math.round(M.t * 10) / 10, ph: M.phase, pt: Math.round((M.phaseT || 0) * 10) / 10, w: M.wave, r: round, cl: M.cleared ? 1 : 0,
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
-    kc: M.kc || 0, rt: M.rt || 0, tl: NET.tel, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, M.esc.leg, Math.round(M.esc.pos.distanceTo(M.esc.end))] : null, cr: M.crates ? M.crates.reduce((m, c, i) => m | (c.got ? 1 << i : 0), 0) : 0, od: M.objDone ? 1 : 0,
+    kc: M.kc || 0, rt: M.rt || 0, ca: M.cache && M.cache.t > 0 ? [Math.round(M.cache.x * 10), Math.round(M.cache.z * 10), Math.round(M.cache.t)] : null, tl: NET.tel, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, M.esc.leg, Math.round(M.esc.pos.distanceTo(M.esc.end))] : null, cr: M.crates ? M.crates.reduce((m, c, i) => m | (c.got ? 1 << i : 0), 0) : 0, od: M.objDone ? 1 : 0,
     tr: trapState.map(T => Math.max(0, Math.round(T.active * 10) / 10)), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
@@ -453,6 +453,7 @@ function applySnapshot(g, hostPeer) {
   for (const [id, z] of NET.zById) if (!live.has(id)) { NET.zById.delete(id); proxyDie(z); }
   if (Array.isArray(g.bb)) { const bz = NET.zById.get(g.bb[0]); if (bz) { if (BOUNTIES[g.bb[1]]) bountyLook(bz, g.bb[1]); bz.phase = g.bb[2]; bz.invulnT = g.bb[3] ? .5 : 0; } }
   NET.hz = Array.isArray(g.hz) ? g.hz : [];
+  if (Array.isArray(g.ca) && !M.cache) { M.cache = { x: (+g.ca[0] || 0) / 10, z: (+g.ca[1] || 0) / 10, t: clamp(+g.ca[2] || 0, 0, 60) }; buildCache(M.cache); banner('UTÁNPÓTLÁS-LÁDA', 'A térkép túloldalán, 60 mp-ig nyitható.'); }
   for (const [, x, z, r, t, col, kind] of fresh('tl' + hostPeer, g.tl)) { // the host's warnings: same ring here; the frost wave chills us too
     const at = new V3((+x || 0) / 10, 0, (+z || 0) / 10), R = clamp((+r || 0) / 10, .5, 20);
     telegraph(at, R, +col || 0xffffff, clamp((+t || 0) / 100, .1, 3), () => { if (kind === 'bell') bellHit(at); if (kind === 'frost' && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < R) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); } });
@@ -660,7 +661,7 @@ function itemFeed(verb, name, q) {
 }
 function myKill(w, kindName, head) {
   const col = CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a', wq = w.unique ? 5 : w.q || 0;
-  killFeed(NET.mode ? myName() : 'Te', col, w.name, RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0', kindName, '#c9c1a8', head);
+  killFeed(NET.mode ? myName() : 'Te', col, w.unique || w.q >= 4 || !w.base ? w.name : w.base.name, RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0', kindName, '#c9c1a8', head);
   if (NET.mode && NET.kf) pushRoll(NET.kf, [++NET.seq, String(w.name).slice(0, 40), wq, kindName, head ? 1 : 0], 6);
 }
 // ---------- party chat: Enter opens it, Enter sends, Esc closes ----------

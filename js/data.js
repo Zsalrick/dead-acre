@@ -73,7 +73,7 @@ const BASES = [
     model: { len: .46, h: .12, barrel: .24, br: .02, mag: .2, stock: .24, sight: true } },
   { id: 'burst', name: 'Burst Rifle', dmg: 44, rpm: 900, burst: 3, burstDelay: .3, mag: 24, res: 192, reload: 2.2, spread: 1.2, mode: 'burst', range: 110, zoom: 1.6, snd: 'mid', kick: .008, rl: 'mag',
     model: { len: .44, h: .13, barrel: .2, br: .02, mag: .17, stock: .22, sight: true } },
-  { id: 'carbine', name: 'Battle Rifle', dmg: 72, rpm: 400, mag: 20, res: 160, reload: 2.4, spread: .9, mode: 'semi', range: 130, zoom: 1.6, snd: 'mid', kick: .016, pierce: 1, rl: 'mag',
+  { id: 'carbine', name: 'Battle Rifle', dmg: 58, rpm: 400, mag: 20, res: 160, reload: 2.4, spread: .9, mode: 'semi', range: 130, zoom: 1.6, snd: 'mid', kick: .016, pierce: 1, rl: 'mag',
     model: { len: .5, h: .12, barrel: .3, br: .021, mag: .16, stock: .25, sight: true } },
   { id: 'lever', name: 'Lever Rifle', dmg: 100, rpm: 120, mag: 8, res: 64, reload: .5, single: true, spread: .7, mode: 'semi', range: 130, zoom: 1.7, snd: 'heavy', kick: .03, pierce: 2, rl: 'shell',
     model: { len: .34, h: .1, barrel: .42, br: .019, stock: .27, lever: true } },

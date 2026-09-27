@@ -10,7 +10,7 @@ function spawnDrop(w, pos) {
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   halo.scale.set(1.6, 1.6, 1); halo.position.y = .7; g.add(halo);
   const better = canUse(w) && typeof curW === 'function' && player.slots && player.slots.some(Boolean) && dps(w) > Math.max(...player.slots.filter(Boolean).map(dps));
-  const lv = textSprite([`${better ? '▲ ' : ''}LV ${w.level} ${w.base.name}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; g.add(lv);
+  const lv = textSprite([`${better ? '▲ ' : ''}LV ${w.level} ${w.base.name}${w.roll != null ? ` · ${w.roll}%` : ''}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; g.add(lv);
   if (w.q >= 4) { // legendary and unique: a fat beam, a ring on the ground and a sound you learn to love
     const ring = new THREE.Mesh(new THREE.RingGeometry(.7, .95, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .03; g.add(ring);
@@ -58,6 +58,7 @@ function findFocus() {
   if (bg) return { type: 'gear', gd: bg, it: bg.it };
   if (best) return { type: 'drop', drop: best, w: best.w };
   const rf = reviveFocus(); if (rf) return rf;
+  const ch = cacheFocus(); if (ch) return ch;
   const cf = crateFocus(); if (cf) return cf;
   const af = areaFocus(); if (af) return af;
   if (Math.hypot(box.pos.x - player.pos.x, box.pos.z - player.pos.z) < 2.6) return { type: 'box', w: box.state === 'ready' ? box.weapon : null };
@@ -68,6 +69,7 @@ function interact() {
   if (!focus) return;
   if (focus.type === 'drop' || focus.type === 'gear') return; // loot on the ground: F / hold F (game.js)
   else if (focus.type === 'crate') { takeCrate(focus.i); focus = null; }
+  else if (focus.type === 'cache') { openCache(); focus = null; }
   else if (focus.type === 'repair') repairGen();
   else if (!['box', 'ammo'].includes(focus.type)) areaInteract(focus);
   else if (focus.type === 'box') {

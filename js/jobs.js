@@ -188,3 +188,35 @@ function gridPath(a, b) {
   const pts = []; for (let c = t; c !== s; c = prev[c]) pts.push(new V3(R.minX + c % W, 0, R.minZ + ((c / W) | 0)));
   pts.reverse(); const out = pts.filter((p, k) => k % 4 === 3); out.push(b.clone()); return out;
 }
+
+// ---------- mid-job event (Division incursion beat): an elite squad comes in, and a cache drops somewhere for 60 s ----------
+function midEvent(M) {
+  M.evented = true;
+  const [sx, sz] = pick(activeSpawns());
+  for (let k = 0; k < 3; k++) { const z = spawnZombieAt(pick(['brute', 'runner', 'walker']), sx + rand(-2, 2), sz + rand(-2, 2)); z.elite = true; if (!z.affix) { z.affix = pick(AFFIX_KEYS); AFFIX[z.affix].on(z); } z.maxHp = z.hp; }
+  const [cx, cz] = BOX_SPOTS.map(p => p).sort((a, b) => Math.hypot(b[0] - player.pos.x, b[1] - player.pos.z) - Math.hypot(a[0] - player.pos.x, a[1] - player.pos.z))[0];
+  M.cache = { x: cx + 2.5, z: cz + 1.5, t: 60 }; buildCache(M.cache);
+  banner('ELIT OSZTAG ÉS UTÁNPÓTLÁS', 'Egy láda érkezett a térkép túloldalára: 60 mp-ig nyitható. Az elitek már úton vannak.'); SND.roundStart();
+}
+function buildCache(C) {
+  const g = new THREE.Group(), m = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color: 0x3a3a2a, emissive: 0x6a4a00, roughness: .6 }));
+  m.scale.set(1.2, .7, .8); m.position.y = .35; g.add(m);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, 30, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: .18, blending: THREE.AdditiveBlending, depthWrite: false }));
+  beam.position.y = 15; g.add(beam); g.position.set(C.x, 0, C.z); scene.add(g); C.g = g;
+}
+function cacheFocus() {
+  const C = mission && mission.cache; if (!C || C.opened || C.t <= 0) return null;
+  return Math.hypot(C.x - player.pos.x, C.z - player.pos.z) < 2.2 ? { type: 'cache' } : null;
+}
+function openCache() { // each player opens it once and rolls their own loot
+  const C = mission.cache; if (!C || C.opened) return; C.opened = true; C.g.children[0].material.emissive.setHex(0x111111); C.g.children[1].visible = false;
+  const p = new V3(C.x, 0, C.z);
+  spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.6)), lootLvl(1)), p.clone().add(new V3(-1, 0, 1)));
+  if (Math.random() < .5) spawnGearDrop(makeGear(null, Math.max(2, rollRarity(.5)), lootLvl(1)), p.clone().add(new V3(1, 0, 1)));
+  spawnItem('gren', p.clone().add(new V3(0, 0, 1.5))); SND.power(); popText('Utánpótlás-láda kinyitva!', '#ffd23f');
+}
+function updateCache(M, dt) {
+  const C = M.cache; if (!C) return;
+  C.t -= dt; if (C.g) C.g.visible = C.t > 0 && (C.t > 8 || Math.sin(now * 14) > 0);
+  if (C.t <= 0 && C.g) { scene.remove(C.g); C.g = null; }
+}

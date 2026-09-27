@@ -359,7 +359,7 @@ function updateWeapon(dt) {
   const wants = w.base.mode === 'auto' ? mouseDown : clickQueued > 0;
   if (!wants || busy || player.fireCd > 0) return;
   clickQueued = 0;
-  if (w.ammo <= 0) { if (w.reserve > 0) startReload(); else SND.dry(); player.fireCd = .25; return; }
+  if (w.ammo <= 0) { if (w.reserve > 0) startReload(); else { SND.dry(); if (now - (player.dryMsgT || -9) > 2.5) { player.dryMsgT = now; popText(`Nincs lőszer! Válts fegyvert, vagy lőszerláda ${Math.round(Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z))} m`, '#ff8a70'); } } player.fireCd = .25; return; }
   player.sprint = false;
   if (w.base.mode === 'burst') { player.burstLeft = w.base.burst; player.burstT = 0; player.fireCd = w.base.burstDelay + (w.base.burst - 1) * 60 / w.rpm; }
   else { shoot(); player.fireCd = 60 / w.rpm / (player.stormT > 0 ? 1.4 : 1) / rateMul(w); }

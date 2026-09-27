@@ -973,7 +973,7 @@ function boxUsed() {
 let activeMod = null;
 const roundMod = { speed: 1, hp: 1, points: 1, elite: false, spawns: 1 };
 function clearMod() {
-  activeMod = null; Object.assign(roundMod, { speed: 1, hp: 1, points: 1, elite: false, spawns: 1 });
+  activeMod = null; if (typeof rain !== 'undefined') rain.visible = false; Object.assign(roundMod, { speed: 1, hp: 1, points: 1, elite: false, spawns: 1 });
   const L = MAP.look;
   scene.fog.density = baseFog; scene.fog.color.setHex(L.fog); scene.background.setHex(L.fog);
   moonMesh.material.color.setHex(0xe4e9ff); moon.color.setHex(0xa4b6ff);

@@ -157,6 +157,7 @@ function updateMission(dt) {
     spawnT -= dt;
     if (spawnT <= 0 && alive() < aliveCap() && !(M.phase === 'wave' && M.phaseT < 8) && !(M.boardT > 0)) { spawnZombie(); spawnT = Math.max(.5, 1.6 - round * .08) * rand(.6, 1.2) / (M.phase === 'evac' ? 1.5 : 1); }
   }
+  if ((!M.job.type || M.job.type === 'survive') && !M.evented && M.t > M.job.dur * .45 && M.phase !== 'evac') midEvent(M);
   stats.bestThreat = Math.max(stats.bestThreat, round);
 }
 function extract() {
@@ -207,7 +208,7 @@ function finishJob(success, abandoned) {
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
   truck.beacon.visible = truck.beam.visible = false; $('evacMark').hidden = true; $('intro').hidden = true;
-  clearGearDrops(); clearFx(); if (M.esc) scene.remove(M.esc.a.g);
+  clearGearDrops(); clearFx(); if (M.esc) scene.remove(M.esc.a.g); if (M.cache && M.cache.g) scene.remove(M.cache.g);
   const w = settleWeapons(success, M);
   // dying after the clock ran out (during evac) still pays a quarter of the fee
   const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
@@ -215,7 +216,7 @@ function finishJob(success, abandoned) {
   P.cash += cash; stats.cash += cash;
   const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts;
   let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun
-  if (success && stats.jobs === 0 && !J.test) { tierBonus = makeWeapon(pick(BASES), 2, Math.max(1, P.level)); P.stash.push(packW(tierBonus)); noteFound(tierBonus); }
+  if (success && stats.jobs === 0 && !J.test) { tierBonus = makeWeapon(pick(BASES), 2, Math.max(1, P.level)); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   if (success && J.tier) P.parts = (P.parts || 0) + 10 + 5 * J.tier; // Rémálom pays parts too
   if (success && J.tier) { tierBonus = Math.random() < .3 ? makeUnique(null, J.lvl) : makeWeapon(pick(BASES), 4, J.lvl); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   const levelUps = addXp(xp);
@@ -485,6 +486,7 @@ function updateHUD() {
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot]; card = gearCard(focus.it, `<span><kbd>F</kbd>A zsákba</span><span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>`, true); }
     else if (focus.w) card = cardHTML(focus.w, `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : player.bag.length < bagMax() ? `Táskába ${player.bag.length}/${bagMax()}` : 'Tele a táska'}</span><span><kbd>F</kbd>tartsd: Csere</span>`, curW());
+    else if (focus.type === 'cache') prompt = '<b>[E]</b> Utánpótlás-láda kinyitása';
     else if (focus.type === 'revive') prompt = `<b>[E]</b> nyomva: ${esc(focus.name)} felélesztése`;
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Utánpótlás-láda felvétele';
     else if (focus.type === 'repair') prompt = `<b>[E]</b> ${mission && mission.esc ? 'Túlélő ellátása' : 'Generátor javítása'} (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
@@ -562,9 +564,11 @@ let now = 0, last = performance.now();
 loadMap('farm', 1234);
 refreshMenu();
 
+let slowmo = 0; // a moment of slow motion (a bounty falls)
 function frame(t) {
   requestAnimationFrame(frame);
-  const dt = Math.min(.05, (t - last) / 1000); last = t;
+  let dt = Math.min(.05, (t - last) / 1000); last = t;
+  if (slowmo > 0) { slowmo -= dt; dt *= .35; }
   netTick(dt);
   if (state === 'menu' || state === 'hub' || state === 'results') {
     now += dt;
@@ -587,7 +591,7 @@ function frame(t) {
     updateFx(dt);
     updateProjs(dt);
     updateItemDrops(dt); updateGearDrops(dt); updatePings(dt); updateMatesHud(); updateCompass();
-    updateAreas(dt);
+    updateAreas(dt); if (mission) updateCache(mission, dt);
     updateMapFx(dt);
     if (state === 'playing') updateSellHold(dt);
     if (state === 'playing') updateHealthBars();

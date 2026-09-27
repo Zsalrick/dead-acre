@@ -42,7 +42,8 @@ function rollBoard() {
   const j = profile.jobs[0]; j.dur = 300; j.reward = Math.round((470 + profile.level * 35) / 10) * 10; j.xp = 120; j.lvl = profile.level;
   if (profile.level >= 3) profile.jobs.push(makeBounty());
   if (profile.level >= LEVEL_CAP) { // Rémálom +N after the cap: pick any tier you have unlocked, clear the top one to unlock the next
-    const j = Object.assign(makeJob(), {}); j.diff = 5; j.boss = true; j.dur = Math.max(j.dur, 480); j.base = { reward: j.reward, xp: j.xp, title: j.title.replace(/^.*?: /, '') };
+    let j; for (let k = 0; k < 40 && (!j || j.diff < 5); k++) j = makeJob(); // a 5-star base, so Rémálom never pays less than the board
+    j.diff = 5; j.boss = true; j.dur = Math.max(j.dur, 480); j.base = { reward: j.reward, xp: j.xp, title: j.title.replace(/^.*?: /, '') };
     setTier(j, profile.tierSel ? Math.min(profile.tierSel, (profile.tier || 0) + 1) : (profile.tier || 0) + 1); profile.jobs.push(j);
   }
 }
@@ -140,7 +141,7 @@ const HUB = {
     const locs = MAP_IDS.map(id => { const [x, y] = loc(id), open = MAPS[id].minLevel <= P.level, feat = id === featuredMap();
       return `<g class="loc${open ? '' : ' locked'}${feat ? ' feat' : ''}" transform="translate(${x} ${y})">${feat ? '<circle r="16" class="fring"/>' : ''}<rect x="-8" y="-8" width="16" height="16" transform="rotate(45)"/><text y="30">${feat ? '★ ' : ''}${MAPS[id].name}</text>${feat ? '<text y="44" class="lk ft">heti kiemelt · +25% XP</text>' : ''}${open ? '' : `<text y="44" class="lk">${MAPS[id].minLevel}. szinttől</text>`}</g>`; }).join('');
     const marks = J.map((j, i) => {
-      const [lx, ly] = loc(j.map), k = J.slice(0, i).filter(o => o.map === j.map).length, [dx, dy] = [[0, -40], [42, -14], [-42, -14], [30, 30], [-30, 30]][k % 5];
+      const [lx, ly] = loc(j.map), k = J.slice(0, i).filter(o => o.map === j.map).length, [dx, dy] = [[0, -44], [62, -6], [-62, -6], [44, 36], [-44, 36]][k % 5];
       const col = j.bounty ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1];
       const tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase();
       return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy})" style="--jc:${col}"><line x1="0" y1="0" x2="${-dx}" y2="${-dy}"/><circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 10 : 8}"/><text y="-24">${tag}</text></g>`;
@@ -351,11 +352,14 @@ function loadBuild(i) {
   const lists = [P.loadout, P.bag, P.stash, SH.w];
   B.w.forEach((u, k) => { // each hand: find the gun wherever it is now and swap it in
     if (!u || (P.loadout[k] && P.loadout[k].uid === u)) return;
+    if (P.loadout[k] && P.stash.length >= stashMax()) return; // no room for the gun it replaces
     for (const L of lists) { const j = L.findIndex(o => o && o.uid === u); if (j < 0) continue;
+      if (!canUse(unpackW(L[j]))) break;
       const w = L === P.loadout ? L[j] : L.splice(j, 1)[0]; if (L === P.loadout) L[j] = null;
       if (P.loadout[k]) P.stash.push(P.loadout[k]); P.loadout[k] = w; break; }
   });
   for (const k of GEAR_KEYS) { const u = B.g[k]; if (!u || (P.gear[k] && P.gear[k].uid === u)) continue;
+    if (P.gear[k] && P.gearStash.length >= gearMax()) continue;
     for (const L of [P.gearStash, SH.g]) { const j = L.findIndex(it => it.uid === u); if (j < 0) continue; const it = L.splice(j, 1)[0]; if (P.gear[k]) P.gearStash.push(P.gear[k]); P.gear[k] = it; break; } }
   if (!P.loadout[0] && !P.loadout[1]) P.loadout[0] = packW(makeWeapon(BASES[0], 0, 1));
   gearChanged(); SND.power();

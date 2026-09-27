@@ -171,7 +171,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
 const tmpV = new V3();
 function zHeadPos(z) { return tmpV.set(z.pos.x, (z.K.crawl ? 1 : 2) * z.scale + z.g.position.y, z.pos.z).clone(); }
 
-const tallyHit = (amt, o) => { if (o.remote || o.chain) return; if (!o.dot) player.hitsN++; player.dmgDone += amt; };
+const tallyHit = (amt, o) => { if (o.remote || o.chain) return; if (!o.dot && player.hitsN < player.shotsN) player.hitsN++; player.dmgDone += amt; };
 function hurtZombie(z, amt, o = {}) {
   if (NET.client && mission) { if (!z.dead) { tallyHit(amt, o); if (!o.dot) z.flinch = .12; } return netHit(z, amt, o); } // a party member's hit goes to the host
   if (z.dead) return;
@@ -197,14 +197,14 @@ function hurtZombie(z, amt, o = {}) {
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit, z);
   if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
-  if (o.burnDps) { z.burnT = Math.max(z.burnT, o.burnT || 3); z.burnDps = Math.max(z.burnDps, o.burnDps); z.burnBy = o.remote || null; }
+  if (o.burnDps) { z.burnT = Math.max(z.burnT, o.burnT || 3); z.burnDps = Math.max(z.burnDps, o.burnDps); z.burnBy = o.remote || null; z.burnW = o.w || z.burnW; }
   if (!o.remote) weaponOnHit(z, amt, o);
   if (o.head && !o.remote && brand4('ranger')) z.markT = Math.max(z.markT || 0, 5);
   if (z.hp <= 0) killZombie(z, o);
   else if (!o.dot && !o.remote) addPoints(10);
 }
 function applyElement(z, w, amt) {
-  if (w.element === 'fire') { z.burnT = 3; z.burnBy = null; z.burnDps = Math.max(z.burnDps, w.dmg * w.pellets * fireRate(w) * .12); } // ~12% of the gun's DPS, the same for every gun
+  if (w.element === 'fire') { z.burnT = 3; z.burnBy = null; z.burnW = w; z.burnDps = Math.max(z.burnDps, w.dmg * w.pellets * fireRate(w) * .12); } // ~12% of the gun's DPS, the same for every gun
   else if (w.element === 'cryo') z.slowT = 2.5;
   else if (w.element === 'shock') {
     let best = null, bd = 5;
@@ -377,7 +377,7 @@ function updateZombies(dt) {
     if (z.burnT > 0) {
       z.burnT -= dt; z.burnAcc += z.burnDps * dt;
       if (Math.random() < dt * 12) burst(new V3(z.pos.x + rand(-.2, .2), rand(.6, 1.9) * z.scale, z.pos.z + rand(-.2, .2)), 0xff7a20, 1, 1, .35);
-      if (z.burnAcc > 0 && (z.burnAcc >= z.burnDps * .5 || z.burnT <= 0)) { const a = z.burnAcc; z.burnAcc = 0; hurtZombie(z, a, { dot: true, color: ELEMENTS.fire.color, remote: z.burnBy || undefined }); if (z.dead) continue; }
+      if (z.burnAcc > 0 && (z.burnAcc >= z.burnDps * .5 || z.burnT <= 0)) { const a = z.burnAcc; z.burnAcc = 0; hurtZombie(z, a, { dot: true, color: ELEMENTS.fire.color, remote: z.burnBy || undefined, w: z.burnBy ? undefined : z.burnW }); if (z.dead) continue; }
       if (z.burnT <= 0) z.burnDps = 0;
     }
     z.slowT -= dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
@@ -717,6 +717,8 @@ function bountyLoot(pos, key) {
   const p = new V3(pos.x, 0, pos.z), B = BOUNTIES[key];
   spawnDrop(B && Math.random() < .25 ? makeUnique(pick(B.loot), lootLvl(3)) : makeWeapon(pick(BASES), 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0))); // a quarter of the time: one of this boss's uniques
   spawnGearDrop(Math.random() < .15 ? makeExotic(null, lootLvl(3)) : makeGear(null, 4, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
+  for (let k = 0; k < 4; k++) { const a = k / 4 * 6.28 + .4; setTimeout(() => spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.5)), lootLvl(2)), p.clone().add(new V3(Math.cos(a) * 2.6, 0, Math.sin(a) * 2.6))), 250 + k * 180); } // the loot fountain
+  slowmo = 1.4; for (let k = 0; k < 5; k++) tn(660 * Math.pow(1.19, k), .25, .06, 'triangle', 0, .15 + k * .12);
 }
 
 // ---------- unique tricks and anointments that fire on hits and kills (the shooter's side) ----------
@@ -765,13 +767,14 @@ function bountyLook(z, key) {
 }
 
 const AFFIX = {
-  fire:  { name: 'Tüzes', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 3.2, 0xff6a1a, .7, () => { burst(new V3(at.x, .5, at.z), 0xff7a1a, 24, 4, .6); SND.explode(); hurtAt(at, 3.2, 25); }); } },
-  boom:  { name: 'Robbanó', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 4.5, 0xffd23f, 1, () => { burst(new V3(at.x, .8, at.z), 0xffd23f, 30, 6, .7); SND.explode(); hurtAt(at, 4.5, 40); }); } },
+  fire:  { name: 'Tüzes', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 3.2, 0xff6a1a, .7, () => { burst(new V3(at.x, .5, at.z), 0xff7a1a, 24, 4, .6); SND.explode(); hurtAt(at, 3.2, 25 * affixMul()); }); } },
+  boom:  { name: 'Robbanó', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 4.5, 0xffd23f, 1, () => { burst(new V3(at.x, .8, at.z), 0xffd23f, 30, 6, .7); SND.explode(); hurtAt(at, 4.5, 40 * affixMul()); }); } },
   frost: { name: 'Fagyos', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 5, 0x9fe6ff, .8, () => { burst(new V3(at.x, .5, at.z), 0x9fe6ff, 24, 4, .6); if (Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 5) player.chillT = 2.5; }, 'frost'); } },
   fast:  { name: 'Gyors', on: z => { z.speed *= 1.4; } },
   tough: { name: 'Szívós', on: z => { z.hp *= 1.8; z.maxHp = z.hp; z.scale *= 1.1; z.g.scale.setScalar(z.scale); } },
 };
 const AFFIX_KEYS = Object.keys(AFFIX);
+const affixMul = () => (1 + .03 * (round - 1)) * (1 + .08 * jobTier());
 
 // the bell reaches you only if the bell tower can see you: cover saves you
 function bellHit(at) {
