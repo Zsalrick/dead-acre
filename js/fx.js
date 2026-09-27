@@ -242,7 +242,8 @@ function fxExplosion(p, color, radius = 5) {
 }
 
 // a ground ring that grows over `t` seconds, then the attack lands (fn): you can see it coming and step out
-function telegraph(pos, r, color, t, fn) {
+function telegraph(pos, r, color, t, fn, kind) {
+  if (NET.mode === 'host' && NET.tel) pushRoll(NET.tel, [++NET.seq, Math.round(pos.x * 10), Math.round(pos.z * 10), Math.round(r * 10), Math.round(t * 100), color, kind || ''], 6); // members see it too
   const m = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide }));
   m.rotation.x = -Math.PI / 2; m.position.set(pos.x, .05, pos.z); scene.add(m);
   const t0 = performance.now();

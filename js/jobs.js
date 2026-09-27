@@ -103,7 +103,7 @@ function objectiveTimer(M) {
 function objectiveLine(M) {
   const J = M.job;
   if (J.test) return 'Lőtér · célbábuk · Esc → Vissza a bázisra';
-  if (J.type === 'escort' && M.esc && !objDone(M)) return `Kíséret · túlélő ${Math.max(0, Math.round(M.esc.hp / M.esc.max * 100))}% · ${M.esc.leg === 1 ? 'a holmijáért' : 'a furgonig'} ${Math.round(M.esc.pos.distanceTo(M.esc.goal))} m${M.esc.waiting ? ' · VÁR RÁD' : ''}`;
+  if (J.type === 'escort' && M.esc && !objDone(M)) return `Kíséret · túlélő ${Math.max(0, Math.round(M.esc.hp / M.esc.max * 100))}% · ${M.esc.leg === 1 ? 'a holmijáért' : 'a furgonig'} ${Math.round(NET.client ? M.esc.netDist || 0 : M.esc.pos.distanceTo(M.esc.end))} m${M.esc.waiting ? ' · VÁR RÁD' : ''}`;
   if (J.type === 'exterminate' && !objDone(M)) return `Irtás · ${Math.min(M.kc || 0, J.goal)} / ${J.goal} zombi`;
   if (J.type === 'supply' && !objDone(M)) return `Utánpótlás · ${M.crates ? M.crates.filter(c => c.got).length : 0} / ${J.goal} láda · kövesd a sárga fényt`;
   if (J.type === 'defense' && M.gen && M.phase !== 'evac') return `Generátor ${Math.max(0, Math.round(M.gen.hp / M.gen.max * 100))}% · ${M.wave}. hullám`;
@@ -137,7 +137,8 @@ function buildEscort(M) {
   const start = new V3(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 4.5), [gx, gz] = MAP.vans[M.pickup];
   const max = 900 * (1 + .3 * (M.job.diff - 1));
   const end = new V3(gx, 0, gz - Math.sign(gz || 1) * 3), far = BOX_SPOTS.map(([x, z]) => new V3(x, 0, z)).sort((p, q) => Math.min(q.distanceTo(start), q.distanceTo(end)) - Math.min(p.distanceTo(start), p.distanceTo(end)))[0];
-  M.esc = { a, pos: a.pos.copy(start), vel: new V3(), goal: far || end, route: far ? [end] : [], leg: 1, hp: max, max, hitT: -9, side: 0, sideT: 0, last: start.clone(), lastT: 0, waiting: false };
+  const p1 = gridPath(start, far || end), p2 = far ? gridPath(far, end) : [];
+  M.esc = { a, pos: a.pos.copy(start), vel: new V3(), goal: p1.shift(), path: p1, path2: p2, end: far || end, leg: far ? 1 : 2, hp: max, max, hitT: -9, side: 0, sideT: 0, last: start.clone(), lastT: 0, waiting: false };
   M.esc.target = { pos: M.esc.pos, vel: M.esc.vel, alive: true, gen: true, esc: true };
   const tag = textSprite(['TÚLÉLŐ'], '#7dff7a', .6); tag.position.y = 2.3; a.g.add(tag);
 }
@@ -145,8 +146,11 @@ function updateEscort(M, dt) { // host / solo: walk, wait, sidestep when stuck, 
   const E = M.esc, near = [player, ...NET.avatars.values()].some(p => !p.down && Math.hypot(p.pos.x - E.pos.x, p.pos.z - E.pos.z) < 10);
   E.waiting = !near;
   const to = E.goal.clone().sub(E.pos); to.y = 0; const d = to.length();
-  if (d < 2.5 && E.route.length) { E.goal = E.route.shift(); E.leg++; banner('MEGVAN A HOLMIJA', 'Most irány a furgon!'); SND.power(); return; } // first their things, then the van
-  if (d < 2.5) { E.target.alive = false; E.vel.set(0, 0, 0); return objectiveDone(M, 'A TÚLÉLŐ BIZTONSÁGBAN'); }
+  if (d < (E.path.length ? 1.3 : 2.5)) { // along the route: the next point, then their things, then the van
+    if (E.path.length) { E.goal = E.path.shift(); return; }
+    if (E.leg === 1) { E.leg = 2; E.path = E.path2; E.end = E.path[E.path.length - 1] || E.goal; E.goal = E.path.shift() || E.goal; banner('MEGVAN A HOLMIJA', 'Most irány a furgon!'); SND.power(); return; }
+    E.target.alive = false; E.vel.set(0, 0, 0); return objectiveDone(M, 'A TÚLÉLŐ BIZTONSÁGBAN');
+  }
   if ((E.ambushT = (E.ambushT == null ? 18 : E.ambushT) - dt) <= 0) { // an ambush every 20 s: they come for the survivor
     E.ambushT = 20; const s = activeSpawns().reduce((b, q) => Math.hypot(q[0] - E.pos.x, q[1] - E.pos.z) < Math.hypot(b[0] - E.pos.x, b[1] - E.pos.z) ? q : b);
     for (let k = 0; k < 2 + M.job.diff; k++) { const z = spawnZombieAt(pick(['runner', 'walker', 'walker']), s[0] + rand(-2, 2), s[1] + rand(-2, 2)); z.tgt = E.target; z.tgtT = 6; }
@@ -163,6 +167,24 @@ function updateEscortLook(M, dt) { // everyone: the figure walks, flinches when 
   if (NET.client && E.net) E.pos.lerp(E.net, Math.min(1, dt * 8));
   a.walkT += dt * (2 + speed * 1.9); const sw = Math.sin(a.walkT) * Math.min(.7, speed * .14);
   a.g.position.set(E.pos.x, 0, E.pos.z); a.legL.rotation.x = sw; a.legR.rotation.x = -sw; a.armL.rotation.x = -sw * .8; a.armR.rotation.x = sw * .8;
-  if (speed > .1) a.g.rotation.y = Math.atan2(-(E.goal.x - E.pos.x), -(E.goal.z - E.pos.z));
+  const to = NET.client && E.net ? E.net : E.goal; if (speed > .1 && Math.hypot(to.x - E.pos.x, to.z - E.pos.z) > .05) a.g.rotation.y = Math.atan2(-(to.x - E.pos.x), -(to.z - E.pos.z));
   if (now - E.hitT < .2 && Math.random() < dt * 30) burst(new V3(E.pos.x, 1.2, E.pos.z), 0x8a0a0a, 1, 2, .3);
+}
+
+// a walkable route: breadth-first search on a 1 m grid of the yard, then every 4th step as a waypoint
+function gridPath(a, b) {
+  const R = MAIN_RECT, W = Math.floor(R.maxX - R.minX), H = Math.floor(R.maxZ - R.minZ);
+  const cell = p => clamp(Math.round(p.z - R.minZ), 0, H - 1) * W + clamp(Math.round(p.x - R.minX), 0, W - 1);
+  const free = new Uint8Array(W * H); for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) free[j * W + i] = blockedAt(R.minX + i, R.minZ + j, .75) ? 0 : 1;
+  const s = cell(a), t = cell(b), prev = new Int32Array(W * H).fill(-1), q = [s]; free[s] = free[t] = 1; prev[s] = s;
+  for (let h = 0; h < q.length && prev[t] < 0; h++) {
+    const c = q[h], i = c % W, j = (c / W) | 0;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const ni = i + di, nj = j + dj; if (ni < 0 || nj < 0 || ni >= W || nj >= H) continue;
+      const n = nj * W + ni; if (prev[n] >= 0 || !free[n] || (di && dj && (!free[j * W + ni] || !free[nj * W + i]))) continue; prev[n] = c; q.push(n);
+    }
+  }
+  if (prev[t] < 0) return [b.clone()];
+  const pts = []; for (let c = t; c !== s; c = prev[c]) pts.push(new V3(R.minX + c % W, 0, R.minZ + ((c / W) | 0)));
+  pts.reverse(); const out = pts.filter((p, k) => k % 4 === 3); out.push(b.clone()); return out;
 }

@@ -155,6 +155,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
     shootT: rand(1.5, 3), ammo: 6, gunReload: 0, gunKick: 0, fuse: 0,
   };
   if (roundMod.elite && !K.boss && kind !== 'spawnling' && Math.random() < .25) { z.elite = true; z.hp *= 2; z.scale *= 1.08; }
+  if (!K.boss && kind !== 'spawnling' && !NET.client && mission && !mission.job.test && Math.random() < .03 + .01 * (mission.job.diff - 1) + .02 * jobTier()) { z.elite = true; z.affix = pick(AFFIX_KEYS); AFFIX[z.affix].on(z); } // an elite with a trait
   z.rise = rise;
   z.maxHp = z.hp; z.id = ++zidSeq;
   if (NET.mode === 'host') NET.zById.set(z.id, z);
@@ -224,6 +225,7 @@ function killZombie(z, o) {
   if (z.dummy) { z.dead = true; z.deathT = 0; z.fallDir = 1; if (!o.remote) { hitmarker(true); SND.kill(); } if (mission && mission.dummyQ) mission.dummyQ.push({ t: 2.5, spot: z.spot }); return; }
   if (mission) mission.kc = (mission.kc || 0) + 1; // the whole party's kills (objective jobs)
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1; bloodPool(z.pos.x, z.pos.z, z.scale);
+  if (z.affix && AFFIX[z.affix].die) AFFIX[z.affix].die(z);
   if (z.bounty) bountyKilled(z);
   if (o.remote) { // a party member's kill: they get the points and roll the loot
     burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 14, 3.5);
@@ -606,7 +608,7 @@ function updateHealthBars() {
     e.hidden = false;
     e.classList.toggle('big', z.kind === 'brute');
     e.style.transform = `translate(${v.x * W + W}px,${-v.y * H + H}px) translate(-50%,-100%)`;
-    e.firstChild.textContent = (z.elite ? 'Elit ' : '') + (z.kind === 'walker' ? '' : z.K.name);
+    e.firstChild.textContent = (z.affix ? AFFIX[z.affix].name + ' ' : z.elite ? 'Elit ' : '') + (z.kind === 'walker' && !z.affix ? '' : z.K.name);
     e.querySelector('b').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
   }
   for (let i = n; i < hbPool.length; i++) hbPool[i].hidden = true;
@@ -628,13 +630,11 @@ function spawnBounty(key) {
   const B = BOUNTIES[key] || BOUNTIES.butcher, all = activeSpawns();
   const [sx, sz] = all.reduce((b, s) => Math.abs(Math.hypot(s[0] - player.pos.x, s[1] - player.pos.z) - 38) < Math.abs(Math.hypot(b[0] - player.pos.x, b[1] - player.pos.z) - 38) ? s : b);
   const z = spawnZombieAt('butcher', sx, sz);
-  z.bounty = key; z.hp *= B.hp * Math.min(1, .4 + .04 * jobLvl()); // early bounties are gentler: ×0.52 at level 3, full from level 15 z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale);
-  const tint = new THREE.Color(B.tint); z.mats.forEach(m => m.color && m.color.lerp(tint, .45));
+  z.hp *= B.hp * Math.min(1, .4 + .04 * jobLvl()); // early bounties are gentler: ×0.52 at level 3, full from level 15
+  z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale); bountyLook(z, key);
   z.sumT = 6; z.novaT = 8; z.blinkT = 10; z.phase = 1; z.dmg *= 1.2; z.throwT = 4; z.slamT = 6;
   if (B.plate) z.armor = z.hp * B.plate;
-  const weak = new THREE.Mesh(new THREE.SphereGeometry(.22, 12, 8), new THREE.MeshBasicMaterial({ color: B.tint })); // the weak point: on the back, glowing
-  weak.position.set(0, .55, -.3); weak.userData.z = z; weak.userData.weak = true; z.upper.add(weak); z.parts.push(weak);
-  const wg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: B.tint, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); wg.scale.set(1.1, 1.1, 1); weak.add(wg); // the Colossus: break the plating first (headshots skip it)
+ // the Colossus: break the plating first (headshots skip it)
   banner(B.name.toUpperCase(), B.desc); SND.roar();
   return z;
 }
@@ -677,7 +677,7 @@ function bountyTick(z, dt, dist) {
       SND.armorBreak();
       if (Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 8) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); }
       hurtAt(at, 8, 18 * ph);
-    });
+    }, 'frost');
   }
   if (B.slam && (z.slamT -= dt) <= 0 && dist < 16) { // a ground slam with a tell, then a charge in the last phase
     z.slamT = z.phase === 3 ? 3.5 : z.phase === 2 ? 5 : 6.5;
@@ -742,3 +742,21 @@ function headPop(z) {
   for (const c of z.upper.children) if (c.position.y > .85) c.visible = false;
   const h = new V3(z.pos.x, 2 * z.scale, z.pos.z); burst(h, 0x7a0a0a, 22, 4.5, .7); burst(h, 0xd8d0b8, 5, 3, .5); nz(.12, 900, .35, 'bandpass', 2);
 }
+
+// a bounty's look, the same for the host and for party members: its tint and the glowing weak point on its back
+function bountyLook(z, key) {
+  const B = BOUNTIES[key]; if (!B || z.bountyLooked) return; z.bounty = key; z.bountyLooked = true;
+  const tint = new THREE.Color(B.tint); z.mats.forEach(m => m.color && m.color.lerp(tint, .45));
+  const weak = new THREE.Mesh(new THREE.SphereGeometry(.22, 12, 8), new THREE.MeshBasicMaterial({ color: B.tint }));
+  weak.position.set(0, .55, -.3); weak.userData.z = z; weak.userData.weak = true; z.upper.add(weak); z.parts.push(weak);
+  const wg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: B.tint, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); wg.scale.set(1.1, 1.1, 1); weak.add(wg);
+}
+
+const AFFIX = {
+  fire:  { name: 'Tüzes', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 3.2, 0xff6a1a, .7, () => { burst(new V3(at.x, .5, at.z), 0xff7a1a, 24, 4, .6); SND.explode(); hurtAt(at, 3.2, 25); }); } },
+  boom:  { name: 'Robbanó', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 4.5, 0xffd23f, 1, () => { burst(new V3(at.x, .8, at.z), 0xffd23f, 30, 6, .7); SND.explode(); hurtAt(at, 4.5, 40); }); } },
+  frost: { name: 'Fagyos', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 5, 0x9fe6ff, .8, () => { burst(new V3(at.x, .5, at.z), 0x9fe6ff, 24, 4, .6); if (Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 5) player.chillT = 2.5; }, 'frost'); } },
+  fast:  { name: 'Gyors', on: z => { z.speed *= 1.4; } },
+  tough: { name: 'Szívós', on: z => { z.hp *= 1.8; z.maxHp = z.hp; z.scale *= 1.1; z.g.scale.setScalar(z.scale); } },
+};
+const AFFIX_KEYS = Object.keys(AFFIX);

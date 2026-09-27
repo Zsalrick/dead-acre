@@ -200,9 +200,9 @@ function settleWeapons(success, M) {
   return { junkN: junk.length, junkParts, kept: newOnes, lost, overflow, gear: success ? home : lostGear };
 }
 function finishJob(success, abandoned) {
-  const M = mission, J = M.job, P = profile, party = NET.mode ? partySize() : 1;
+  const M = mission, J = M.job, P = profile, party = Math.max(M.partyMax || 1, NET.mode ? partySize() : 1);
   if (J.test) return leaveTest(M);
-  const board = NET.mode ? [{ n: myName(), k: player.kills, r: NET.revs || 0, me: true }, ...[...NET.avatars.values()].map(a => ({ n: a.name, k: a.kc || 0, r: a.rvc || 0 }))] : null;
+  const board = NET.mode || M.board ? [{ n: myName(), k: player.kills, r: NET.revs || 0, me: true }, ...(NET.avatars.size ? [...NET.avatars.values()].map(a => ({ n: a.name, k: a.kc || 0, r: a.rvc || 0 })) : M.board || [])] : null;
   mission = null; state = 'results';
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
@@ -229,7 +229,7 @@ function finishJob(success, abandoned) {
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   NET.revs = 0;
-  showResults({ tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  showResults({ hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {
