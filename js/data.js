@@ -27,7 +27,7 @@ const ELEMENTS = {
   cryo:  { name: 'Fagy',  word: 'Frostbite', color: '#8ff0ff', hex: 0x8ff0ff, desc: 'Lelassítja a célt (2,5 mp)' },
 };
 // weapon categories (skills and makers both key off these)
-const CAT = { ar: 'rifle', burst: 'rifle', lmg: 'heavy', minigun: 'heavy', dmr: 'marks', sniper: 'marks', crossbow: 'marks', lever: 'marks',
+const CAT = { carbine: 'rifle', sawed: 'shotgun', plasma: 'energy', ar: 'rifle', burst: 'rifle', lmg: 'heavy', minigun: 'heavy', dmr: 'marks', sniper: 'marks', crossbow: 'marks', lever: 'marks',
   smg: 'smg', mpistol: 'smg', pistol: 'pistol', deagle: 'pistol', revolver: 'pistol', shotgun: 'shotgun', autoshot: 'shotgun', dbarrel: 'shotgun',
   launcher: 'explosive', raygun: 'energy', tesla: 'energy', flamer: 'energy' };
 // makers: every gun a maker builds carries its signature perk; one base can come from several makers.
@@ -73,6 +73,8 @@ const BASES = [
     model: { len: .46, h: .12, barrel: .24, br: .02, mag: .2, stock: .24, sight: true } },
   { id: 'burst', name: 'Burst Rifle', dmg: 44, rpm: 900, burst: 3, burstDelay: .3, mag: 24, res: 192, reload: 2.2, spread: 1.2, mode: 'burst', range: 110, zoom: 1.6, snd: 'mid', kick: .008, rl: 'mag',
     model: { len: .44, h: .13, barrel: .2, br: .02, mag: .17, stock: .22, sight: true } },
+  { id: 'carbine', name: 'Battle Rifle', dmg: 72, rpm: 400, mag: 20, res: 160, reload: 2.4, spread: .9, mode: 'semi', range: 130, zoom: 1.6, snd: 'mid', kick: .016, pierce: 1, rl: 'mag',
+    model: { len: .5, h: .12, barrel: .3, br: .021, mag: .16, stock: .25, sight: true } },
   { id: 'lever', name: 'Lever Rifle', dmg: 100, rpm: 120, mag: 8, res: 64, reload: .5, single: true, spread: .7, mode: 'semi', range: 130, zoom: 1.7, snd: 'heavy', kick: .03, pierce: 2, rl: 'shell',
     model: { len: .34, h: .1, barrel: .42, br: .019, stock: .27, lever: true } },
   { id: 'lmg', name: 'LMG', dmg: 34, rpm: 720, mag: 100, res: 300, reload: 4.6, spread: 3.1, mode: 'auto', range: 100, zoom: 1.4, snd: 'mid', kick: .008, rl: 'box',
@@ -85,6 +87,8 @@ const BASES = [
     model: { len: .46, h: .13, barrel: .3, br: .03, mag: .14, stock: .2 } },
   { id: 'dbarrel', name: 'Double Barrel', dmg: 26, pellets: 10, rpm: 260, mag: 2, fixedMag: true, res: 40, reload: 2, spread: 7, mode: 'semi', range: 28, zoom: 1.2, snd: 'boom', kick: .06, rl: 'break',
     model: { len: .3, h: .1, barrel: .42, br: .024, double: true, stock: .28 } },
+  { id: 'sawed', name: 'Sawed-off', dmg: 24, pellets: 9, rpm: 240, mag: 2, fixedMag: true, res: 36, reload: 1.6, spread: 8.5, mode: 'semi', range: 18, zoom: 1.15, snd: 'boom', kick: .07, rl: 'break',
+    model: { len: .2, h: .1, barrel: .16, br: .024, double: true } },
   { id: 'flamer', name: 'Flamethrower', dmg: 9, pellets: 3, rpm: 900, mag: 100, res: 300, reload: 3.2, spread: 7, mode: 'auto', range: 18, zoom: 1.15, snd: 'flame', kick: .002, flame: true, pierce: 3, rl: 'box',
     model: { len: .5, h: .13, barrel: .3, br: .035, tank: true, stock: .18 } },
   { id: 'dmr', name: 'Marksman Rifle', dmg: 95, rpm: 260, mag: 10, res: 80, reload: 2.5, spread: 1, adsSpread: .05, mode: 'semi', range: 150, zoom: 2.3, snd: 'heavy', kick: .022, pierce: 2, scopeView: true, rl: 'mag',
@@ -97,6 +101,8 @@ const BASES = [
     model: { len: .34, h: .12, barrel: .24, br: .045, drum: true, stock: .2 } },
   { id: 'raygun', name: 'Ray Gun', dmg: 110, rpm: 230, mag: 20, res: 100, reload: 2.9, spread: 1.2, mode: 'semi', range: 120, zoom: 1.35, snd: 'ray', kick: .018, splash: 2.2, energy: true, rl: 'cell',
     model: { len: .22, h: .13, barrel: .14, br: .03 } },
+  { id: 'plasma', name: 'Plasma Carbine', dmg: 30, rpm: 520, mag: 40, res: 200, reload: 2.4, spread: 1.6, mode: 'auto', range: 90, zoom: 1.4, snd: 'ray', kick: .007, splash: 1.3, energy: true, rl: 'cell', tracer: 0xff6aff,
+    model: { len: .36, h: .13, barrel: .16, br: .028, coil: true, stock: .2 } },
   { id: 'tesla', name: 'Tesla Gun', dmg: 58, rpm: 300, mag: 30, res: 150, reload: 2.6, spread: .8, mode: 'auto', range: 45, zoom: 1.3, snd: 'zap', kick: .006, chain: 3, energy: true, rl: 'cell', tracer: 0x7fd8ff,
     model: { len: .3, h: .13, barrel: .16, br: .03, coil: true } },
 ];

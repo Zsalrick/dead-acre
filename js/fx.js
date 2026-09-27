@@ -55,7 +55,8 @@ function hitmarker(kill) { const h = $('hitm'); h.classList.add('on'); h.classLi
 function popPoints(n) { popText('+' + n); }
 function popText(t, color) {
   const e = document.createElement('div'); e.className = 'pop'; e.textContent = t; if (color) e.style.color = color;
-  e.style.left = rand(0, 60) + 'px'; $('pops').appendChild(e); setTimeout(() => e.remove(), 900);
+  const box = $('pops'); e.style.left = rand(0, 30) + 'px'; e.style.bottom = Math.min(5, box.children.length) * 24 + 'px'; // stacked, not on top of each other
+  box.appendChild(e); setTimeout(() => e.remove(), 1100);
 }
 let bannerT = 0;
 function banner(text, sub) { const b = $('banner'); b.innerHTML = text + (sub ? `<small>${sub}</small>` : ''); b.style.opacity = 1; bannerT = 2.6; }
