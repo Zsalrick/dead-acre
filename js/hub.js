@@ -116,7 +116,10 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
 const KEY_LABEL = { KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 const hbtn = (label, act, off, key) => `<button class="sbtn" data-act="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
+const hhold = (label, act, off, key) => `<button class="sbtn hold" data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
+const fieldParts = q => Math.max(1, Math.floor(PARTS[q] / 2)); // taking a gun apart in the field: half what the bench at home gets
+const testJob = () => ({ map: 'farm', diff: 1, dur: 1e6, mod: null, boss: false, type: 'test', test: true, title: 'Lőtér', client: '', reward: 0, xp: 0, lvl: profile.level, goal: 0 });
 const HUB = {
   skills: () => skillsTab(),
   vet: () => vetTab(),
@@ -132,7 +135,7 @@ const HUB = {
       const tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase();
       return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy})" style="--jc:${col}"><line x1="0" y1="0" x2="${-dx}" y2="${-dy}"/><circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 10 : 8}"/><text y="-24">${tag}</text></g>`;
     }).join('');
-    return partyPanel() + `<div class="hubhead"><h2>Munkák</h2>${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</div>
+    return partyPanel() + `<div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
       <div class="jobmap"><svg viewBox="0 0 900 440" class="jsvg" role="img" aria-label="Munkatérkép">${MAP_ART}${locs}${marks}</svg><div class="jside">${jobCard(J[jobSel], jobSel, notReady)}</div></div>`;
   },
   arsenal() {
@@ -142,7 +145,7 @@ const HUB = {
     const i = +si, w = lists[sl][i], bagFull = lists.B.length >= bagMax(), stashFull = lists.S.length >= MAX_STASH, lone = lists.L.filter(Boolean).length < 2;
     let acts = '';
     if (w && sl === 'L') acts = hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Raktárba', `mv:L:${i}:S`, lone || stashFull, 'KeyR');
-    else if (w) acts = hbtn('Kézbe', `mv:${sl}:${i}:L:${freeHand(lists.L)}`, false, 'KeyF') + hbtn('1. kézbe', `mv:${sl}:${i}:L:0`, false, 'Digit1') + hbtn('2. kézbe', `mv:${sl}:${i}:L:1`, false, 'Digit2') +
+    else if (w) acts = hbtn('Kézbe', `mv:${sl}:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('1. kézbe', `mv:${sl}:${i}:L:0`, !canUse(w), 'Digit1') + hbtn('2. kézbe', `mv:${sl}:${i}:L:1`, !canUse(w), 'Digit2') +
       (sl === 'B' ? hbtn('Raktárba', `mv:B:${i}:S`, stashFull, 'KeyR') : hbtn('Táskába', `mv:S:${i}:B`, bagFull, 'KeyT') + hbtn(`Eladás $${sellValue(w)}`, `sell:${i}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[w.q]} ⚙`, `salvage:${i}`, false, 'KeyB'));
     const pp = P.parts || 0;
     if (w) acts += hbtn(w.level + 2 > HFORGE.cap() ? `Kovács: szintkorlát (${HFORGE.cap()})` : `Kovács: +2 szint · ${HFORGE.level(w)} ⚙`, `hforge:level:${sl}:${i}`, pp < HFORGE.level(w) || w.level + 2 > HFORGE.cap(), 'KeyG') +
@@ -226,6 +229,7 @@ $('hubBody').addEventListener('click', e => {
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'jsel') { jobSel = +a; return renderHub(); }
+  if (kind === 'testground') { if (NET.code && !NET.host) return; return startJob(testJob()); }
   if (kind === 'job') { if (!P.cls) { hubTab = 'skills'; return renderHub(); } if (NET.code && (!NET.host || partyMembers().some(m => !m.me && !m.rdy))) return; return startJob(P.jobs[+a]); }
   if (['cls', 'sk', 'respec', 'reclass', 'aug'].includes(kind)) skillAction(kind, a);
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy', 'pready'].includes(kind)) return partyAction(kind, a);
@@ -270,6 +274,7 @@ function showResults(r) {
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}
     ${r.lost.length ? `<h3>Elveszett fegyverek</h3><ul class="wlist">${wl(r.lost, 'lost')}</ul>` : ''}
     ${r.gear.length ? `<h3>${r.success ? 'Hazavitt páncél' : 'Elveszett páncél'}</h3><ul class="wlist">${r.gear.map(it => `<li class="${r.success ? '' : 'lost'}" style="color:${RARITIES[it.q].color}">${it.name} <small>Lv ${it.level} ${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}</small></li>`).join('')}</ul>` : ''}
+    ${r.parts ? `<p class="lvlup">Alkatrész a terepen szétszedett holmiból: +${r.parts} ⚙</p>` : r.partsLost ? `<p class="note">A terepen szétszedett holmi alkatrésze (${r.partsLost} ⚙) odaveszett.</p>` : ''}
     ${r.overflow ? `<p class="note">A páncélraktár megtelt: ${r.overflow} darabot automatikusan eladtunk.</p>` : ''}`;
   $('results').hidden = false;
 }

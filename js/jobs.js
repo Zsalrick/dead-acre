@@ -6,9 +6,10 @@ const JOB_TYPES = {
   survive:     { name: 'Túlélés', label: null },
   exterminate: { name: 'Irtás', label: 'IRTÁS', desc: j => `Ölj meg ${j.goal} zombit. Nincs időkorlát.` },
   defense:     { name: 'Védelem', label: null, desc: j => `Védd meg a generátort ${fmtTime(j.dur)}-ig. Ha elpusztul, a munka elbukik.` },
+  test:        { name: 'Lőtér', label: 'LŐTÉR', desc: () => 'Célbábuk, végtelen lőszer, csere a társakkal.' },
   supply:      { name: 'Utánpótlás', label: 'UTÁNPÓTLÁS', desc: j => `Gyűjts össze ${j.goal} utánpótlás-ládát. Nincs időkorlát.` },
 };
-const noClock = job => !!(job && (job.bounty || job.type === 'exterminate' || job.type === 'supply'));
+const noClock = job => !!(job && (job.test || job.bounty || job.type === 'exterminate' || job.type === 'supply'));
 const objDone = M => !!(M.bountyDone || M.objDone);
 
 function setupObjective(M) {
@@ -96,8 +97,30 @@ function objectiveTimer(M) {
 }
 function objectiveLine(M) {
   const J = M.job;
+  if (J.test) return 'Lőtér · célbábuk · Esc → Vissza a bázisra';
   if (J.type === 'exterminate' && !objDone(M)) return `Irtás · ${Math.min(M.kc || 0, J.goal)} / ${J.goal} zombi`;
   if (J.type === 'supply' && !objDone(M)) return `Utánpótlás · ${M.crates ? M.crates.filter(c => c.got).length : 0} / ${J.goal} láda · kövesd a sárga fényt`;
   if (J.type === 'defense' && M.gen && M.phase !== 'evac') return `Generátor ${Math.max(0, Math.round(M.gen.hp / M.gen.max * 100))}% · ${M.wave}. hullám`;
   return null;
+}
+
+// ---------- the testing ground: dummies that stand still and get back up, no waves, no clock, endless ammo ----------
+function spawnDummy(x, z) {
+  const d = spawnZombieAt('walker', x, z, 0);
+  Object.assign(d, { dummy: true, speed: 0, dmg: 0, spot: [x, z], hp: zombieHp() * 40 }); d.maxHp = d.hp; d.g.position.set(x, 0, z);
+  return d;
+}
+function setupTestGround(M) {
+  M.dummyQ = [];
+  const c = new V3(-truck.pos.x, 0, -truck.pos.z).normalize(), side = new V3(-c.z, 0, c.x);
+  for (const [d, o] of [[9, -4], [13, 3], [18, -2], [24, 4], [30, 0], [38, -5]]) {
+    const x = truck.pos.x + c.x * d + side.x * o, z = truck.pos.z + c.z * d + side.z * o;
+    if (!blockedAt(x, z, 1)) spawnDummy(x, z);
+  }
+}
+function testRefill() { [...player.slots, ...player.bag].forEach(w => { if (w && w.reserve < resMax(w)) w.reserve = resMax(w); }); }
+function updateTestGround(M, dt) {
+  M.t += dt; testRefill();
+  for (const q of M.dummyQ) q.t -= dt;
+  M.dummyQ = M.dummyQ.filter(q => q.t > 0 || (spawnDummy(q.spot[0], q.spot[1]), false));
 }

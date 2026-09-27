@@ -9,9 +9,9 @@ function spawnDrop(w, pos) {
   beam.position.y = (2.6 + w.q * .9) / 2; g.add(beam);
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   halo.scale.set(1.6, 1.6, 1); halo.position.y = .7; g.add(halo);
-  const lv = textSprite([`LV ${w.level}`], rarColor(w), .55); lv.position.y = 1.45; g.add(lv);
+  const lv = textSprite([`LV ${w.level}`], canUse(w) ? rarColor(w) : '#ff5a4a', .55); lv.position.y = 1.45; g.add(lv);
   g.position.set(pos.x, 0, pos.z); scene.add(g);
-  drops.push({ w, g, gun, t: 75, pos: g.position });
+  const d = { w, g, gun, t: 75, pos: g.position }; drops.push(d); return d;
 }
 function removeDrop(d) {
   scene.remove(d.g);

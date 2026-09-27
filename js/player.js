@@ -61,7 +61,7 @@ function giveWeapon(w) {
     const old = player.slots[i];
     if (player.bag.length < bagMax()) { player.bag.push(old); popText(`${old.name} a táskába került (${player.bag.length}/${bagMax()})`, '#cfc6b0'); }
     else {
-      spawnDrop(old, player.pos.clone().add(new V3(rand(-.4, .4), 0, rand(-.4, .4))));
+      netShareDrop('w', old, spawnDrop(old, player.pos.clone().add(new V3(rand(-.4, .4), 0, rand(-.4, .4)))));
       popText(`Tele a táska · ${old.name} a földön${mission && old.owned ? ', ha itt hagyod, elveszik' : ''}`, '#ff8a70');
     }
   }

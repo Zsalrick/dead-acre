@@ -47,6 +47,7 @@ function startJob(job, opts = {}) {
   mission.pickup = b; placeVan(a, false);
   setupObjective(mission);
   player.pos.set(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 2.8); player.vel.set(0, 0, 0);
+  if (job.test) { player.points = 0; if (!opts.client) setupTestGround(mission); }
   player.yaw = Math.atan2(player.pos.x, player.pos.z); player.pitch = 0;
   powers.insta = powers.double = 0;
   vm.blend = null; if (vm.gun) { vmRoot.remove(vm.gun); vm.gun = null; } renderSlots(); renderInv();
@@ -54,7 +55,7 @@ function startJob(job, opts = {}) {
   $('round').textContent = round;
   truck.beacon.visible = truck.beam.visible = false;
   ['hub', 'menu', 'results'].forEach(id => $(id).hidden = true);
-  $('introT').textContent = job.title.toUpperCase(); $('introS').textContent = `${MAPS[job.map].name} · ${fmtTime(job.dur)} túlélés`;
+  $('introT').textContent = job.title.toUpperCase(); $('introS').textContent = job.test ? 'Célbábuk, végtelen lőszer · cserélj fegyvert a társaiddal · Esc: vissza' : `${MAPS[job.map].name} · ${fmtTime(job.dur)} túlélés`;
   $('introS2').innerHTML = `${'★'.repeat(job.diff)}${'☆'.repeat(5 - job.diff)} · ${DIFF_NAMES[job.diff - 1]}${job.mod ? ` · ${MODS[job.mod].label}` : ''}${job.boss ? ' · A Mészáros is eljön' : ''}`;
   $('intro').hidden = false; $('hud').hidden = true;
   state = 'intro'; initAudio(); lockPointer();
@@ -81,13 +82,14 @@ function endIntro() {
   M.intro = -1; M.departT = 0; state = 'playing';
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
   equipView(); player.switchT = SWITCH_T * .5;
-  banner('1. HULLÁM', 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart();
+  if (M.job.test) banner('LŐTÉR', 'Célbábuk előtted. Esc: leltár és vissza a bázisra.'); else { banner('1. HULLÁM', 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart(); }
   if (!locked && !noLock) { needClick = true; $('clickHint').hidden = false; } // one click grabs the mouse
 }
 function updateMission(dt) {
   const M = mission; if (!M) return;
   if (M.dead) return finishJob(false);
   if (NET.mode && netAllDown()) { banner('A CSAPAT ELESETT', 'Senki nem maradt talpon.'); return finishJob(false); }
+  if (M.job.test) return updateTestGround(M, dt);
   if (M.leaving) { // driving off
     M.leaving += dt;
     truck.g.position.x += truck.dir * dt * (4 + M.leaving * 6);
@@ -175,7 +177,7 @@ function extract() {
 function settleWeapons(success, M) {
   const carried = [...player.slots.filter(Boolean), ...player.bag];
   const keep = success ? carried : carried.filter(w => w.owned);
-  const lost = [...carried.filter(w => !keep.includes(w)), ...M.brought.filter(w => !carried.includes(w))];
+  const lost = [...carried.filter(w => !keep.includes(w)), ...M.brought.filter(w => !carried.includes(w) && !(M.destroyed || []).includes(w))];
   const P = profile, newOnes = keep.filter(w => !w.owned);
   const hands = player.slots.map(w => w && keep.includes(w) ? w : null), bag = player.bag.filter(w => keep.includes(w));
   if (!hands[0] && !hands[1] && bag.length) hands[0] = bag.shift();
@@ -196,6 +198,7 @@ function settleWeapons(success, M) {
 }
 function finishJob(success, abandoned) {
   const M = mission, J = M.job, P = profile, party = NET.mode ? partySize() : 1;
+  if (J.test) return leaveTest(M);
   const board = NET.mode ? [{ n: myName(), k: player.kills, r: NET.revs || 0, me: true }, ...[...NET.avatars.values()].map(a => ({ n: a.name, k: a.kc || 0, r: a.rvc || 0 }))] : null;
   mission = null; state = 'results';
   netJobEnded();
@@ -207,6 +210,7 @@ function finishJob(success, abandoned) {
   const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned && M.phase === 'evac' ? Math.round(J.reward * .25) : 0;
   const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)));
   P.cash += cash; stats.cash += cash;
+  const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts;
   const levelUps = addXp(xp);
   const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
   if (success && J.bounty) stats.bounties = (stats.bounties || 0) + 1;
@@ -218,7 +222,13 @@ function finishJob(success, abandoned) {
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   NET.revs = 0;
-  showResults({ board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  showResults({ parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+}
+// back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
+function leaveTest(M) {
+  mission = null; netJobEnded(); clearGearDrops(); settleWeapons(true, M); clearZombieStuff();
+  $('flash').style.opacity = 0; $('intro').hidden = true; $('evacMark').hidden = true;
+  profile.inv = player.inv; saveProfile(); showHub();
 }
 function hurtAt(pos, r, d) {
   const me = NET.selfPos && player.pos !== NET.selfPos ? NET.selfPos : player.pos, zt = zTarget; zTarget = null;
@@ -266,9 +276,9 @@ document.addEventListener('pointerlockchange', () => {
 let quitArmed = false, pausedAt = 0;
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
-  state = 'paused'; mouseDown = rmb = false; pausedAt = performance.now(); quitArmed = false; $('quitBtn').textContent = 'Munka feladása';
+  state = 'paused'; mouseDown = rmb = false; pausedAt = performance.now(); quitArmed = false; $('quitBtn').textContent = mission && mission.job.test ? 'Vissza a bázisra' : 'Munka feladása';
   $('pauseNote').textContent = note || (noLock ? 'Az egér itt nem zárolható: mozgasd az egeret az ablakon belül, vagy fordulj a nyilakkal.' : '');
-  $('pauseInfo').textContent = `Szünet · ${mission.job.title} · ${round}. szintű veszély · ${player.points} pont`;
+  $('pauseInfo').textContent = mission.job.test ? 'Lőtér · a fegyvereidet és a páncélt eldobhatod a társaidnak' : `Szünet · ${mission.job.title} · ${round}. szintű veszély · ${player.points} pont${mission.parts ? ` · ${mission.parts} ⚙ evakuáláskor` : ''}`;
   renderPauseInv();
   $('pause').hidden = false;
 }
@@ -280,11 +290,12 @@ function renderPauseInv() {
   if (!get()) { sl = 'L'; si = String(player.cur); invSel = `L:${si}`; }
   const i = +si, x = get(), tag = w => w.owned ? 'saját' : 'új';
   let detail;
-  if (sl === 'M') detail = gearDetail(x, profile.gear[x.slot], `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd, akkor is, ha felveszed.' : 'Saját, levetted.'}</small>` + hbtn('Felveszem', `wear:${si}`, false, 'KeyF'));
+  const test = mission.job.test, destroyBtn = (act, it, off) => test ? '' : hhold(`Szétszedés (tartsd) +${fieldParts(it.q)} ⚙`, act, off, 'KeyX');
+  if (sl === 'M') detail = gearDetail(x, profile.gear[x.slot], `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd, akkor is, ha felveszed.' : 'Saját, levetted.'}</small>` + hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + destroyBtn(`gdestroy:${si}`, x, false));
   else if (sl === 'W') detail = gearDetail(x, null, `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd.' : 'Saját.'}</small>` + hbtn('Leveszem', `unwear:${si}`, false, 'KeyF'));
   else {
-    const acts = sl === 'L' ? hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Eldob', `drop:L:${i}`, lone, 'KeyX')
-      : hbtn('Kézbe', `mv:B:${i}:L:${player.cur}`, false, 'KeyF') + hbtn('1. kézbe', `mv:B:${i}:L:0`, false, 'Digit1') + hbtn('2. kézbe', `mv:B:${i}:L:1`, false, 'Digit2') + hbtn('Eldob', `drop:B:${i}`, false, 'KeyX');
+    const acts = sl === 'L' ? hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Eldob', `drop:L:${i}`, lone, 'KeyG') + destroyBtn(`destroy:L:${i}`, x, lone)
+      : hbtn('Kézbe', `mv:B:${i}:L:${player.cur}`, !canUse(x), 'KeyF') + hbtn('1. kézbe', `mv:B:${i}:L:0`, !canUse(x), 'Digit1') + hbtn('2. kézbe', `mv:B:${i}:L:1`, !canUse(x), 'Digit2') + hbtn('Eldob', `drop:B:${i}`, false, 'KeyG') + destroyBtn(`destroy:B:${i}`, x, false);
     detail = weaponDetail(x, sl === 'L' ? L[1 - i] : L[player.cur], `<small class="note">${x.owned ? 'Saját' : 'Új: csak evakuálással a tiéd'} · lőszer ${x.ammo}/${x.reserve}</small>${acts}`);
   }
   const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${L.map((w, k) => w ? wTile(`L:${k}`, w, { n: `${k + 1}`, tag: w.owned ? '' : 'új' }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('')}</div>
@@ -301,7 +312,14 @@ $('loadout').addEventListener('click', e => {
   const [kind, f, i, t, j] = b.dataset.act.split(':'), held = curW();
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderPauseInv(); }
   if (kind === 'mv') moveGun({ L: player.slots, B: player.bag }, f, +i, t, +j);
-  if (kind === 'gdrop') { const it = mission.gear.splice(+f, 1)[0]; if (it) spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))); invSel = ''; }
+  if (kind === 'gdrop') { const it = mission.gear.splice(+f, 1)[0]; if (it) netShareDrop('g', it, spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6))))); invSel = ''; }
+  if (kind === 'destroy') { // parts are paid out only if you extract
+    const w = f === 'L' ? player.slots[+i] : player.bag[+i];
+    if (!w || (f === 'L' && player.slots.filter(Boolean).length < 2)) return;
+    if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
+    mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
+  }
+  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) mission.parts = (mission.parts || 0) + fieldParts(it.q); invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
@@ -312,7 +330,7 @@ $('loadout').addEventListener('click', e => {
     const w = f === 'L' ? player.slots[+i] : player.bag[+i];
     if (!w || (f === 'L' && player.slots.filter(Boolean).length < 2)) return;
     if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
-    spawnDrop(w, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6))));
+    netShareDrop('w', w, spawnDrop(w, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))));
   }
   if (!player.slots[player.cur]) player.cur = 1 - player.cur;
   if (curW() !== held) { stopReload(); equipView(); }
@@ -324,6 +342,7 @@ function closePauseForClick() { $('pause').hidden = true; $('clickHint').hidden 
 $('resumeBtn').onclick = resume;
 // giving up needs a second click; it counts as a failed job
 $('quitBtn').onclick = () => {
+  if (mission && mission.job.test) { $('pause').hidden = true; return finishJob(true, true); } // the testing ground: leave any time
   if (!quitArmed) { quitArmed = true; $('quitBtn').textContent = 'Biztos? Nincs fizetség'; return; }
   $('pause').hidden = true; finishJob(false, true);
 };
@@ -559,7 +578,7 @@ function frame(t) {
     if (!(state === 'playing' || netLive())) return;
     updateFx(dt);
     updateProjs(dt);
-    updateItemDrops(dt); updateGearDrops(dt); updatePings(dt); updateMatesHud();
+    updateItemDrops(dt); updateGearDrops(dt); updatePings(dt); updateMatesHud(); updateCompass();
     updateAreas(dt);
     updateMapFx(dt);
     if (state === 'playing') updateSellHold(dt);
@@ -585,13 +604,14 @@ const SWAP_HOLD = .4, SELL_HOLD = .8;
 let fHold = 0, fLatch = false, sellHold = 0, sellLatch = false, needClick = false;
 const lootFocus = () => focus && (focus.type === 'drop' || (focus.type === 'box' && box.state === 'ready')) ? focus : null;
 function takeLoot(f, swap) {
-  const w = f.type === 'drop' ? f.drop.w : box.weapon, hand = player.slots.indexOf(null);
-  if (!swap && hand < 0 && player.bag.length >= bagMax()) { popText('Tele a táska · tartsd nyomva az F-et a cseréhez', '#ff8a70'); return SND.deny(); }
-  if (f.type === 'drop') removeDrop(f.drop); else { box.state = 'idle'; scene.remove(box.show); box.show = null; boxUsed(); }
+  const w = f.type === 'drop' ? f.drop.w : box.weapon, ok = canUse(w), hand = ok ? player.slots.indexOf(null) : -1;
+  if (!ok) swap = false; // above your level: it can only ride in the bag
+  if (!swap && hand < 0 && player.bag.length >= bagMax()) { popText(ok ? 'Tele a táska · tartsd nyomva az F-et a cseréhez' : `${w.level}. szintű: csak a táskába teheted, de tele van`, '#ff8a70'); return SND.deny(); }
+  if (f.type === 'drop') { netTookDrop(f.drop); removeDrop(f.drop); } else { box.state = 'idle'; scene.remove(box.show); box.show = null; boxUsed(); }
   focus = null;
   if (swap || hand >= 0) return giveWeapon(w);
   player.bag.push(w); trackBest(w); noteFound(w); SND.pickup(w.q);
-  popText(`${w.name} a táskába (${player.bag.length}/${bagMax()})`, rarColor(w));
+  popText(ok ? `${w.name} a táskába (${player.bag.length}/${bagMax()})` : `${w.name} a táskába · ${w.level}. szinttől használhatod`, ok ? rarColor(w) : '#ff8a70');
 }
 let reviveHold = 0;
 function updateSellHold(dt) {

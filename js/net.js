@@ -114,7 +114,7 @@ function partyAction(kind, a) {
 function netJobStarted(opts) {
   if (!NET.pr) { NET.mode = null; NET.client = false; return; }
   NET.mode = opts.client ? 'client' : 'host'; NET.client = !!opts.client;
-  NET.hits = []; NET.acts = []; NET.kills = []; NET.dmgs = []; NET.zById.clear(); NET.last = {};
+  NET.hits = []; NET.acts = []; NET.kills = []; NET.dmgs = []; NET.drops = []; NET.pks = []; NET.zById.clear(); NET.last = {};
   player.down = false;
   if (NET.host) NET.job = { job: mission.job, seed: opts.seed, a: opts.a, b: opts.b, js: Date.now() };
   publishMember(); setLobby();
@@ -209,6 +209,7 @@ function updateAvatars(dt, peers) {
       if (player.down && a.au[2]) netRevive(); else if (!player.down) player.hp = Math.min(maxHp(), player.hp + 12 * dt);
     }
     for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && player.down) { netRevive(); banner('FELÉLESZTETTEK', `${a.name} felállított.`); }
+    netRemoteDrops(p.peer, P);
   }
   for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); if (a.tag) a.tag.remove(); NET.avatars.delete(peer); }
 }
@@ -329,7 +330,7 @@ function myPresence() {
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, kc: player.kills, rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
-    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down ? 1 : 0, h: NET.hits, a: NET.acts };
+    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down ? 1 : 0, h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
 function fresh(key, list) {
@@ -499,6 +500,7 @@ function updateProxies(dt) {
 // the client's side of the job: its own van animations; everything else comes from the snapshot
 function clientMission(dt) {
   const M = mission; if (!M) return;
+  if (M.job.test) testRefill();
   if (M.gen) updateObjective(M, dt); // lamp and sparks only; the host decides the outcome
   if (M.leaving) {
     M.leaving += dt;
@@ -571,12 +573,51 @@ function updateMatesHud() {
     html += `<div class="mate${a.down ? ' down' : ''}" style="--pc:${a.col}"><b>${esc(a.name)}</b><i><em style="width:${pct * 100}%"></em></i>${a.down ? '<span>ELESETT</span>' : ''}</div>`;
     let el = a.tag; if (!el) { el = a.tag = document.createElement('div'); el.className = 'matetag'; $('pings').appendChild(el); }
     const v = new V3(a.pos.x, (a.down ? .8 : 2.5), a.pos.z).project(camera), off = v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1;
-    el.hidden = off && !a.down;
+    el.hidden = false; // always on screen: through walls, and pinned to the edge when they are behind you
     let x = v.x, y = v.y; if (v.z > 1) { x = -x; y = -y; } const k = Math.max(Math.abs(x) / .92, Math.abs(y) / .85); if (k > 1) { x /= k; y /= k; }
     el.style.transform = `translate(${(x + 1) / 2 * W}px,${(1 - y) / 2 * H}px) translate(-50%,-100%)`;
     el.style.setProperty('--pc', a.col);
-    el.innerHTML = a.down ? `<span>ELESETT · [E] felélesztés · ${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</span>` : `<b>${esc(a.name)}</b><i><em style="width:${pct * 100}%"></em></i>`;
+    el.innerHTML = a.down ? `<span>ELESETT · [E] felélesztés · ${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</span>` : `<b>${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small></b><i><em style="width:${pct * 100}%"></em></i>`;
     el.classList.toggle('down', a.down);
   }
   if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+}
+
+// ---------- what a player drops in a party shows up for everyone; whoever picks it up takes it from all ----------
+// ponytail: two players grabbing the same drop in the same instant both get it; fine among friends
+function netShareDrop(kind, obj, d) {
+  if (!NET.mode || !d || !NET.drops) return;
+  const s = ++NET.seq; d.nid = NET.me + ':' + s;
+  NET.drops.push([s, kind, kind === 'w' ? packW(obj) : obj, Math.round(d.pos.x * 10) / 10, Math.round(d.pos.z * 10) / 10, performance.now()]);
+}
+function netTookDrop(d) { if (NET.mode && d && d.nid && NET.pks) pushRoll(NET.pks, [++NET.seq, d.nid], 8); }
+const cleanStrs = o => { for (const k in o) if (typeof o[k] === 'string') o[k] = o[k].replace(/[<>&"]/g, ''); return o; }; // peers are untrusted: names end up in innerHTML
+function netRemoteDrops(peer, P) {
+  for (const [s, kind, o, x, z] of fresh('dr' + peer, P.dr)) {
+    if (!o || typeof o !== 'object' || !(o.q >= 0 && o.q <= 5)) continue;
+    const pos = new V3(+x || 0, 0, +z || 0), nid = peer + ':' + s;
+    if (kind === 'w' && BASES.some(b => b.id === o.base)) {
+      const w = unpackW(cleanStrs(Object.assign({}, o))); w.owned = false; w.ammo = w.mag; w.reserve = resMax(w);
+      spawnDrop(w, pos).nid = nid;
+    } else if (kind === 'g' && GEAR_SLOTS[o.slot] && BRANDS[o.brand] && o.stats && typeof o.stats === 'object') {
+      const it = cleanStrs(Object.assign({}, o, { stats: Object.assign({}, o.stats) })); delete it.found;
+      spawnGearDrop(it, pos).nid = nid;
+    }
+  }
+  for (const [, nid] of fresh('pk' + peer, P.pk)) {
+    const d = drops.find(q => q.nid === nid); if (d) removeDrop(d);
+    const g = gearDrops.find(q => q.nid === nid); if (g) removeGearDrop(g);
+  }
+}
+// ---------- compass along the top: where you look, your mates, the van ----------
+const CARD = [['É', 0], ['ÉNY', Math.PI / 4], ['NY', Math.PI / 2], ['DNY', 3 * Math.PI / 4], ['D', Math.PI], ['DK', -3 * Math.PI / 4], ['K', -Math.PI / 2], ['ÉK', -Math.PI / 4]];
+function updateCompass() {
+  const el = $('compassIn'); if (!el || !mission) return;
+  const span = Math.PI * .6, at = (b, cls, txt, col) => { const r = angDiff(b - player.yaw); return Math.abs(r) > span ? '' : `<i class="${cls}" style="left:${(50 - r / span * 50).toFixed(1)}%${col ? `;--pc:${col}` : ''}">${txt}</i>`; };
+  const bear = (x, z) => Math.atan2(-(x - player.pos.x), -(z - player.pos.z));
+  let h = CARD.map(([t, b]) => at(b, t.length === 1 ? 'cc big' : 'cc', t)).join('');
+  for (const a of NET.avatars.values()) h += at(bear(a.pos.x, a.pos.z), 'cm', `${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small>`, a.col);
+  if (truck.beacon.visible) h += at(bear(truck.pos.x, truck.pos.z), 'cv', 'FURGON');
+  if (mission.gen) h += at(bear(mission.gen.pos.x, mission.gen.pos.z), 'cv', 'GENERÁTOR');
+  if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
 }

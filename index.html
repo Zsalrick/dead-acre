@@ -28,7 +28,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 #powers{position:absolute;top:22px;left:50%;transform:translateX(-50%);display:flex;gap:14px}
 .pw{font-weight:700;letter-spacing:.1em;font-size:14px;color:#8dff6a;text-shadow:0 0 10px rgba(80,255,60,.6);text-transform:uppercase}
 
-#banner{position:absolute;top:26%;left:0;right:0;text-align:center;font-family:'Black Ops One',Impact,sans-serif;
+#banner{position:absolute;top:15%;left:0;right:0;text-align:center;font-family:'Black Ops One',Impact,sans-serif;
   font-size:54px;color:var(--blood);text-shadow:0 0 30px rgba(179,20,27,.7),0 3px 0 #000;opacity:0;transition:opacity .6s}
 #banner small{display:block;font-family:'Chakra Petch',sans-serif;font-size:16px;letter-spacing:.3em;color:var(--bone);margin-top:6px}
 
@@ -546,7 +546,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 #loadout .invlist{max-width:520px}
 #loadout .invl{mask-image:linear-gradient(#000 calc(100% - 20px),transparent)}
 /* ---------- UI pass: HUD ---------- */
-#topc{position:absolute;top:12px;left:50%;translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:6px}
+#topc{position:absolute;top:46px;left:50%;translate:-50% 0;display:flex;flex-direction:column;align-items:center;gap:6px}
 #topc #timer,#topc #bossbar,#topc #powers{position:static;transform:none;left:auto;top:auto}
 #timer.evac{animation:evacPulse 1.2s ease infinite}
 @keyframes evacPulse{0%,100%{opacity:1}50%{opacity:.55}}
@@ -687,6 +687,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 @media (prefers-reduced-motion:reduce){.jsvg .jm .ring{animation:none}}
 @media (max-width:1000px){.jobmap{grid-template-columns:1fr}}
 .rdy{color:#6dff9a}.nrdy{color:#ff8a70}.parts{color:var(--lantern)}
+#compass{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:min(620px,60vw);height:30px;overflow:hidden;pointer-events:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);
+  background:linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,0));border-bottom:1px solid rgba(232,226,208,.25)}
+#compass::after{content:'';position:absolute;left:50%;bottom:0;width:2px;height:9px;background:#f2a33a;translate:-50% 0}
+#compassIn i{position:absolute;top:6px;translate:-50% 0;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.08em;color:rgba(232,226,208,.55);white-space:nowrap;text-shadow:0 1px 2px #000}
+#compassIn .big{font-size:15px;top:4px;color:#e8e2d0}
+#compassIn .cm{color:var(--pc);top:14px;font-size:11px}#compassIn .cm small{color:#e8e2d0;font-size:10px}
+#compassIn .cv{color:#7dff7a;top:14px}
+.matetag small{color:#e8e2d0;font-size:10px;font-weight:600}
+.tlv.lock{background:#b3141b;color:#fff}
+.dlock{margin:6px 0;padding:6px 10px;border-left:3px solid #ff5a4a;background:rgba(179,20,27,.18);color:#ff9a8a;font-weight:700;font-size:12px}
+.sbtn.hold{position:relative;overflow:hidden;border-color:rgba(255,90,74,.6)}
+.sbtn.hold::after{content:'';position:absolute;left:0;bottom:0;height:100%;width:var(--hp,0%);background:rgba(255,90,74,.35);pointer-events:none}
+.hubhead>span{display:flex;gap:8px}
 </style>
 
 <div id="game">
@@ -711,6 +725,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
       <div id="shield" hidden><i id="shieldfill"></i></div><div id="hp"><i id="hpfill"></i></div><div id="stam"><i id="stamfill"></i></div><div id="hplbl"></div></div>
     <div id="br"><div id="hint"></div><div id="wname"></div><div id="wsub"></div>
       <div id="ammo" class="num"><span id="mag">0</span><span id="res">/ 0</span></div><div id="slots"></div></div>
+    <div id="compass" aria-hidden="true"><div id="compassIn"></div></div>
     <div id="pings"></div>
     <div id="mates" hidden></div>
     <div id="evacMark" hidden><b>&#9660;</b><span></span></div>
@@ -785,12 +800,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=9" charset="utf-8"></script>
-<script src="js/audio.js?v=9" charset="utf-8"></script>
-<script src="js/music.js?v=9" charset="utf-8"></script>
-<script src="js/world.js?v=9" charset="utf-8"></script>
-<script src="js/maps.js?v=9" charset="utf-8"></script>
-<script src="js/fx.js?v=9" charset="utf-8"></script>
+<script src="js/data.js?v=10" charset="utf-8"></script>
+<script src="js/audio.js?v=10" charset="utf-8"></script>
+<script src="js/music.js?v=10" charset="utf-8"></script>
+<script src="js/world.js?v=10" charset="utf-8"></script>
+<script src="js/maps.js?v=10" charset="utf-8"></script>
+<script src="js/fx.js?v=10" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -798,20 +813,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=9" charset="utf-8"></script>
-<script src="js/player.js?v=9" charset="utf-8"></script>
-<script src="js/zombies.js?v=9" charset="utf-8"></script>
-<script src="js/loot.js?v=9" charset="utf-8"></script>
-<script src="js/upgrades.js?v=9" charset="utf-8"></script>
-<script src="js/gear.js?v=9" charset="utf-8"></script>
-<script src="js/vet.js?v=9" charset="utf-8"></script>
-<script src="js/inv.js?v=9" charset="utf-8"></script>
-<script src="js/save.js?v=9" charset="utf-8"></script>
-<script src="js/menu.js?v=9" charset="utf-8"></script>
-<script src="js/skills.js?v=9" charset="utf-8"></script>
-<script src="js/hub.js?v=9" charset="utf-8"></script>
-<script src="js/game.js?v=9" charset="utf-8"></script>
-<script src="js/jobs.js?v=9" charset="utf-8"></script>
+<script src="js/gfx.js?v=10" charset="utf-8"></script>
+<script src="js/player.js?v=10" charset="utf-8"></script>
+<script src="js/zombies.js?v=10" charset="utf-8"></script>
+<script src="js/loot.js?v=10" charset="utf-8"></script>
+<script src="js/upgrades.js?v=10" charset="utf-8"></script>
+<script src="js/gear.js?v=10" charset="utf-8"></script>
+<script src="js/vet.js?v=10" charset="utf-8"></script>
+<script src="js/inv.js?v=10" charset="utf-8"></script>
+<script src="js/save.js?v=10" charset="utf-8"></script>
+<script src="js/menu.js?v=10" charset="utf-8"></script>
+<script src="js/skills.js?v=10" charset="utf-8"></script>
+<script src="js/hub.js?v=10" charset="utf-8"></script>
+<script src="js/game.js?v=10" charset="utf-8"></script>
+<script src="js/jobs.js?v=10" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=9" charset="utf-8"></script>
-<script src="js/net.js?v=9" charset="utf-8"></script>
+<script src="js/p2p.js?v=10" charset="utf-8"></script>
+<script src="js/net.js?v=10" charset="utf-8"></script>

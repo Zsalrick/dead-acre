@@ -197,6 +197,7 @@ function popBloater(z) {
   explode(new V3(z.pos.x, 1, z.pos.z), { r: 4.2, zdmg: 90 + zombieHp() * .9, pr: 3.8, pdmg: 45, color: 0x9dff3a });
 }
 function killZombie(z, o) {
+  if (z.dummy) { z.dead = true; z.deathT = 0; z.fallDir = 1; if (!o.remote) { hitmarker(true); SND.kill(); } if (mission && mission.dummyQ) mission.dummyQ.push({ t: 2.5, spot: z.spot }); return; }
   if (mission) mission.kc = (mission.kc || 0) + 1; // the whole party's kills (objective jobs)
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1;
   if (z.bounty) bountyKilled(z);
@@ -336,6 +337,7 @@ function updateZombies(dt) {
     const fuseBlink = z.fuse > 0 && Math.sin(now * 40) > 0;
     const em = z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0;
     for (const m of z.mats) m.emissive.setHex(em);
+    if (z.dummy) { z.g.position.set(z.pos.x, 0, z.pos.z); continue; } // a target dummy: it just stands there
 
     if (z.rise > 0) {
       z.rise = Math.max(0, z.rise - dt * .9);

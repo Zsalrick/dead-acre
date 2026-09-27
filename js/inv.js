@@ -50,12 +50,12 @@ const gPic = it => gearIcon(it.slot, BRANDS[it.brand].color, it.name);
 // o: n (slot number) · tag (új/saját ribbon) · price · cant (can't afford) · up (better than what you use) · lv · val/valLbl (key stat) · bc (brand color)
 function tile(sel, pic, name, sub, color, o = {}) {
   return `<button class="tile${invSel === sel ? ' on' : ''}${o.cant ? ' cant' : ''}" data-act="sel:${sel}" draggable="true" style="--rc:${color}${o.bc ? `;--bc:${o.bc}` : ''}">
-    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv">${o.lv}</i>` : ''}${o.up ? '<i class="tup" title="Jobb, mint amit most használsz">▲</i>' : ''}${o.tag ? `<i class="ttag">${o.tag}</i>` : ''}</span>
+    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lock ? ' lock' : ''}"${o.lock ? ' title="Még nem használhatod"' : ''}>${o.lv}</i>` : ''}${o.up ? '<i class="tup" title="Jobb, mint amit most használsz">▲</i>' : ''}${o.tag ? `<i class="ttag">${o.tag}</i>` : ''}</span>
     <span class="ttx"><b class="tn">${name}</b><small class="ts">${sub}</small></span>
     ${o.val != null ? `<b class="tv">${o.val}<small>${o.valLbl}</small></b>` : ''}${o.n ? `<i class="tb">${o.n}</i>` : ''}${o.price ? `<i class="tprice">${o.price}</i>` : ''}</button>`;
 }
 const wTile = (sel, w, o = {}) => tile(sel, wPic(w), w.name, `${RARITIES[w.q].name} · ${w.base.name}`, rarColor(w),
-  Object.assign({ lv: `Lv ${w.level}`, val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
+  Object.assign({ lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
 const gTile = (sel, it, o = {}) => tile(sel, gPic(it), it.name, `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`, RARITIES[it.q].color,
   Object.assign({ lv: `Lv ${it.level}`, val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
@@ -90,6 +90,7 @@ function weaponDetail(w, cmp, actions) {
       <div class="dname">${w.name}</div><img src="${wPic(w)}" alt="">
       <div class="dsub">${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''}</div></div>
     <div class="dperk"><b>${w.maker}</b> ${mkOf(w).perk || ''}</div>
+    ${!canUse(w) ? `<div class="dlock">Csak ${w.level}. szinttől használható. Addig viheted a táskában.</div>` : ''}
     ${cmp && cmp !== w ? `<div class="dcmp">Összevetve: <span style="color:${rarColor(cmp)}">${cmp.name}</span></div>` : ''}
     <table class="dtab">
       ${drow('DPS', A.dps, x('dps'))}
@@ -175,6 +176,7 @@ function invKey(e, root) {
   }
   const b = root.querySelector(`.invd [data-key="${e.code}"]`);
   if (!b) return false;
+  if (b.dataset.hact) { if (!e.repeat) b.disabled ? SND.deny() : startHold(b, root); return true; }
   if (!b.disabled) b.click(); else SND.deny();
   return true;
 }
@@ -221,3 +223,21 @@ function enableDrag(root, fireRoot = root, ground = false) {
     if (act) fireAct(fireRoot, act);
   });
 }
+
+// ---------- hold-to-confirm buttons (destroying things): hold the mouse button or the key until the bar fills ----------
+const HOLD_T = .9; let holding = null;
+function startHold(b, root) {
+  if (holding || b.disabled) return;
+  const h = holding = { b, t0: performance.now() };
+  const step = () => {
+    if (holding !== h) return;
+    const p = (performance.now() - h.t0) / 1000 / HOLD_T;
+    b.style.setProperty('--hp', Math.min(1, p) * 100 + '%');
+    if (p >= 1) { holding = null; fireAct(root, b.dataset.hact); } else requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+function endHold() { if (holding) { holding.b.style.setProperty('--hp', '0%'); holding = null; } }
+addEventListener('pointerdown', e => { const b = e.target.closest && e.target.closest('.sbtn.hold'); if (b) startHold(b, b.closest('#loadout,#hubBody') || document.body); }, true);
+addEventListener('pointerup', endHold, true);
+addEventListener('keyup', e => { if (holding && holding.b.dataset.key === e.code) endHold(); });

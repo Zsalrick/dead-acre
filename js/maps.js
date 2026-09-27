@@ -448,8 +448,19 @@ function activeSpawns() {
 }
 
 // ---------- loading ----------
+const MAP_SCALE = 1.3;
+function bigMap(B) {
+  const s = MAP_SCALE, sc = ([x, z]) => [x * s, z * s], m = B.main, main = { minX: m.minX * s, maxX: m.maxX * s, minZ: m.minZ * s, maxZ: m.maxZ * s }, areas = {};
+  for (const k in B.areas) { // each unlockable area slides out with its fence
+    const d = B.areas[k], [ox, oz] = SIDE[d.side];
+    const dx = ox > 0 ? main.maxX - m.maxX : ox < 0 ? main.minX - m.minX : 0, dz = oz > 0 ? main.maxZ - m.maxZ : oz < 0 ? main.minZ - m.minZ : 0, mv = ([x, z]) => [x + dx, z + dz];
+    areas[k] = Object.assign({}, d, { core: { minX: d.core.minX + dx, maxX: d.core.maxX + dx, minZ: d.core.minZ + dz, maxZ: d.core.maxZ + dz }, spawns: d.spawns.map(mv), station: [d.station[0], ...mv(d.station.slice(1))] });
+  }
+  const ring = [[main.minX + 7, main.minZ + 7], [main.maxX - 7, main.minZ + 7], [main.minX + 7, main.maxZ - 7], [main.maxX - 7, main.maxZ - 7]];
+  return Object.assign(Object.create(B), { main, areas, spawns: B.spawns.map(sc), vans: B.vans.map(sc), lamps: [...B.lamps, ...ring], propN: B.propN.map(n => Math.round(n * s * s)) });
+}
 function loadMap(id, seed) {
-  MAP_ID = id; MAP = MAPS[id]; mapSeed = seed;
+  MAP_ID = id; MAP = bigMap(MAPS[id]); mapSeed = seed;
   scene.remove(mapGroup); mapGroup = new THREE.Group(); scene.add(mapGroup);
   obstacles.length = 0; rayBlockers.length = 0; rayBlockers.push(ground);
   lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0;
