@@ -188,6 +188,7 @@ function hurtZombie(z, amt, o = {}) {
     if (z.armor <= 0) { z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xc8d0d8, 16, 3.5, .6); o.color = '#c8d0d8'; }
     else o.color = o.color || '#8a929a';
   }
+  if (!o.remote && exoOn('cryo') && (z.slowT > 0 || (z.net && z.net.fl & 32))) amt *= 1.3; // Kriosztát
   z.hp -= amt; z.flash = .08; z.hitT = now; tallyHit(amt, o);
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit, z);
@@ -229,13 +230,14 @@ function killZombie(z, o) {
     if (z.K.bloat && !z.exploded) popBloater(z);
     return netKill(z, o);
   }
-  player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1;
+  player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1; multiKill();
   myKill(o.w || (o.melee ? { name: 'Kés', q: 0 } : o.dot ? { name: 'Égés', q: 0 } : { name: 'Robbanás', q: 0 }), z.K.name, o.head);
   weaponOnKill(z, o);
   if (exoOn('vamp')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .08);
   if (brand4('gravetide')) { player.bloodN = Math.min(10, (now < (player.bloodT || 0) ? player.bloodN || 0 : 0) + 1); player.bloodT = now + 6; }
   if (brand4('hollis')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .03);
   if (brand4('sable') && player.sprint) player.stam = maxStam();
+  if (exoOn('bomber') && !o.w && !o.melee && !o.dot) player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 1); // Robbanómellény
   if (brand4('cinder') && !o.w && !o.melee && !o.dot && Math.random() < .4) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * .9, pr: .01, pdmg: .001, color: 0xff9a4a }), 120);
   if (o.head && o.w && exoOn('quick')) o.w.ammo = o.w.mag;
   if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
@@ -269,7 +271,8 @@ function dropLoot(z, p) {
   else if (Math.random() < .02) spawnPower(p);
   else if (Math.random() < .04) spawnItem(pick(['med', 'med', 'gren', 'gren', 'knife', 'knife', 'knife', 'adren']), p);
   // gear: the boss always drops a piece, big and elite zombies often, the rest rarely
-  const gc = z.K.boss ? 1 : z.elite || ['brute', 'brood', 'armored', 'screamer'].includes(z.kind) ? .25 : .03 * SK.drop();
+  const addCut = mission && mission.job.bounty && !z.K.boss ? .3 : 1; // a bounty's adds are fodder
+  const gc = z.K.boss ? 1 : addCut * (z.elite || ['brute', 'brood', 'armored', 'screamer'].includes(z.kind) ? .25 : .03 * SK.drop());
   if (Math.random() < gc) spawnGearDrop(makeGear(null, z.K.boss ? Math.max(3, rollRarity(.3 + dLuck)) : rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck), z.K.boss ? lootLvl(2) : lootLvl()), p.clone().add(new V3(.8, 0, .8)));
 }
 
@@ -613,15 +616,15 @@ const BOUNTIES = {
   butcher: { loot: ['granny', 'reaper', 'thirteen'], name: 'A Mészáros', desc: 'Nekiront, és a földbe csapja a bárdját. Hívja a sétálókat.', hp: 5.5, tint: 0x6a1010, summon: ['walker', 12, 3] },
   pyre:    { loot: ['ash', 'bigbang'], name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 5, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
   queen:   { loot: ['honey', 'haystack'], name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 5.2, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
-  frost:   { loot: ['glacier', 'honey'], name: 'A Jégkirály', desc: 'Fagyhullámot bocsát ki, ami lelassít. Futókat hív.', hp: 5.2, tint: 0x6ac8ff, frost: true, summon: ['runner', 10, 3] },
-  titan:   { loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 5.8, tint: 0x8a929a, slam: true, plate: 1.4, summon: ['armored', 14, 2] },
+  frost:   { minLvl: 8, loot: ['glacier', 'honey'], name: 'A Jégkirály', desc: 'Fagyhullámot bocsát ki, ami lelassít. Futókat hív.', hp: 5.2, tint: 0x6ac8ff, frost: true, summon: ['runner', 10, 3] },
+  titan:   { minLvl: 10, loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 5.8, tint: 0x8a929a, slam: true, plate: .6, summon: ['armored', 14, 2] },
   shade:   { loot: ['silent', 'rod', 'sebastian'], name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
   const B = BOUNTIES[key] || BOUNTIES.butcher, all = activeSpawns();
   const [sx, sz] = all.reduce((b, s) => Math.abs(Math.hypot(s[0] - player.pos.x, s[1] - player.pos.z) - 38) < Math.abs(Math.hypot(b[0] - player.pos.x, b[1] - player.pos.z) - 38) ? s : b);
   const z = spawnZombieAt('butcher', sx, sz);
-  z.bounty = key; z.hp *= B.hp; z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale);
+  z.bounty = key; z.hp *= B.hp * Math.min(1, .4 + .04 * jobLvl()); // early bounties are gentler: ×0.52 at level 3, full from level 15 z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale);
   const tint = new THREE.Color(B.tint); z.mats.forEach(m => m.color && m.color.lerp(tint, .45));
   z.sumT = 6; z.novaT = 8; z.blinkT = 10; z.phase = 1; z.dmg *= 1.2; z.throwT = 4; z.slamT = 6;
   if (B.plate) z.armor = z.hp * B.plate;
@@ -648,7 +651,7 @@ function bountyTick(z, dt, dist) {
     if (z.throwT <= 0) { z.throwT = z.phase === 3 ? 2.6 : 4; z.throwTold = false; if (dist < 38) gunslingerFire(z, 22 * (1 + .03 * (round - 1))); }
   }
   if (z.phase === 3) {
-    if (z.bounty === 'pyre' && (z.hazT = (z.hazT == null ? 2 : z.hazT) - dt) <= 0) { z.hazT = 5; addFireZone(new V3(player.pos.x, 0, player.pos.z), 3.5, 6, 18); }
+    if (z.bounty === 'pyre' && (z.hazT = (z.hazT == null ? 2 : z.hazT) - dt) <= 0) { z.hazT = 5; const at = new V3(player.pos.x, 0, player.pos.z); telegraph(at, 3.5, 0xff6a1a, 1, () => addFireZone(at, 3.5, 6, 18)); } // a ring first: step out
     if (z.bounty === 'queen' && (z.bruteT = (z.bruteT == null ? 4 : z.bruteT) - dt) <= 0) { z.bruteT = 12; const a = rand(0, 6.28); spawnZombieAt('brute', z.pos.x + Math.sin(a) * 3, z.pos.z + Math.cos(a) * 3, .5); }
     if (z.bounty === 'butcher') z.bossT = Math.min(z.bossT, 2.5);
   }
@@ -662,12 +665,15 @@ function bountyTick(z, dt, dist) {
     SND.explode();
     hurtAt(z.pos, 6.5, 28 * (z.phase || 1));
   }
-  if (B.frost && (z.novaT -= dt) <= 0) { // frost wave: slows everyone it touches
+  if (B.frost && (z.novaT -= dt) <= 0) { // frost wave: a blue ring warns you, then it slows everyone inside
     z.novaT = z.phase === 3 ? 4.5 : z.phase === 2 ? 6 : 8;
-    for (let k = 0; k < 28; k++) { const a = k / 28 * 6.28; burst(new V3(z.pos.x + Math.sin(a) * 6, .3, z.pos.z + Math.cos(a) * 6), 0x9fe6ff, 3, 2.5, .7); }
-    SND.armorBreak();
-    if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 8) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); }
-    hurtAt(z.pos, 8, 18 * (z.phase || 1));
+    const at = z.pos.clone(), ph = z.phase || 1; tn(700, .8, .06, 'sine', 1400);
+    telegraph(at, 8, 0x9fe6ff, .9, () => {
+      for (let k = 0; k < 28; k++) { const a = k / 28 * 6.28; burst(new V3(at.x + Math.sin(a) * 6, .3, at.z + Math.cos(a) * 6), 0x9fe6ff, 3, 2.5, .7); }
+      SND.armorBreak();
+      if (Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 8) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); }
+      hurtAt(at, 8, 18 * ph);
+    });
   }
   if (B.slam && (z.slamT -= dt) <= 0 && dist < 16) { // a ground slam with a tell, then a charge in the last phase
     z.slamT = z.phase === 3 ? 3.5 : z.phase === 2 ? 5 : 6.5;
@@ -681,7 +687,7 @@ function bountyTick(z, dt, dist) {
     burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6);
     const f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
     z.pos.set(player.pos.x - f.x * 4, 0, player.pos.z - f.z * 4); collide(z.pos, .7);
-    burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6); SND.leap();
+    burst(new V3(z.pos.x, 1.2, z.pos.z), 0x6a4aff, 20, 4, .6); SND.leap(); SND.scream(.15); popText('MÖGÖTTED!', '#b8a8ff');
   }
 }
 // the bounty is done: everyone in the party gets a legendary gun and a legendary piece of armor, then the van comes
@@ -703,7 +709,7 @@ function weaponOnHit(z, amt, o) {
   const w = o.w; if (!w || o.dot) return;
   if (w.unique === 'honey') player.hp = Math.min(maxHp(), player.hp + amt * .02);
   if (w.unique === 'silent' && o.head) explode(zHeadPos(z), { r: 3.5, zdmg: amt * .5, pr: .01, pdmg: .001, color: 0xb0c8ff });
-  if (w.unique === 'anvil') { if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
+  if (w.unique === 'anvil') { if (z.armor > 0 && z.K.boss) z.armor -= z.maxHp * .1; else if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
 }
@@ -718,4 +724,11 @@ function weaponOnKill(z, o) {
   if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
   if (w.anoint === 'killheal') player.hp = Math.min(maxHp(), player.hp + maxHp() * .06);
   if (w.anoint === 'boom' && Math.random() < .2) explode(new V3(z.pos.x, 1, z.pos.z), { r: 4, zdmg: zombieHp() * .8, pr: .01, pdmg: .001 });
+}
+
+// kills close together: DUPLA, TRIPLA… with a few bonus points
+const MULTI = ['', '', 'DUPLA', 'TRIPLA', 'NÉGYES', 'ÖTÖS', 'MÉSZÁRLÁS'];
+function multiKill() {
+  player.mk = now - (player.mkT || -9) < 1.3 ? (player.mk || 1) + 1 : 1; player.mkT = now;
+  if (player.mk >= 2) { const n = Math.min(player.mk, MULTI.length - 1); popText(`${MULTI[n]} ÖLÉS! +${25 * player.mk}`, '#ffd23f'); addPoints(25 * player.mk); tn(500 + 120 * n, .12, .07, 'triangle'); }
 }

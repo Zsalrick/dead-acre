@@ -50,7 +50,7 @@ function rollBoard() {
 }
 // a bounty: one strong boss, no clock, guaranteed legendary gun + armor
 function makeBounty() {
-  const lvl = profile.level, key = pick(Object.keys(BOUNTIES)), B = BOUNTIES[key];
+  const lvl = profile.level, key = pick(Object.keys(BOUNTIES).filter(k => lvl >= (BOUNTIES[k].minLvl || 3))), B = BOUNTIES[key];
   const map = pick(MAP_IDS.filter(id => MAPS[id].minLevel <= lvl)), diff = Math.min(5, 2 + Math.floor(lvl / 6));
   return { map, diff, dur: 0, mod: null, boss: false, bounty: key, title: `Fejvadászat: ${B.name}`, client: 'Megyei seriff',
     reward: Math.round((700 + 300 * diff + lvl * 60) / 10) * 10, xp: 350 + 120 * diff, lvl: Math.min(LEVEL_CAP, lvl) };
@@ -107,6 +107,8 @@ function renderHub() {
   $('hubXp').style.width = P.xp / xpNeed(P.level) * 100 + '%';
   $('hubXpTxt').textContent = `${P.xp} / ${xpNeed(P.level)} XP · veterán ${vetEarned()}${vetAvail() ? ` (+${vetAvail()})` : ''}`;
   $('hubCash').textContent = `$${P.cash}`;
+  rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
+  document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   $('hubTokens').textContent = P.tokens || 0;
   $('hubCls').textContent = P.cls ? CLASSES[P.cls].name : 'nincs kaszt'; $('hubCls').style.setProperty('--cc', P.cls ? CLASSES[P.cls].color : '');
   document.querySelectorAll('[data-hub]').forEach(b => b.classList.toggle('on', b.dataset.hub === hubTab));
@@ -284,7 +286,7 @@ function showResults(r) {
       <div>Pénz<strong>+$${r.cash}</strong></div><div>XP<strong>+${r.xp}</strong></div><div>Érdemérem<strong>+${r.tokens}</strong></div></div>
     ${r.board ? `<h3>Csapat</h3><table class="mtable"><tr><th>Játékos</th><th>Ölés</th><th>Felélesztés</th></tr>${r.board.sort((a, b) => b.k - a.k).map(p => `<tr><td>${esc(p.n)}${p.me ? ' (te)' : ''}</td><td>${p.k}</td><td>${p.r}</td></tr>`).join('')}</table>` : ''}
     ${r.levelUps ? `<p class="lvlup">Szintet léptél: ${profile.level}. szint! ${MAP_IDS.filter(id => MAPS[id].minLevel === profile.level).map(id => `Új pálya: ${MAPS[id].name}.`).join(' ')}</p>` : ''}
-    ${r.tierBonus ? `<h3>Rémálom-jutalom</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
+    ${r.tierBonus ? `<h3>${r.job.tier ? 'Rémálom-jutalom' : 'Az első munkád jutalma'}</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
     ${(() => { const best = [...r.kept].sort((a, b) => (b.unique ? 9 : b.q) - (a.unique ? 9 : a.q) || dps(b) - dps(a))[0]; return best && best.q >= 2 ? `<div class="bestdrop" style="--rc:${rarColor(best)}"><small>A MUNKA LEGJOBB ZSÁKMÁNYA</small><img src="${wPic(best)}" alt=""><b>${best.name}</b><span>${best.unique ? 'Egyedi' : RARITIES[best.q].name} · Lv ${best.level} ${best.base.name} · ${dps(best)} DPS</span></div>` : ''; })()}
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}
     ${r.junkN ? `<p class="note">Automatikus szétszedés: ${r.junkN} fegyver → +${r.junkParts} ⚙</p>` : ''}

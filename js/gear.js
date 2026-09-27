@@ -56,6 +56,9 @@ const EXOTICS = {
   glass:   { slot: 'head',  name: 'Üvegágyú',           talent: '+50% kritikus sebzés, de −25% max életerő.' },
   quick:   { slot: 'legs',  name: 'Gyorskezű nadrág',   talent: 'Fejlövéses ölés után a tár azonnal megtelik.' },
   league:  { slot: 'boots', name: 'Hétmérföldes csizma', talent: '+20% mozgás, a sprint nem fogyaszt állóképességet.' },
+  cryo:    { slot: 'legs',  name: 'Kriosztát nadrág',   talent: 'A lelassított és fagyott zombik 30%-kal több sebzést kapnak tőled.' },
+  bomber:  { slot: 'chest', name: 'Robbanómellény',     talent: 'Robbanással ölt zombi után visszakapsz egy gránátot.' },
+  priest:  { slot: 'head',  name: 'Tábori lelkész sisakja', talent: 'Háromszor gyorsabban éleszted fel a társad, és felálláskor teli az élete.' },
 };
 function makeExotic(key, level) {
   key = EXOTICS[key] ? key : pick(Object.keys(EXOTICS));
@@ -63,7 +66,7 @@ function makeExotic(key, level) {
   return Object.assign(it, { exo: key, name: E.name, armor: Math.round(it.armor * 1.1) });
 }
 const exoOn = k => wornGear().some(it => it.exo === k);
-const brand4 = k => wornGear().filter(it => it.brand === k).length >= 4; // four pieces of one brand switch on its talent
+const brand4 = k => (brandCounts()[k] || 0) >= 4; // four pieces of one brand switch on its talent
 const gCol = it => it.exo ? EXO_COL : RARITIES[it.q].color;
 const gearValue = it => Math.round([40, 100, 220, 450, 900][it.q] * (1 + .08 * (it.level - 1)));
 const gearPrice = it => Math.round(gearValue(it) * 4 / 10) * 10;
@@ -71,7 +74,11 @@ const gearPrice = it => Math.round(gearValue(it) * 4 / 10) * 10;
 // ---------- totals (cached; call gearChanged() after the worn set changes) ----------
 let gearCache = null;
 const wornGear = () => profile && profile.gear ? GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean) : [];
-function brandCounts() { const c = {}; wornGear().forEach(it => c[it.brand] = (c[it.brand] || 0) + 1); return c; }
+function brandCounts() { // an exotic is a wildcard: it counts toward the brand you wear most
+  const c = {}, w = wornGear(); w.forEach(it => { if (!it.exo) c[it.brand] = (c[it.brand] || 0) + 1; });
+  const ex = w.filter(it => it.exo).length, top = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; if (ex && top) c[top] += ex;
+  return c;
+}
 function gearTotals() {
   if (gearCache) return gearCache;
   const t = {}, add = (k, v) => t[k] = (t[k] || 0) + v, count = brandCounts();
@@ -99,7 +106,8 @@ function gearSummary() {
   const t = gearTotals(), keys = Object.keys(GSTATS).filter(k => t[k]);
   const sets = Object.entries(brandCounts()).map(([b, n]) => `<li><b style="color:${BRANDS[b].color}">${BRANDS[b].name}</b> <span>${n} db${BRANDS[b].sets.filter(s => n >= s[0]).map(s => ` · ${GSTATS[s[1]].name} ${fmtG(s[1], s[2])}`).join('')}</span></li>`).join('');
   return `<div class="gsum"><ul class="mlist">${keys.map(k => `<li><b>${GSTATS[k].name}</b><span>${fmtG(k, t[k])}</span></li>`).join('') || '<li><span>Nincs rajtad páncél.</span></li>'}</ul>
-    ${sets ? `<h3>Aktív szettek</h3><ul class="mlist">${sets}</ul>` : ''}</div>`;
+    ${sets ? `<h3>Aktív szettek</h3><ul class="mlist">${sets}</ul>` : ''}
+    ${(() => { const tl = [...wornGear().filter(it => it.exo && EXOTICS[it.exo]).map(it => [EXOTICS[it.exo].name, EXOTICS[it.exo].talent, EXO_COL]), ...Object.keys(BRANDS).filter(brand4).map(k => [BRANDS[k].t4[0], BRANDS[k].t4[1], BRANDS[k].color])]; return tl.length ? `<h3>Aktív tehetségek</h3><ul class="tlist">${tl.map(([n, d, c]) => `<li><b style="color:${c}">${n}</b> ${d}</li>`).join('')}</ul>` : ''; })()}</div>`;
 }
 
 // ---------- gear dropped during a job: walk over it to bag it; it is yours if you extract ----------

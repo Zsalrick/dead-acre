@@ -229,7 +229,7 @@ function skillsTab() {
 }
 function skillAction(kind, a) {
   const P = profile;
-  if (kind === 'cls') { P.cls = a; P.skills = {}; return true; }
+  if (kind === 'cls') { const first = !P.cls; P.cls = a; P.skills = {}; if (first) { hubTab = 'jobs'; banner('KÉSZEN ÁLLSZ', 'Válassz egy munkát a térképen, és indulás!'); } return true; }
   if (kind === 'sk') {
     const def = CLASSES[P.cls].tree.find(t => t[0] === a), row = Math.floor(CLASSES[P.cls].tree.indexOf(def) / 3);
     if (P.tokens < 1 || rk(a) >= def[2] || treeSpent() < row * 3) return false;

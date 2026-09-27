@@ -76,9 +76,7 @@ function publishMember() {
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;
   if (NET.joining) return `<div class="party"><b>Csatlakozás…</b></div>`;
-  if (NET.p2p && !NET.code) return `<div class="party"><div class="phead"><b>Csapat</b>${hbtn('Csapat létrehozása', 'pcreate')}</div>
-    <div class="pjoin"><input id="pcode" maxlength="5" placeholder="KÓD" autocomplete="off" spellcheck="false">${hbtn('Csatlakozás kóddal', 'pjoinc')}</div>
-    ${NET.joinErr ? `<span class="note perr">${esc(NET.joinErr)}</span>` : '<span class="note">Hozz létre csapatot, és add meg a kódot a barátodnak, vagy írd be az övét.</span>'}</div>`;
+  if (NET.p2p && !NET.code) return `<div class="party slim"><b>Csapat</b><span class="note">egyedül vagy</span>${hbtn('Csapat létrehozása', 'pcreate')}<input id="pcode" maxlength="5" placeholder="KÓD" autocomplete="off" spellcheck="false">${hbtn('Csatlakozás', 'pjoinc')}${NET.joinErr ? `<span class="note perr">${esc(NET.joinErr)}</span>` : ''}</div>`;
   if (!NET.code) {
     const open = openParties();
     return `<div class="party"><div class="phead"><b>Csapat</b>${hbtn('Csapat létrehozása', 'pcreate')}</div>
@@ -568,7 +566,7 @@ function updatePings(dt) {
 }
 
 // ---------- reviving a downed mate: hold E next to them ----------
-const reviveT = () => 10 * (1 - .15 * U('revive')); // 10 s, faster with the upgrade
+const reviveT = () => 10 * (1 - .15 * U('revive')) / (exoOn('priest') ? 3 : 1); // 10 s, faster with the upgrade and the chaplain's helmet
 function reviveFocus() {
   if (!NET.mode || player.down || player.ffyl > 0) return null;
   for (const [peer, a] of NET.avatars) if (a.down && Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z) < 2.2) return { type: 'revive', peer, name: a.name };
@@ -631,6 +629,7 @@ function updateCompass() {
   let h = CARD.map(([t, b]) => at(b, t.length === 1 ? 'cc big' : 'cc', t)).join('');
   for (const a of NET.avatars.values()) h += at(bear(a.pos.x, a.pos.z), 'cm', `${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small>`, a.col);
   if (truck.beacon.visible) h += at(bear(truck.pos.x, truck.pos.z), 'cv', 'FURGON');
+  const w = curW(); if (w && w.reserve < w.mag && !mission.job.test) h += at(bear(ammoBox.pos.x, ammoBox.pos.z), 'cv ammo', `LŐSZER ${Math.round(Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z))} m`);
   if (mission.gen) h += at(bear(mission.gen.pos.x, mission.gen.pos.z), 'cv', 'GENERÁTOR');
   if (mission.esc && mission.esc.target.alive) h += at(bear(mission.esc.pos.x, mission.esc.pos.z), 'cv', 'TÚLÉLŐ');
   if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }

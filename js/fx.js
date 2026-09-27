@@ -239,3 +239,16 @@ function fxExplosion(p, color, radius = 5) {
   burst(p, 0x17130f, 10 * k, 6, 1.3); // chunks of debris
   if (p.y < 1.6) { fxRing(p, tint, radius * 2, .45, .6); fxRing(p, hot, radius, .25, .5); fxScorchMark(p, Math.min(5, radius * .75)); }
 }
+
+// a ground ring that grows over `t` seconds, then the attack lands (fn): you can see it coming and step out
+function telegraph(pos, r, color, t, fn) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.position.set(pos.x, .05, pos.z); scene.add(m);
+  const t0 = performance.now();
+  const step = () => {
+    const u = (performance.now() - t0) / 1000 / t;
+    if (u >= 1 || !mission) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); if (u >= 1 && mission) fn(); return; }
+    m.scale.setScalar(.15 + u * r); m.material.opacity = .4 + .5 * Math.abs(Math.sin(u * 18)); requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}

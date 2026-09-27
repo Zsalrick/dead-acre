@@ -211,10 +211,11 @@ function finishJob(success, abandoned) {
   const w = settleWeapons(success, M);
   // dying after the clock ran out (during evac) still pays a quarter of the fee
   const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
-  const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)));
+  const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1)); // the first five jobs: double XP
   P.cash += cash; stats.cash += cash;
   const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts;
-  let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique
+  let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun
+  if (success && stats.jobs === 0 && !J.test) { tierBonus = makeWeapon(pick(BASES), 2, Math.max(1, P.level)); P.stash.push(packW(tierBonus)); noteFound(tierBonus); }
   if (success && J.tier) { tierBonus = Math.random() < .3 ? makeUnique(null, J.lvl) : makeWeapon(pick(BASES), 4, J.lvl); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   const levelUps = addXp(xp);
   const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
