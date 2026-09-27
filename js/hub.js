@@ -8,6 +8,7 @@ const JOB_TEXT = {
   gas:    [['Az utolsó tankolás', 'Route 9 Kft.'], ['Éjszakai műszak', 'Kutas Béla'], ['Ki kell hozni a kasszát', 'Tulajdonos']],
   mill:   [['Fűrészpor és vér', 'Kovács-fatelep'], ['A favágók hazamennének', 'Művezető'], ['Rönkök hajnalig', 'Erdészet']],
   town:   [['Délben a főutcán', 'Városi tanács'], ['A bank nem nyit ki magától', 'Első Megyei Bank'], ['Utolsó kör a szalonban', 'Kocsmáros']],
+  hospital: [['Éjszakai ügyelet', 'Főorvos'], ['Kiürítés', 'Katasztrófavédelem'], ['A lezuhant helikopter', 'Mentőszolgálat']],
   fair:   [['Utolsó kör a körhintán', 'Vásárigazgató'], ['Az óriáskerék fénye', 'Mutatványos család'], ['Céllövölde zárás után', 'Bódés Feri']],
   quarry: [['A gödör alján', 'Kőbánya Kft.'], ['Robbantás előtti éjszaka', 'Bányamester'], ['Senki sem jön fel', 'Bányászszakszervezet']],
 };
@@ -68,7 +69,7 @@ function rollShop() {
 // ---------- rendering ----------
 let hubTab = 'jobs', jobSel = 0;
 // the county: where each map lies, and a hand-drawn backdrop
-const MAP_LOC = { farm: [170, 300], chapel: [300, 105], gas: [560, 335], mill: [735, 110], town: [450, 215], quarry: [790, 320], fair: [615, 205] };
+const MAP_LOC = { farm: [170, 300], chapel: [300, 105], gas: [560, 335], mill: [735, 110], town: [450, 215], quarry: [790, 320], fair: [615, 205], hospital: [330, 330] };
 const MAP_ART = (() => {
   const L = MAP_LOC, road = (a, b) => `<path class="road" d="M${L[a][0]} ${L[a][1]} Q ${(L[a][0] + L[b][0]) / 2 + 30} ${(L[a][1] + L[b][1]) / 2 - 20} ${L[b][0]} ${L[b][1]}"/>`;
   const r = mulberry(7), trees = Array.from({ length: 140 }, () => { const x = r() * 900, y = r() * 440; return Math.hypot(x - 450, y - 215) < 70 ? '' : `<circle class="tree" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${(3 + r() * 6).toFixed(1)}"/>`; }).join('');
@@ -76,7 +77,7 @@ const MAP_ART = (() => {
   return `<defs><radialGradient id="jfog" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#1c211c"/><stop offset="1" stop-color="#070908"/></radialGradient></defs>
     <rect width="900" height="440" fill="url(#jfog)"/>${grid}${trees}
     <path class="river" d="M-10 200 C 120 170 200 230 300 210 S 520 140 620 200 S 800 260 910 230"/>
-    ${road('farm', 'town')}${road('chapel', 'town')}${road('town', 'gas')}${road('town', 'mill')}${road('gas', 'quarry')}${road('mill', 'quarry')}${road('town', 'fair')}${road('farm', 'chapel')}
+    ${road('farm', 'town')}${road('chapel', 'town')}${road('town', 'gas')}${road('town', 'mill')}${road('gas', 'quarry')}${road('mill', 'quarry')}${road('town', 'fair')}${road('farm', 'hospital')}${road('hospital', 'gas')}${road('farm', 'chapel')}
     <text class="county" x="24" y="30">DEAD ACRE MEGYE</text><text class="county sm" x="24" y="48">válassz munkát a térképen</text>`;
 })();
 function jobCard(j, i, notReady) {

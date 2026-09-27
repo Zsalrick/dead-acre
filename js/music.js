@@ -63,6 +63,11 @@ const MUSIC = {
     { name: 'Délidő', bpm: 70, root: 40, scale: PHR, prog: [0, 1, 0, 6], pad: 'saw', cut: 800, bass: { wave: 'sine', pat: '1000000000100000' }, lead: { wave: 'sine', dens: .09, bell: true }, drums: { tom: '1000000000000010' }, seed: 82 },
     { name: 'Szalonzongora', bpm: 118, root: 43, scale: DOR, prog: [0, 3, 0, 4], cut: 1800, bass: { wave: 'triangle', pat: '1000100010001000' }, arp: { wave: 'square', every: 1, vol: .016 }, lead: { wave: 'square', dens: .13 }, drums: { kick: '1000100010001000', snare: '0000100000001000', hat: '0010001000100010' }, seed: 83 },
   ],
+  hospital: [ // fluorescent hum and a heart monitor that won't stop
+    { name: 'Ügyelet', bpm: 70, root: 40, scale: HMIN, prog: [0, 5, 1, 4], pad: 'saw', cut: 800, bass: { wave: 'sine', pat: '1000000010000000' }, arp: { wave: 'square', every: 4, vol: .025 }, lead: { wave: 'sine', dens: .06, bell: true }, seed: 111 },
+    { name: 'Kiürítés', bpm: 132, root: 42, scale: PHR, prog: [0, 1, 0, 1, 6, 6, 5, 5], cut: 1800, bass: { wave: 'sawtooth', pat: '1010101010101010', vol: .05 }, arp: { wave: 'square', every: 2, vol: .02 }, drums: { kick: '1000100010001000', hat: '0101010101010101', snare: '0000100000001000' }, seed: 112 },
+    { name: 'Hullaház', bpm: 58, root: 36, scale: MIN, prog: [0, 6, 5, 4], pad: 'organ', cut: 1000, bass: { wave: 'triangle', pat: '1000000000000000' }, lead: { wave: 'sine', dens: .05, bell: true }, seed: 113 },
+  ],
   fair: [ // a broken-down fairground organ
     { name: 'Körhinta', bpm: 138, root: 48, scale: HMIN, prog: [0, 4, 0, 4, 3, 0, 4, 0], pad: 'organ', cut: 2200, bass: { wave: 'triangle', pat: '1000100010001000', vol: .07 }, arp: { wave: 'square', every: 1, vol: .02 }, lead: { wave: 'square', dens: .14 }, drums: { kick: '1000000010000000', hat: '0010001000100010' }, seed: 101 },
     { name: 'Vattacukor', bpm: 76, root: 43, scale: MIN, prog: [0, 5, 3, 4], pad: 'tri', cut: 1300, bass: { wave: 'sine', pat: '1000000010000000' }, lead: { wave: 'sine', dens: .09, bell: true }, seed: 102 },

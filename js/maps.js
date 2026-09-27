@@ -471,6 +471,55 @@ const MAPS = {
       east:  { side: 'e', at: 4, name: 'Elsősegély-sátor', cost: 750, core: { minX: 44, maxX: 66, minZ: -8, maxZ: 16 }, spawns: [[63, -5], [63, 13]], station: ['well', 54, 4] },
     },
   },
+  hospital: {
+    name: 'Szent Lukács Kórház', desc: 'Kiürített megyei kórház: U alakú főépület, lezuhant mentőhelikopter a leszállón, mentőautók az udvaron.', minLevel: 13,
+    main: { minX: -46, maxX: 46, minZ: -36, maxZ: 36 }, look: { tex: 'asphalt', ground: 0x8a8e88, fog: 0x0a1012, fogD: [.022, .03], fence: 0xb8bcc0 },
+    vans: [[-36, 26], [36, 26], [-38, -30], [38, -4]], ammo: [6, 6], boxSpots: [[-8, 2], [10, -4], [-32, -14], [32, -20], [0, 28], [-18, 22]],
+    spawns: [[-43, -30], [43, -30], [-43, 28], [43, 28], [0, 33], [-20, 33], [20, 33], [-43, 0], [43, 20]],
+    lamps: [[-10, 6], [10, 6], [-28, 14], [28, 20], [0, -8], [-36, -20], [36, -26]],
+    clear: [[0, -20, 19], [-22, -6, 10], [22, -6, 10], [0, 18, 8], [-30, 20, 4], [32, 14, 4], [-12, 8, 3], [12, 10, 3]],
+    props: [['crate', 1.5], ['barrel', 1.5], ['stack', 1], ['car', 1.5], ['boom', 1.5]], propN: [16, 22],
+    build() {
+      const white = matStd({ color: 0xd8dcd8 }), red = basic(0xd8282a), dark = matStd({ color: 0x2a2c2e }), steel = matStd({ color: 0xa8acb0, metalness: .5, roughness: .5 });
+      // the U: main block and two wings around a courtyard
+      house(0, -20, 36, 10, 9, white, 0x3a3a3e, 's');
+      house(-22, -6, 8, 18, 7, white, 0x3a3a3e, 'e');
+      house(22, -6, 8, 18, 7, white, 0x3a3a3e, 'w');
+      for (let x = -15; x <= 15; x += 5) addBox(x, -14.94, 2.2, .06, 1.4, matStd({ color: 0x223a4a, emissive: 0x0a1a24 }), 5.4, false); // windows
+      addBox(0, -14.9, 3.4, .1, .9, red, 7.2, false); addBox(0, -14.9, .9, .1, 3.4, red, 5.95, false); // the red cross
+      label(['SZENT LUKÁCS KÓRHÁZ'], '#e8e2d0', 2.6, 0, 10.6, -14.6);
+      addBox(0, -13.4, 8, 3, .3, dark, 3.4, false); [-3.6, 3.6].forEach(x => addBox(x, -12.2, .25, .25, 3.4, steel, 0, false)); // entrance canopy
+      // helipad with a crashed ambulance helicopter
+      const pad = put(new THREE.Mesh(new THREE.CylinderGeometry(7, 7, .06, 32), matStd({ color: 0x3a3c3e }))); pad.position.set(0, .03, 18); pad.receiveShadow = true;
+      addBox(-1.4, 18, .6, 4, .02, basic(0xe8e2d0), .07, false); addBox(1.4, 18, .6, 4, .02, basic(0xe8e2d0), .07, false); addBox(0, 18, 2.2, .6, .02, basic(0xe8e2d0), .07, false);
+      const heli = put(new THREE.Group()); heli.position.set(3, 0, 20); heli.rotation.set(0, .7, .28);
+      const hb = (w, h, d, m, x, y, z, rx = 0, rz = 0) => { const e = new THREE.Mesh(unitBox, m); e.scale.set(w, h, d); e.position.set(x, y, z); e.rotation.set(rx, 0, rz); e.castShadow = true; heli.add(e); };
+      hb(2.4, 2.2, 5, white, 0, 1.3, 0); hb(2.42, .4, 5.02, red, 0, 1.1, 0); hb(.6, .6, 5, white, 0, 1.8, -4.6); hb(.2, 1.6, 1, white, 0, 2.6, -7);
+      hb(9, .1, .4, dark, 0, 2.7, 0, 0, .2); hb(.4, .1, 8, dark, .4, 2.6, .5, .15, 0);
+      obstacles.push({ minX: .5, maxX: 5.5, minZ: 16.5, maxZ: 23.5, h: 3 });
+      glowSprite(0xff7a2a, 3.2, new V3(3.5, 2.5, 21)); pointLight(0xff6a1a, 1.8, 14, 3.5, 2.5, 21);
+      // ambulances with a light bar
+      for (const [x, z, ry] of [[-30, 20, .3], [32, 14, -.5]]) {
+        const g = put(new THREE.Group()); g.position.set(x, 0, z); g.rotation.y = ry;
+        const ab = (w, h, d, m, px, py, pz) => { const e = new THREE.Mesh(unitBox, m); e.scale.set(w, h, d); e.position.set(px, py, pz); e.castShadow = true; g.add(e); };
+        ab(2.2, 2.2, 5, white, 0, 1.4, 0); ab(2.22, .35, 5.02, red, 0, 1.2, 0); ab(2, 1.2, 1.6, white, 0, .9, 3.2); ab(.5, .18, .3, basic(0x3a6aff), -.4, 2.6, 1.8); ab(.5, .18, .3, basic(0xff2a2a), .4, 2.6, 1.8);
+        for (const [a, b] of [[-1, -1.6], [1, -1.6], [-1, 3.2], [1, 3.2]]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .3, 12), dark); t.rotation.z = Math.PI / 2; t.position.set(a * 1.1, .45, b); g.add(t); }
+        obstacles.push({ minX: x - 3, maxX: x + 3, minZ: z - 3.4, maxZ: z + 3.4, h: 2.4 });
+      }
+      // gurneys pushed into the courtyard
+      for (const [x, z, r] of [[-12, 8, .4], [12, 10, -.7], [-6, -4, 1.2], [8, 2, .2]]) {
+        const g = put(new THREE.Group()); g.position.set(x, 0, z); g.rotation.y = r;
+        const top = new THREE.Mesh(unitBox, white); top.scale.set(.8, .12, 2); top.position.y = .9; g.add(top);
+        for (const [a, b] of [[-.35, -.9], [.35, -.9], [-.35, .9], [.35, .9]]) { const l = new THREE.Mesh(unitBox, steel); l.scale.set(.05, .9, .05); l.position.set(a, .45, b); g.add(l); }
+        obstacles.push({ minX: x - 1, maxX: x + 1, minZ: z - 1, maxZ: z + 1, h: 1 });
+      }
+    },
+    areas: {
+      north: { side: 'n', at: 28, name: 'Hullaház', cost: 1250, core: { minX: 16, maxX: 40, minZ: -58, maxZ: -36 }, spawns: [[20, -55], [36, -55]], station: ['trap', 28, -44], graves: false },
+      west:  { side: 'w', at: 12, name: 'Gyógyszertár', cost: 750, core: { minX: -68, maxX: -46, minZ: 0, maxZ: 24 }, spawns: [[-65, 3], [-65, 21]], station: ['well', -56, 12] },
+      east:  { side: 'e', at: -10, name: 'Ügyelet', cost: 1000, core: { minX: 46, maxX: 68, minZ: -22, maxZ: 2 }, spawns: [[65, -19], [65, -1]], station: ['forge', 56, -12] },
+    },
+  },
 };
 const MAP_IDS = Object.keys(MAPS);
 
