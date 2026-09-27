@@ -51,6 +51,16 @@ const MUSIC = {
     { name: 'Erdőszél', bpm: 80, root: 47, scale: MIN, prog: [0, 4, 5, 3], pad: 'tri', cut: 1300, arp: { wave: 'triangle', every: 2, vol: .04 }, lead: { wave: 'sine', dens: .1 }, drums: { tom: '1000000000100000' }, seed: 72 },
     { name: 'Rönkök', bpm: 116, root: 40, scale: HMIN, prog: [0, 0, 5, 4], cut: 1500, bass: { wave: 'sawtooth', pat: '1010001010100010' }, arp: { wave: 'square', every: 2, vol: .02 }, lead: { wave: 'square', dens: .1 }, drums: { kick: '1000000010100000', tom: '0000100100001001', hat: '1010101010101010' }, seed: 73 },
   ],
+  town: [
+    { name: 'Főutca', bpm: 96, root: 45, scale: HMIN, prog: [0, 3, 4, 0], pad: 'tri', cut: 1300, bass: { wave: 'triangle', pat: '1000001010000010' }, arp: { wave: 'triangle', every: 2, vol: .035 }, lead: { wave: 'triangle', dens: .15 }, drums: { kick: '1000000010000000', hat: '0010001000100010' }, seed: 81 },
+    { name: 'Délidő', bpm: 70, root: 40, scale: PHR, prog: [0, 1, 0, 6], pad: 'saw', cut: 800, bass: { wave: 'sine', pat: '1000000000100000' }, lead: { wave: 'sine', dens: .09, bell: true }, drums: { tom: '1000000000000010' }, seed: 82 },
+    { name: 'Szalonzongora', bpm: 118, root: 43, scale: DOR, prog: [0, 3, 0, 4], cut: 1800, bass: { wave: 'triangle', pat: '1000100010001000' }, arp: { wave: 'square', every: 1, vol: .016 }, lead: { wave: 'square', dens: .13 }, drums: { kick: '1000100010001000', snare: '0000100000001000', hat: '0010001000100010' }, seed: 83 },
+  ],
+  quarry: [
+    { name: 'Kőpor', bpm: 84, root: 38, scale: MIN, prog: [0, 0, 5, 6], pad: 'saw', cut: 600, bass: { wave: 'sawtooth', pat: '1000000010000000', vol: .1 }, lead: { wave: 'sine', dens: .08 }, drums: { kick: '1000000000100000', tom: '0000000100000001' }, seed: 91 },
+    { name: 'Robbantás', bpm: 128, root: 41, scale: PHR, prog: [0, 1, 0, 1, 5, 5, 6, 6], cut: 1500, bass: { wave: 'sawtooth', pat: '1011101110111011', vol: .05 }, arp: { wave: 'square', every: 2, vol: .02 }, lead: { wave: 'square', dens: .1 }, drums: { kick: '1000100010001000', hat: '1010101010101010', snare: '0000100000001000' }, seed: 92 },
+    { name: 'Mélyfúrás', bpm: 62, root: 36, scale: HMIN, prog: [0, 5, 3, 4], pad: 'organ', cut: 1200, bass: { wave: 'sine', pat: '1000000000000000' }, arp: { wave: 'triangle', every: 4, vol: .04 }, lead: { wave: 'sine', dens: .07, bell: true }, seed: 93 },
+  ],
 };
 const mhz = m => 440 * Math.pow(2, (m - 69) / 12);
 const deg = (T, d) => T.root + T.scale[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7); // scale degree -> midi
