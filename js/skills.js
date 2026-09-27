@@ -70,7 +70,7 @@ const CLASSES = {
   },
   medic: {
     name: 'Tábori pap', tag: 'Gyógyító', color: '#f2d27a', desc: 'Nem hal meg könnyen. Gyógyul, pajzsot tart, és visszaáll a harcba.',
-    passive: '+50% gyógycsomag-gyógyítás és +20% életerő-regeneráció.',
+    passive: '+50% gyógycsomag-gyógyítás, +20% életerő-regeneráció, és az általad felélesztett társ teli életerővel áll fel.',
     ability: { name: 'Szentelt kör', cd: 45, desc: '8 mp-ig gyógyító kör a lábad alatt; a benne lévő zombik lelassulnak.' },
     tree: [
       ['m_regen', 'Gyógyír', 3, r => `+${10 * r}% életerő-regeneráció`],

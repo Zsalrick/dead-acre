@@ -688,10 +688,11 @@ function bountyTick(z, dt, dist) {
     tn(520, 1.4, .08, 'sine', 900); popText('A Főorvos gyógyítani készül: sebezd meg!', '#6aff9a');
     telegraph(at, 10, 0x6aff9a, 1.6, () => {
       z.healing = false; if (z.dead) return;
-      if (z.healHp - z.hp > z.maxHp * .06) { banner('MEGSZAKÍTVA', 'A gyógyítás elmaradt.'); SND.armorBreak(); return; }
+      if (z.healHp - z.hp > z.maxHp * .06) { netBanner('MEGSZAKÍTVA', 'A csapat félbeszakította a gyógyítást.'); SND.armorBreak(); return; }
+      netBanner('A FŐORVOS GYÓGYÍTOTT', 'Legközelebb sebezd a zöld kör alatt!');
       for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 10) { q.hp = Math.min(q.maxHp, q.hp + q.maxHp * .08); burst(new V3(q.pos.x, 1.5, q.pos.z), 0x6aff9a, 6, 2, .5); }
       SND.heal();
-    });
+    }, 'heal');
   }
   if (B.bell && (z.bellT = (z.bellT == null ? 6 : z.bellT) - dt) <= 0) { // the bell: a huge ring you can't outrun, only hide from
     z.bellT = z.phase === 3 ? 7 : z.phase === 2 ? 9.5 : 12;

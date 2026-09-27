@@ -204,7 +204,8 @@ function settleWeapons(success, M) {
 function finishJob(success, abandoned) {
   const M = mission, J = M.job, P = profile, party = Math.max(M.partyMax || 1, NET.mode ? partySize() : 1);
   if (J.test) return leaveTest(M);
-  const board = NET.mode || M.board ? [{ n: myName(), k: player.kills, r: NET.revs || 0, me: true }, ...(NET.avatars.size ? [...NET.avatars.values()].map(a => ({ n: a.name, k: a.kc || 0, r: a.rvc || 0 })) : M.board || [])] : null;
+  const others = new Map((M.board || []).map(b => [b.n, b])); for (const a of NET.avatars.values()) others.set(a.name, { n: a.name, k: a.kc || 0, r: a.rvc || 0, d: a.dd || 0 }); // everyone seen during the job, even if they left first
+  const board = NET.mode || M.board ? [{ n: myName(), k: player.kills, r: NET.revs || 0, d: Math.round(player.dmgDone || 0), me: true }, ...others.values()] : null;
   mission = null; state = 'results';
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
