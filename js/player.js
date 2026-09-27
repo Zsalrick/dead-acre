@@ -278,11 +278,9 @@ function shoot() {
         if (Math.hypot(z.pos.x - end.x, z.pos.z - end.z) < b.splash) tally.set(z, { amt: w.dmg * sm * .6, head: false });
       }
     }
-    if (b.flame) { // a cone of fire instead of a tracer
-      for (let k = 0; k < 3; k++) {
-        const d = Math.random() * camera.position.distanceTo(end);
-        burst(camera.position.clone().addScaledVector(dir, Math.max(.8, d)).add(new V3(0, -.25, 0)), Math.random() < .5 ? 0xff7a1a : 0xffc04a, 1, 1.2, .35);
-      }
+    if (b.flame) { // a stream of fire from the nozzle instead of a tracer
+      const fd = end.clone().sub(mz), fl = fd.length();
+      fxFlame(mz, fd.divideScalar(fl || 1), fl, camera.position.distanceTo(end) < b.range - .2);
     } else if (p < 4 || Math.random() < .5) tracer(mz, end, color, b.energy ? .03 : .012);
   }
   if (b.chain) { // tesla: every direct hit arcs to nearby zombies, weaker each hop

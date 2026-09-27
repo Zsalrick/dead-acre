@@ -142,8 +142,8 @@ function throwProj(k) {
 }
 function explode(p, o = {}) {
   const r = (o.r || 5) * SK.explRadius(), pr = o.pr || 3.5, pdmg = o.pdmg || 35;
-  burst(p, o.color || 0xffa030, 30, 7, .7); burst(p, 0x2b2b2b, 18, 4, 1);
-  boomLight.position.set(p.x, p.y + 1, p.z); boomLight.intensity = 6; SND.explode();
+  fxExplosion(p, o.color, r);
+  boomLight.position.set(p.x, p.y + 1.2, p.z); boomLight.color.set(o.color || 0xff8a30); boomLight.intensity = 10; SND.explode();
   const dmg = (o.zdmg || 150 + zombieHp() * 1.1) * SK.explMul();
   for (const z of zombies) {
     if (z.dead) continue;

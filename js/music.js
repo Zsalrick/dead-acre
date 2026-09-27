@@ -1,7 +1,7 @@
 ﻿// ================= SETTINGS =================
 // per-viewer preferences, kept in localStorage (guarded: it can be blocked)
 const SET_KEY = 'deadacre.settings';
-const SET_DEF = { sens: 1, adsSens: .8, invertY: false, fov: 75, master: .8, music: .5, sfx: 1 };
+const SET_DEF = { sens: 1, adsSens: .8, invertY: false, fov: 75, master: .8, music: .5, sfx: 1, gfx: devicePixelRatio > 1.25 ? 1 : 2 }; // gfx: high-DPI laptop screens start on medium
 const SET = Object.assign({}, SET_DEF, (() => { try { return JSON.parse(localStorage.getItem(SET_KEY)) || {}; } catch (e) { return {}; } })());
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch (e) {} applyVolumes(); }
 
@@ -154,13 +154,15 @@ const SET_UI = [
   ['master', 'Fő hangerő', 0, 1, .05, v => `${Math.round(v * 100)}%`],
   ['music', 'Zene', 0, 1, .05, v => `${Math.round(v * 100)}%`],
   ['sfx', 'Effektek', 0, 1, .05, v => `${Math.round(v * 100)}%`],
+  ['gfx', 'Minőség', 0, 2, 1, v => ['Alacsony', 'Közepes', 'Magas'][v]],
 ];
 function openSettings() {
   const row = ([k, n, a, b, st, f]) => `<label class="setrow"><span>${n}${k === 'music' && mus ? `<small>♪ ${nowPlaying()}</small>` : ''}</span>
     <input type="range" min="${a}" max="${b}" step="${st}" value="${SET[k]}" data-set="${k}"><output id="out_${k}">${f(SET[k])}</output></label>`;
   $('settingsBody').innerHTML = '<h3>Irányítás</h3>' + SET_UI.slice(0, 3).map(row).join('') +
     `<label class="setrow"><span>Függőleges egér megfordítása</span><input type="checkbox" data-set="invertY"${SET.invertY ? ' checked' : ''}><output></output></label>` +
-    '<h3>Hang</h3>' + SET_UI.slice(3).map(row).join('');
+    '<h3>Hang</h3>' + SET_UI.slice(3, 6).map(row).join('') +
+    '<h3>Grafika</h3>' + SET_UI.slice(6).map(row).join('');
   $('settings').hidden = false;
 }
 function closeSettings() { $('settings').hidden = true; }
