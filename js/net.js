@@ -166,7 +166,7 @@ function updateAvatars(dt, peers) {
   for (const p of peers) {
     if (p.sameTab || !p.presence || !p.presence.p) continue;
     const P = p.presence.p; seen.add(p.peer);
-    let a = NET.avatars.get(p.peer); if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; }
+    let a = NET.avatars.get(p.peer); if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12);
     a.pos.x = lerp(a.pos.x, +P.x || 0, k); a.pos.z = lerp(a.pos.z, +P.z || 0, k);
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
@@ -201,7 +201,7 @@ function updateAvatars(dt, peers) {
     } else a.sh = Math.max(a.sh, +P.sh || 0);
     if ((a.flashT -= dt) <= 0) a.flash.visible = false;
     // pings
-    if (Array.isArray(P.pg) && P.pg[0] !== a.lastPing) { const first = a.lastPing === null; a.lastPing = P.pg[0]; if (!first) addPing(p.peer, a.name, a.col, new V3(P.pg[1] / 10, P.pg[2] / 10, P.pg[3] / 10), P.pg[4]); }
+    if (Array.isArray(P.pg) && P.pg[0] !== a.lastPing) { a.lastPing = P.pg[0]; addPing(p.peer, a.name, a.col, new V3(P.pg[1] / 10, P.pg[2] / 10, P.pg[3] / 10), P.pg[4]); }
     // a medic's aura (Feltámasztó augment) brings back the downed
     if (player.down && a.au && Math.hypot(player.pos.x - a.au[0], player.pos.z - a.au[1]) < 6) netRevive();
   }

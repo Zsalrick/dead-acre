@@ -562,9 +562,7 @@ function frame(t) {
   if ($('keybar').hidden === kb) $('keybar').hidden = !kb;
   const cur = state === 'playing' ? 'none' : 'default';
   if (renderer.domElement.style.cursor !== cur) renderer.domElement.style.cursor = cur;
-  renderer.clear();
-  renderer.render(scene, camera);
-  if (state === 'playing' || state === 'paused') { renderer.clearDepth(); renderer.render(vmScene, vmCamera); }
+  gfxRender(state === 'playing' || state === 'paused'); // world + viewmodel, with bloom when the quality setting allows (gfx.js)
 }
 // the loop starts at the end of net.js, the last script, so every system exists on the first frame
 
