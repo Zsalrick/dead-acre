@@ -10,7 +10,7 @@ const NET = {
   room: null, pr: null, code: null, host: false, me: null,
   mode: null, client: false,              // in a job: 'host' | 'client'
   seq: 0, hits: [], acts: [], kills: [], dmgs: [], last: {},
-  avatars: new Map(), zById: new Map(), lastHit: new Map(), job: null, seenJs: 0, hadHost: false,
+  avatars: new Map(), zById: new Map(), lastHit: new Map(), rv: [], job: null, seenJs: 0, hadHost: false,
   selfPos: null, selfVel: null, targets: null, keyParty: '', keyLobby: '', dirty: true,
 };
 const KIND_IDS = Object.keys(KINDS);
@@ -121,7 +121,7 @@ function netJobStarted(opts) {
 function netJobEnded() {
   NET.mode = null; NET.client = false; NET.targets = null; player.down = false;
   NET.zById.clear(); if (NET.host) NET.job = null;
-  NET.avatars.forEach(a => scene.remove(a.g)); NET.avatars.clear();
+  NET.avatars.forEach(a => { scene.remove(a.g); if (a.tag) a.tag.remove(); }); NET.avatars.clear();
   if (NET.pr) NET.pr.presence({ p: null, g: null }).catch(() => {});
   publishMember(); setLobby();
 }
@@ -204,9 +204,12 @@ function updateAvatars(dt, peers) {
     // pings
     if (Array.isArray(P.pg) && P.pg[0] !== a.lastPing) { a.lastPing = P.pg[0]; addPing(p.peer, a.name, a.col, new V3(P.pg[1] / 10, P.pg[2] / 10, P.pg[3] / 10), P.pg[4]); }
     // a medic's aura (Feltámasztó augment) brings back the downed
-    if (player.down && a.au && Math.hypot(player.pos.x - a.au[0], player.pos.z - a.au[1]) < 6) netRevive();
+    if (a.au && Math.hypot(player.pos.x - a.au[0], player.pos.z - a.au[1]) < 6) { // a medic's circle heals the whole party
+      if (player.down && a.au[2]) netRevive(); else if (!player.down) player.hp = Math.min(maxHp(), player.hp + 12 * dt);
+    }
+    for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && player.down) { netRevive(); banner('FELÉLESZTETTEK', `${a.name} felállított.`); }
   }
-  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); NET.avatars.delete(peer); }
+  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); if (a.tag) a.tag.remove(); NET.avatars.delete(peer); }
 }
 const partySize = () => 1 + [...NET.avatars.values()].length;
 
@@ -260,6 +263,7 @@ function netAllDown() { return player.down && ![...NET.avatars.values()].some(a 
 // ---------- client: hits on proxies go to the host ----------
 function netHit(z, amt, o) {
   if (z.dead || z.invulnT > 0) return;
+  amt *= Math.min(3, Math.pow(1.08, Math.max(0, jobLvl() - profile.level))); // level catch-up for members below the job's level
   if (z.markT > 0) amt *= 1.5;
   if (z.K.boss && rk('h_boss')) amt *= 1.2;
   if (o.w && rk('h_exec') && z.hp < z.maxHp * .25) amt *= 2;
@@ -304,7 +308,7 @@ function buildSnapshot() {
   for (const z of zombies) {
     if (z.dead) continue;
     const fl = (z.rise > 0 ? 1 : 0) | (z.windup > 0 || z.bossState ? 2 : 0) | (z.elite ? 4 : 0) | (z.K.armor && z.armor <= 0 ? 8 : 0) | (z.burnT > 0 ? 16 : 0)
-      | (z.slowT > 0 ? 32 : 0) | (z.buffT > 0 ? 64 : 0) | (z.K.ghost && z.op > .5 ? 128 : 0) | (z.fuse > 0 ? 256 : 0) | (z.crouch > 0 ? 512 : 0);
+      | (z.slowT > 0 ? 32 : 0) | (z.buffT > 0 ? 64 : 0) | (z.K.ghost && z.op > .5 ? 128 : 0) | (z.fuse > 0 ? 256 : 0) | (z.crouch > 0 ? 512 : 0) | (z.markT > 0 ? 1024 : 0);
     zs.push([z.id, KIND_IDS.indexOf(z.kind), Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), Math.round(z.g.rotation.y * 100), Math.max(0, Math.round(z.hp / z.maxHp * 100)), fl, Math.round(z.g.position.y * 10), Math.round(z.scale * 100)]);
     if (zs.length >= 48) break;
   }
@@ -313,7 +317,7 @@ function buildSnapshot() {
     t: Math.round(M.t * 10) / 10, ph: M.phase, pt: Math.round((M.phaseT || 0) * 10) / 10, w: M.wave, r: round, cl: M.cleared ? 1 : 0,
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
-    kc: M.kc || 0, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, cr: M.crates ? M.crates.reduce((m, c, i) => m | (c.got ? 1 << i : 0), 0) : 0, od: M.objDone ? 1 : 0,
+    kc: M.kc || 0, rt: M.rt || 0, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, cr: M.crates ? M.crates.reduce((m, c, i) => m | (c.got ? 1 << i : 0), 0) : 0, od: M.objDone ? 1 : 0,
     tr: trapState.map(T => Math.max(0, Math.round(T.active * 10) / 10)), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
@@ -323,7 +327,7 @@ function myPresence() {
   const w = curW();
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
-    au: aura && augOn('revive') ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10] : null,
+    au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
     wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down ? 1 : 0, h: NET.hits, a: NET.acts };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
@@ -381,6 +385,7 @@ function netHostAct(type, arg) {
   if (type === 'gate' && keys[arg] && !AREAS[keys[arg]].unlocked) { openArea(keys[arg]); banner(`${AREAS[keys[arg]].name.toUpperCase()} MEGNYÍLT`, 'Egy társad nyitotta meg.'); }
   if (type === 'trap' && trapState[arg] && trapState[arg].active <= 0 && trapState[arg].cd <= 0) trapState[arg].active = 20;
   if (type === 'crate') takeCrate(arg | 0, true);
+  if (type === 'mark' && Array.isArray(arg)) for (const id of arg.slice(0, 40)) { const z = NET.zById.get(id); if (z && !z.dead) z.markT = 10; }
   if (type === 'repair' && M.gen && M.gen.hp > 0) M.gen.hp = Math.min(M.gen.max, M.gen.hp + M.gen.max * .25);
   if (type === 'board' && M.phase === 'evac' && truck.parked && !(M.boardT > 0) && !M.leaving) { M.boardT = BOARD_T; banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); }
 }
@@ -402,7 +407,7 @@ function applySnapshot(g, hostPeer) {
   const tr = performance.now(); if (NET.gLast) NET.gInt = lerp(NET.gInt || 50, clamp(tr - NET.gLast, 10, 500), .15); NET.gLast = tr;
   // clock, phase, threat
   const was = { ph: M.phase, w: M.wave, ew: M.evacWarn, cl: M.cleared };
-  if (Array.isArray(g.bk) && !M.bountyDone) { M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }); banner('A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
+  if (Array.isArray(g.bk) && !M.bountyDone) { M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }, M.job.bounty); banner('A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
   Object.assign(M, { t: +g.t || 0, phase: g.ph, phaseT: +g.pt || 0, wave: +g.w || 1, cleared: !!g.cl, evacWarn: !!g.ew, pickup: g.pk | 0, boardT: +g.bt || 0, parkT: +g.pa || 0 });
   if (round !== g.r) { round = +g.r || 1; $('round').textContent = round; }
   if (M.wave > was.w) { banner(`${M.wave}. HULLÁM`, `A veszély ${round}. szintre nőtt.`); SND.roundStart(); if (player.down) netRevive(); }
@@ -433,13 +438,14 @@ function applySnapshot(g, hostPeer) {
     if (z.dead && z.predDead) { if (tr - z.predDead > 700) resurrect(z); else continue; } // our kill wasn't confirmed: it gets back up
     const hpv = clamp(+hp || 0, 0, 100) / 100 * z.maxHp;
     if (hpv < z.hp || now - (z.hitT || -9) > .4) z.hp = hpv;
-    z.net = { x: x / 10, z: zz / 10, h: h / 100, y: (+y || 0) / 10, fl };
+    z.net = { x: x / 10, z: zz / 10, h: h / 100, y: (+y || 0) / 10, fl }; if (fl & 1024) z.markT = Math.max(z.markT || 0, .3);
     (z.buf || (z.buf = [])).push({ t: tr, x: x / 10, z: zz / 10, h: h / 100, y: (+y || 0) / 10 }); if (z.buf.length > 8) z.buf.shift();
   }
   for (const [id, z] of NET.zById) if (!live.has(id)) { NET.zById.delete(id); proxyDie(z); }
   if (Array.isArray(g.bb)) { const bz = NET.zById.get(g.bb[0]); if (bz) { if (!bz.bounty && BOUNTIES[g.bb[1]]) { bz.bounty = g.bb[1]; const tint = new THREE.Color(BOUNTIES[g.bb[1]].tint); bz.mats.forEach(m => m.color && m.color.lerp(tint, .45)); } bz.phase = g.bb[2]; bz.invulnT = g.bb[3] ? .5 : 0; } }
   NET.hz = Array.isArray(g.hz) ? g.hz : [];
   M.kc = +g.kc || 0;
+  if (g.rt != null && M.rt != null && g.rt !== M.rt && player.down) netRevive(); M.rt = g.rt;
   if (M.gen && g.gh != null) { const hp = +g.gh * M.gen.max; if (hp < M.gen.hp - 1) M.gen.hitT = now; M.gen.hp = hp; }
   if (M.crates) M.crates.forEach((c, i) => { if ((g.cr & (1 << i)) && !c.got) takeCrate(i, true); });
   if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
@@ -543,4 +549,33 @@ function updatePings(dt) {
     p.el.textContent = `${p.kind === 'z' ? 'ZOMBI · ' : ''}${p.name} · ${Math.round(Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z))} m`;
     p.el.style.opacity = Math.min(1, p.t);
   }
+}
+
+// ---------- reviving a downed mate: hold E next to them ----------
+const REVIVE_T = 2.5;
+function reviveFocus() {
+  if (!NET.mode || player.down) return null;
+  for (const [peer, a] of NET.avatars) if (a.down && Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z) < 2.2) return { type: 'revive', peer, name: a.name };
+  return null;
+}
+function reviveMate(peer) { pushRoll(NET.rv, [++NET.seq, peer], 6); SND.power(); popText('Felélesztetted a társad', '#6dff9a'); }
+// ---------- teammates on screen: name + HP over their head, and a party list ----------
+function updateMatesHud() {
+  const box = $('mates'), W = innerWidth, H = innerHeight; if (!box) return;
+  const list = NET.mode ? [...NET.avatars.entries()] : [];
+  box.hidden = !list.length;
+  let html = '';
+  for (const [peer, a] of list) {
+    const pct = a.mh ? clamp(a.hp / a.mh, 0, 1) : 0;
+    html += `<div class="mate${a.down ? ' down' : ''}" style="--pc:${a.col}"><b>${esc(a.name)}</b><i><em style="width:${pct * 100}%"></em></i>${a.down ? '<span>ELESETT</span>' : ''}</div>`;
+    let el = a.tag; if (!el) { el = a.tag = document.createElement('div'); el.className = 'matetag'; $('pings').appendChild(el); }
+    const v = new V3(a.pos.x, (a.down ? .8 : 2.5), a.pos.z).project(camera), off = v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1;
+    el.hidden = off && !a.down;
+    let x = v.x, y = v.y; if (v.z > 1) { x = -x; y = -y; } const k = Math.max(Math.abs(x) / .92, Math.abs(y) / .85); if (k > 1) { x /= k; y /= k; }
+    el.style.transform = `translate(${(x + 1) / 2 * W}px,${(1 - y) / 2 * H}px) translate(-50%,-100%)`;
+    el.style.setProperty('--pc', a.col);
+    el.innerHTML = a.down ? `<span>ELESETT · [E] felélesztés · ${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</span>` : `<b>${esc(a.name)}</b><i><em style="width:${pct * 100}%"></em></i>`;
+    el.classList.toggle('down', a.down);
+  }
+  if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
 }

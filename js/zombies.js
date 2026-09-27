@@ -99,9 +99,10 @@ function mkZombie(kind) {
   return { g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
 }
 // ×1.12 per threat level: guns (+7.5% per level, rarity, upgrades, gear) can keep up instead of falling hopelessly behind
-function zombieHp() { return 100 * Math.pow(1.12, round - 1) * Math.pow(1.08, jobLvl() - 1); }
+function zombieHp() { return 100 * Math.pow(1.12, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .12 * jobTier()); }
 // the job's level: zombies and loot scale with it, so the world keeps pace with you forever
 const jobLvl = () => (mission && mission.job.lvl) || (profile ? profile.level : 1);
+const jobTier = () => (mission && mission.job.tier) || 0; // Rémálom +N: endless difficulty past 5 stars
 const lootLvl = (x = 0) => Math.max(1, jobLvl() + x + Math.floor(Math.random() * 3) - 1);
 // any kind can turn up at any threat; below its usual threat (min) it is rarer the further below it is
 function pickKind() {
@@ -126,7 +127,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
   const K = KINDS[kind], m = mkZombie(kind);
   const z = {
     kind, K, ...m, pos: new V3(x, 0, zz),
-    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg, scale: K.scale(),
+    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg * (1 + .12 * jobTier()), scale: K.scale(),
     armor: K.armor ? zombieHp() * K.armor : 0, leapCd: rand(1, 3), crouch: 0, leap: null, buffT: 0, broodT: 4, bossT: 5, op: .12,
     heading: 0, side: Math.random() < .5 ? -1 : 1, strafeT: rand(2, 4), walkT: rand(0, 6), rise: 1, atkCd: 0, windup: 0,
     burnT: 0, burnDps: 0, burnAcc: 0, slowT: 0, flash: 0, groanT: rand(1, 6), dead: false, deathT: 0,
@@ -216,7 +217,7 @@ function killZombie(z, o) {
 }
 // what a kill drops; in a party each killer rolls their own
 function dropLoot(z, p) {
-  const dLuck = mission ? .06 * (mission.job.diff - 1) : 0; // harder jobs roll better loot
+  const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() : 0; // harder jobs roll better loot
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
     spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
@@ -572,10 +573,10 @@ function updateHealthBars() {
 
 // ---------- bounties: one very strong boss, guaranteed legendary loot ----------
 const BOUNTIES = {
-  butcher: { name: 'A Mészáros', desc: 'Nekiront, és a földbe csapja a bárdját. Hívja a sétálókat.', hp: 5.5, tint: 0x6a1010, summon: ['walker', 12, 3] },
-  pyre:    { name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 5, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
-  queen:   { name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 5.2, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
-  shade:   { name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
+  butcher: { loot: ['granny', 'reaper', 'thirteen'], name: 'A Mészáros', desc: 'Nekiront, és a földbe csapja a bárdját. Hívja a sétálókat.', hp: 5.5, tint: 0x6a1010, summon: ['walker', 12, 3] },
+  pyre:    { loot: ['ash', 'bigbang'], name: 'A Hamvasztó', desc: 'Időnként lángba borítja maga körül a földet. Puffadtakat hív.', hp: 5, tint: 0xff5a1a, nova: true, summon: ['bloater', 15, 2] },
+  queen:   { loot: ['honey', 'haystack'], name: 'Az Anyakirálynő', desc: 'Szünet nélkül szüli a porontyokat.', hp: 5.2, tint: 0xc27a3a, summon: ['spawnling', 5, 3] },
+  shade:   { loot: ['silent', 'rod', 'sebastian'], name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
   const B = BOUNTIES[key] || BOUNTIES.butcher, all = activeSpawns();
@@ -631,12 +632,12 @@ function bountyKilled(z) {
   const M = mission; if (!M || M.bountyDone) return;
   M.bountyDone = true; M.bountyAt = [z.pos.x, z.pos.z];
   M.job.dur = M.t + EVAC_WARN + 1;
-  bountyLoot(z.pos);
+  bountyLoot(z.pos, z.bounty);
   banner(`${(BOUNTIES[z.bounty] || BOUNTIES.butcher).name.toUpperCase()} ELESETT`, 'Legendás zsákmány! Szedd fel, aztán irány a furgon.');
 }
-function bountyLoot(pos) {
-  const p = new V3(pos.x, 0, pos.z);
-  spawnDrop(makeWeapon(pick(BASES), Math.random() < .15 ? 5 : 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0))); // sometimes a unique
+function bountyLoot(pos, key) {
+  const p = new V3(pos.x, 0, pos.z), B = BOUNTIES[key];
+  spawnDrop(B && Math.random() < .25 ? makeUnique(pick(B.loot), lootLvl(3)) : makeWeapon(pick(BASES), 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0))); // a quarter of the time: one of this boss's uniques
   spawnGearDrop(makeGear(null, 4, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
 }
 

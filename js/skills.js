@@ -159,6 +159,7 @@ function useAbility() {
       const dx = z.pos.x - player.pos.x, dz = z.pos.z - player.pos.z, d = Math.hypot(dx, dz);
       if (d < 45 && (wide || (dx * f.x + dz * f.z) / Math.max(d, .01) > .72)) { z.markT = dur; n++; }
     }
+    if (NET.client) netAct('mark', zombies.filter(z => !z.dead && z.markT > 0).map(z => z.id).slice(0, 40)); // the host marks them too, for the whole party
     banner('JELÖLÉS', `${n} célpont, ${dur} mp`); SND.stinger && SND.stinger();
   } else if (c === 'engineer') {
     if (!deployTurret(0, 25 + 5 * rk('e_tools') + 15 * rk('e_last'), { rate: rk('e_overload') ? 2 : 1, n: augOn('twin') ? 2 : 1, dmgMul: augOn('twin') ? .6 : 1, shield: augOn('shieldtower'), rocket: augOn('rocket') })) return SND.deny();

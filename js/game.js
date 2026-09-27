@@ -116,7 +116,7 @@ function updateMission(dt) {
   if (updateObjective(M, dt) === 'fail') return finishJob(false);
   if (noClock(M.job) && !objDone(M)) { // objective jobs: no clock, the pressure rises every minute
     if (M.job.bounty && !M.bountyBoss && M.t > 4) M.bountyBoss = spawnBounty(M.job.bounty);
-    if ((M.huntT = (M.huntT || 0) + dt) > 60) { M.huntT = 0; round++; $('round').textContent = round; }
+    if ((M.huntT = (M.huntT || 0) + dt) > 60) { M.huntT = 0; round++; $('round').textContent = round; M.rt = (M.rt || 0) + 1; if (NET.mode && player.down) netRevive(); } // no waves here: the downed get up every minute
   }
   if (!M.evacWarn && left <= EVAC_WARN) { // the pickup spot is known 40 s early: the last wave becomes a run across the map
     M.evacWarn = true; M.departT = -1; placeVan(M.pickup, false);
@@ -195,7 +195,7 @@ function settleWeapons(success, M) {
   return { kept: newOnes, lost, overflow, gear: success ? home : lostGear };
 }
 function finishJob(success, abandoned) {
-  const M = mission, J = M.job, P = profile;
+  const M = mission, J = M.job, P = profile, party = NET.mode ? partySize() : 1;
   mission = null; state = 'results';
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
@@ -203,12 +203,13 @@ function finishJob(success, abandoned) {
   clearGearDrops();
   const w = settleWeapons(success, M);
   // dying after the clock ran out (during evac) still pays a quarter of the fee
-  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash()) : !abandoned && M.phase === 'evac' ? Math.round(J.reward * .25) : 0;
-  const xp = success ? J.xp + player.kills * 2 : Math.floor(player.kills);
+  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned && M.phase === 'evac' ? Math.round(J.reward * .25) : 0;
+  const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)));
   P.cash += cash; stats.cash += cash;
   const levelUps = addXp(xp);
   const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
   if (success && J.bounty) stats.bounties = (stats.bounties || 0) + 1;
+  if (success && J.tier > (P.tier || 0)) P.tier = J.tier; // next nightmare tier unlocked
   P.tokens = (P.tokens || 0) + tokens;
   P.inv = player.inv;
   const bm = stats.byMap[J.map] || (stats.byMap[J.map] = { done: 0, fail: 0 });
@@ -455,6 +456,7 @@ function updateHUD() {
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot]; card = gearCard(focus.it, `<span><kbd>F</kbd>A zsákba</span><span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>`, true); }
     else if (focus.w) card = cardHTML(focus.w, `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : player.bag.length < bagMax() ? `Táskába ${player.bag.length}/${bagMax()}` : 'Tele a táska'}</span><span><kbd>F</kbd>tartsd: Csere</span>`, curW());
+    else if (focus.type === 'revive') prompt = `<b>[E]</b> nyomva: ${esc(focus.name)} felélesztése`;
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Utánpótlás-láda felvétele';
     else if (focus.type === 'repair') prompt = `<b>[E]</b> Generátor javítása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
     else if (!['box', 'ammo', 'drop', 'gear'].includes(focus.type)) prompt = areaPrompt(focus);
@@ -555,7 +557,7 @@ function frame(t) {
     if (!(state === 'playing' || netLive())) return;
     updateFx(dt);
     updateProjs(dt);
-    updateItemDrops(dt); updateGearDrops(dt); updatePings(dt);
+    updateItemDrops(dt); updateGearDrops(dt); updatePings(dt); updateMatesHud();
     updateAreas(dt);
     updateMapFx(dt);
     if (state === 'playing') updateSellHold(dt);
@@ -589,7 +591,13 @@ function takeLoot(f, swap) {
   player.bag.push(w); trackBest(w); noteFound(w); SND.pickup(w.q);
   popText(`${w.name} a táskába (${player.bag.length}/${bagMax()})`, rarColor(w));
 }
+let reviveHold = 0;
 function updateSellHold(dt) {
+  if (focus && focus.type === 'revive') { // hold E next to a downed mate
+    if (keys.KeyE) { reviveHold += dt; if (reviveHold >= REVIVE_T) { reviveMate(focus.peer); reviveHold = 0; } } else reviveHold = 0;
+    $('hold').hidden = reviveHold <= 0; $('holdLbl').textContent = 'Felélesztés…'; $('holdfill').style.width = reviveHold / REVIVE_T * 100 + '%'; return;
+  }
+  reviveHold = 0;
   if (focus && focus.type === 'gear') { if (keys.KeyF && !fLatch) { takeGear(focus.gd); focus = null; fLatch = true; } else if (!keys.KeyF) fLatch = false; $('hold').hidden = true; return; }
   const f = lootFocus();
   if (keys.KeyF) { if (f && !fLatch && (fHold += dt) >= SWAP_HOLD) { takeLoot(f, true); fLatch = true; } }

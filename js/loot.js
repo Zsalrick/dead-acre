@@ -47,6 +47,7 @@ function findFocus() {
   for (const d of gearDrops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; bg = d; } }
   if (bg) return { type: 'gear', gd: bg, it: bg.it };
   if (best) return { type: 'drop', drop: best, w: best.w };
+  const rf = reviveFocus(); if (rf) return rf;
   const cf = crateFocus(); if (cf) return cf;
   const af = areaFocus(); if (af) return af;
   if (Math.hypot(box.pos.x - player.pos.x, box.pos.z - player.pos.z) < 2.6) return { type: 'box', w: box.state === 'ready' ? box.weapon : null };

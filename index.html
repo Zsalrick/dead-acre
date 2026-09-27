@@ -660,6 +660,15 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 #pings{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .ping{position:absolute;left:0;top:0;padding:2px 8px;font-size:12px;font-weight:700;letter-spacing:.06em;color:#0b0d0c;background:var(--pc);white-space:nowrap;box-shadow:0 0 10px var(--pc);will-change:transform}
 #pause.dnd.ground::after{content:'Engedd el az eldobáshoz';position:fixed;left:50%;bottom:90px;translate:-50% 0;padding:8px 18px;background:#b3141b;color:#fff;font-weight:700;letter-spacing:.12em;text-transform:uppercase;pointer-events:none}
+#mates{position:absolute;left:28px;top:150px;display:grid;gap:6px;width:190px}
+.mate{display:grid;gap:3px;font-size:12px;font-weight:700;padding:4px 8px;background:rgba(0,0,0,.45);border-left:3px solid var(--pc)}
+.mate b{color:var(--pc)}
+.mate i{display:block;height:5px;background:rgba(255,255,255,.12)}.mate em{display:block;height:100%;background:#e8e2d0}
+.mate.down{border-left-color:#ff4a3a}.mate.down span{color:#ff4a3a;letter-spacing:.14em;font-size:11px}
+.matetag{position:absolute;left:0;top:0;display:grid;justify-items:center;gap:2px;font-size:12px;font-weight:700;text-shadow:0 1px 2px #000;will-change:transform}
+.matetag b{color:var(--pc)}.matetag i{display:block;width:70px;height:4px;background:rgba(0,0,0,.6)}.matetag em{display:block;height:100%;background:var(--pc)}
+.matetag.down span{padding:2px 8px;background:#b3141b;color:#fff;letter-spacing:.08em}
+.jtier{margin:0;color:#b05cff;font-weight:700;font-size:12px;letter-spacing:.08em}
 </style>
 
 <div id="game">
@@ -685,6 +694,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
     <div id="br"><div id="hint"></div><div id="wname"></div><div id="wsub"></div>
       <div id="ammo" class="num"><span id="mag">0</span><span id="res">/ 0</span></div><div id="slots"></div></div>
     <div id="pings"></div>
+    <div id="mates" hidden></div>
     <div id="evacMark" hidden><b>&#9660;</b><span></span></div>
     <div id="flash"></div>
   </div>
@@ -757,12 +767,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=7" charset="utf-8"></script>
-<script src="js/audio.js?v=7" charset="utf-8"></script>
-<script src="js/music.js?v=7" charset="utf-8"></script>
-<script src="js/world.js?v=7" charset="utf-8"></script>
-<script src="js/maps.js?v=7" charset="utf-8"></script>
-<script src="js/fx.js?v=7" charset="utf-8"></script>
+<script src="js/data.js?v=8" charset="utf-8"></script>
+<script src="js/audio.js?v=8" charset="utf-8"></script>
+<script src="js/music.js?v=8" charset="utf-8"></script>
+<script src="js/world.js?v=8" charset="utf-8"></script>
+<script src="js/maps.js?v=8" charset="utf-8"></script>
+<script src="js/fx.js?v=8" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -770,20 +780,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=7" charset="utf-8"></script>
-<script src="js/player.js?v=7" charset="utf-8"></script>
-<script src="js/zombies.js?v=7" charset="utf-8"></script>
-<script src="js/loot.js?v=7" charset="utf-8"></script>
-<script src="js/upgrades.js?v=7" charset="utf-8"></script>
-<script src="js/gear.js?v=7" charset="utf-8"></script>
-<script src="js/vet.js?v=7" charset="utf-8"></script>
-<script src="js/inv.js?v=7" charset="utf-8"></script>
-<script src="js/save.js?v=7" charset="utf-8"></script>
-<script src="js/menu.js?v=7" charset="utf-8"></script>
-<script src="js/skills.js?v=7" charset="utf-8"></script>
-<script src="js/hub.js?v=7" charset="utf-8"></script>
-<script src="js/game.js?v=7" charset="utf-8"></script>
-<script src="js/jobs.js?v=7" charset="utf-8"></script>
+<script src="js/gfx.js?v=8" charset="utf-8"></script>
+<script src="js/player.js?v=8" charset="utf-8"></script>
+<script src="js/zombies.js?v=8" charset="utf-8"></script>
+<script src="js/loot.js?v=8" charset="utf-8"></script>
+<script src="js/upgrades.js?v=8" charset="utf-8"></script>
+<script src="js/gear.js?v=8" charset="utf-8"></script>
+<script src="js/vet.js?v=8" charset="utf-8"></script>
+<script src="js/inv.js?v=8" charset="utf-8"></script>
+<script src="js/save.js?v=8" charset="utf-8"></script>
+<script src="js/menu.js?v=8" charset="utf-8"></script>
+<script src="js/skills.js?v=8" charset="utf-8"></script>
+<script src="js/hub.js?v=8" charset="utf-8"></script>
+<script src="js/game.js?v=8" charset="utf-8"></script>
+<script src="js/jobs.js?v=8" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=7" charset="utf-8"></script>
-<script src="js/net.js?v=7" charset="utf-8"></script>
+<script src="js/p2p.js?v=8" charset="utf-8"></script>
+<script src="js/net.js?v=8" charset="utf-8"></script>
