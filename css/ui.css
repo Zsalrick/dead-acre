@@ -573,7 +573,7 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 
 /* ================= HUD: no boxes, text and thin bars; four corners, four jobs ================= */
 .hud{font-family:var(--fb);color:var(--tx);text-shadow:0 1px 3px rgba(0,0,0,.85)}
-#obj,#topc,#compass,#kfeed,#bl,#br,#inv,#card,#prompt,#rlhint,#hold{zoom:var(--uiz)}
+#obj,#topc,#compass,#kfeed,#bl,#br,#inv,#card,#prompt,#rlhint,#hold{zoom:var(--huz,var(--uiz))}
 /* top left: the job */
 #obj{position:absolute;left:40px;top:34px;width:440px;pointer-events:none}
 .okick{font-family:var(--fc);font-weight:700;font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--amb)}
@@ -703,7 +703,7 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 #chat .cl b{color:var(--amb)}
 #intro .t{font-family:var(--fd);font-weight:900}
 #intro .s{font-family:var(--fc);font-weight:700}
-#helpcard{zoom:var(--uiz);right:40px;top:230px;width:430px;padding:16px 18px;background:rgba(10,11,9,.82);border:1px solid var(--ln2);border-top:3px solid var(--amb);font-size:13px;line-height:1.9;color:var(--tx2)}
+#helpcard{zoom:var(--huz,var(--uiz));right:40px;top:230px;width:430px;padding:16px 18px;background:rgba(10,11,9,.82);border:1px solid var(--ln2);border-top:3px solid var(--amb);font-size:13px;line-height:1.9;color:var(--tx2)}
 #helpcard b{font-family:var(--fc);font-weight:700;font-size:16px;letter-spacing:.16em;text-transform:uppercase;color:var(--amb)}
 #helpcard kbd{display:inline-block;height:auto;min-width:0;padding:0 5px;margin:0 1px;font-size:11px;line-height:17px;vertical-align:1px;color:var(--tx);border-color:var(--ln3)}
 
@@ -787,3 +787,10 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 #pause .dact{display:none}
 #game:has(#pause:not([hidden])) #keybar{zoom:var(--uiz)}
 .pmb kbd,.pmback kbd,.whside kbd{letter-spacing:0}
+
+/* empty slots: just a dashed place to drop things */
+.tile.empty{background:rgba(255,255,255,.015);border:1px dashed rgba(255,255,255,.12);min-height:120px}
+.tile.empty:hover{border-color:rgba(255,255,255,.22)}
+#pause .tile.empty{min-height:170px}
+.invl .tiles .tile.empty{min-height:150px}
+#banner{top:calc(170px * var(--huz,1))}

@@ -63,7 +63,7 @@ const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
 const gTile = (sel, it, o = {}) => { const [bg, bc] = tBadge(it), d = o.cmp && o.cmp !== it ? it.armor - o.cmp.armor : 0;
   return tile(sel, gPic(it), it.name, it.exo ? `${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`, gCol(it),
     Object.assign({ rar: it.exo ? 'Egzotikus' : RARITIES[it.q].name, badge: bg, badgeCls: bc, exp: it.exp, lv: `Lv ${it.level}`, lockLv: !canUse(it) && it.level, bc: BRANDS[it.brand].color, val: o.price ? `<span class="tp">${o.price}</span>${delta(d)}` : `Páncél ${it.armor}${delta(d)}` }, o)); };
-const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
+const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''} data-tip="${[label, sub].filter(Boolean).join(' · ').replace(/"/g, '&quot;')}"></div>`;
 // double-click a tile: its main [F] action (buy, equip); a tile already on you does nothing
 let lastSel = { s: '', t: 0 };
 function selDbl(root, sel) {
@@ -99,7 +99,10 @@ function markCta(root) { // the detail panel shows one big button (the [F] one);
   const iv = root.querySelector('.invd'), t = root.querySelector('.invd > [style*="--rc"]'); if (iv && t) iv.style.setProperty('--rc', t.style.getPropertyValue('--rc'));
 }
 // the UI is laid out for 1920×1080 and scaled to the window
-function setUiZ() { const z = clamp(Math.min(innerWidth / 1920, innerHeight / 1080), .72, 1.5); document.documentElement.style.setProperty('--uiz', z); }
+function setUiZ() { // the player's own sizes on top (Beállítások → Felület)
+  const z = clamp(Math.min(innerWidth / 1920, innerHeight / 1080), .72, 1.5), r = document.documentElement.style;
+  r.setProperty('--uiz', z * (SET.uiScale || 1)); r.setProperty('--huz', z * (SET.hudScale || 1));
+}
 addEventListener('resize', setUiZ); setUiZ();
 const noDetail = t => `<div class="dnone">${t}</div>`;
 
