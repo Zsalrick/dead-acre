@@ -111,7 +111,7 @@ function markCta(root) { // the detail panel shows one big button (the [F] one);
 // the UI is laid out for 1920×1080 and scaled to the window
 function setUiZ() { // the player's own sizes on top (Beállítások → Felület)
   const z = clamp(Math.min(innerWidth / 1920, innerHeight / 1080), .72, 1.5), r = document.documentElement.style;
-  r.setProperty('--uiz', z * (SET.uiScale || 1)); r.setProperty('--huz', z * (SET.hudScale || 1));
+  r.setProperty('--uiz', clamp(z * (SET.uiScale || 1), .6, Math.min(innerWidth / 1450, innerHeight / 820))); // the three-column pages need ~1450 px of room r.setProperty('--huz', clamp(z * (SET.hudScale || 1), .6, Math.min(innerWidth / 1420, innerHeight / 800))); // the HUD never outgrows the screen: its corners would meet in the middle
 }
 addEventListener('resize', setUiZ); setUiZ();
 // a re-render keeps every scrolled list where it was (matched by tag, class and order), whatever the layout

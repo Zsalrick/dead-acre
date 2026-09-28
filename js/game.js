@@ -750,11 +750,11 @@ refreshMenu();
 
 let slowmo = 0; // a moment of slow motion (a bounty falls)
 let fpsN = 0, fpsT = 0;
-function frame(t) { requestAnimationFrame(frame); step(t); }
+function frame(t) { requestAnimationFrame(frame); gameStep(t); }
 // a party's leader in a hidden tab (alt-tab, another tab): the browser stops animation frames, so a worker's clock keeps the world going for everyone
 { try { const wk = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50)'], { type: 'text/javascript' })));
-  wk.onmessage = () => { if (document.hidden && NET.mode === 'host' && mission && liveWorld()) step(performance.now()); }; } catch (e) {} }
-function step(t) {
+  wk.onmessage = () => { if (document.hidden && NET.mode === 'host' && mission && liveWorld()) gameStep(performance.now()); }; } catch (e) {} }
+function gameStep(t) {
   const cap = FPS_CAPS[SET.fpsCap] || 0; if (cap && t - last < 1000 / cap - 1) return; // the frame limiter: skip until the next slot
   let dt = Math.min(.05, (t - last) / 1000); last = t;
   fpsN++; if (t - fpsT > 500) { const e = $('fps'); e.hidden = !SET.showFps; if (SET.showFps) e.textContent = `${Math.round(fpsN * 1000 / (t - fpsT))} FPS`; fpsN = 0; fpsT = t; }

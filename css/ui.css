@@ -850,3 +850,20 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 #aurafx.on{opacity:1;animation:aurapulse 2.4s ease-in-out infinite}
 @keyframes aurapulse{50%{opacity:.65}}
 #hud.outro>*:not(#flash):not(#vig){visibility:hidden}
+
+/* scale QA fixes: columns fill their row and scroll, cards wrap instead of squeezing, sticky button on a strip */
+#pause .inv{grid-template-rows:minmax(0,1fr);align-items:stretch;grid-template-columns:minmax(260px,1fr) minmax(230px,360px) minmax(300px,480px)}
+#hub .inv{grid-template-rows:minmax(0,1fr)}
+.fgrid{grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+.kh{flex-wrap:wrap;gap:2px 10px}.kh b{min-width:0;overflow-wrap:anywhere}
+#hub .hubbody:has(.whl){overflow:auto}
+#resultsBtn{box-shadow:0 0 0 14px rgba(6,7,5,.96)}
+.pmstats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.pmstats small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pmission .pmt{overflow-wrap:anywhere}
+.mpanel .keys.big,.pmhelp .keys.big{grid-template-columns:repeat(2,max-content minmax(0,1fr))}
+.mpanel .keys kbd,.pmhelp .keys kbd{width:auto;padding:0 8px}
+#hud:has(#card:not([hidden])) #helpcard{opacity:0;pointer-events:none}
+#card.wcard{top:auto;bottom:calc(50% - 40px)} /* grows upward from just below the crosshair, clear of the weapon block */
+#pause .tiles.bag{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+#pause .tiles.hands{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}

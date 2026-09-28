@@ -149,7 +149,7 @@ function renderHub() {
 }
 function fitJobMap() { // after a render: size the map to its box; one more render if it changed
   const b = hubTab === 'jobs' && document.querySelector('#hubBody .jmapbox'); if (!b || !b.clientWidth) return;
-  const h = Math.round(clamp(900 * (b.clientHeight - 150) / b.clientWidth, 380, 1400)), k = +clamp(900 / b.clientWidth, .8, 2).toFixed(2);
+  const h = Math.round(clamp(900 * (b.clientHeight - 150) / b.clientWidth, 380, 1400)), k = +clamp(900 / b.clientWidth, .8, 1.35).toFixed(2); // a small map keeps its labels small too, or they pile up
   if (Math.abs(h - jobMap.h) > 12 || Math.abs(k - jobMap.k) > .05) { jobMap.h = h; jobMap.k = k; keepScroll($('hubBody'), () => { $('hubBody').innerHTML = HUB.jobs(); markCta($('hubBody')); }); }
 }
 addEventListener('resize', () => { if (state === 'hub' && hubTab === 'jobs') fitJobMap(); });
