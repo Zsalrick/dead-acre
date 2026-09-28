@@ -70,7 +70,7 @@ function tickStats(dt) { stats.time += dt; }
 const MASTERY = [50, 200, 600, 1500, 4000, 10000], MASTERY_NAMES = ['Újonc', 'Gyakorlott', 'Veterán', 'Mester', 'Nagymester', 'Legenda'];
 const masteryTier = id => { const n = (stats.byBase || {})[id] || 0; return MASTERY.filter(m => n >= m).length; };
 function noteBaseKill(w) {
-  if (!w || !w.base) return; const B = stats.byBase || (stats.byBase = {}), before = masteryTier(w.base.id);
+  if (!w || !w.base || (mission && mission.job.test)) return; const B = stats.byBase || (stats.byBase = {}), before = masteryTier(w.base.id);
   B[w.base.id] = (B[w.base.id] || 0) + 1;
   const t = masteryTier(w.base.id); if (t > before) { banner('FEGYVERMESTERSÉG', `${w.base.name}: ${MASTERY_NAMES[t - 1]} · +${2 * t}% sebzés`); SND.power(); }
 }
