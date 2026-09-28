@@ -417,7 +417,7 @@ function applySnapshot(g, hostPeer) {
   const tr = performance.now(); if (NET.gLast) NET.gInt = lerp(NET.gInt || 50, clamp(tr - NET.gLast, 10, 500), .15); NET.gLast = tr;
   // clock, phase, threat
   const was = { ph: M.phase, w: M.wave, ew: M.evacWarn, cl: M.cleared };
-  if (Array.isArray(g.bk) && !M.bountyDone) { M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }, M.job.bounty); banner(BOUNTIES[M.job.bounty] ? `${BOUNTIES[M.job.bounty].name.toUpperCase()} ELESETT` : 'A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
+  if (Array.isArray(g.bk) && !M.bountyDone) { if (M.job.bounty) firstBounty(M.job.bounty); M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }, M.job.bounty); banner(BOUNTIES[M.job.bounty] ? `${BOUNTIES[M.job.bounty].name.toUpperCase()} ELESETT` : 'A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
   Object.assign(M, { t: +g.t || 0, phase: g.ph, phaseT: +g.pt || 0, wave: +g.w || 1, cleared: !!g.cl, evacWarn: !!g.ew, pickup: g.pk | 0, boardT: +g.bt || 0, parkT: +g.pa || 0 });
   if (round !== g.r) { round = +g.r || 1; $('round').textContent = round; }
   if (M.wave > was.w) { banner(`${M.wave}. HULLÁM`, `A veszély ${round}. szintre nőtt.`); SND.roundStart(); if (player.down || player.ffyl > 0) netRevive(); }

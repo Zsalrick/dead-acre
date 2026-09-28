@@ -164,7 +164,8 @@ const HUB = {
     if (w) acts += hbtn(w.level + 2 > HFORGE.cap() ? `Kovács: szintkorlát (${HFORGE.cap()})` : `Kovács: +2 szint · ${HFORGE.level(w)} ⚙`, `hforge:level:${sl}:${i}`, pp < HFORGE.level(w) || w.level + 2 > HFORGE.cap(), 'KeyG') +
       (w.q < 4 ? hbtn(`Kovács: ${RARITIES[w.q + 1].name} · ${HFORGE.rarity(w)} ⚙`, `hforge:rarity:${sl}:${i}`, pp < HFORGE.rarity(w), 'KeyV') : '') +
       (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '') +
-      hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC');
+      hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
+      `<div class="ocrow"><small>Túlhajtás · 1 mag + 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}"${w.oc === k || (P.oc || 0) < 1 || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`;
     const cmp = sl === 'L' ? lists.L[1 - i] : lists.L[0] || lists.L[1];
     const hands = lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('');
     const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${hands}</div>
@@ -253,6 +254,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'jsel') { jobSel = +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
+  if (kind === 'ocset') { const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]); if (w && OVERCLOCKS[k] && (P.oc || 0) >= 1 && (P.parts || 0) >= 20 && w.oc !== k) { P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } }
   if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; return startJob(deepJob(clamp(+a, 0, 2))); }
   if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); }
   if (kind === 'bsave') saveBuild(+a);
@@ -371,7 +373,7 @@ function loadBuild(i) {
   if (!P.loadout[0] && !P.loadout[1]) P.loadout[0] = packW(makeWeapon(BASES[0], 0, 1));
   gearChanged(); SND.power();
 }
-const buildsRow = (extra = '') => `<div class="builds"><b class="parts">${profile.parts || 0} ⚙</b>${extra}<b>Buildek</b>${[0, 1, 2].map(i => { const B = (profile.builds || [])[i]; return `<span class="bslot"><small>${i + 1}. ${B ? esc(B.name) : 'üres'}</small>${hbtn('Betöltés', `bload:${i}`, !B)}${hbtn('Mentés', `bsave:${i}`)}</span>`; }).join('')}</div>`;
+const buildsRow = (extra = '') => `<div class="builds"><b class="parts">${profile.parts || 0} ⚙ · ${profile.oc || 0} mag</b>${extra}<b>Buildek</b>${[0, 1, 2].map(i => { const B = (profile.builds || [])[i]; return `<span class="bslot"><small>${i + 1}. ${B ? esc(B.name) : 'üres'}</small>${hbtn('Betöltés', `bload:${i}`, !B)}${hbtn('Mentés', `bsave:${i}`)}</span>`; }).join('')}</div>`;
 
 // a party member sees what the leader is looking at on the map
 function hostPick() {

@@ -74,7 +74,7 @@ function claimContract(i) {
   c.got = true;
   if (weekly) { // the weekly cache: an exotic piece, parts and cash
     const it = makeExotic(null, profile.level); (stats.exo || (stats.exo = {}))[it.exo] = 1; if (P.gearStash.length < gearMax()) P.gearStash.push(it); else P.cash += gearValue(it);
-    P.parts = (P.parts || 0) + 40; P.cash += 3000 + 300 * P.level; banner('HETI KONTRAKT KÉSZ', `${it.name} (egzotikus) · +40 ⚙`);
+    P.parts = (P.parts || 0) + 40; P.oc = (P.oc || 0) + 1; P.cash += 3000 + 300 * P.level; banner('HETI KONTRAKT KÉSZ', `${it.name} (egzotikus) · +40 ⚙ · +1 túlhajtás-mag`);
   } else { const r = dailyReward(); P.cash += r.cash; P.parts = (P.parts || 0) + r.parts; }
   SND.power();
 }

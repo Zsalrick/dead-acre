@@ -712,7 +712,7 @@ function bountyTick(z, dt, dist) {
 // the bounty is done: everyone in the party gets a legendary gun and a legendary piece of armor, then the van comes
 function bountyKilled(z) {
   const M = mission; if (!M || M.bountyDone) return;
-  M.bountyDone = true; M.bountyAt = [z.pos.x, z.pos.z]; (stats.bk || (stats.bk = {}))[z.bounty] = 1;
+  M.bountyDone = true; M.bountyAt = [z.pos.x, z.pos.z]; firstBounty(z.bounty);
   M.job.dur = M.t + EVAC_WARN + 1;
   bountyLoot(z.pos, z.bounty);
   banner(`${(BOUNTIES[z.bounty] || BOUNTIES.butcher).name.toUpperCase()} ELESETT`, 'Legendás zsákmány! Szedd fel, aztán irány a furgon.');
@@ -733,6 +733,9 @@ function weaponOnHit(z, amt, o) {
   if (w.unique === 'anvil') { if (z.armor > 0 && z.K.boss) z.armor -= z.maxHp * .1; else if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
   if (w.unique === 'bells' && (player.bellN = (player.bellN || 0) + 1) % 9 === 0) { burst(new V3(z.pos.x, 1.5, z.pos.z), 0xd8c47a, 20, 4, .6); tn(440, .9, .08, 'sine', 430); for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 6) { q.slowT = 2.5; q.flinch = .3; } }
   if (w.unique === 'scalpel' && o.crit) { z.burnT = Math.max(z.burnT, 3); z.burnDps = Math.max(z.burnDps, amt * .5 / 3); z.burnW = w; }
+  if (w.oc === 'exploder' && w.ammo === 0 && !o.chain) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * 2, pr: .01, pdmg: .001, color: 0xffb04a });
+  if (w.oc === 'leech') player.hp = Math.min(maxHp(), player.hp + Math.min(amt * .01, maxHp() * .015));
+  if (w.oc === 'ricochet' && !o.chain && Math.random() < .25) { const q = zombies.filter(q => !q.dead && q !== z && q.pos.distanceTo(z.pos) < 8).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0]; if (q) { tracer(new V3(z.pos.x, 1.5, z.pos.z), new V3(q.pos.x, 1.5, q.pos.z), 0xffe0a0, .012); hurtZombie(q, amt * .5, { w, chain: true }); } }
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
 }
@@ -831,3 +834,5 @@ function mergeZombieBits(pivots, hitParts) {
   return out;
 }
 function freeZombie(z) { z.mats.forEach(m => m.dispose()); z.g.traverse(o => { if (o.geometry && o.geometry.userData.own) o.geometry.dispose(); }); }
+
+function firstBounty(key) { const B = stats.bk || (stats.bk = {}); if (!B[key]) { profile.oc = (profile.oc || 0) + 1; popText('Első győzelem ellene: +1 túlhajtás-mag', '#a88aff'); } B[key] = 1; }

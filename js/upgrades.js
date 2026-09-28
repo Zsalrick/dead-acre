@@ -111,10 +111,11 @@ $('stationBody').addEventListener('click', e => {
 $('stationClose').onclick = closeStation;
 
 function levelUpWeapon(w, n) {
-  w.dmg = Math.round(w.dmg * Math.pow(1.08, n));
-  w.level += n;
+  ocStrip(w); w.dmg = Math.round(w.dmg * Math.pow(1.08, n));
+  w.level += n; ocApply(w);
 }
 function rarityUp(w) {
+  ocStrip(w);
   const q = w.q, f = (k, a) => (1 + (q + 1) * k * a) / (1 + q * k * a);
   w.dmg = Math.round(w.dmg * f(.14, 1));
   w.rpm = Math.round(w.rpm * f(.04, 1));
@@ -125,4 +126,5 @@ function rarityUp(w) {
   w.q = q + 1;
   if (w.q === 4) { const L = pick(LEGENDS); w.name = L[0]; w.flavor = L[1]; if (!w.element) w.element = pick(Object.keys(ELEMENTS)); }
   else if (q === 0) w.name = 'Forged ' + w.name;
+  ocApply(w);
 }

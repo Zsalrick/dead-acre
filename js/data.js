@@ -221,6 +221,24 @@ ITEM_KEYS.forEach(k => { ICON_CANVAS[k] = drawIcon(k); ICONS[k] = ICON_CANVAS[k]
 // the forge's calibration: every stat roll again; rarity, level, maker, element, anointment and unique trick stay
 function recalWeapon(w) {
   const b = BASES.find(x => x.id === w.base.id) || w.base, n = makeWeapon(b, Math.min(4, w.q), w.level, w.mk), k = w.unique ? 1.12 : 1;
-  Object.assign(w, { dmg: Math.round(n.dmg * k), rpm: n.rpm, mag: n.mag, reload: n.reload, spread: n.spread, roll: n.roll });
+  ocStrip(w); Object.assign(w, { dmg: Math.round(n.dmg * k), rpm: n.rpm, mag: n.mag, reload: n.reload, spread: n.spread, roll: n.roll }); ocApply(w);
   return w;
 }
+
+// ---------- overclocks (Deep Rock Galactic): one per gun, bought with an overclock core; they change how the gun works ----------
+const OVERCLOCKS = {
+  heavy:    { name: 'Nehéz lövedék', desc: '+35% sebzés, −20% tűzgyorsaság', mul: { dmg: 1.35, rpm: .8 } },
+  rapid:    { name: 'Túlpörgetett', desc: '+30% tűzgyorsaság, −15% sebzés', mul: { rpm: 1.3, dmg: .85 } },
+  drum:     { name: 'Dobtár', desc: '+60% tárkapacitás, 25%-kal lassabb újratöltés', mul: { mag: 1.6, reload: 1.25 } },
+  exploder: { name: 'Robbanó tár', desc: 'A tár utolsó lövése felrobban (3 m, dupla sebzés).' },
+  leech:    { name: 'Vérszívó', desc: 'A találatok sebzésének 1%-a visszajön életerőként (találatonként legfeljebb 1,5%).' },
+  ricochet: { name: 'Pattanó', desc: '25% eséllyel a golyó a legközelebbi zombira pattan (50% sebzés).' },
+};
+function ocStrip(w) { if (w && w.ocBase) { Object.assign(w, w.ocBase); delete w.ocBase; } }
+function ocApply(w) {
+  const O = w && w.oc && OVERCLOCKS[w.oc]; if (!O || !O.mul) return;
+  w.ocBase = { dmg: w.dmg, rpm: w.rpm, mag: w.mag, reload: w.reload };
+  if (O.mul.dmg) w.dmg = Math.round(w.dmg * O.mul.dmg); if (O.mul.rpm) w.rpm = Math.round(w.rpm * O.mul.rpm);
+  if (O.mul.mag && !w.base.fixedMag) w.mag = Math.max(2, Math.round(w.mag * O.mul.mag)); if (O.mul.reload) w.reload = +(w.reload * O.mul.reload).toFixed(2);
+}
+function setOverclock(w, key) { ocStrip(w); w.oc = OVERCLOCKS[key] ? key : null; ocApply(w); }
