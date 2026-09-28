@@ -975,7 +975,7 @@ function areaFocus() {
     if (a.unlocked && a.perk && near(a.perk.pos, 2)) return { type: 'perk', area: k };
     if (a.unlocked && a.chest && !a.chest.open && near(a.chest.pos, 2)) return { type: 'chest', area: k };
   }
-  if (mission && mission.phase === 'evac' && truck.parked && near(truck.pos, 4)) return { type: 'truck' };
+  if (mission && mission.phase === 'evac' && truck.parked && !(mission.boardT > 0) && !mission.leaving && near(truck.pos, 4)) return { type: 'truck' }; // once someone has started boarding, nobody else presses it
   return null;
 }
 function areaPrompt(f) {

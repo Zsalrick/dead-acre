@@ -247,7 +247,7 @@ function netNearestToVan() {
   if (NET.mode) for (const a of NET.avatars.values()) if (!a.down) d = Math.min(d, Math.hypot(a.pos.x - truck.pos.x, a.pos.z - truck.pos.z));
   return d;
 }
-const netExtractOk = () => !NET.mode || (!player.down && Math.hypot(player.pos.x - truck.pos.x, player.pos.z - truck.pos.z) < 10);
+const netExtractOk = () => !NET.mode || !player.down; // the party extracts together: everyone still standing makes it, wherever they are
 
 // ---------- players going down and coming back ----------
 function netDown() {
