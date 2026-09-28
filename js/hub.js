@@ -310,7 +310,7 @@ function showResults(r) {
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}
     ${r.junkN ? `<p class="note">Automatikus szétszedés: ${r.junkN} fegyver → +${r.junkParts} ⚙</p>` : ''}
     ${r.lost.length ? `<h3>Elveszett fegyverek</h3><ul class="wlist">${wl(r.lost, 'lost')}</ul>` : ''}
-    ${r.gear.length ? `<h3>${r.success ? 'Hazavitt páncél' : 'Elveszett páncél'}</h3><ul class="wlist">${r.gear.map(it => `<li class="${r.success ? '' : 'lost'}" style="color:${RARITIES[it.q].color}">${it.name} <small>Lv ${it.level} ${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}</small></li>`).join('')}</ul>` : ''}
+    ${r.gear.length ? `<h3>${r.success ? 'Hazavitt páncél' : 'Elveszett páncél'} <small>${r.gear.length} db</small></h3><ul class="wlist">${[...r.gear].sort((a, b) => (b.exo ? 9 : b.q) - (a.exo ? 9 : a.q)).slice(0, 8).map(it => `<li class="${r.success ? '' : 'lost'}" style="color:${gCol(it)}">${it.name} <small>Lv ${it.level} ${GEAR_SLOTS[it.slot]} · ${it.exo ? 'egzotikus' : BRANDS[it.brand].name}</small></li>`).join('')}${r.gear.length > 8 ? `<li><small>…és még ${r.gear.length - 8} darab a raktárban</small></li>` : ''}</ul>` : ''}
     ${r.parts ? `<p class="lvlup">Alkatrész a terepen szétszedett holmiból: +${r.parts} ⚙</p>` : r.partsLost ? `<p class="note">A terepen szétszedett holmi alkatrésze (${r.partsLost} ⚙) odaveszett.</p>` : ''}
     ${r.overflow ? `<p class="note">A páncélraktár megtelt: ${r.overflow} darabot automatikusan eladtunk.</p>` : ''}`;
   $('results').hidden = false;

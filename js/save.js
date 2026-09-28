@@ -32,6 +32,7 @@ const readProfile = n => { const p = store.get(SLOT_KEY(n)); return p && p.v ===
 function openProfile(n) {
   slot = n; profile = readProfile(n) || newProfile(n);
   stats = profile.stats = Object.assign(emptyStats(), profile.stats);
+  profile.inv = Object.assign({ med: 0, gren: 0, knife: 0, adren: 0 }, profile.inv); // older saves may miss an item
   player.up = profile.up;
   Object.assign(profile, { bag: profile.bag || [], gear: profile.gear || {}, gearStash: profile.gearStash || [], gshop: profile.gshop || [] });
   profile.vet = profile.vet || {};
