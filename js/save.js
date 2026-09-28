@@ -41,11 +41,12 @@ function openProfile(n) {
   Object.assign(profile, { bag: profile.bag || [], gear: profile.gear || {}, gearStash: profile.gearStash || [], gshop: profile.gshop || [] });
   profile.vet = profile.vet || {};
   profile.throw = profile.throw || { g: 'frag', k: 'steel', own: ['frag', 'steel'] };
+  for (const k in profile.gear) { const it = profile.gear[k]; if (it && it.level > profile.level && profile.level < LEVEL_CAP) { profile.gearStash.push(it); profile.gear[k] = null; } } // armor above your level can't be worn
   gearChanged();
   profile.name = profile.name || `Zsoldos ${n}`;
   profile.skills = profile.skills || {}; profile.tokens = profile.tokens || 0; if (profile.cls === undefined) profile.cls = null;
   if (!profile.jobs.length) rollBoard();
-  if (!profile.shop.length || !profile.gshop.length) rollShop();
+  if (!profile.shop.length || !profile.gshop.length || profile.shop.filter(o => o && o.level > profile.level).length + profile.gshop.filter(it => it && it.level > profile.level).length > 1) rollShop(); // at most one item above your level
   saveProfile();
 }
 function saveProfile() { if (profile) { if (typeof vetSync === 'function') vetSync(); profile.at = Date.now(); store.set(SLOT_KEY(slot), profile); } }

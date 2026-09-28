@@ -27,6 +27,7 @@ const ELEMENTS = {
   shock: { name: 'Villám', word: 'Storm',    color: '#7d8dff', hex: 0x7d8dff, desc: 'Átugrik egy közeli zombira' },
   cryo:  { name: 'Fagy',  word: 'Frostbite', color: '#8ff0ff', hex: 0x8ff0ff, desc: 'Lelassítja a célt (2,5 mp)' },
   corrosive: { name: 'Maró', word: 'Caustic', color: '#9dff3a', hex: 0x9dff3a, desc: 'Sav marja 4 mp-ig, és a páncélt kétszer olyan gyorsan töri' },
+  leech: { name: 'Életszívó', word: 'Leeching', color: '#ff4a7a', hex: 0xff4a7a, desc: 'A sebzés 3%-a életerőként visszajön, legfeljebb másodpercenként a max életerőd 4%-a' },
   slag:  { name: 'Salak', word: 'Slagged',   color: '#c86aff', hex: 0xc86aff, desc: 'Megjelöli a célt: 5 mp-ig +40% sebzést kap minden más forrásból' },
 };
 // weapon categories (skills and makers both key off these)

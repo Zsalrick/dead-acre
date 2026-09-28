@@ -80,7 +80,7 @@ function renderStation() {
     title = 'Kovácsműhely'; lede = `A kézben lévő fegyveren dolgozik: <b style="color:${rarColor(w)}">${w.name}</b> · Lv ${w.level} · ${RARITIES[w.q].name}`;
     body =
       (w.element ? srow('Elem beégetése', `Már van eleme: ${ELEMENTS[w.element].name}.`, '—', 'none', true, 'Kész')
-        : srow('Elem beégetése', 'Véletlen elem: tűz, villám, fagy, maró vagy salak. Munkánként egyszer.', `${FORGE.elem()} pont`, 'forge:elem', forgedOn(w, 'elem') || pts < FORGE.elem(), 'Kovácsolás')) +
+        : srow('Elem beégetése', 'Véletlen elem: tűz, villám, fagy, maró, salak vagy életszívó. Munkánként egyszer.', `${FORGE.elem()} pont`, 'forge:elem', forgedOn(w, 'elem') || pts < FORGE.elem(), 'Kovácsolás')) +
       `<div class="wcard" style="--rc:${rarColor(w)};margin-top:18px;max-width:320px">${cardHTML(w, '', null)}</div>`;
   } else if (stationKind === 'desk') {
     const S = mission.range, chip = (act, on, txt) => `<button class="chip${on ? ' on' : ''}" data-act="${act}">${txt}</button>`;

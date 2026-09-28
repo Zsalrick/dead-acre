@@ -62,8 +62,8 @@ function makeBounty() {
 }
 function rollShop() {
   const lvl = profile.level;
-  profile.shop = [0, 1, 2, 3].map(() => packW(makeWeapon(pick(BASES), Math.min(4, rollRarity(.15 + lvl * .02)), lvl + 1))); // uniques only drop
-  profile.gshop = [0, 1, 2].map(() => makeGear(null, rollRarity(.15 + lvl * .02), lvl + 1));
+  profile.shop = [0, 1, 2, 3].map(k => packW(makeWeapon(pick(BASES), Math.min(4, rollRarity(.15 + lvl * .02)), lvl + (k === 0 ? 1 : 0)))); // your level; one gun a level above to aim for · exotics only drop
+  profile.gshop = [0, 1, 2].map(() => makeGear(null, rollRarity(.15 + lvl * .02), lvl));
 }
 
 // ---------- rendering ----------
@@ -211,7 +211,7 @@ const HUB = {
   bweap: () => bookWeapons(), btal: () => bookTalents(), bgear: () => bookGear(), bzomb: () => bookZombies(), bboss: () => bookBounties(), bjobs: () => bookJobs(),
   coll: () => collTab(),
   jobs() { // a county map with the jobs on it (Deep Rock style); the picked one's card on the side
-    const P = profile, J = P.jobs; if (!J[jobSel]) jobSel = 0;
+    const P = profile, lead = NET.code && !NET.host ? partyMembers().find(m => m.h) : null, J = lead && lead.bd && lead.bd.length ? lead.bd : P.jobs; if (!J[jobSel]) jobSel = 0; // a member sees the leader's board
     const notReady = NET.code && NET.host ? partyMembers().filter(m => !m.me && !m.rdy).length : 0;
     const loc = id => MAP_LOC[id] || [450, 220];
     const locs = MAP_IDS.map(id => { const [x, y] = loc(id), open = MAPS[id].minLevel <= P.level, feat = id === featuredMap();
@@ -222,7 +222,7 @@ const HUB = {
       const tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase();
       return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy})" style="--jc:${col}"><line x1="0" y1="0" x2="${-dx}" y2="${-dy}"/><circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 10 : 8}"/><text y="-24">${tag}</text></g>`;
     }).join('');
-    return `<details class="extras" ontoggle="hubExtras = this.open"${(window.hubExtras ?? innerHeight > 860) ? ' open' : ''}><summary>Kontraktok · Mélyfúrás · Direktívák</summary>${contractsStrip()}${deepCard()}${directivesRow()}</details><div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
+    return `<details class="extras" ontoggle="hubExtras = this.open"${(window.hubExtras ?? innerHeight > 860) ? ' open' : ''}><summary>Kontraktok · Mélyfúrás · Direktívák</summary>${contractsStrip()}${deepCard()}${directivesRow()}</details><div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(NET.code && !NET.host ? 'Új munkák: csak a vezető' : `Új munkák · $${reroll()}`, 'reroll', P.cash < reroll() || !!(NET.code && !NET.host))}</span></div>
       <div class="jobmap"><svg viewBox="0 0 900 440" class="jsvg" role="img" aria-label="Munkatérkép">${MAP_ART}${locs}${marks}</svg><div class="jside">${hostPick()}${jobCard(J[jobSel], jobSel, notReady)}</div></div>`;
   },
   arsenal() {
@@ -253,7 +253,7 @@ const HUB = {
     const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : sl === 'H' ? SH.g[+si] : null;
     if (!get()) { const k = GEAR_KEYS.find(k => P.gear[k]); [sl, si] = k ? ['W', k] : ['G', '0']; invSel = `${sl}:${si}`; }
     const it = get();
-    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'W', si) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'G', si);
+    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'W', si) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, !canUse(it), 'KeyF') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'G', si);
     const worn = GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('');
     const sorted = st.map((x, k) => [x, k]).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
     const left = `<h3>Viselt</h3><div class="tiles worn" data-drop="W">${worn}</div>
@@ -371,7 +371,7 @@ $('hubBody').addEventListener('click', e => {
   if (['cls', 'sk', 'respec', 'aug', 'skview', 'swcls'].includes(kind)) skillAction(kind, a);
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy', 'pready'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetOpen() && vetAvail() > 0) { SH.vet.ranks[a] = (SH.vet.ranks[a] || 0) + 1; saveShared(); gearChanged(); }
-  if (kind === 'reroll' && pay(reroll())) rollBoard();
+  if (kind === 'reroll' && !(NET.code && !NET.host) && pay(reroll())) rollBoard();
   if (kind === 'optshow') { optOpen = optOpen === invSel ? null : invSel; return renderHub(); }
   if (kind === 'gopt') { // gopt:W|G:key:stat
     const [, l, k, st] = b.dataset.act.split(':'), it = gearAt(l, k), row = it && gRolls(it).find(r => r[0] === st);
@@ -398,7 +398,8 @@ $('hubBody').addEventListener('click', e => {
   }
   if (kind === 'gun') { const w = unpackW(P.shop[+a]); if (P.stash.length < stashMax() && pay(shopPrice(w))) { P.stash.push(packW(w)); P.shop[+a] = null; noteFound(w); } }
   if (kind === 'mv') { const [, f, i, t, j] = b.dataset.act.split(':'); moveGun({ L: P.loadout, B: P.bag, S: P.stash, K: SH.w }, f, +i, t, +j); }
-  if (kind === 'wear') { const it = P.gearStash.splice(+a, 1)[0], old = P.gear[it.slot]; P.gear[it.slot] = it; if (old) P.gearStash.push(old); gearChanged(); }
+  if (kind === 'wear' && P.gearStash[+a] && !canUse(P.gearStash[+a])) { SND.deny(); popText(`Csak ${P.gearStash[+a].level}. szinttől viselhető`, '#ff8a70'); }
+  else if (kind === 'wear') { const it = P.gearStash.splice(+a, 1)[0], old = P.gear[it.slot]; P.gear[it.slot] = it; if (old) P.gearStash.push(old); gearChanged(); }
   if (kind === 'unwear') { P.gearStash.push(P.gear[a]); P.gear[a] = null; gearChanged(); }
   if (kind === 'gshare' && P.gearStash[+a] && SH.g.length < SHARED_MAX) SH.g.push(P.gearStash.splice(+a, 1)[0]);
   if (kind === 'gunshare' && SH.g[+a] && P.gearStash.length < gearMax()) P.gearStash.push(SH.g.splice(+a, 1)[0]);

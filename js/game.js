@@ -321,7 +321,7 @@ function renderPauseInv() {
   const i = +si, x = get(), tag = w => w.owned ? 'saját' : 'új';
   let detail;
   const test = mission.job.test, destroyBtn = (act, it, off) => test ? '' : hhold(`Szétszedés (tartsd) +${fieldParts(it.q)} ${act[0] === 'g' ? FAB : '⚙'}`, act, off, 'KeyX');
-  if (sl === 'M') detail = gearDetail(x, profile.gear[x.slot], `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd, akkor is, ha felveszed.' : 'Saját, levetted.'}</small>` + hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + destroyBtn(`gdestroy:${si}`, x, false));
+  if (sl === 'M') detail = gearDetail(x, profile.gear[x.slot], `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd, akkor is, ha felveszed.' : 'Saját, levetted.'}</small>` + hbtn('Felveszem', `wear:${si}`, !canUse(x), 'KeyF') + destroyBtn(`gdestroy:${si}`, x, false));
   else if (sl === 'W') detail = gearDetail(x, null, `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd.' : 'Saját.'}</small>` + hbtn('Leveszem', `unwear:${si}`, false, 'KeyF'));
   else {
     const acts = sl === 'L' ? hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Eldob', `drop:L:${i}`, lone, 'KeyG') + destroyBtn(`destroy:L:${i}`, x, lone)
@@ -355,6 +355,7 @@ $('loadout').addEventListener('click', e => {
   if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ${FAB}`, it.q); mission.fabric = (mission.fabric || 0) + fieldParts(it.q); } invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
+    if (kind === 'wear' && mission.gear[+f] && !canUse(mission.gear[+f])) { SND.deny(); popText(`Csak ${mission.gear[+f].level}. szinttől viselhető`, '#ff8a70'); return renderPauseInv(); }
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
     else { mission.gear.push(G0[f]); G0[f] = null; invSel = `M:${mission.gear.length - 1}`; }
     gearChanged(); player.hp = Math.max(1, maxHp() * hpF); player.shield = maxShield() * shF;
@@ -515,7 +516,6 @@ function modHudText() { // what makes this job harder or richer, for the corner 
   return L.join('');
 }
 function updateHUD() {
-  { const mh = $('modhud'), t = ['playing', 'intro'].includes(state) ? modHudText() : ''; if (mh.dataset.t !== t) { mh.innerHTML = t; mh.dataset.t = t; } mh.hidden = !t; }
   const w = curW();
   focus = findFocus();
   let card = '', prompt = '';

@@ -61,17 +61,17 @@ async function partyLeave() {
 }
 function partyMembers() {
   if (!NET.pr) return [];
-  return NET.pr.peers().filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, n: p.presence.m.n, lv: +p.presence.m.lv || 1, c: p.presence.m.c, h: !!p.presence.m.h, st: p.presence.m.st, rdy: !!p.presence.m.rdy, sel: p.presence.m.sel, dr: Array.isArray(p.presence.m.dr) ? p.presence.m.dr.filter(k => DIRECTIVES[k]) : null }));
+  return NET.pr.peers().filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, n: p.presence.m.n, lv: +p.presence.m.lv || 1, c: p.presence.m.c, h: !!p.presence.m.h, st: p.presence.m.st, rdy: !!p.presence.m.rdy, sel: p.presence.m.sel, bd: Array.isArray(p.presence.m.bd) ? p.presence.m.bd : null, dr: Array.isArray(p.presence.m.dr) ? p.presence.m.dr.filter(k => DIRECTIVES[k]) : null }));
 }
 function onPartyChange() {
-  const k = JSON.stringify(partyMembers().map(m => [m.n, m.lv, m.c, m.h, m.st, m.rdy, m.sel && m.sel.t, m.sel && m.sel.tr, m.dr && m.dr.join()]));
+  const k = JSON.stringify(partyMembers().map(m => [m.n, m.lv, m.c, m.h, m.st, m.rdy, m.sel && m.sel.t, m.sel && m.sel.tr, m.dr && m.dr.join(), m.bd && m.bd.map(j => j.title).join()]));
   if (k === NET.keyParty) return; NET.keyParty = k;
   if (NET.host) setLobby();
   if (state === 'hub') renderHub();
 }
 function publishMember() {
   if (!NET.pr) return;
-  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, dr: NET.host && profile ? profile.dirs || [] : null, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
+  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, bd: NET.host && profile ? profile.jobs : null, dr: NET.host && profile ? profile.dirs || [] : null, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
 }
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;
@@ -295,7 +295,12 @@ const netAct = (type, arg) => pushRoll(NET.acts, [++NET.seq, type, arg == null ?
 // ---------- host: a remote player's kill ----------
 function netKill(z, o) {
   const pts = z.K.points || (o.melee ? 130 : o.head ? 100 : 60);
-  pushRoll(NET.kills, [++NET.seq, o.remote, KIND_IDS.indexOf(z.kind), o.head ? 1 : 0, pts, Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), z.elite ? 1 : 0, z.id], 16);
+  pushRoll(NET.kills, [++NET.seq, o.remote, KIND_IDS.indexOf(z.kind), o.head ? 1 : 0, pts, Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), z.elite ? 1 : 0, z.id, z.tier || 0], 16);
+  teamLoot(z.kind, z.pos, z.elite, z.tier); // the host's own share of a member's kill
+}
+function teamLoot(kind, pos, elite, tier) { // loot is personal: a mate's kill still drops something for you, at 60% of the odds
+  const K = KINDS[kind]; if (!K || K.boss || !mission || mission.job.test || Math.random() > .6) return;
+  dropLoot({ K, kind, elite: !!elite, tier: +tier || 0 }, new V3(pos.x, 0, pos.z));
 }
 // the killer's side: points, stats and their own loot roll
 function netOwnKill(e) {
@@ -306,7 +311,7 @@ function netOwnKill(e) {
   addPoints(+pts || 60); hitmarker(true); SND.kill();
   const zid = e[8], lh = NET.lastHit.get(zid) || {}, pz = zombies.find(q => q.id === zid) || { pos: new V3(x / 10, 0, zz / 10), burnT: 0 };
   weaponOnKill(pz, { w: lh.w, head: !!head }); killPerks(pz.K ? pz : Object.assign(pz, { K: KINDS[kind] }), { w: lh.w, head: !!head }); NET.lastHit.delete(zid);
-  dropLoot({ K: KINDS[kind], kind, elite: !!elite }, new V3(x / 10, 0, zz / 10));
+  dropLoot({ K: KINDS[kind], kind, elite: !!elite, tier: +e[9] || 0 }, new V3(x / 10, 0, zz / 10));
 }
 
 // ---------- the world snapshot ----------
@@ -472,7 +477,7 @@ function applySnapshot(g, hostPeer) {
   if (M.crates) M.crates.forEach((c, i) => { if ((g.cr & (1 << i)) && !c.got) takeCrate(i, true); });
   if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
   // kills credited to me, and damage the host's zombies did to me
-  for (const e of fresh('k' + hostPeer, g.k)) if (e[1] === NET.me) netOwnKill(e);
+  for (const e of fresh('k' + hostPeer, g.k)) if (e[1] === NET.me) netOwnKill(e); else teamLoot(KIND_IDS[e[2]], { x: e[5] / 10, z: e[6] / 10 }, e[7], e[9]);
   for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && !player.down) { hurtSrc = typeof e[3] === 'string' ? e[3].slice(0, 30) : null; hurtPlayer(+e[2] || 0); hurtSrc = null; }
 }
 function resurrect(z) { z.dead = false; z.predDead = 0; z.deathT = 0; z.g.rotation.z = 0; z.g.visible = true; z.upper.children.forEach(c => c.visible = true); }
@@ -601,11 +606,13 @@ function updateMatesHud() {
     let el = a.tag; if (!el) { el = a.tag = document.createElement('div'); el.className = 'matetag'; $('pings').appendChild(el); }
     const v = new V3(a.pos.x, (a.down ? .8 : 2.5), a.pos.z).project(camera), off = v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1;
     el.hidden = false; // always on screen: through walls, and pinned to the edge when they are behind you
-    let x = v.x, y = v.y; if (v.z > 1) { x = -x; y = -y; } const k = Math.max(Math.abs(x) / .92, Math.abs(y) / .85); if (k > 1) { x /= k; y /= k; }
+    const cl = new V3(a.pos.x, 2.5, a.pos.z).sub(camera.position).applyQuaternion(camera.quaternion.clone().invert());
+    let x = v.x, y = v.y, edge = 0;
+    if (cl.z > 0 || off) { edge = cl.x >= 0 ? 1 : -1; x = edge * .92; y = clamp(off && cl.z <= 0 ? v.y : 0, -.7, .7); } // behind you or off screen: on that side's edge
     el.style.transform = `translate(${(x + 1) / 2 * W}px,${(1 - y) / 2 * H}px) translate(-50%,-100%)`;
     el.style.setProperty('--pc', a.col);
     el.innerHTML = a.down ? `<span>ELESETT · [E] felélesztés · ${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</span>` : `<b>${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small></b><i><em style="width:${pct * 100}%"></em></i>`;
-    el.classList.toggle('down', a.down);
+    el.classList.toggle('down', a.down); el.dataset.edge = edge;
   }
   if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
 }

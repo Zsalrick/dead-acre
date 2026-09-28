@@ -59,7 +59,7 @@ const wTile = (sel, w, o = {}) => tile(sel, wPic(w), (favTag(w) ? favTag(w) + ' 
   Object.assign({ exp: w.exp, lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
 const gTile = (sel, it, o = {}) => tile(sel, gPic(it), (favTag(it) ? favTag(it) + ' ' : '') + it.name, (it.exo ? `Egzotikus · ${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`), gCol(it),
-  Object.assign({ exp: it.exp, lv: `Lv ${it.level}`, val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
+  Object.assign({ exp: it.exp, lv: `Lv ${it.level}`, lock: !canUse(it), val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
 const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="tpic">${pic ? `<img src="${pic}" alt="">` : ''}</span><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
 const invLayout = (left, detail) => `<div class="inv"><div class="invl">${left}</div><aside class="invd">${detail}</aside></div>`;
 const noDetail = t => `<div class="dnone">${t}</div>`;
@@ -186,6 +186,7 @@ function gearDetail(it, cmp, actions) {
   return `<div class="dhead" style="--rc:${gCol(it)}"><div class="dband"><span class="rar">${it.exo ? 'Egzotikus' : RARITIES[it.q].name}</span> ${GEAR_SLOTS[it.slot]}<i class="dlv">Lv ${it.level}</i></div>
       <div class="dname">${it.name}</div><img src="${gPic(it)}" alt="">
       <div class="dsub"><span style="color:${B.color}">${B.name}</span> · ${B.tag}</div></div>
+    ${!canUse(it) ? `<div class="dlock">Csak ${it.level}. szinttől viselhető. Addig a raktárban tarthatod.</div>` : ''}
     ${c ? `<div class="dcmp">Összevetve a viselt darabbal: <span style="color:${RARITIES[c.q].color}">${c.name}</span></div>` : ''}
     ${it.exo && EXOTICS[it.exo] ? `<div class="duniq" style="border-color:${EXO_COL}"><b>Egzotikus tehetség:</b> ${EXOTICS[it.exo].talent}</div>` : ''}
     <table class="dtab" style="--bc:${B.color}">${drow('Szakértelem', `${it.exp || 0}/10`, c ? arrow(it.exp || 0, c.exp || 0) : '', `+${3 * (it.exp || 0)}% minden értékre${(it.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, it.exp ? 'core' : '', `<i class="rbar" style="--p:${(it.exp || 0) * 10}%"></i>`)}${rows}</table>

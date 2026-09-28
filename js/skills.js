@@ -235,7 +235,7 @@ function skillsTab() {
       }).join('') + '</div>';
   }).join('');
   return `${picker}<div class="hubhead"><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2>
-      <div class="hubbtns">${mine ? hbtn(`Pontok vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
+      <div class="hubbtns">${mine ? hbtn(`Pontok és módosítók vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
     <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${mine ? Math.round(abilityCd()) : C.ability.cd} mp.</p>
     <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent} pont${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
     <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · a fa 2. szintjétől szintenként egy nyitható</small></h3>
@@ -271,6 +271,6 @@ function skillAction(kind, a) {
     if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST || augOwned(P.cls) >= augAllowed()) return false; P.tokens -= AUG_COST; P.augOwn.push(a); }
     P.aug[P.cls] = a; return true;
   }
-  if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.tokens += treeSpent(); P.skills = {}; return true; }
+  if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.tokens += treeSpent(); P.skills = {}; const own = (AUGMENTS[P.cls] || []).map(x => x[0]).filter(id => (P.augOwn || []).includes(id)); P.tokens += own.length * AUG_COST; P.augOwn = (P.augOwn || []).filter(id => !own.includes(id)); if (P.aug) P.aug[P.cls] = null; return true; }
   return false;
 }

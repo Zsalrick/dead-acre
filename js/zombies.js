@@ -250,6 +250,7 @@ function killZombie(z, o) {
   burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 14, 3.5);
   if (z.K.bloat && !z.exploded) popBloater(z);
   dropLoot(z, new V3(z.pos.x, 0, z.pos.z));
+  if (NET.mode === 'host') pushRoll(NET.kills, [++NET.seq, 'H', KIND_IDS.indexOf(z.kind), o.head ? 1 : 0, 0, Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), z.elite ? 1 : 0, z.id, z.tier || 0], 16); // the party rolls its own loot
 }
 // what a kill drops; in a party each killer rolls their own
 function dropLoot(z, p) {
@@ -766,6 +767,8 @@ function weaponOnHit(z, amt, o) {
   if (w.oc === 'exploder' && w.ammo === 0 && w.mag >= 6 && !o.chain) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * 2, pr: .01, pdmg: .001, color: 0xffb04a });
   if (w.oc === 'leech') player.hp = Math.min(maxHp(), player.hp + Math.min(amt * .01, maxHp() * .015));
   if (w.oc === 'ricochet' && !o.chain && Math.random() < .25) { const q = zombies.filter(q => !q.dead && q !== z && q.pos.distanceTo(z.pos) < 8).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0]; if (q) { tracer(new V3(z.pos.x, 1.5, z.pos.z), new V3(q.pos.x, 1.5, q.pos.z), 0xffe0a0, .012); hurtZombie(q, amt * .5, { w, chain: true }); } }
+  if (w.element === 'leech' && !o.chain) { const s = Math.floor(now), cap = maxHp() * .04; if (player.leechS !== s) { player.leechS = s; player.leechUsed = 0; } // lifesteal with a per-second ceiling
+    const h = Math.min(amt * .03, cap - player.leechUsed); if (h > 0) { player.leechUsed += h; player.hp = Math.min(maxHp(), player.hp + h); } }
   if (w.tal && !o.chain) talentHit(z, amt, o, w);
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
