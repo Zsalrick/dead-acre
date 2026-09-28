@@ -297,6 +297,10 @@ function pause(note) {
   $('pause').hidden = false;
 }
 // the inventory: move guns between hands and bag, drop them, see the gear you found
+function ammoRows() { // reserve rounds by family, over the guns in hand and in the bag
+  const by = {}; for (const w of [...player.slots, ...player.bag]) if (w) { const k = CAT[w.base.id], e = by[k] || (by[k] = { n: 0, max: 0, guns: [] }); e.n += w.reserve; e.max += resMax(w); e.guns.push(w.base.name); }
+  return Object.entries(by).map(([k, e]) => `<div><img src="${ammoURL(k)}" alt=""><span style="color:${AMMO_COL[k]}">${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}<small>${e.guns.join(', ')}</small></span><b>${e.n} / ${e.max}</b></div>`).join('') || '<div><span>Nincs fegyvered.</span></div>';
+}
 function renderPauseInv() {
   const L = player.slots, B = player.bag, bagFull = B.length >= bagMax(), lone = L.filter(Boolean).length < 2, MG = mission.gear;
   let [sl, si] = invSel.split(':');
@@ -316,6 +320,7 @@ function renderPauseInv() {
     <h3>Táska <small>${B.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új' })).join('') || emptyTile('Üres', 'Ha új fegyvert veszel fel, a kézben lévő ide kerül')}</div>
     <h3>Viselt páncél</h3><div class="tiles worn" data-drop="W">${GEAR_KEYS.map(k => profile.gear[k] ? gTile(`W:${k}`, profile.gear[k], { tag: profile.gear[k].found ? 'új' : '' }) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('')}</div>
     <h3>Páncél a zsákban <small>a talált darab csak evakuálással a tiéd</small></h3><div class="tiles" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: profile.gear[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Még semmi', 'A zombik dobják, rálépve felveszed')}</div>
+    <h3>Lőszer <small>tartalék, a fegyvereid szerint</small></h3><div class="invlist ammo">${ammoRows()}</div>
     <h3>Tárgyak</h3><div class="invlist">${ITEM_KEYS.map(k => `<div><img src="${ICONS[k]}" alt=""><span>[${ITEMS[k].key}] ${k === 'gren' ? GREN_TYPES[throwKind('gren')].name : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].name : ITEMS[k].name}<small>${k === 'gren' ? GREN_TYPES[throwKind('gren')].desc : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].desc : ITEMS[k].desc}</small></span><strong>${player.inv[k]}/${itemMax(k)}</strong></div>`).join('')}</div>`;
   const lo = $('loadout'), keep = [...lo.querySelectorAll('.invl,.invd')].map(e => e.scrollTop);
   lo.innerHTML = invLayout(left, detail);
