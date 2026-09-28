@@ -257,16 +257,17 @@ function enableDrag(root, fireRoot = root, ground = false) {
 const HOLD_T = .9; let holding = null;
 function startHold(b, root) {
   if (holding || b.disabled) return;
-  const h = holding = { b, t0: performance.now() };
+  const h = holding = { b, t0: performance.now(), marks: [...root.querySelectorAll('.tile.on, .invd .dhead')] }; // the red sweep over the item
+  h.marks.forEach(m => m.classList.add('rhold'));
   const step = () => {
     if (holding !== h) return;
     const p = (performance.now() - h.t0) / 1000 / HOLD_T;
-    b.style.setProperty('--hp', Math.min(1, p) * 100 + '%');
-    if (p >= 1) { holding = null; fireAct(root, b.dataset.hact); } else requestAnimationFrame(step);
+    b.style.setProperty('--hp', Math.min(1, p) * 100 + '%'); h.marks.forEach(m => m.style.setProperty('--rp', Math.min(1, p) * 100 + '%'));
+    if (p >= 1) { holding = null; h.marks.forEach(m => m.classList.remove('rhold')); fireAct(root, b.dataset.hact); } else requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
-function endHold() { if (holding) { holding.b.style.setProperty('--hp', '0%'); holding = null; } }
+function endHold() { if (holding) { holding.b.style.setProperty('--hp', '0%'); holding.marks.forEach(m => { m.classList.remove('rhold'); m.style.setProperty('--rp', '0%'); }); holding = null; } }
 addEventListener('pointerdown', e => { const b = e.target.closest && e.target.closest('.sbtn.hold'); if (b) startHold(b, b.closest('#loadout,#hubBody') || document.body); }, true);
 addEventListener('pointerup', endHold, true);
 addEventListener('keyup', e => { if (holding && holding.b.dataset.key === e.code) endHold(); });

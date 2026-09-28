@@ -58,11 +58,12 @@ function srow(name, sub, right, act, disabled, btn) {
     <button class="sbtn" data-act="${act}"${disabled ? ' disabled' : ''}>${btn}</button></div>`;
 }
 const pips = (l, m) => `<span class="pips">${'<i class="on"></i>'.repeat(l)}${'<i></i>'.repeat(m - l)}</span>`;
-const FORGE = {
-  level: w => 300 + 120 * w.level,
-  rarity: w => [1500, 3500, 8000, 20000][w.q],
-  elem: () => 2500,
+const FORGE = { // points in a job: dear, and each upgrade only once per gun per job
+  level: w => 900 + 300 * w.level,
+  elem: () => 6000,
 };
+const forgedOn = (w, k) => !!(mission && mission.forged && mission.forged.get(w) && mission.forged.get(w).has(k));
+function markForged(w, k) { mission.forged = mission.forged || new WeakMap(); if (!mission.forged.get(w)) mission.forged.set(w, new Set()); mission.forged.get(w).add(k); }
 const VEND = { med: 350, gren: 300, knife: 250, adren: 450 };
 function renderStation() {
   const P = player, pts = P.points;
@@ -77,11 +78,11 @@ function renderStation() {
   } else if (stationKind === 'forge') {
     const w = curW();
     title = 'Kovácsműhely'; lede = `A kézben lévő fegyveren dolgozik: <b style="color:${rarColor(w)}">${w.name}</b> · Lv ${w.level} · ${RARITIES[w.q].name}`;
-    body = srow('Szintemelés (+2 szint)', `A sebzés a szinttel együtt nő. Lv ${w.level} → ${w.level + 2}`, `${FORGE.level(w)} pont`, 'forge:level', pts < FORGE.level(w), 'Kovácsolás') +
-      (w.q < 4 ? srow('Ritkaság-emelés', `${RARITIES[w.q].name} → ${RARITIES[w.q + 1].name}. Minden stat javul.`, `${FORGE.rarity(w)} pont`, 'forge:rarity', pts < FORGE.rarity(w), 'Kovácsolás')
-        : srow('Ritkaság-emelés', 'Ez már legendás.', '—', 'none', true, 'Kész')) +
+    const lvDone = forgedOn(w, 'level'), capped = w.level + 1 > HFORGE.cap();
+    body = srow('Szintemelés (+1 szint)', lvDone ? 'Ezen a fegyveren ebben a munkában már megcsináltad.' : capped ? `A saját szinted (${HFORGE.cap()}) fölé nem viheted.` : `A sebzés a szinttel együtt nő. Lv ${w.level} → ${w.level + 1} · munkánként egyszer`,
+      lvDone || capped ? '—' : `${FORGE.level(w)} pont`, 'forge:level', lvDone || capped || pts < FORGE.level(w), lvDone ? 'Kész' : 'Kovácsolás') +
       (w.element ? srow('Elem beégetése', `Már van eleme: ${ELEMENTS[w.element].name}.`, '—', 'none', true, 'Kész')
-        : srow('Elem beégetése', 'Véletlen elem: tűz, villám vagy fagy.', `${FORGE.elem()} pont`, 'forge:elem', pts < FORGE.elem(), 'Kovácsolás')) +
+        : srow('Elem beégetése', 'Véletlen elem: tűz, villám vagy fagy. Munkánként egyszer.', `${FORGE.elem()} pont`, 'forge:elem', forgedOn(w, 'elem') || pts < FORGE.elem(), 'Kovácsolás')) +
       `<div class="wcard" style="--rc:${rarColor(w)};margin-top:18px;max-width:320px">${cardHTML(w, '', null)}</div>`;
   } else if (stationKind === 'desk') {
     const S = mission.range, chip = (act, on, txt) => `<button class="chip${on ? ' on' : ''}" data-act="${act}">${txt}</button>`;
@@ -108,9 +109,8 @@ $('stationBody').addEventListener('click', e => {
   const pay = c => { if (P.points < c) return false; P.points -= c; return true; };
   if (kind === 'up') { if (U(key) < UPGRADES[key].max && pay(upCost(key))) { P.up[key] = U(key) + 1; if (key === 'maxHp') P.hp += 20; if (key === 'shield') P.shield += 25; } }
   else if (kind === 'forge') {
-    if (key === 'level' && pay(FORGE.level(w))) levelUpWeapon(w, 2);
-    if (key === 'rarity' && w.q < 4 && pay(FORGE.rarity(w))) rarityUp(w);
-    if (key === 'elem' && !w.element && pay(FORGE.elem())) w.element = pick(Object.keys(ELEMENTS));
+    if (key === 'level' && !forgedOn(w, 'level') && w.level + 1 <= HFORGE.cap() && pay(FORGE.level(w))) { levelUpWeapon(w, 1); markForged(w, 'level'); }
+    if (key === 'elem' && !w.element && !forgedOn(w, 'elem') && pay(FORGE.elem())) { w.element = pick(Object.keys(ELEMENTS)); markForged(w, 'elem'); }
     trackBest(w); equipView(); renderSlots(); SND.explode();
   } else if (kind === 'vend') {
     if (key === 'shield') { if (pay(200)) P.shield = maxShield(); }

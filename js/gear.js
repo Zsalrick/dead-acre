@@ -133,8 +133,12 @@ function updateGearDrops(dt) {
 }
 function removeGearDrop(d) { scene.remove(d.g); d.g.traverse(o => { if (o.geometry && o.geometry !== gearPlane) o.geometry.dispose(); if (o.material) { if (o.material.map && o.material.map !== glowTex && !Object.values(gearTexes).includes(o.material.map)) o.material.map.dispose(); o.material.dispose(); } }); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
 const gearBagMax = () => 6 + U('bag'); // armor pieces a job's bag holds
+function gearSwapOut(it) { const G = mission.gear, same = G.filter(g => g.slot === it.slot), pool = same.length ? same : G; return pool.reduce((a, b) => gearScore(b) < gearScore(a) ? b : a); }
 function takeGear(d) {
-  if (mission && mission.gear.length >= gearBagMax()) { popText(`Tele a páncélzsák (${gearBagMax()} db)`, '#ff8a70'); return; }
+  if (mission && mission.gear.length >= gearBagMax()) { // full: swap with the weakest piece
+    const out = gearSwapOut(d.it); mission.gear.splice(mission.gear.indexOf(out), 1); itemFeed('eldobta', out.name, out.q);
+    netShareDrop('g', out, spawnGearDrop(out, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))));
+  }
   if (d.it.exo) (stats.exo || (stats.exo = {}))[d.it.exo] = 1; netTookDrop(d); itemFeed('felvette', d.it.name, d.it.q); d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
 function clearGearDrops() { while (gearDrops.length) removeGearDrop(gearDrops[gearDrops.length - 1]); }
 
