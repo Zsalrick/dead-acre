@@ -106,12 +106,12 @@ function collectionLog() {
 // ---------- the weekly Deep Dive (Deep Rock Galactic): three jobs in a row on this week's fixed setup, once-a-week reward ----------
 function deepDive() {
   const wk = weekKey(), r = mulberry(wk * 7919 + 17), pickR = a => a[Math.floor(r() * a.length)];
-  const maps = MAP_IDS.filter(id => MAPS[id].minLevel <= Math.max(10, profile.level)), types = [['survive'], ['exterminate', 'supply', 'escort'], ['bounty', 'defense']];
-  return { wk, stages: [3, 4, 5].map((diff, i) => ({ map: pickR(maps), diff, type: pickR(types[i]), mod: pickR([null, ...Object.keys(MODS)]) })) };
+  const types = [['survive'], ['exterminate', 'supply', 'escort'], ['bounty', 'defense']], bounties = Object.keys(BOUNTIES).filter(k => (BOUNTIES[k].minLvl || 3) <= 10); // the same for everyone, whatever their level
+  return { wk, stages: [3, 4, 5].map((diff, i) => ({ map: pickR(MAP_IDS), diff, type: pickR(types[i]), mod: pickR([null, ...Object.keys(MODS)]), bounty: pickR(bounties) })) };
 }
 function deepJob(i) { // build stage i as a normal job, flagged as part of the dive
   const D = deepDive(), S = D.stages[i]; let j;
-  if (S.type === 'bounty') { j = Object.assign(makeBounty(), { map: S.map }); j.diff = 5; }
+  if (S.type === 'bounty') { j = Object.assign(makeBounty(), { map: S.map, bounty: S.bounty, mod: S.mod }); j.diff = 5; j.title = `Fejvadászat: ${BOUNTIES[S.bounty].name}`; }
   else { j = Object.assign(makeJob(), { map: S.map, diff: S.diff, type: S.type, mod: S.mod }); j.dur = 300 + (S.diff - 1) * 45; j.goal = S.type === 'exterminate' ? 50 + 25 * S.diff : S.type === 'supply' ? 5 + S.diff : 0; j.boss = S.diff >= 4; }
   const [t0] = j.bounty ? [j.title.replace(/^.*?: /, '')] : (JOB_TEXT[S.map] ? JOB_TEXT[S.map][Math.floor(mulberry(D.wk + i)() * JOB_TEXT[S.map].length)] : [j.title]);
   j.title = `Mélyfúrás ${i + 1}/3 · ${t0}`; j.deep = { stage: i, wk: D.wk }; j.reward = Math.round(j.reward * 1.3 / 10) * 10; j.xp = Math.round(j.xp * 1.3);
@@ -121,7 +121,7 @@ function deepState() { const P = profile, d = P.deep && P.deep.wk === weekKey() 
 function deepCard() {
   if (profile.level < 10) return '';
   const D = deepDive(), st = deepState(), off = NET.code && !NET.host;
-  const rows = D.stages.map((S, i) => `<li class="${i < st.stage || st.done ? 'ok' : i === st.stage ? 'cur' : ''}"><b>${i + 1}.</b> ${MAPS[S.map].name} · ${S.type === 'bounty' ? 'fejvadászat' : JOB_TYPES[S.type].name} · ${stars(S.diff)}${S.mod ? ` · ${MODS[S.mod].label}` : ''}</li>`).join('');
+  const rows = D.stages.map((S, i) => `<li class="${i < st.stage || st.done ? 'ok' : i === st.stage ? 'cur' : ''}"><b>${i + 1}.</b> ${MAPS[S.map].name} · ${S.type === 'bounty' ? BOUNTIES[S.bounty].name : JOB_TYPES[S.type].name} · ${stars(S.diff)}${S.mod ? ` · ${MODS[S.mod].label}` : ''}</li>`).join('');
   return `<div class="deep"><div><small>HETI MÉLYFÚRÁS · minden héten új, mindenkinek ugyanaz</small><b>Három munka egymás után</b><ul>${rows}</ul>
     <p>Jutalom egyszer egy héten: egzotikus páncél, 2 túlhajtás-mag és 60 ⚙. Ha elbuksz egy szakaszt, elölről kezded.</p></div>
     ${st.done ? '<em class="ok">✓ E heti kész</em>' : hbtn(st.stage ? `Folytatás: ${st.stage + 1}. szakasz` : 'Mélyfúrás indítása', `deep:${st.stage}`, off)}</div>`;
@@ -134,8 +134,8 @@ function deepFinished(J, success) { // called from finishJob: progress, failure 
   st.stage++;
   if (st.stage < 3) return { next: st.stage };
   if (st.done) return null;
-  st.done = true; const it = makeExotic(null, P.level); (stats.exo || (stats.exo = {}))[it.exo] = 1;
-  if (P.gearStash.length < gearMax()) P.gearStash.push(it); else P.cash += gearValue(it);
+  st.done = true; const missing = Object.keys(EXOTICS).filter(k => !(stats.exo || {})[k]), it = makeExotic(missing.length ? pick(missing) : null, P.level); // one you don't have yet, if any
+  let sold = false; if (P.gearStash.length < gearMax()) { P.gearStash.push(it); (stats.exo || (stats.exo = {}))[it.exo] = 1; } else { P.cash += gearValue(it); sold = true; }
   P.oc = (P.oc || 0) + 2; P.parts = (P.parts || 0) + 60;
-  return { reward: it };
+  return { reward: it, sold };
 }

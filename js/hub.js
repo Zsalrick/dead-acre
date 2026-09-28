@@ -126,7 +126,7 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
-const KEY_LABEL = { KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+const KEY_LABEL = { KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 const hbtn = (label, act, off, key) => `<button class="sbtn" data-act="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const hhold = (label, act, off, key) => `<button class="sbtn hold" data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
@@ -165,8 +165,8 @@ const HUB = {
       (w.q < 4 ? hbtn(`Kovács: ${RARITIES[w.q + 1].name} · ${HFORGE.rarity(w)} ⚙`, `hforge:rarity:${sl}:${i}`, pp < HFORGE.rarity(w), 'KeyV') : '') +
       (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '') +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
-      hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyN') +
-      `<div class="ocrow"><small>Túlhajtás · 1 mag + 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}"${w.oc === k || (P.oc || 0) < 1 || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`;
+      hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM') +
+      `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`;
     const cmp = sl === 'L' ? lists.L[1 - i] : lists.L[0] || lists.L[1];
     const hands = lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('');
     const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${hands}</div>
@@ -256,7 +256,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'jsel') { jobSel = +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
   if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.parts || 0) >= expCost(it)) { P.parts -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
-  if (kind === 'ocset') { const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]); if (w && OVERCLOCKS[k] && (P.oc || 0) >= 1 && (P.parts || 0) >= 20 && w.oc !== k) { P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } }
+  if (kind === 'ocset') { const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]); if (w && OVERCLOCKS[k] && ocFits(w, k) && (w.oc || (P.oc || 0) >= 1) && (P.parts || 0) >= 20 && w.oc !== k) { if (!w.oc) P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } }
   if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; return startJob(deepJob(clamp(+a, 0, 2))); }
   if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); if (NET.host) publishMember(); }
   if (kind === 'bsave') saveBuild(+a);
@@ -289,8 +289,8 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'gunshare' && SH.g[+a] && P.gearStash.length < gearMax()) P.gearStash.push(SH.g.splice(+a, 1)[0]);
   if (kind === 'gsell') { P.cash += gearValue(P.gearStash.splice(+a, 1)[0]); }
   if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < gearMax() && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
-  if (kind === 'salvage') { const w = P.stash[+a] && unpackW(P.stash[+a]); if (w) { P.stash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[w.q]; } }
-  if (kind === 'gsalvage') { const it = P.gearStash[+a]; if (it) { P.gearStash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[it.q]; } }
+  if (kind === 'salvage') { const w = P.stash[+a] && unpackW(P.stash[+a]); if (w) { P.stash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[w.q] + expRefund(w); if (w.oc) P.oc = (P.oc || 0) + 1; } } // expertise half back, the core back
+  if (kind === 'gsalvage') { const it = P.gearStash[+a]; if (it) { P.gearStash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[it.q] + expRefund(it); } }
   if (kind === 'sell') { const w = unpackW(P.stash.splice(+a, 1)[0]); P.cash += sellValue(w); }
   SND.buy(); saveProfile(); saveShared(); renderHub();
 });
@@ -311,7 +311,7 @@ function showResults(r) {
     ${r.board ? `<h3>Csapat</h3><table class="mtable"><tr><th>Játékos</th><th>Ölés</th><th>Sebzés</th><th>Felélesztés</th></tr>${(() => { const top = Math.max(...r.board.map(p => p.d || 0)); return r.board.sort((a, b) => (b.d || 0) - (a.d || 0) || b.k - a.k).map(p => `<tr><td>${top > 0 && p.d === top ? '★ ' : ''}${esc(p.n)}${p.me ? ' (te)' : ''}</td><td>${p.k}</td><td>${(p.d || 0).toLocaleString('hu-HU')}</td><td>${p.r}</td></tr>`).join(''); })()}</table>` : ''}
     ${profile.tokens > 0 || vetAvail() > 0 ? `<p class="note nudge">Elkölthető: ${profile.tokens > 0 ? `${profile.tokens} érdemérem (Fejlődés → Képességek)` : ''}${profile.tokens > 0 && vetAvail() > 0 ? ' · ' : ''}${vetAvail() > 0 ? `${vetAvail()} veterán pont (Fejlődés → Veterán)` : ''}</p>` : ''}
     ${r.levelUps ? `<p class="lvlup">Szintet léptél: ${profile.level}. szint! ${MAP_IDS.filter(id => MAPS[id].minLevel === profile.level).map(id => `Új pálya: ${MAPS[id].name}.`).join(' ')}</p>` : ''}
-    ${r.deep ? `<p class="deepres">${r.deep.fail ? 'A mélyfúrás megszakadt: legközelebb elölről kezded.' : r.deep.next ? `Mélyfúrás: ${r.deep.next}/3 szakasz kész. ${hbtn('Következő szakasz', 'deepnext')}` : `A HETI MÉLYFÚRÁS KÉSZ! ${r.deep.reward.name} (egzotikus), 2 túlhajtás-mag, 60 ⚙.`}</p>` : ''}
+    ${r.deep ? `<p class="deepres">${r.deep.fail ? 'A mélyfúrás megszakadt: legközelebb elölről kezded.' : r.deep.next ? `Mélyfúrás: ${r.deep.next}/3 szakasz kész. ${NET.code && !NET.host ? hbtn('A vezető indítja a következőt', 'deepnext', true) : hbtn('Következő szakasz', 'deepnext')}` : `A HETI MÉLYFÚRÁS KÉSZ! ${r.deep.reward.name} (egzotikus${r.deep.sold ? ', a teli raktár miatt eladva' : ''}), 2 túlhajtás-mag, 60 ⚙.`}</p>` : ''}
     ${r.tierBonus ? `<h3>${r.job.tier ? 'Rémálom-jutalom' : 'Az első munkád jutalma'}</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
     ${(() => { const best = [...r.kept].sort((a, b) => (b.unique ? 9 : b.q) - (a.unique ? 9 : a.q) || dps(b) - dps(a))[0]; return best && best.q >= 2 ? `<div class="bestdrop" style="--rc:${rarColor(best)}"><small>A MUNKA LEGJOBB ZSÁKMÁNYA</small><img src="${wPic(best)}" alt=""><b>${best.name}</b><span>${best.unique ? 'Egyedi' : RARITIES[best.q].name} · Lv ${best.level} ${best.base.name} · ${dps(best)} DPS</span></div>` : ''; })()}
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}
@@ -398,3 +398,4 @@ function directivesRow() { // toggles; the leader's choice is what the party pla
 $('resultsBody').addEventListener('click', e => { const b = e.target.closest('[data-act="deepnext"]'); if (b && (!NET.code || NET.host)) { const st = deepState(); $('results').hidden = true; startJob(deepJob(st.stage)); } });
 
 const expCost = it => 6 + 4 * (it.exp || 0); // expertise: parts per level, rising
+const expRefund = it => { let t = 0; for (let k = 0; k < (it.exp || 0); k++) t += 6 + 4 * k; return Math.floor(t / 2); };

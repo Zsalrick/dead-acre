@@ -233,7 +233,7 @@ function finishJob(success, abandoned) {
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   NET.revs = 0;
-  const deep = deepFinished(J, success);
+  const deep = deepFinished(J, success); saveProfile(); // the dive's progress and reward are saved right away
   showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned

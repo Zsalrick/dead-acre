@@ -228,9 +228,9 @@ function recalWeapon(w) {
 // ---------- overclocks (Deep Rock Galactic): one per gun, bought with an overclock core; they change how the gun works ----------
 const OVERCLOCKS = {
   heavy:    { name: 'Nehéz lövedék', desc: '+35% sebzés, −20% tűzgyorsaság', mul: { dmg: 1.35, rpm: .8 } },
-  rapid:    { name: 'Túlpörgetett', desc: '+30% tűzgyorsaság, −15% sebzés', mul: { rpm: 1.3, dmg: .85 } },
-  drum:     { name: 'Dobtár', desc: '+60% tárkapacitás, 25%-kal lassabb újratöltés', mul: { mag: 1.6, reload: 1.25 } },
-  exploder: { name: 'Robbanó tár', desc: 'A tár utolsó lövése felrobban (3 m, dupla sebzés).' },
+  rapid:    { name: 'Túlpörgetett', desc: '+40% tűzgyorsaság, −10% sebzés', mul: { rpm: 1.4, dmg: .9 } },
+  drum:     { name: 'Dobtár', desc: '+60% tárkapacitás, 25%-kal lassabb újratöltés (egyesével töltőknél nincs lassulás)', mul: { mag: 1.6, reload: 1.25 } },
+  exploder: { name: 'Robbanó tár', desc: 'A tár utolsó lövése felrobban (3 m, dupla sebzés). Legalább 6 töltényes tárnál.' },
   leech:    { name: 'Vérszívó', desc: 'A találatok sebzésének 1%-a visszajön életerőként (találatonként legfeljebb 1,5%).' },
   ricochet: { name: 'Pattanó', desc: '25% eséllyel a golyó a legközelebbi zombira pattan (50% sebzés).' },
 };
@@ -239,6 +239,9 @@ function ocApply(w) {
   const O = w && w.oc && OVERCLOCKS[w.oc]; if (!O || !O.mul) return;
   w.ocBase = { dmg: w.dmg, rpm: w.rpm, mag: w.mag, reload: w.reload };
   if (O.mul.dmg) w.dmg = Math.round(w.dmg * O.mul.dmg); if (O.mul.rpm) w.rpm = Math.round(w.rpm * O.mul.rpm);
-  if (O.mul.mag && !w.base.fixedMag) w.mag = Math.max(2, Math.round(w.mag * O.mul.mag)); if (O.mul.reload) w.reload = +(w.reload * O.mul.reload).toFixed(2);
+  if (O.mul.mag && !w.base.fixedMag) w.mag = Math.max(2, Math.round(w.mag * O.mul.mag)); if (O.mul.reload && !w.base.single) w.reload = +(w.reload * O.mul.reload).toFixed(2);
 }
 function setOverclock(w, key) { ocStrip(w); w.oc = OVERCLOCKS[key] ? key : null; ocApply(w); }
+
+// which overclocks make sense on a gun: no drum on fixed mags, no last-round blast on tiny mags, on-hit ones not on grenade guns
+const ocFits = (w, k) => !(k === 'drum' && w.base.fixedMag) && !(k === 'exploder' && (w.base.fixedMag || w.mag < 6)) && !(['exploder', 'leech', 'ricochet'].includes(k) && w.base.lob);

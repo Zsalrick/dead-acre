@@ -728,12 +728,13 @@ function bountyLoot(pos, key) {
 // ---------- unique tricks and anointments that fire on hits and kills (the shooter's side) ----------
 function weaponOnHit(z, amt, o) {
   const w = o.w; if (!w || o.dot) return;
+  if (o.chain && w.oc !== 'leech') return; // a bounce or a chain doesn't set off the gun's tricks again
   if (w.unique === 'honey') player.hp = Math.min(maxHp(), player.hp + amt * .02);
   if (w.unique === 'silent' && o.head) explode(zHeadPos(z), { r: 3.5, zdmg: amt * .5, pr: .01, pdmg: .001, color: 0xb0c8ff });
   if (w.unique === 'anvil') { if (z.armor > 0 && z.K.boss) z.armor -= z.maxHp * .1; else if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
   if (w.unique === 'bells' && (player.bellN = (player.bellN || 0) + 1) % 9 === 0) { burst(new V3(z.pos.x, 1.5, z.pos.z), 0xd8c47a, 20, 4, .6); tn(440, .9, .08, 'sine', 430); for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 6) { q.slowT = 2.5; q.flinch = .3; } }
   if (w.unique === 'scalpel' && o.crit) { z.burnT = Math.max(z.burnT, 3); z.burnDps = Math.max(z.burnDps, amt * .5 / 3); z.burnW = w; }
-  if (w.oc === 'exploder' && w.ammo === 0 && !o.chain) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * 2, pr: .01, pdmg: .001, color: 0xffb04a });
+  if (w.oc === 'exploder' && w.ammo === 0 && w.mag >= 6 && !o.chain) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * 2, pr: .01, pdmg: .001, color: 0xffb04a });
   if (w.oc === 'leech') player.hp = Math.min(maxHp(), player.hp + Math.min(amt * .01, maxHp() * .015));
   if (w.oc === 'ricochet' && !o.chain && Math.random() < .25) { const q = zombies.filter(q => !q.dead && q !== z && q.pos.distanceTo(z.pos) < 8).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0]; if (q) { tracer(new V3(z.pos.x, 1.5, z.pos.z), new V3(q.pos.x, 1.5, q.pos.z), 0xffe0a0, .012); hurtZombie(q, amt * .5, { w, chain: true }); } }
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
