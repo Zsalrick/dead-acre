@@ -217,7 +217,7 @@ function finishJob(success, abandoned) {
   const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1)) * (1 + .1 * dirCount(J))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
   const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1) * (J.map === featuredMap() ? 1.25 : 1) * (1 + .15 * dirCount(J))); // the first five jobs: double XP; the featured map +25%; directives +15% each
   P.cash += cash; stats.cash += cash;
-  const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts;
+  const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts; const fabric = success ? M.fabric || 0 : 0; P.fabric = (P.fabric || 0) + fabric;
   let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun
   if (success && stats.jobs === 0 && !J.test) { tierBonus = makeWeapon(pick(BASES), 2, Math.max(1, P.level)); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   if (success && J.tier) P.parts = (P.parts || 0) + 10 + 5 * J.tier; // Rémálom pays parts too
@@ -234,7 +234,7 @@ function finishJob(success, abandoned) {
   clearZombieStuff();
   NET.revs = 0;
   const deep = deepFinished(J, success); saveProfile(); // the dive's progress and reward are saved right away
-  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {
@@ -308,7 +308,7 @@ function renderPauseInv() {
   if (!get()) { sl = 'L'; si = String(player.cur); invSel = `L:${si}`; }
   const i = +si, x = get(), tag = w => w.owned ? 'saját' : 'új';
   let detail;
-  const test = mission.job.test, destroyBtn = (act, it, off) => test ? '' : hhold(`Szétszedés (tartsd) +${fieldParts(it.q)} ⚙`, act, off, 'KeyX');
+  const test = mission.job.test, destroyBtn = (act, it, off) => test ? '' : hhold(`Szétszedés (tartsd) +${fieldParts(it.q)} ${act[0] === 'g' ? FAB : '⚙'}`, act, off, 'KeyX');
   if (sl === 'M') detail = gearDetail(x, profile.gear[x.slot], `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd, akkor is, ha felveszed.' : 'Saját, levetted.'}</small>` + hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + destroyBtn(`gdestroy:${si}`, x, false));
   else if (sl === 'W') detail = gearDetail(x, null, `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd.' : 'Saját.'}</small>` + hbtn('Leveszem', `unwear:${si}`, false, 'KeyF'));
   else {
@@ -340,7 +340,7 @@ $('loadout').addEventListener('click', e => {
     if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
     itemFeed('szétszedte', `${w.name} · +${fieldParts(w.q)} ⚙`, w.unique ? 5 : w.q); mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
   }
-  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ⚙`, it.q); mission.parts = (mission.parts || 0) + fieldParts(it.q); } invSel = ''; }
+  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ${FAB}`, it.q); mission.fabric = (mission.fabric || 0) + fieldParts(it.q); } invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
@@ -500,7 +500,7 @@ function updateHUD() {
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot], full = mission.gear.length >= gearBagMax(), out = full && gearSwapOut(focus.it);
       card = gearCard(focus.it, (full ? `<span class="bagfull"><b>TELE A PÁNCÉLZSÁK ${mission.gear.length}/${gearBagMax()}</b><span><kbd>F</kbd>Csere: <i style="color:${RARITIES[out.q].color}">${out.name}</i> a földre kerül</span></span>`
-        : `<span><kbd>F</kbd>A zsákba ${mission.gear.length}/${gearBagMax()}</span>`) + `<span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>` + scrapHint(focus.it.q), true); }
+        : `<span><kbd>F</kbd>A zsákba ${mission.gear.length}/${gearBagMax()}</span>`) + `<span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>` + scrapHint(focus.it.q, true), true); }
     else if (focus.w) { const ok = canUse(focus.w), bagTxt = player.bag.length < bagMax() ? `Táskába ${player.bag.length}/${bagMax()}` : 'Tele a táska';
       card = cardHTML(focus.w, (ok ? `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : bagTxt}</span><span><kbd>F</kbd>tartsd: Csere</span>` : `<span class="lvlock"><kbd>F</kbd>${bagTxt} · ${focus.w.level}. szinttől használhatod</span>`) + scrapHint(focus.w.q), curW()); }
     else if (focus.type === 'cache') prompt = '<b>[E]</b> Utánpótlás-láda kinyitása';
@@ -647,12 +647,12 @@ function takeLoot(f, swap) {
   popText(ok ? `${w.name} a táskába (${player.bag.length}/${bagMax()})` : `${w.name} a táskába · ${w.level}. szinttől használhatod`, ok ? rarColor(w) : '#ff8a70');
 }
 let reviveHold = 0, xHold = 0;
-const scrapHint = q => mission && mission.job.test ? '' : `<span class="scrap"><kbd>X</kbd>tartsd: szétszedés +${fieldParts(q)} ⚙</span>`;
+const scrapHint = (q, gear) => mission && mission.job.test ? '' : `<span class="scrap"><kbd>X</kbd>tartsd: szétszedés +${fieldParts(Math.min(4, q))} ${gear ? FAB : '⚙'}</span>`;
 function scrapGround(f) { // parts are paid out only if you extract, like taking it apart from the bag
   const it = f.type === 'gear' ? f.gd.it : f.drop.w, q = it.unique ? 5 : it.q;
   if (f.type === 'gear') { netTookDrop(f.gd); removeGearDrop(f.gd); } else { netTookDrop(f.drop); removeDrop(f.drop); }
-  mission.parts = (mission.parts || 0) + fieldParts(Math.min(4, q)); itemFeed('szétszedte', `${it.name} · +${fieldParts(Math.min(4, q))} ⚙`, q); SND.explode();
-  popText(`${it.name} szétszedve · +${fieldParts(Math.min(4, q))} ⚙ kijutáskor`, '#c8c0a8');
+  const gear = f.type === 'gear', n = fieldParts(Math.min(4, q)), u = gear ? FAB : '⚙'; if (gear) mission.fabric = (mission.fabric || 0) + n; else mission.parts = (mission.parts || 0) + n;
+  itemFeed('szétszedte', `${it.name} · +${n} ${u}`, q); SND.explode(); popText(`${it.name} szétszedve · +${n} ${u} kijutáskor`, '#c8c0a8');
 }
 function updateSellHold(dt) {
   if (focus && focus.type === 'revive') { // hold E next to a downed mate

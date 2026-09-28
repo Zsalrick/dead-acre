@@ -111,7 +111,7 @@ function renderHub() {
   $('hubLvl').textContent = P.level;
   $('hubXp').style.width = P.xp / xpNeed(P.level) * 100 + '%';
   $('hubXpTxt').textContent = `${P.xp} / ${xpNeed(P.level)} XP · veterán ${vetEarned()}${vetAvail() ? ` (+${vetAvail()})` : ''}`;
-  $('hubCash').textContent = `$${P.cash}`; $('hubParts').textContent = `${P.parts || 0} ⚙`;
+  $('hubCash').textContent = `$${P.cash}`; $('hubParts').textContent = `${P.parts || 0} ⚙ · ${P.fabric || 0} ${FAB}`;
   rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   $('hubTokens').textContent = P.tokens || 0;
@@ -138,13 +138,13 @@ function gRemove(sl, k) { if (sl === 'W') { profile.gear[k] = null; gearChanged(
 const salvageGain = x => PARTS[x.q] + expRefund(x);
 const wSellBtns = (w, sl, i, lone) => hhold(`Eladás (tartsd) $${sellValue(w)}`, `sell:${sl}:${i}`, w.fav || lone, 'KeyX') + hhold(`Szétszedés (tartsd) +${salvageGain(w)} ⚙`, `salvage:${sl}:${i}`, w.fav || lone, 'KeyB') +
   hbtn(w.fav ? '★ Kedvenc' : 'Kedvenc', `fav:${sl}:${i}`, false, 'KeyV') + hbtn(w.junk ? '🗑 Kukában' : 'Kukába', `trash:${sl}:${i}`, w.fav, 'KeyJ');
-const gSellBtns = (it, sl, k) => hhold(`Eladás (tartsd) $${gearValue(it)}`, `gsell:${sl}:${k}`, it.fav, 'KeyX') + hhold(`Szétszedés (tartsd) +${salvageGain(it)} ⚙`, `gsalvage:${sl}:${k}`, it.fav, 'KeyB') +
+const gSellBtns = (it, sl, k) => hhold(`Eladás (tartsd) $${gearValue(it)}`, `gsell:${sl}:${k}`, it.fav, 'KeyX') + hhold(`Szétszedés (tartsd) +${PARTS[it.q]} ${FAB}${expRefund(it) ? ` +${expRefund(it)} ⚙` : ''}`, `gsalvage:${sl}:${k}`, it.fav, 'KeyB') +
   hbtn(it.fav ? '★ Kedvenc' : 'Kedvenc', `gfav:${sl}:${k}`, false, 'KeyV') + hbtn(it.junk ? '🗑 Kukában' : 'Kukába', `gtrash:${sl}:${k}`, it.fav, 'KeyJ');
 function trashBar(kind) { // bulk sell / salvage everything marked as trash
   const P = profile, items = kind === 'w' ? [...P.bag, ...P.stash].map(unpackW).filter(w => w && w.junk && !w.fav) : P.gearStash.filter(it => it.junk && !it.fav);
   if (!items.length) return '';
-  const cash = items.reduce((a, x) => a + (kind === 'w' ? sellValue(x) : gearValue(x)), 0), parts = items.reduce((a, x) => a + salvageGain(x), 0);
-  return `<div class="trashbar"><b>🗑 Kukában: ${items.length} db</b>${hbtn(`Összes eladása · $${cash}`, `trashsell:${kind}`)}${hbtn(`Összes szétszedése · +${parts} ⚙`, `trashsalv:${kind}`)}</div>`;
+  const cash = items.reduce((a, x) => a + (kind === 'w' ? sellValue(x) : gearValue(x)), 0), parts = items.reduce((a, x) => a + (kind === 'w' ? salvageGain(x) : PARTS[x.q]), 0);
+  return `<div class="trashbar"><b>🗑 Kukában: ${items.length} db</b>${hbtn(`Összes eladása · $${cash}`, `trashsell:${kind}`)}${hbtn(`Összes szétszedése · +${parts} ${kind === 'w' ? '⚙' : FAB}`, `trashsalv:${kind}`)}</div>`;
 }
 // calibration: roll new stats, show old against new, keep whichever the player picks
 function showRecal(w, list, i) {
@@ -180,7 +180,7 @@ const MV_TIP = { L: 'Kézbe veszed: ezzel harcolsz a munkán.', B: 'A táskába 
 const TIPS = {
   sell: 'Eladod pénzért.', gsell: 'Eladod pénzért.', fav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.', gfav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.',
   trash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.', gtrash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.',
-  trashsell: 'Eladja az összes kukába jelölt tárgyat (kézben lévőt nem).', trashsalv: 'Szétszedi az összes kukába jelölt tárgyat (kézben lévőt nem).', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.',
+  trashsell: 'Eladja az összes kukába jelölt tárgyat (kézben lévőt nem).', trashsalv: 'Szétszedi az összes kukába jelölt tárgyat (kézben lévőt nem).', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded anyagra (🧵): ezzel optimalizálhatod a páncélt a kovácsnál. A szakértelemre költött alkatrész fele visszajár.',
   'hforge:anoint': 'Dob egy új, véletlen felkenést: utána elfogadod, vagy megtartod a régit. Minden újradobás drágább ezen a fegyveren.',
   'hforge:recal': 'Újradobja a fegyver véletlen értékeit (sebzés, tűzgyorsaság, tár, újratöltés, pontosság, kritikus esély és szorzó). Egy ablakban látod a régit és az újat: OK-ra az új marad, X-re a régi.',
   goforge: 'A Kovácshoz: felkenés, kalibrálás, szakértelem és túlhajtás.',
@@ -269,6 +269,8 @@ const HUB = {
     const okSel = () => lists[sl] ? !!lists[sl][+si] : sl === 'W' ? !!P.gear[si] : sl === 'G' ? !!st[+si] : false;
     if (!okSel()) { sl = 'L'; si = lists.L[0] ? '0' : '1'; invSel = `L:${si}`; }
     const i = +si, w = lists[sl] && lists[sl][i], it = !w && (sl === 'W' ? P.gear[si] : st[i]);
+    const gOptPanel = () => `<div class="optbox"><small>Páncél-optimalizálás · egy érték +10%-kal feljebb a tartományában, a tökéletesig · van: ${P.fabric || 0} ${FAB} (páncél szétszedéséből)</small>${gRolls(it).map(([k, n, pr]) => { const C = gOptCost(it, pr), max = pr >= .999;
+      return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="gopt:${sl}:${si}:${k}"${max || (P.fabric || 0) < C.fab || P.cash < C.cash ? ' disabled' : ''}>${max ? 'Tökéletes' : `+10% · ${C.fab} ${FAB} · $${C.cash}`}</button></div>`; }).join('')}</div>`;
     const pp = P.parts || 0, optPanel = () => `<div class="optbox"><small>Optimalizálás · egy véletlen érték +10%-kal feljebb a tartományában, a tökéletesig</small>${OPT_STATS.map(([k, n]) => { const pr = rollOf(w, k); if (pr == null) return ''; const C = optCost(w, pr), max = pr >= .999;
         return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="opt:${sl}:${i}:${k}" data-tip="${n}: a dobás ${Math.round(pr * 100)}% → ${Math.round(Math.min(1, pr + OPT_STEP) * 100)}%"${max || pp < C.parts || P.cash < C.cash ? ' disabled' : ''}>${max ? 'Tökéletes' : `+10% · ${C.parts} ⚙ · $${C.cash}`}</button></div>`; }).join('')}</div>`;
     const wActs = w && (() => {
@@ -280,12 +282,12 @@ const HUB = {
       hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w)) +
       ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
     })();
-    const gActs = it ? hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it), 'KeyM', expTip(it, true)) : '';
+    const gActs = it ? hbtn(optOpen === `${sl}:${si}` ? 'Optimalizálás ▲' : 'Optimalizálás ▼', 'optshow', false, 'KeyO', 'Megnyitja / bezárja: a páncél egy értéke feljebb vihető a tartományában, anyagért.') + hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it), 'KeyM', expTip(it, true)) : '';
     const sec = (t, x) => x ? `<h3>${t}</h3><div class="tiles">${x}</div>` : '';
     const left = sec('Kézben', lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : '').join('')) + sec('Táska', lists.B.map((x, k) => wTile(`B:${k}`, x)).join('')) + sec('Raktár', lists.S.map((x, k) => wTile(`S:${k}`, x)).join('')) +
       sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
     return `<p class="lede">Kovács: optimalizálás, felkenés, kalibrálás, szakértelem és túlhajtás (⚙ ${P.parts || 0} · mag: ${P.oc || 0}). Válassz egy fegyvert vagy páncélt.</p>
-      ${invLayout(left, w ? (optOpen === `${sl}:${i}` ? optPanel() : '') + weaponDetail(w, null, wActs) : it ? gearDetail(it, null, gActs) : noDetail('Nincs mit fejleszteni.'))}`;
+      ${invLayout(left, w ? (optOpen === `${sl}:${i}` ? optPanel() : '') + weaponDetail(w, null, wActs) : it ? (optOpen === `${sl}:${si}` ? gOptPanel() : '') + gearDetail(it, null, gActs) : noDetail('Nincs mit fejleszteni.'))}`;
   },
   stats() {
     const P = profile, ws = P.loadout.map(unpackW).filter(Boolean);
@@ -370,6 +372,10 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'vet' && VET[a] && vetAvail() > 0) { P.vet[a] = (P.vet[a] || 0) + 1; gearChanged(); }
   if (kind === 'reroll' && pay(reroll())) rollBoard();
   if (kind === 'optshow') { optOpen = optOpen === invSel ? null : invSel; return renderHub(); }
+  if (kind === 'gopt') { // gopt:W|G:key:stat
+    const [, l, k, st] = b.dataset.act.split(':'), it = gearAt(l, k), row = it && gRolls(it).find(r => r[0] === st);
+    if (row && row[2] < .999) { const C = gOptCost(it, row[2]); if ((P.fabric || 0) >= C.fab && P.cash >= C.cash && gOptimize(it, st)) { P.fabric -= C.fab; P.cash -= C.cash; SND.explode(); } }
+  }
   if (kind === 'opt') { // opt:list:i:stat
     const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]), pr = w && rollOf(w, k);
     if (w && pr != null && pr < .999) { const C = optCost(w, pr); if ((P.parts || 0) >= C.parts && P.cash >= C.cash && optimize(w, k)) { P.parts -= C.parts; P.cash -= C.cash; list[+i] = packW(w); SND.explode(); } }
@@ -398,13 +404,13 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'gsell') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.cash += gearValue(it); } }
   if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < gearMax() && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
   if (kind === 'salvage') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.parts = (P.parts || 0) + salvageGain(w); } } // expertise half back; the core is spent
-  if (kind === 'gsalvage') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.parts = (P.parts || 0) + salvageGain(it); } }
+  if (kind === 'gsalvage') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.fabric = (P.fabric || 0) + PARTS[it.q]; P.parts = (P.parts || 0) + expRefund(it); } } // armor: fabric, the expertise half back in parts
   if (kind === 'fav' || kind === 'trash') { const w = wAt(a, c); if (w) { if (kind === 'fav') { w.fav = !w.fav; if (w.fav) w.junk = false; } else if (!w.fav) w.junk = !w.junk; wList(a)[+c] = packW(w); } }
   if (kind === 'gfav' || kind === 'gtrash') { const it = gearAt(a, c); if (it) { if (kind === 'gfav') { it.fav = !it.fav; if (it.fav) it.junk = false; } else if (!it.fav) it.junk = !it.junk; } }
   if (kind === 'trashsell' || kind === 'trashsalv') { // every trash-marked piece in the bag and stash (weapons) or the armor stash
     const sell = kind === 'trashsell';
     if (a === 'w') for (const sl of ['S', 'B']) { const L = wList(sl); for (let k = L.length - 1; k >= 0; k--) { const w = unpackW(L[k]); if (w && w.junk && !w.fav) { L.splice(k, 1); if (sell) P.cash += sellValue(w); else P.parts = (P.parts || 0) + salvageGain(w); } } }
-    else for (let k = P.gearStash.length - 1; k >= 0; k--) { const it = P.gearStash[k]; if (it.junk && !it.fav) { P.gearStash.splice(k, 1); if (sell) P.cash += gearValue(it); else P.parts = (P.parts || 0) + salvageGain(it); } }
+    else for (let k = P.gearStash.length - 1; k >= 0; k--) { const it = P.gearStash[k]; if (it.junk && !it.fav) { P.gearStash.splice(k, 1); if (sell) P.cash += gearValue(it); else { P.fabric = (P.fabric || 0) + PARTS[it.q]; P.parts = (P.parts || 0) + expRefund(it); } } }
   }
   if (kind === 'sell') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.cash += sellValue(w); } }
   SND.buy(); saveProfile(); saveShared(); renderHub();
@@ -433,7 +439,7 @@ function showResults(r) {
     ${r.junkN ? `<p class="note">Automatikus szétszedés: ${r.junkN} fegyver → +${r.junkParts} ⚙</p>` : ''}
     ${r.lost.length ? `<h3>Elveszett fegyverek</h3><ul class="wlist">${wl(r.lost, 'lost')}</ul>` : ''}
     ${r.gear.length ? `<h3>${r.success ? 'Hazavitt páncél' : 'Elveszett páncél'} <small>${r.gear.length} db</small></h3><ul class="wlist">${[...r.gear].sort((a, b) => (b.exo ? 9 : b.q) - (a.exo ? 9 : a.q)).slice(0, 8).map(it => `<li class="${r.success ? '' : 'lost'}" style="color:${gCol(it)}">${it.name} <small>Lv ${it.level} ${GEAR_SLOTS[it.slot]} · ${it.exo ? 'egzotikus' : BRANDS[it.brand].name}</small></li>`).join('')}${r.gear.length > 8 ? `<li><small>…és még ${r.gear.length - 8} darab a raktárban</small></li>` : ''}</ul>` : ''}
-    ${r.parts ? `<p class="lvlup">Alkatrész a terepen szétszedett holmiból: +${r.parts} ⚙</p>` : r.partsLost ? `<p class="note">A terepen szétszedett holmi alkatrésze (${r.partsLost} ⚙) odaveszett.</p>` : ''}
+    ${r.fabric ? `<p class="lvlup">Anyag a terepen szétszedett páncélból: +${r.fabric} ${FAB}</p>` : ''}${r.parts ? `<p class="lvlup">Alkatrész a terepen szétszedett holmiból: +${r.parts} ⚙</p>` : r.partsLost ? `<p class="note">A terepen szétszedett holmi alkatrésze (${r.partsLost} ⚙) odaveszett.</p>` : ''}
     ${r.overflow ? `<p class="note">A páncélraktár megtelt: ${r.overflow} darabot automatikusan eladtunk.</p>` : ''}`;
   $('results').hidden = false;
   const f = $('xpFill'); if (f) setTimeout(() => { f.style.width = Math.min(1, r.xpTo) * 100 + '%'; }, 250); // the XP bar fills up

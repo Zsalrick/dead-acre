@@ -40,6 +40,23 @@ function rollG(k, q, level) {
   const S = GSTATS[k], v = rand(S.roll[0], S.roll[1]) * (1 + q * .12);
   return S.flat ? Math.round(v * (1 + .06 * (level - 1))) : Math.round(v * (1 + .03 * (level - 1)) * 100) / 100;
 }
+// fabric: what armor gives when taken apart; armor optimization is paid in it
+const FAB = '🧵';
+const gearBase = it => ({ head: 12, chest: 20, legs: 14, boots: 10 }[it.slot] || 12) * (1 + .08 * (it.level - 1)) * (1 + Math.min(4, it.q) * .15);
+const gStatF = (it, k) => { const S = GSTATS[k], q = Math.min(4, it.q); return (1 + q * .12) * (S.flat ? 1 + .06 * (it.level - 1) : 1 + .03 * (it.level - 1)); };
+function gRolls(it) { // [key, name, 0..1 where the roll landed]
+  const rows = [['armor', 'Páncél', clamp((it.armor / gearBase(it) - .9) / .2, 0, 1)]];
+  for (const k in it.stats) { const S = GSTATS[k]; rows.push([k, S.name, clamp((it.stats[k] / gStatF(it, k) - S.roll[0]) / (S.roll[1] - S.roll[0]), 0, 1)]); }
+  return rows;
+}
+const gOptCost = (it, p) => ({ fab: Math.round((3 + 10 * p) * (1 + Math.min(4, it.q) * .5)), cash: Math.round(120 * (1 + it.level / 5) * (1 + 2 * p) / 10) * 10 });
+function gOptimize(it, k) {
+  const row = gRolls(it).find(r => r[0] === k); if (!row || row[2] >= .999) return false;
+  const np = Math.min(1, row[2] + .1);
+  if (k === 'armor') it.armor = Math.max(it.armor + 1, Math.round(gearBase(it) * (.9 + .2 * np)));
+  else { const S = GSTATS[k], v = (S.roll[0] + np * (S.roll[1] - S.roll[0])) * gStatF(it, k); it.stats[k] = S.flat ? Math.max(it.stats[k] + 1, Math.round(v)) : Math.max(Math.round((it.stats[k] + .01) * 100) / 100, Math.round(v * 100) / 100); }
+  gearChanged(); return true;
+}
 function makeGear(slot, q, level, brand) {
   slot = slot || pick(GEAR_KEYS); brand = brand || pick(Object.keys(BRANDS)); q = Math.min(q, 4); // armor tops out at legendary
   const keys = Object.keys(GSTATS).filter(k => k !== 'armor'), stats = {}, n = [1, 1, 2, 2, 3][q];
