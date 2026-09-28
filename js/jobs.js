@@ -203,7 +203,7 @@ function gridPath(a, b) {
 function midEvent(M) {
   M.evented = true;
   const [sx, sz] = pick(activeSpawns());
-  for (let k = 0; k < 3; k++) { const z = spawnZombieAt(pick(['brute', 'runner', 'walker']), sx + rand(-2, 2), sz + rand(-2, 2)); z.elite = true; if (!z.affix) { z.affix = pick(AFFIX_KEYS); AFFIX[z.affix].on(z); } z.maxHp = z.hp; }
+  for (let k = 0; k < 3; k++) { const z = spawnZombieAt(pick(['brute', 'runner', 'walker']), sx + rand(-2, 2), sz + rand(-2, 2)); if ((z.tier || 0) < 2) setZTier(z, 2); }
   const [cx, cz] = BOX_SPOTS.map(p => p).sort((a, b) => Math.hypot(b[0] - player.pos.x, b[1] - player.pos.z) - Math.hypot(a[0] - player.pos.x, a[1] - player.pos.z))[0];
   M.cache = { x: cx + 2.5, z: cz + 1.5, t: 60 }; buildCache(M.cache);
   banner('ELIT OSZTAG ÉS UTÁNPÓTLÁS', 'Egy láda érkezett a térkép túloldalára: 60 mp-ig nyitható. Az elitek már úton vannak.'); SND.roundStart();

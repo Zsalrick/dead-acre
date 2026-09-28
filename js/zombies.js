@@ -155,8 +155,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
     burnT: 0, burnDps: 0, burnAcc: 0, slowT: 0, flash: 0, groanT: rand(1, 6), dead: false, deathT: 0,
     shootT: rand(1.5, 3), ammo: 6, gunReload: 0, gunKick: 0, fuse: 0,
   };
-  if (roundMod.elite && !K.boss && kind !== 'spawnling' && Math.random() < .25) { z.elite = true; z.hp *= 2; z.scale *= 1.08; }
-  if (!K.boss && kind !== 'spawnling' && !NET.client && mission && !mission.job.test && Math.random() < .03 + .01 * (mission.job.diff - 1) + .02 * jobTier()) { z.elite = true; z.affix = pick(AFFIX_KEYS); AFFIX[z.affix].on(z); } // an elite with a trait
+  rollTier(z, kind);
   z.rise = rise;
   z.maxHp = z.hp; z.id = ++zidSeq;
   if (NET.mode === 'host') NET.zById.set(z.id, z);
@@ -194,6 +193,7 @@ function hurtZombie(z, amt, o = {}) {
   if (!o.remote && rk('h_bounty') && (z.elite || z.K.boss)) amt *= 1 + .12 * rk('h_bounty'); // Díjvadász
   if (!o.remote) hitPerks(z, amt, o);
   z.hp -= amt; z.flash = .08; z.hitT = now; tallyHit(amt, o); if (!o.dot) z.flinch = .12;
+  if (z.traits && z.traits.includes('rage') && !z.raged && z.hp > 0 && z.hp < z.maxHp * .25) { z.raged = true; z.speed *= 1.35; z.dmg *= 1.4; z.buffT = 1e6; popText(`${zName(z)} feldühödött!`, '#ff5a4a'); }
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit, z);
   if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
@@ -228,7 +228,7 @@ function killZombie(z, o) {
   if (z.dummy) { z.dead = true; z.deathT = 0; z.fallDir = 1; if (!o.remote) { hitmarker(true); SND.kill(); } if (mission && mission.dummyQ) mission.dummyQ.push({ t: 2.5, spot: z.spot }); return; }
   if (mission) mission.kc = (mission.kc || 0) + 1; // the whole party's kills (objective jobs)
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1; bloodPool(z.pos.x, z.pos.z, z.scale);
-  if (z.affix && AFFIX[z.affix].die) AFFIX[z.affix].die(z);
+  for (const k of z.traits || []) if (AFFIX[k].die) AFFIX[k].die(z);
   if (z.bounty) bountyKilled(z);
   if (o.remote) { // a party member's kill: they get the points and roll the loot
     burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 14, 3.5);
@@ -364,6 +364,7 @@ function updateZombies(dt) {
       continue;
     }
     netAim(z); // in a party the host's zombies chase the nearest living player
+    if (z.traits && z.traits.includes('regen') && now - (z.hitT || -99) > 3 && z.hp < z.maxHp) z.hp = Math.min(z.maxHp, z.hp + z.maxHp * .02 * dt);
     // status effects
     if (z.burnT > 0) {
       z.burnT -= dt; z.burnAcc += z.burnDps * dt;
@@ -500,7 +501,7 @@ function updateZombies(dt) {
         z.windup -= dt;
         if (z.windup <= 0) {
           z.atkCd = 1.1;
-          if (dist < reachD + .35 && liveWorld()) hurtPlayer(z.dmg * (1 + .03 * (round - 1)));
+          if (dist < reachD + .35 && liveWorld()) { hurtPlayer(z.dmg * (1 + .03 * (round - 1))); zBit(z); }
           if (!K.crawl) z.armL.rotation.x = z.armR.rotation.x = -.6;
         }
       } else if (dist < reachD && z.atkCd <= 0) z.windup = .38;
@@ -526,7 +527,7 @@ function updateLeaper(z, dt, dist) {
     if (u >= 1) {
       z.leap = null; z.leapCd = rand(3.5, 5);
       burst(new V3(z.pos.x, .1, z.pos.z), 0x3a3020, 10, 2.5, .5);
-      if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 1.9 && liveWorld()) hurtPlayer(z.dmg * (1 + .03 * (round - 1)));
+      if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 1.9 && liveWorld()) { hurtPlayer(z.dmg * (1 + .03 * (round - 1))); zBit(z); }
     }
     return true;
   }
@@ -570,7 +571,7 @@ function updateBoss(z, dt, dist, toPlayer) {
     const before = z.pos.clone(); collide(z.pos, .7);
     z.walkT += dt * 16; const sw = Math.sin(z.walkT) * .8; z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
     z.g.position.set(z.pos.x, 0, z.pos.z); z.g.rotation.y = z.heading = z.chargeAng;
-    if (!z.hitDone && dist < 2.2 && liveWorld()) { z.hitDone = true; hurtPlayer(z.dmg * (1 + .03 * (round - 1))); player.shake = .6; }
+    if (!z.hitDone && dist < 2.2 && liveWorld()) { z.hitDone = true; hurtPlayer(z.dmg * (1 + .03 * (round - 1))); player.shake = .6; zBit(z); }
     if (z.stateT <= 0 || before.distanceTo(z.pos) > .05) { z.bossState = null; z.bossT = rand(5, 8); }
     return true;
   }
@@ -584,7 +585,7 @@ const hbPool = [];
 function hbEl(i) {
   if (!hbPool[i]) {
     const e = document.createElement('div'); e.className = 'hb';
-    e.innerHTML = '<span></span><i><b></b></i>'; $('hbars').appendChild(e); hbPool[i] = e;
+    e.innerHTML = '<span></span><div class="hrow"><em></em><i><b></b></i></div>'; $('hbars').appendChild(e); hbPool[i] = e;
   }
   return hbPool[i];
 }
@@ -598,14 +599,17 @@ function updateHealthBars() {
   const W = innerWidth / 2, H = innerHeight / 2, v = new V3();
   let n = 0;
   for (const z of dirOn('blind') ? [] : zombies) {
-    if (z.dead || z.rise > .5 || z.K.boss || (z.K.ghost && z.op < .4) || (z !== looked && !(now - (z.hitT || -99) < 2.5))) continue;
+    if (z.dead || z.rise > .5 || z.K.boss || (z.K.ghost && z.op < .4)) continue;
+    if (z !== looked && !(now - (z.hitT || -99) < 2.5) && Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z) > (z.tier ? 45 : 28)) continue;
     v.set(z.pos.x, (z.K.crawl ? 1.1 : 2.25) * z.scale + z.g.position.y, z.pos.z).project(camera);
     if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) continue;
     const e = hbEl(n++);
     e.hidden = false;
-    e.classList.toggle('big', z.kind === 'brute');
+    e.classList.toggle('big', z.kind === 'brute' || z.tier === 3); const tc = 't' + (z.tier || 0); if (e.dataset.t !== tc) { e.classList.remove('t0', 't1', 't2', 't3'); e.classList.add(tc); e.dataset.t = tc; }
     e.style.transform = `translate(${v.x * W + W}px,${-v.y * H + H}px) translate(-50%,-100%)`;
-    e.firstChild.textContent = (z.affix ? AFFIX[z.affix].name + ' ' : z.elite ? 'Elit ' : '') + (z.kind === 'walker' && !z.affix ? '' : z.K.name);
+    e.style.zIndex = 1000 - Math.round(v.z * 1000); // the nearer one's label on top
+    const nm = zName(z); if (e.firstChild.textContent !== nm) e.firstChild.textContent = nm;
+    const bd = `<u>◆ ${mission ? mission.job.lvl || 1 : 1}</u>${jobTier() ? `<s>☠ +${jobTier()}</s>` : ''}`; if (e.dataset.bd !== bd) { e.querySelector('em').innerHTML = bd; e.dataset.bd = bd; }
     e.querySelector('b').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
   }
   for (let i = n; i < hbPool.length; i++) hbPool[i].hidden = true;
@@ -793,7 +797,39 @@ const AFFIX = {
   frost: { name: 'Fagyos', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 5, 0x9fe6ff, .8, () => { burst(new V3(at.x, .5, at.z), 0x9fe6ff, 24, 4, .6); if (Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 5) player.chillT = 2.5; }, 'frost'); } },
   fast:  { name: 'Gyors', on: z => { z.speed *= 1.4; } },
   tough: { name: 'Szívós', on: z => { z.hp *= 1.8; z.maxHp = z.hp; z.scale *= 1.1; z.g.scale.setScalar(z.scale); } },
+  vamp:  { name: 'Vérszívó', on: z => {} },
+  regen: { name: 'Regeneráló', on: z => {} },
+  rage:  { name: 'Dühöngő', on: z => {} },
 };
+const AFFIX_DESC = { fire: 'Halálakor lángra lobbantja maga körül a földet.', boom: 'Halálakor felrobban: fuss, amikor villog a kör.', frost: 'Halálakor fagyhullám: aki benne áll, lelassul.',
+  fast: '40%-kal gyorsabb.', tough: '80%-kal több életerő, nagyobb termet.', vamp: 'Ha megüt, visszatölti az életereje 12%-át.', regen: 'Ha 3 mp-ig nem sebzik, másodpercenként 2%-ot gyógyul.',
+  rage: '25% életerő alatt feldühödik: 35%-kal gyorsabb, 40%-kal nagyobbat üt.' };
+// ranks: each one tougher, with its own bar colour; elites get one trait, named zombies two and a name
+const ZTIERS = [
+  { name: '',           hp: 1,   sc: 1,    n: 0, col: '#ff5a4a' },
+  { name: 'Veterán',    hp: 1.6, sc: 1.04, n: 0, col: '#b48cff' },
+  { name: 'Elit',       hp: 2.6, sc: 1.08, n: 1, col: '#ffd23f' },
+  { name: 'Nevesített', hp: 4.5, sc: 1.15, n: 2, col: '#ff8c1a' },
+];
+const NAMED = ['Véres Jani', 'Csonka Béla', 'Rozsdás Pista', 'Vak Lajos', 'Sánta Feri', 'Hentes Karcsi', 'Néma Gizi', 'Rothadt Tibi', 'Kampós Józsi', 'Fekete Özvegy',
+  'Sápadt Marika', 'Görbe Laci', 'Vasfogú Ödön', 'Szürke Bözsi', 'Korhadt Gyuri', 'Üres Szemű Zoli'];
+function setZTier(z, tier, traits) {
+  const was = ZTIERS[z.tier || 0], T = ZTIERS[tier]; z.tier = tier;
+  z.hp *= T.hp / was.hp; if (z.maxHp) z.maxHp *= T.hp / was.hp; z.scale *= T.sc / was.sc; if (z.g) z.g.scale.setScalar(z.scale);
+  const add = traits || AFFIX_KEYS.filter(k => !(z.traits || []).includes(k)).sort(() => Math.random() - .5).slice(0, Math.max(0, T.n - (z.traits || []).length));
+  z.traits = [...(z.traits || []), ...add]; add.forEach(k => AFFIX[k].on(z));
+  z.elite = tier >= 2; z.affix = z.traits[0] || null;
+}
+function rollTier(z, kind) {
+  if (z.K.boss || kind === 'spawnling' || NET.client || !mission || mission.job.test) return;
+  const d = mission.job.diff - 1, t = jobTier(), r = Math.random();
+  const pN = .006 + .003 * d + .004 * t, pE = .03 + .012 * d + .02 * t + (roundMod.elite ? .2 : 0), pV = .14 + .03 * d + .03 * t;
+  const tier = r < pN ? 3 : r < pN + pE ? 2 : r < pN + pE + pV ? 1 : 0;
+  if (tier) setZTier(z, tier);
+}
+const zName = z => { const T = ZTIERS[z.tier || 0], tr = (z.traits || []).map(k => AFFIX[k].name);
+  return (z.tier === 3 ? `„${NAMED[z.id % NAMED.length]}” · ${z.K.name}` : (T.name ? T.name + ' ' : '') + z.K.name) + (tr.length ? ` (${tr.join(', ')})` : ''); };
+function zBit(z) { if (z.traits && z.traits.includes('vamp') && !z.dead) { z.hp = Math.min(z.maxHp, z.hp + z.maxHp * .12); burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xb3141b, 8, 2, .4); } }
 const AFFIX_KEYS = Object.keys(AFFIX);
 const affixMul = () => (1 + .03 * (round - 1)) * (1 + .08 * jobTier());
 

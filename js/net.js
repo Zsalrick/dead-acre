@@ -315,7 +315,7 @@ function buildSnapshot() {
   for (const z of zombies) {
     if (z.dead) continue;
     const fl = (z.rise > 0 ? 1 : 0) | (z.windup > 0 || z.bossState ? 2 : 0) | (z.elite ? 4 : 0) | (z.K.armor && z.armor <= 0 ? 8 : 0) | (z.burnT > 0 ? 16 : 0)
-      | (z.slowT > 0 ? 32 : 0) | (z.buffT > 0 ? 64 : 0) | (z.K.ghost && z.op > .5 ? 128 : 0) | (z.fuse > 0 ? 256 : 0) | (z.crouch > 0 ? 512 : 0) | (z.markT > 0 ? 1024 : 0) | ((AFFIX_KEYS.indexOf(z.affix) + 1) << 11);
+      | (z.slowT > 0 ? 32 : 0) | (z.buffT > 0 ? 64 : 0) | (z.K.ghost && z.op > .5 ? 128 : 0) | (z.fuse > 0 ? 256 : 0) | (z.crouch > 0 ? 512 : 0) | (z.markT > 0 ? 1024 : 0) | ((AFFIX_KEYS.indexOf((z.traits || [])[0]) + 1) << 11) | ((AFFIX_KEYS.indexOf((z.traits || [])[1]) + 1) << 15) | ((z.tier || 0) << 19);
     zs.push([z.id, KIND_IDS.indexOf(z.kind), Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), Math.round(z.g.rotation.y * 100), Math.max(0, Math.round(z.hp / z.maxHp * 100)), fl, Math.round(z.g.position.y * 10), Math.round(z.scale * 100)]);
     if (zs.length >= 90) break;
   }
@@ -446,7 +446,7 @@ function applySnapshot(g, hostPeer) {
       const bk = Array.isArray(g.bb) && g.bb[0] === id && BOUNTIES[g.bb[1]] ? g.bb[1] : null;
       if (bk) bountyLook(z, bk);
       if (z.K.boss) { banner(bk ? BOUNTIES[bk].name.toUpperCase() : 'A MÉSZÁROS', bk ? BOUNTIES[bk].desc : 'Az utadat állja a furgon felé.'); SND.roar(); }
-      z.affix = AFFIX_KEYS[((fl >> 11) & 7) - 1] || null;
+      z.traits = [AFFIX_KEYS[((fl >> 11) & 15) - 1], AFFIX_KEYS[((fl >> 15) & 15) - 1]].filter(Boolean); z.affix = z.traits[0] || null; z.tier = (fl >> 19) & 3;
     }
     if (z.dead && z.predDead) { if (tr - z.predDead > 700) resurrect(z); else continue; } // our kill wasn't confirmed: it gets back up
     const hpv = clamp(+hp || 0, 0, 100) / 100 * z.maxHp;

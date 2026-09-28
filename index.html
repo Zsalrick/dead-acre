@@ -791,6 +791,18 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 .dtals{display:grid;gap:6px;padding:10px 14px}.dtals:empty{display:none}.dtal{border-left:3px solid var(--tc,#888);padding:4px 10px;background:rgba(255,255,255,.03)}.dtal small{color:var(--tc,#888)}.dtal b{display:block;font-size:14px}.dtal span{font-size:12.5px;color:var(--bone)}
 .dsec{margin:10px 14px 2px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--lantern)}
 .anopend{flex-basis:100%;border:1px solid #6ff0c8;padding:8px 10px;margin:4px 0;background:rgba(111,240,200,.06)}.anopend b{display:block;color:#6ff0c8;font-size:13px}.anopend span{display:block;font-size:12px;color:var(--dim);margin-bottom:6px}
+.hb .hrow{display:flex;align-items:center;gap:4px}.hb em{font-style:normal;display:flex;gap:3px;font-size:10px;font-weight:700;line-height:1}
+.hb em u{text-decoration:none;padding:1px 3px;background:rgba(0,0,0,.7);border:1px solid rgba(232,226,208,.35);color:#e8e2d0}.hb em s{text-decoration:none;padding:1px 3px;background:rgba(60,0,80,.8);border:1px solid #b05cff;color:#e0b0ff}
+.hb.t0 span{color:#e8d8d0}.hb.t1 span{color:#c8b0ff}.hb.t2 span{color:#ffd23f}.hb.t3 span{color:#ff9a3a;font-size:12px}
+.hb.t1 i{width:70px}.hb.t2 i{width:82px;height:7px}.hb.t3 i{width:104px;height:8px;border-color:#ff8c1a}
+.hb.t1 b{background:linear-gradient(#c8a8ff,#6a3ad0)}.hb.t2 b{background:linear-gradient(#ffe070,#c08a00)}.hb.t3 b{background:linear-gradient(#ffb060,#c05000)}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin:6px 0 18px}
+.bcard{display:flex;gap:12px;padding:12px;background:rgba(10,12,11,.8);border:1px solid rgba(232,226,208,.1);border-left:3px solid var(--bc,rgba(232,226,208,.25))}
+.bcard img{flex:none;width:96px;height:auto;object-fit:contain;align-self:flex-start}.bgrid.zk .bcard img{width:80px;border:1px solid rgba(232,226,208,.1)}.bgrid.slots{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.bcard h4{margin:0 0 2px;font-size:15px}.bcard small{display:block;color:var(--dim);font-size:11.5px;margin-bottom:4px}.bcard p{margin:4px 0 0;font-size:13px;line-height:1.4}.bcard ul{margin:4px 0 0;padding-left:16px;font-size:12.5px}.bcard li.t4{list-style:none;margin-left:-16px;margin-top:4px}
+.bkv{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;margin:6px 0 0;font-size:12px}.bkv dt{color:var(--dim)}.bkv dd{margin:0}
+.bcard.maker{align-items:center}.bbar{display:block;height:7px;background:var(--c);margin:4px 0}
+.bgrid.wg .bcard{flex-direction:column}.bgrid.wg .bcard img{width:100%;max-height:90px;object-fit:contain}.bmk{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}.bmk .mlogo{width:26px;height:26px;font-size:10px}
 </style>
 
 <div id="game">
@@ -877,7 +889,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
       <nav class="hubnav">
         <button class="mbtn" data-hub="jobs">Munkák</button><button class="mbtn" data-hub="arsenal" data-group="kit">Felszerelés</button>
         <button class="mbtn" data-hub="skills" data-group="grow">Fejlődés</button><button class="mbtn" data-hub="shop">Bolt</button>
-        <button class="mbtn" data-hub="career">Karrier</button>
+        <button class="mbtn" data-hub="career">Karrier</button><button class="mbtn" data-hub="bweap" data-group="book">Kézikönyv</button>
       </nav>
       <section id="hubBody" class="hubbody"></section>
     </div>
@@ -899,12 +911,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <div id="chat" hidden><div id="chatLog"></div><input id="chatIn" maxlength="120" placeholder="Üzenet a csapatnak… (Enter: küldés, Esc: mégse)" autocomplete="off" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="js/data.js?v=35" charset="utf-8"></script>
-<script src="js/audio.js?v=35" charset="utf-8"></script>
-<script src="js/music.js?v=35" charset="utf-8"></script>
-<script src="js/world.js?v=35" charset="utf-8"></script>
-<script src="js/maps.js?v=35" charset="utf-8"></script>
-<script src="js/fx.js?v=35" charset="utf-8"></script>
+<script src="js/data.js?v=36" charset="utf-8"></script>
+<script src="js/audio.js?v=36" charset="utf-8"></script>
+<script src="js/music.js?v=36" charset="utf-8"></script>
+<script src="js/world.js?v=36" charset="utf-8"></script>
+<script src="js/maps.js?v=36" charset="utf-8"></script>
+<script src="js/fx.js?v=36" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -912,20 +924,21 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=35" charset="utf-8"></script>
-<script src="js/player.js?v=35" charset="utf-8"></script>
-<script src="js/zombies.js?v=35" charset="utf-8"></script>
-<script src="js/loot.js?v=35" charset="utf-8"></script>
-<script src="js/upgrades.js?v=35" charset="utf-8"></script>
-<script src="js/gear.js?v=35" charset="utf-8"></script>
-<script src="js/vet.js?v=35" charset="utf-8"></script>
-<script src="js/inv.js?v=35" charset="utf-8"></script>
-<script src="js/save.js?v=35" charset="utf-8"></script>
-<script src="js/menu.js?v=35" charset="utf-8"></script>
-<script src="js/skills.js?v=35" charset="utf-8"></script>
-<script src="js/hub.js?v=35" charset="utf-8"></script>
-<script src="js/game.js?v=35" charset="utf-8"></script>
-<script src="js/jobs.js?v=35" charset="utf-8"></script>
+<script src="js/gfx.js?v=36" charset="utf-8"></script>
+<script src="js/player.js?v=36" charset="utf-8"></script>
+<script src="js/zombies.js?v=36" charset="utf-8"></script>
+<script src="js/loot.js?v=36" charset="utf-8"></script>
+<script src="js/upgrades.js?v=36" charset="utf-8"></script>
+<script src="js/gear.js?v=36" charset="utf-8"></script>
+<script src="js/vet.js?v=36" charset="utf-8"></script>
+<script src="js/inv.js?v=36" charset="utf-8"></script>
+<script src="js/save.js?v=36" charset="utf-8"></script>
+<script src="js/menu.js?v=36" charset="utf-8"></script>
+<script src="js/skills.js?v=36" charset="utf-8"></script>
+<script src="js/hub.js?v=36" charset="utf-8"></script>
+<script src="js/book.js?v=36" charset="utf-8"></script>
+<script src="js/game.js?v=36" charset="utf-8"></script>
+<script src="js/jobs.js?v=36" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=35" charset="utf-8"></script>
-<script src="js/net.js?v=35" charset="utf-8"></script>
+<script src="js/p2p.js?v=36" charset="utf-8"></script>
+<script src="js/net.js?v=36" charset="utf-8"></script>
