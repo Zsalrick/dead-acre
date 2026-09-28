@@ -127,7 +127,8 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
-const KEY_LABEL = { KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+let optOpen = null; // the forge's optimization panel: open for this selection only
+const KEY_LABEL = { KeyO: 'O', KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 // selling and salvaging: weapons from the hands, bag or stash, armor worn or stored; favourites are locked, trash goes in bulk
 const wList = sl => ({ L: profile.loadout, B: profile.bag, S: profile.stash })[sl] || [];
 const wAt = (sl, i) => unpackW(wList(sl)[+i]);
@@ -268,12 +269,13 @@ const HUB = {
     const okSel = () => lists[sl] ? !!lists[sl][+si] : sl === 'W' ? !!P.gear[si] : sl === 'G' ? !!st[+si] : false;
     if (!okSel()) { sl = 'L'; si = lists.L[0] ? '0' : '1'; invSel = `L:${si}`; }
     const i = +si, w = lists[sl] && lists[sl][i], it = !w && (sl === 'W' ? P.gear[si] : st[i]);
+    const pp = P.parts || 0, optPanel = () => `<div class="optbox"><small>Optimalizálás · egy véletlen érték +10%-kal feljebb a tartományában, a tökéletesig</small>${OPT_STATS.map(([k, n]) => { const pr = rollOf(w, k); if (pr == null) return ''; const C = optCost(w, pr), max = pr >= .999;
+        return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="opt:${sl}:${i}:${k}" data-tip="${n}: a dobás ${Math.round(pr * 100)}% → ${Math.round(Math.min(1, pr + OPT_STEP) * 100)}%"${max || pp < C.parts || P.cash < C.cash ? ' disabled' : ''}>${max ? 'Tökéletes' : `+10% · ${C.parts} ⚙ · $${C.cash}`}</button></div>`; }).join('')}</div>`;
     const wActs = w && (() => {
       const pp = P.parts || 0;
       return (w.q >= 2 && !w.anoPend ? hbtn(`Felkenés újradobása · ${HFORGE.anoint(w)} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(w), 'KeyN') : '') +
       (w.anoPend ? `<div class="anopend"><small>Új felkenés dobva</small><b>${ANOINTS[w.anoPend]}</b><span>Most: ${ANOINTS[w.anoint] || 'nincs'}</span>${hbtn('Elfogadom', `anoacc:${sl}:${i}`, false, null, 'Az új felkenés kerül a fegyverre.')}${hbtn('Elutasítom', `anorej:${sl}:${i}`, false, null, 'Marad a régi felkenés. Az alkatrész nem jár vissza.')}</div>` : '') +
-      `<div class="optbox"><small>Optimalizálás · egy véletlen érték +10%-kal feljebb a tartományában, a tökéletesig</small>${OPT_STATS.map(([k, n]) => { const pr = rollOf(w, k); if (pr == null) return ''; const C = optCost(w, pr), max = pr >= .999;
-        return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="opt:${sl}:${i}:${k}" data-tip="${n}: a dobás ${Math.round(pr * 100)}% → ${Math.round(Math.min(1, pr + OPT_STEP) * 100)}%"${max || pp < C.parts || P.cash < C.cash ? ' disabled' : ''}>${max ? 'Tökéletes' : `+10% · ${C.parts} ⚙ · $${C.cash}`}</button></div>`; }).join('')}</div>` +
+      hbtn(optOpen === `${sl}:${i}` ? 'Optimalizálás ▲' : 'Optimalizálás ▼', 'optshow', false, 'KeyO', 'Megnyitja / bezárja: egy véletlen érték feljebb vihető a tartományában, a tökéletesig.') +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
       hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w)) +
       ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
@@ -283,7 +285,7 @@ const HUB = {
     const left = sec('Kézben', lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : '').join('')) + sec('Táska', lists.B.map((x, k) => wTile(`B:${k}`, x)).join('')) + sec('Raktár', lists.S.map((x, k) => wTile(`S:${k}`, x)).join('')) +
       sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
     return `<p class="lede">Kovács: optimalizálás, felkenés, kalibrálás, szakértelem és túlhajtás (⚙ ${P.parts || 0} · mag: ${P.oc || 0}). Válassz egy fegyvert vagy páncélt.</p>
-      ${invLayout(left, w ? weaponDetail(w, null, wActs) : it ? gearDetail(it, null, gActs) : noDetail('Nincs mit fejleszteni.'))}`;
+      ${invLayout(left, w ? (optOpen === `${sl}:${i}` ? optPanel() : '') + weaponDetail(w, null, wActs) : it ? gearDetail(it, null, gActs) : noDetail('Nincs mit fejleszteni.'))}`;
   },
   stats() {
     const P = profile, ws = P.loadout.map(unpackW).filter(Boolean);
@@ -367,6 +369,7 @@ $('hubBody').addEventListener('click', e => {
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy', 'pready'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetAvail() > 0) { P.vet[a] = (P.vet[a] || 0) + 1; gearChanged(); }
   if (kind === 'reroll' && pay(reroll())) rollBoard();
+  if (kind === 'optshow') { optOpen = optOpen === invSel ? null : invSel; return renderHub(); }
   if (kind === 'opt') { // opt:list:i:stat
     const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]), pr = w && rollOf(w, k);
     if (w && pr != null && pr < .999) { const C = optCost(w, pr); if ((P.parts || 0) >= C.parts && P.cash >= C.cash && optimize(w, k)) { P.parts -= C.parts; P.cash -= C.cash; list[+i] = packW(w); SND.explode(); } }
