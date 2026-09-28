@@ -49,7 +49,7 @@ function startJob(job, opts = {}) {
   mission.pickup = b; placeVan(a, false);
   setupObjective(mission);
   player.pos.set(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 2.8); player.vel.set(0, 0, 0);
-  player.carry = null;
+  player.carry = null; contractSeen = null;
   if (job.test) { player.points = 0; if (!opts.client) setupTestGround(mission); }
   player.yaw = Math.atan2(player.pos.x, player.pos.z); player.pitch = 0;
   powers.insta = powers.double = 0;
@@ -186,7 +186,7 @@ function settleWeapons(success, M) {
   const P = profile, junkQ = P.junkQ == null ? -1 : P.junkQ, junk = success ? keep.filter(w => !w.owned && !w.unique && w.q <= junkQ) : [];
   const junkParts = junk.reduce((a, w) => a + PARTS[w.q], 0); P.parts = (P.parts || 0) + junkParts; // auto-salvage: marked-as-junk rarities turn into parts at home
   keep = keep.filter(w => !junk.includes(w));
-  const newOnes = keep.filter(w => !w.owned);
+  const newOnes = keep.filter(w => !w.owned); newOnes.forEach(w => w.isNew = true); // marked new in the hub until looked at
   const hands = player.slots.map(w => w && keep.includes(w) ? w : null), bag = player.bag.filter(w => keep.includes(w));
   if (!hands[0] && !hands[1] && bag.length) hands[0] = bag.shift();
   P.loadout = hands.map(w => packW(w || null)); P.bag = bag.map(packW);
@@ -198,7 +198,7 @@ function settleWeapons(success, M) {
   const toStash = it => { if (P.gearStash.length < gearMax()) P.gearStash.push(it); else { P.cash += gearValue(it); overflow++; } };
   for (const k of GEAR_KEYS) { const it = P.gear[k]; if (it && it.found) { if (success) { delete it.found; home.push(it); } else { P.gear[k] = null; lostGear.push(it); } } }
   for (const it of M.gear) {
-    if (it.found) { if (!success) { lostGear.push(it); continue; } delete it.found; home.push(it); }
+    if (it.found) { if (!success) { lostGear.push(it); continue; } delete it.found; it.isNew = true; home.push(it); }
     if (!success && !P.gear[it.slot]) P.gear[it.slot] = it; else toStash(it);
   }
   gearChanged();
@@ -218,6 +218,8 @@ function finishJob(success, abandoned) {
   // dying after the clock ran out (during evac) still pays a quarter of the fee
   const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1)) * (1 + .1 * dirCount(J))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
   const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1) * (J.map === featuredMap() ? 1.25 : 1) * (1 + .15 * dirCount(J))); // the first five jobs: double XP; the featured map +25%; directives +15% each
+  const bd = success ? { c: [[`Munka díja`, `$${J.reward}`], [`Pontjaid 7%-a`, `$${Math.floor(player.earned * .07)}`], SK.cash() > 1 ? ['Képesség', `×${SK.cash().toFixed(2)}`] : null, party > 1 ? [`Csapat (${party} fő)`, `+${10 * (party - 1)}%`] : null, dirCount(J) ? [`Direktívák (${dirCount(J)})`, `+${10 * dirCount(J)}%`] : null].filter(Boolean),
+    x: [['Munka', `${J.xp} XP`], [`Ölések (${player.kills} × 2)`, `${player.kills * 2} XP`], party > 1 ? [`Csapat`, `+${10 * (party - 1)}%`] : null, stats.jobs < 5 ? ['Első 5 munka', '×2'] : null, J.map === featuredMap() ? ['Heti kiemelt pálya', '+25%'] : null, dirCount(J) ? ['Direktívák', `+${15 * dirCount(J)}%`] : null].filter(Boolean) } : null; // shown on the results
   P.cash += cash; stats.cash += cash;
   const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts; const fabric = success ? M.fabric || 0 : 0; P.fabric = (P.fabric || 0) + fabric;
   let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun
@@ -236,7 +238,7 @@ function finishJob(success, abandoned) {
   clearZombieStuff();
   NET.revs = 0;
   const deep = deepFinished(J, success); saveProfile(); // the dive's progress and reward are saved right away
-  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, bd, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {
@@ -513,6 +515,13 @@ function cardHTML(w, action, c) {
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
     <div class="act">${action}</div>`;
 }
+let contractSeen = null;
+function contractWatch() { // a contract finished during a job: say so (claim it at the base)
+  const P = profile; if (!P || !P.daily || !mission || mission.job.test) return;
+  const done = [...P.daily.list.map(c => [c, false]), P.weekly ? [P.weekly.c, true] : null].filter(Boolean).filter(([c, w]) => !c.got && cProg(c, w) >= c.n).map(([c]) => c.txt || c.id);
+  if (contractSeen) for (const t of done) if (!contractSeen.includes(t)) toast('KONTRAKT TELJESÍTVE', [`${t}`, 'A jutalmat a bázison veheted át (Munkák).'], '#9dff6a', 5000);
+  contractSeen = done;
+}
 function modHudText() { // what makes this job harder or richer, for the corner of the screen
   const J = mission && mission.job; if (!J || J.test) return '';
   const L = []; if (J.mod && MODS[J.mod]) L.push(`<b>${MODS[J.mod].label}</b><small>${MODS[J.mod].sub}</small>`);
@@ -522,12 +531,12 @@ function modHudText() { // what makes this job harder or richer, for the corner 
 }
 // what is working for (or against) you right now, as small icons over the item bar (Borderlands style): a timer or a stack count
 function buffIcons(w) {
-  const B = player.buf || {}, L = [], add = (ic, name, col, v, max) => L.push(`<span class="bf" style="--bc:${col}" data-tip="${name}"><i>${ic}</i>${v != null ? `<b>${v}</b>` : ''}${max ? `<u style="width:${clamp(v / max, 0, 1) * 100}%"></u>` : ''}</span>`);
+  const B = player.buf || {}, L = [], seen = player.bufSeen || (player.bufSeen = {}), add = (ic, name, col, v, max) => { const key = name.split(':')[0]; if (!seen[key] || now - seen[key].last > 1) seen[key] = { t: now }; seen[key].last = now; L.push(`<span class="bf${/Lelassítva/.test(name) ? ' bad' : ''}" style="--bc:${col}" data-tip="${name}">${now - seen[key].t < 2.5 ? `<em>${key}</em>` : ''}<i>${ic}</i>${v != null ? `<b>${v}</b>` : ''}${max ? `<u style="width:${clamp(v / max, 0, 1) * 100}%"></u>` : ''}</span>`); };
   const sec = t => Math.max(0, Math.ceil(t));
   if (player.adrenT > 0) add('»', 'Adrenalin', '#7fc4ff', sec(player.adrenT), 12);
   if (player.stormT > 0) add('∞', 'Tűzvihar: nem fogy a tár', '#ff8a3a', sec(player.stormT), 11);
   if (player.eyeT > 0) add('◎', 'Halálszem: amit eltalálsz, megjelölődik', '#b46cff', sec(player.eyeT), 20);
-  if (now < (player.overT || 0)) add('⚙', 'Túlhajtás: +40% tűzgyorsaság', '#ffd23f', sec(player.overT - now), 8);
+  if (now < (player.overT || 0)) add('↯', 'Pörgés: +40% tűzgyorsaság', '#ffd23f', sec(player.overT - now), 8);
   if (powers.insta > 0) add('✖', 'Insta-Kill', '#b6ff8a', sec(powers.insta), 15);
   if (powers.double > 0) add('2×', 'Dupla pont', '#b6ff8a', sec(powers.double), 15);
   if (w && w.tal === 'frenzy' && now < (player.frenzyT || 0)) add('✦', 'Vérszomj: +20% sebzés', '#ff5a4a', sec(player.frenzyT - now), 5);
@@ -547,6 +556,7 @@ function buffIcons(w) {
 }
 function updateHUDFx(dt) { if (typeof updateRemoteAuras === 'function') updateRemoteAuras(dt); }
 function updateHUD() {
+  if ((updateHUD.cw = (updateHUD.cw || 0) + 1) % 60 === 0) contractWatch();
   const w = curW();
   focus = findFocus();
   let card = '', prompt = '';

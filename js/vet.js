@@ -49,7 +49,7 @@ function vetTab() {
     <div class="vtop"><div>Veterán rang<strong>${vetEarned()}</strong></div><div>Elkölthető pont<strong class="cash">${avail}</strong></div></div>
     <div class="gtop"><section><h3>Bónuszok</h3><div class="slist">${rows}</div></section><section><h3>Kihívások</h3><div class="chals">${ch}</div></section></div>`;
 }
-const collTab = () => `<div class="hubhead"><h2>Gyűjtemény</h2></div>${collectionLog()}`;
+const collTab = () => collectionLog();
 
 // ---------- daily and weekly contracts (Division projects): fresh goals every day, a big one every week ----------
 const CONTRACTS = [

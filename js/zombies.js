@@ -165,7 +165,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
   scene.add(z.g); zombies.push(z);
   burst(new V3(z.pos.x, .1, z.pos.z), 0x2a2116, 12, 2.5, .8);
   if (mission) mission.spawned = (mission.spawned || 0) + 1;
-  if (!seenKinds.has(kind) && !K.boss) { seenKinds.add(kind); if (K.desc) popText(`Új ellenség: ${K.name} · ${K.desc}`, '#ff8a70'); }
+  if (!seenKinds.has(kind) && !K.boss) { seenKinds.add(kind); if (K.desc) toast(`ÚJ ELLENSÉG: ${K.name.toUpperCase()}`, [K.desc], '#ff8a70', 5000); }
   return z;
 }
 const tmpV = new V3();
@@ -634,7 +634,7 @@ function updateHealthBars() {
     e.style.zIndex = 1000 - Math.round(v.z * 1000); // the nearer one's label on top
     e.style.opacity = fade; // fades out over the last half second
     const nm = zName(z); if (e.firstChild.textContent !== nm) e.firstChild.textContent = nm;
-    const bd = `<u>◆ ${mission ? mission.job.lvl || 1 : 1}</u>${jobTier() ? `<s>☠ +${jobTier()}</s>` : ''}`; if (e.dataset.bd !== bd) { e.querySelector('em').innerHTML = bd; e.dataset.bd = bd; }
+    const bd = `<u>Lv ${mission ? mission.job.lvl || 1 : 1}</u>${jobTier() ? `<s>☠ +${jobTier()}</s>` : ''}`; if (e.dataset.bd !== bd) { e.querySelector('em').innerHTML = bd; e.dataset.bd = bd; }
     e.querySelector('b').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
   }
   if (mission && mission.gens && !blind) for (const G of mission.gens) { // the generators: green bars, always shown
@@ -646,8 +646,8 @@ function updateHealthBars() {
   }
   for (let i = n; i < hbPool.length; i++) hbPool[i].hidden = true;
   const boss = zombies.find(z => z.K.boss && !z.dead);
-  $('bossbar').hidden = !boss;
-  if (boss) { const p = Math.max(0, boss.hp / boss.maxHp * 100) + '%'; $('bossfill').style.width = p; $('bosslag').style.width = p; $('bossname').textContent = (boss.bounty && BOUNTIES[boss.bounty] ? `${BOUNTIES[boss.bounty].name} · ${boss.phase || 1}. fázis${boss.invulnT > 0 ? ' · immunis' : ''}` : boss.K.name).toUpperCase(); }
+  $('bossbar').hidden = !boss; $('hud').classList.toggle('bossfight', !!boss);
+  if (boss) { const p = Math.max(0, boss.hp / boss.maxHp * 100) + '%'; $('bossfill').style.width = p; $('bosslag').style.width = p; $('bossname').textContent = (boss.bounty && BOUNTIES[boss.bounty] ? `${BOUNTIES[boss.bounty].name} · ${boss.phase || 1}. fázis${boss.invulnT > 0 ? ` · sebezhetetlen ${Math.ceil(boss.invulnT)} mp` : ''}` : boss.K.name).toUpperCase(); }
 }
 
 // ---------- bounties: one very strong boss, guaranteed legendary loot ----------
@@ -673,7 +673,7 @@ function spawnBounty(key) {
   banner(B.name.toUpperCase(), B.desc); SND.roar();
   return z;
 }
-const PHASE_TXT = { 2: 'Dühöngés: gyorsabb, erősebb, és bárdot hajít.', 3: 'Utolsó erő: minden képessége elszabadul.' };
+const PHASE_TXT = { 2: 'Dühöngés: gyorsabb, erősebb, és bevet egy új trükköt.', 3: 'Utolsó erő: minden képessége elszabadul.' };
 function bountyTick(z, dt, dist) {
   const B = BOUNTIES[z.bounty]; if (!B) return;
   const want = z.hp > z.maxHp * .66 ? 1 : z.hp > z.maxHp * .33 ? 2 : 3;
@@ -845,7 +845,7 @@ const AFFIX_DESC = { fire: 'Halálakor lángra lobbantja maga körül a földet.
 // ranks: each one tougher, with its own bar colour; elites get one trait, named zombies two and a name
 const ZTIERS = [
   { name: '',           hp: 1,   sc: 1,    n: 0, col: '#ff5a4a' },
-  { name: 'Veterán',    hp: 1.6, sc: 1.04, n: 0, col: '#b48cff' },
+  { name: 'Edzett',     hp: 1.6, sc: 1.04, n: 0, col: '#b48cff' },
   { name: 'Elit',       hp: 2.6, sc: 1.08, n: 1, col: '#ffd23f' },
   { name: 'Nevesített', hp: 4.5, sc: 1.15, n: 2, col: '#ff8c1a' },
 ];
@@ -923,4 +923,4 @@ function mergeZombieBits(pivots, hitParts) {
 }
 function freeZombie(z) { z.mats.forEach(m => m.dispose()); z.g.traverse(o => { if (o.geometry && o.geometry.userData.own) o.geometry.dispose(); }); }
 
-function firstBounty(key) { const B = stats.bk || (stats.bk = {}); if (!B[key]) { profile.oc = (profile.oc || 0) + 1; popText('Első győzelem ellene: +1 túlhajtás-mag', '#a88aff'); } B[key] = 1; }
+function firstBounty(key) { const B = stats.bk || (stats.bk = {}); if (!B[key]) { profile.oc = (profile.oc || 0) + 1; toast('ELSŐ GYŐZELEM ELLENE', ['+1 ◆ túlhajtás-mag (a kovácsnál szerelheted be)'], '#a88aff', 5000); } B[key] = 1; }

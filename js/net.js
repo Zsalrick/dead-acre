@@ -687,6 +687,10 @@ function updateCompass() {
   const w = curW(); if (w && w.reserve < w.mag && !mission.job.test) h += at(bear(ammoBox.pos.x, ammoBox.pos.z), 'cv ammo', `LŐSZER ${Math.round(Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z))} m`);
   if (mission.gens) for (const G of mission.gens) if (G.hp > 0) h += at(bear(G.pos.x, G.pos.z), 'cv', `GEN ${G.name} ${Math.round(G.hp / G.max * 100)}%`);
   if (mission.esc && mission.esc.target.alive) h += at(bear(mission.esc.pos.x, mission.esc.pos.z), 'cv', 'TÚLÉLŐ');
+  const dist = p => Math.round(Math.hypot(p.x - player.pos.x, p.z - player.pos.z));
+  if (mission.crates) { if (player.carry != null && mission.drop) h += at(bear(mission.drop.pos.x, mission.drop.pos.z), 'cv', `LERAKÓ ${dist(mission.drop.pos)} m`); else { const c = mission.crates.filter(c => c.st === 0).sort((a, b) => dist(a.pos) - dist(b.pos))[0]; if (c) h += at(bear(c.pos.x, c.pos.z), 'cv ammo', `LÁDA ${dist(c.pos)} m`); if (mission.drop) h += at(bear(mission.drop.pos.x, mission.drop.pos.z), 'cv', 'LERAKÓ'); } }
+  if (mission.cache && mission.cache.t > 0) h += at(bear(mission.cache.x, mission.cache.z), 'cv ammo', `UTÁNPÓTLÁS ${Math.round(mission.cache.t)} mp`);
+  { const bz = zombies.find(z => z.bounty && !z.dead); if (bz) h += at(bear(bz.pos.x, bz.pos.z), 'cv', `CÉLPONT ${dist(bz.pos)} m`); }
   if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
 }
 

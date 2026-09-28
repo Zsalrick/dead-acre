@@ -139,7 +139,7 @@ function spawnGearDrop(it, pos) {
     new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 1 + it.q * .4; g.add(beam);
   g.position.set(pos.x + rand(-.5, .5), 0, pos.z + rand(-.5, .5)); scene.add(g);
-  const lv = textSprite([`LV ${it.level}`], RARITIES[it.q].color, .5); lv.position.y = 1.05; g.add(lv);
+  const lv = textSprite([`${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · ${it.name} · Lv ${it.level}`], gCol(it), .5); lv.position.y = 1.05; lv.material.sizeAttenuation = false; lv.scale.multiplyScalar(.045); g.add(lv);
   const d = { it, g, m, t: 90, pos: g.position }; gearDrops.push(d); return d;
 }
 function updateGearDrops(dt) {

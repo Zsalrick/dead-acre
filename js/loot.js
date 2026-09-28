@@ -11,7 +11,7 @@ function spawnDrop(w, pos) {
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   halo.scale.set(1.6, 1.6, 1); halo.position.y = .7; g.add(halo);
   const better = canUse(w) && typeof curW === 'function' && player.slots && player.slots.some(Boolean) && dps(w) > Math.max(...player.slots.filter(Boolean).map(dps));
-  const lv = textSprite([`${better ? '▲ ' : ''}LV ${w.level} ${w.base.name}${w.roll != null ? ` · ${w.roll}%` : ''}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; g.add(lv);
+  const lv = textSprite([`${better ? '▲ ' : ''}${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · ${w.name} · Lv ${w.level}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; lv.material.sizeAttenuation = false; lv.scale.multiplyScalar(.045); g.add(lv); // the same size at any distance
   if (w.q >= 4) { // legendary and unique: a fat beam, a ring on the ground and a sound you learn to love
     const ring = new THREE.Mesh(new THREE.RingGeometry(.7, .95, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .03; g.add(ring);

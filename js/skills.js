@@ -224,22 +224,22 @@ function skillsTab() {
   const picker = `<nav class="clspick">${Object.entries(CLASSES).map(([k, c]) => `<button class="chip${k === V ? ' on' : ''}" data-act="skview:${k}" style="--cc:${c.color}">${c.name}${k === P.cls ? ' · aktív' : ''}</button>`).join('')}</nav>`;
   const rows = [0, 1, 2, 3, 4].map(r => {
     const need = r * 3, open = spent >= need;
-    return `<div class="trow${open ? '' : ' locked'}"><div class="tlabel">${r + 1}. szint<small>${open ? 'nyitva' : `zárva · ${need} pont kell (${spent}/${need})`}</small></div>` +
+    return `<div class="trow${open ? '' : ' locked'}"><div class="tlabel">${r + 1}. sor<small>${open ? 'nyitva' : `zárva · ${need} elköltött érdemérem kell (${spent}/${need})`}</small></div>` +
       C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => {
         const l = lvOf(id), maxed = l >= max;
         return `<div class="node${l ? ' has' : ''}${maxed ? ' max' : ''}"><b>${name}</b>${pips(l, max)}
           <small>${desc(Math.max(1, l))}${!maxed && l ? ` → ${desc(l + 1)}` : ''}</small>
-          ${mine ? hbtn(maxed ? 'Kész' : 'Tanul · 1 érem', `sk:${id}`, maxed || !open || P.tokens < 1) : ''}</div>`;
+          ${mine ? hbtn(maxed ? 'Kész' : 'Tanul · 1 érdemérem', `sk:${id}`, maxed || !open || P.tokens < 1) : ''}</div>`;
       }).join('') + '</div>';
   }).join('');
   return `${picker}<div class="hubhead"><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2>
       <div class="hubbtns">${mine ? hbtn('Pontok és módosítók vissza (ingyen)', 'respec', !spent && !augOwned(V)) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
     <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${mine ? Math.round(abilityCd()) : C.ability.cd} mp.</p>
-    <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent} pont${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
-    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · 12, 15 és 18 elköltött pontnál nyílik egy-egy</small></h3>
+    <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent}${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
+    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · 12, 15 és 18 elköltött érdeméremnél nyílik egy-egy</small></h3>
     <div class="augs">${(AUGMENTS[V] || []).map(([id, name, desc]) => {
       const own = (P.augOwn || []).includes(id), on = mine && augOn(id);
-      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? (own || augOwned(V) < augAllowed() ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : `<small class="lockt">Zárva · a fában ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]} pont kell (van: ${spent})</small>`) : ''}</div>`;
+      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? (own || augOwned(V) < augAllowed() ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érdemérem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : `<small class="lockt">Zárva · ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]} elköltött érdemérem kell (van: ${spent})</small>`) : ''}</div>`;
     }).join('')}</div>
     <div class="tree">${rows}</div>`;
 }

@@ -55,11 +55,12 @@ function tile(sel, pic, name, sub, color, o = {}) {
     ${o.val != null ? `<b class="tv">${o.val}<small>${o.valLbl}</small></b>` : ''}${o.n ? `<i class="tb">${o.n}</i>` : ''}${o.price ? `<i class="tprice">${o.price}</i>` : ''}</button>`;
 }
 const favTag = x => x.fav ? '★' : x.junk ? '🗑' : '';
+const newTag = x => x.isNew ? 'új' : '';
 const wTile = (sel, w, o = {}) => tile(sel, wPic(w), (favTag(w) ? favTag(w) + ' ' : '') + w.name, `${RARITIES[w.q].name} · ${w.base.name}`, rarColor(w),
-  Object.assign({ exp: w.exp, lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
+  Object.assign({ tag: newTag(w), exp: w.exp, lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
 const gTile = (sel, it, o = {}) => tile(sel, gPic(it), (favTag(it) ? favTag(it) + ' ' : '') + it.name, (it.exo ? `Egzotikus · ${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`), gCol(it),
-  Object.assign({ exp: it.exp, lv: `Lv ${it.level}`, lock: !canUse(it), val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
+  Object.assign({ tag: newTag(it), exp: it.exp, lv: `Lv ${it.level}`, lock: !canUse(it), val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
 const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="tpic">${pic ? `<img src="${pic}" alt="">` : ''}</span><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
 const invLayout = (left, detail) => `<div class="inv"><div class="invl">${left}</div><aside class="invd">${detail}</aside></div>`;
 const noDetail = t => `<div class="dnone">${t}</div>`;
@@ -144,7 +145,7 @@ function weaponDetail(w, cmp, actions) {
       ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · dobás ${pctS(A.roll)}`, '', rbarP(RL.dmg))}
       ${drow('Szakértelem', `${w.exp || 0}/10`, c ? arrow(w.exp || 0, c.exp || 0) : '', `+${2 * (w.exp || 0)}% sebzés ezzel a fegyverrel${(w.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, w.exp ? 'core' : '', `<i class="rbar" style="--p:${(w.exp || 0) * 10}%"></i>`)}
       ${drow('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), 'kaszt, képességek, páncél, gyártó, szakértelem')}
-      ${drow('Tűzgyorsaság', `${w.rpm}/p`, c ? arrow(w.rpm, c.rpm) : '', '', '', rbarP(RL.rate))}
+      ${drow('Tűzgyorsaság', `${w.rpm}/perc`, c ? arrow(w.rpm, c.rpm) : '', '', '', rbarP(RL.rate))}
       ${drow('Tár', w.mag, c ? arrow(w.mag, c.mag) : '', '', '', rbarP(RL.mag))}
       ${drow(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? arrow(w.reload, c.reload, true, 2) : '', `gyorsaság ${pctS(reloadMul() - 1)}`, '', rbarP(RL.reload))}
       ${drow('Hatótáv', `${b.range} m`, c ? arrow(b.range, c.base.range) : '')}
