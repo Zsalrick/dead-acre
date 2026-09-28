@@ -794,3 +794,6 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 #pause .tile.empty{min-height:170px}
 .invl .tiles .tile.empty{min-height:150px}
 #banner{top:calc(170px * var(--huz,1))}
+.fcard{container-type:inline-size}
+.optrow .sbtn{white-space:nowrap}
+@container (max-width:560px){.optrow{grid-template-columns:minmax(0,120px) minmax(60px,1fr) 46px;row-gap:6px;padding:4px 0 10px;border-bottom:1px solid var(--ln)}.optrow .sbtn{grid-column:1/-1;justify-content:center;width:100%}}
