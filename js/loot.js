@@ -34,15 +34,31 @@ const POWERS = {
 };
 const powers = { insta: 0, double: 0 };
 const powerUps = [];
+// ammo on the ground is typed by weapon family, with its own icon: mostly for a gun you carry, sometimes for another
+const AMMO_COL = { pistol: '#e8c86a', smg: '#9fd0ff', rifle: '#ffb060', marks: '#c8a8ff', heavy: '#ff7a5a', shotgun: '#ff5a5a', energy: '#6ff0c8', explosive: '#ffd23f' };
+const ammoMats = {};
+function ammoIcon(cat) { // a small box of rounds in the family's colour, with its name
+  if (ammoMats[cat]) return ammoMats[cat];
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d'), col = AMMO_COL[cat] || '#e8c86a';
+  g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(64, 60, 56, 0, 7); g.fill(); g.strokeStyle = col; g.lineWidth = 4; g.stroke();
+  for (let i = 0; i < 3; i++) { const x = 34 + i * 22; g.fillStyle = '#b08a3a'; g.fillRect(x, 50, 16, 34); g.fillStyle = col; g.beginPath(); g.moveTo(x, 50); g.lineTo(x + 8, cat === 'shotgun' ? 38 : 28); g.lineTo(x + 16, 50); g.fill(); g.fillStyle = '#6a5020'; g.fillRect(x, 80, 16, 4); }
+  g.fillStyle = col; g.font = 'bold 17px Impact, sans-serif'; g.textAlign = 'center'; g.fillText((CAT_NAMES[cat] || cat).toUpperCase(), 64, 106);
+  return ammoMats[cat] = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false });
+}
+function ammoCat() { const mine = [...player.slots, ...player.bag].filter(Boolean).map(w => CAT[w.base.id]).filter(Boolean); return mine.length && Math.random() < .7 ? pick(mine) : pick([...new Set(Object.values(CAT))]); }
 function spawnPower(pos, type) {
   type = type || pick(Object.keys(POWERS).filter(k => !POWERS[k].small));
-  const s = POWERS[type].small ? textSprite(POWERS[type].lines, '#ffd27a', .8, 'rgba(255,190,60,.45)') : textSprite(POWERS[type].lines, '#b6ff8a', 1.5, 'rgba(80,255,60,.5)');
-  s.position.set(pos.x, 1.1, pos.z); scene.add(s);
-  powerUps.push({ type, s, t: 26 });
+  let s, cat = null;
+  if (type === 'ammo') { cat = ammoCat(); s = new THREE.Sprite(ammoIcon(cat)); s.scale.set(.75, .75, 1); }
+  else s = textSprite(POWERS[type].lines, '#b6ff8a', 1.5, 'rgba(80,255,60,.5)');
+  s.position.set(pos.x, type === 'ammo' ? .6 : 1.1, pos.z); scene.add(s);
+  powerUps.push({ type, s, t: 26, cat });
 }
+const ammoFits = p => [...player.slots, ...player.bag].some(w => w && CAT[w.base.id] === p.cat); // no gun for it: it stays on the ground
 function takePower(p) {
-  itemFeed('felvette', POWERS[p.type].label, p.type === 'ammo' ? 0 : 1);
-  if (p.type === 'ammo') { [...player.slots, ...player.bag].forEach(w => { if (w) w.reserve = Math.min(resMax(w), w.reserve + w.mag * 2); }); SND.reload(); return popText('+ lőszer', '#ffd27a'); }
+  if (p.type === 'ammo') { const nm = `${CAT_NAMES[p.cat] || ''} lőszer`; itemFeed('felvette', nm, 0);
+    [...player.slots, ...player.bag].forEach(w => { if (w && CAT[w.base.id] === p.cat) w.reserve = Math.min(resMax(w), w.reserve + w.mag * 2); }); SND.reload(); return popText(`+ ${nm}`, AMMO_COL[p.cat] || '#ffd27a'); }
+  itemFeed('felvette', POWERS[p.type].label, 1);
   SND.power(); banner(POWERS[p.type].label.toUpperCase());
   if (p.type === 'max') [...player.slots, ...player.bag].forEach(w => { if (w) { w.reserve = resMax(w); w.ammo = w.mag; } });
   else powers[p.type] = 15;

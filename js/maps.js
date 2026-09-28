@@ -1,7 +1,7 @@
 ﻿// ================= MAPS =================
 // A map is data: its yard, gates into unlockable areas, the station each area holds, spawn points, where the
 // mystery box / ammo crate / escape truck stand, and a build() for its buildings. loadMap() rebuilds everything.
-const VAN_HALF = 2.2, GATE_HALF = 2.6, BOX_COST = 950, AMMO_COST = 500;
+const VAN_HALF = 2.2, GATE_HALF = 2.6, BOX_COST = 950, AMMO_COST = 1200; // the crate refills only the gun in your hand
 let MAP = null, MAP_ID = 'farm', MAIN_RECT = { minX: -38, maxX: 38, minZ: -38, maxZ: 38 }, AREAS = {}, SPAWNS = [], BOX_SPOTS = [];
 const lamps = [], props = [];
 let mapSeed = 1, baseFog = .03;

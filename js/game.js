@@ -441,9 +441,9 @@ function updateFx(dt) {
   }
   for (let i = powerUps.length - 1; i >= 0; i--) {
     const p = powerUps[i]; p.t -= dt;
-    p.s.position.y = 1.1 + Math.sin(now * 3) * .15; p.s.visible = p.t > 6 || Math.sin(now * 16) > 0;
-    if (Math.hypot(p.s.position.x - player.pos.x, p.s.position.z - player.pos.z) < 1.4) { takePower(p); p.t = 0; }
-    if (p.t <= 0) { scene.remove(p.s); p.s.material.map.dispose(); p.s.material.dispose(); powerUps.splice(i, 1); }
+    p.s.position.y = (p.cat ? .6 : 1.1) + Math.sin(now * 3) * .15; p.s.visible = p.t > 6 || Math.sin(now * 16) > 0;
+    if (Math.hypot(p.s.position.x - player.pos.x, p.s.position.z - player.pos.z) < 1.4 && (p.type !== 'ammo' || ammoFits(p))) { takePower(p); p.t = 0; }
+    if (p.t <= 0) { scene.remove(p.s); if (!p.cat) { p.s.material.map.dispose(); p.s.material.dispose(); } powerUps.splice(i, 1); } // ammo icons are shared
   }
   for (const k in powers) powers[k] = Math.max(0, powers[k] - dt);
 }
