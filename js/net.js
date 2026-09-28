@@ -61,17 +61,17 @@ async function partyLeave() {
 }
 function partyMembers() {
   if (!NET.pr) return [];
-  return NET.pr.peers().filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, n: p.presence.m.n, lv: +p.presence.m.lv || 1, c: p.presence.m.c, h: !!p.presence.m.h, st: p.presence.m.st, rdy: !!p.presence.m.rdy, sel: p.presence.m.sel }));
+  return NET.pr.peers().filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, n: p.presence.m.n, lv: +p.presence.m.lv || 1, c: p.presence.m.c, h: !!p.presence.m.h, st: p.presence.m.st, rdy: !!p.presence.m.rdy, sel: p.presence.m.sel, dr: Array.isArray(p.presence.m.dr) ? p.presence.m.dr.filter(k => DIRECTIVES[k]) : null }));
 }
 function onPartyChange() {
-  const k = JSON.stringify(partyMembers().map(m => [m.n, m.lv, m.c, m.h, m.st, m.rdy, m.sel && m.sel.t, m.sel && m.sel.tr]));
+  const k = JSON.stringify(partyMembers().map(m => [m.n, m.lv, m.c, m.h, m.st, m.rdy, m.sel && m.sel.t, m.sel && m.sel.tr, m.dr && m.dr.join()]));
   if (k === NET.keyParty) return; NET.keyParty = k;
   if (NET.host) setLobby();
   if (state === 'hub') renderHub();
 }
 function publishMember() {
   if (!NET.pr) return;
-  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
+  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, dr: NET.host && profile ? profile.dirs || [] : null, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
 }
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;

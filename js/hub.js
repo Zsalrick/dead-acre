@@ -258,7 +258,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.parts || 0) >= expCost(it)) { P.parts -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
   if (kind === 'ocset') { const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]); if (w && OVERCLOCKS[k] && (P.oc || 0) >= 1 && (P.parts || 0) >= 20 && w.oc !== k) { P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } }
   if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; return startJob(deepJob(clamp(+a, 0, 2))); }
-  if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); }
+  if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); if (NET.host) publishMember(); }
   if (kind === 'bsave') saveBuild(+a);
   if (kind === 'bload') loadBuild(+a);
   if (kind === 'slot' && P.stash.length < stashMax() && pay(slotCost())) spinSlot();
@@ -391,7 +391,7 @@ function hubCycle(d) { // Q / E: previous / next top tab
 }
 
 function directivesRow() { // toggles; the leader's choice is what the party plays
-  const D = profile.dirs || [], n = D.length, off = NET.code && !NET.host;
+  const off = NET.code && !NET.host, lead = off && partyMembers().find(m => m.h), D = off ? (lead && lead.dr) || [] : profile.dirs || [], n = D.length; // a member sees the leader's set
   return `<div class="dirs"><b>Direktívák</b>${Object.entries(DIRECTIVES).map(([k, d]) => `<button class="chip${D.includes(k) ? ' on' : ''}" data-act="dir:${k}" title="${d.desc}"${off ? ' disabled' : ''}>${d.name}</button>`).join('')}<small>${n ? `+${15 * n}% XP · +${10 * n}% pénz · jobb zsákmány` : 'önként vállalt nehezítés több jutalomért'}${off ? ' · a vezető választja' : ''}</small></div>`;
 }
 

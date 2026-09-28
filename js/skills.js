@@ -8,10 +8,10 @@ const CLASSES = {
     ability: { name: 'Tűzvihar', cd: 50, desc: '8 mp-ig 40%-kal gyorsabban lősz, és nem fogy a tár.' },
     tree: [
       ['s_rifle', 'Puskás', 3, r => `+${6 * r}% sebzés gépkarabéllyal és nehézfegyverrel`],
-      ['s_hide', 'Vastag bőr', 3, r => `+${10 * r} max életerő`],
+      ['s_hide', 'Vastag bőr', 3, r => `+${8 * r} max életerő`],
       ['s_hands', 'Gyors kezek', 3, r => `+${8 * r}% újratöltési sebesség`],
       ['s_burst', 'Sorozat', 2, r => `+${5 * r}% kritikus esély automata fegyverrel`],
-      ['s_armor', 'Páncélzat', 3, r => `-${5 * r}% elszenvedett sebzés`],
+      ['s_armor', 'Páncélzat', 3, r => `-${4 * r}% elszenvedett sebzés`],
       ['s_ammo', 'Lőszerzsák', 2, r => `+${15 * r}% tartalék lőszer`],
       ['s_disc', 'Tűzfegyelem', 2, r => `-${30 * r}% szórásnövekedés sorozatlövésnél`],
       ['s_rage', 'Nem adom fel', 1, () => '30% élet alatt +25% sebzés'],
@@ -70,7 +70,7 @@ const CLASSES = {
   },
   medic: {
     name: 'Tábori pap', tag: 'Gyógyító', color: '#f2d27a', desc: 'Nem hal meg könnyen. Gyógyul, pajzsot tart, és visszaáll a harcba.',
-    passive: '+50% gyógycsomag-gyógyítás, +20% életerő-regeneráció, +8% sebzés sörétessel és géppisztollyal, és az általad felélesztett társ teli életerővel áll fel.',
+    passive: '+50% gyógycsomag-gyógyítás, +20% életerő-regeneráció, +20% sebzés sörétessel és géppisztollyal, és az általad felélesztett társ teli életerővel áll fel.',
     ability: { name: 'Szentelt kör', cd: 45, desc: '8 mp-ig gyógyító kör a lábad alatt; a benne lévő zombik lelassulnak.' },
     tree: [
       ['m_regen', 'Gyógyír', 3, r => `+${10 * r}% életerő-regeneráció`],
@@ -114,7 +114,7 @@ const SK = {
     if (c === 'heavy') m += .15 * rk('s_heavy');
     if (c === 'marks' || c === 'pistol') m += .06 * rk('h_marks');
     if (c === 'energy') m += .08 * rk('e_cells') + (isCls('engineer') ? .12 : 0);
-    if (c === 'shotgun' || c === 'smg') m += .06 * rk('m_zeal') + (isCls('medic') ? .08 : 0);
+    if (c === 'shotgun' || c === 'smg') m += .06 * rk('m_zeal') + (isCls('medic') ? .2 : 0);
     if (rk('s_rage') && player.hp < maxHp() * .3) m += .25;
     if (exoOn('berserk')) m += .5 * clamp(1 - player.hp / maxHp(), 0, 1);
     if (player.bloodN && now < player.bloodT) m += .05 * player.bloodN; // Gravetide: Vérszomj
@@ -124,14 +124,14 @@ const SK = {
   crit: w => .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
   critDmg: () => .2 * rk('h_deadly') + (exoOn('glass') ? .5 : 0),
   head: () => (isCls('hunter') ? .1 : 0) + .12 * rk('h_head'),
-  hp: () => 10 * rk('s_hide'),
+  hp: () => 8 * rk('s_hide'),
   shield: () => 15 * rk('m_shield'),
   regen: () => 1 + (isCls('medic') ? .2 : 0) + .1 * rk('m_regen'),
   regenDelay: () => .3 * rk('m_rest'),
   speed: () => .04 * rk('h_light'),
   reload: () => .08 * rk('s_hands'),
   ammo: () => .15 * rk('s_ammo'),
-  taken: () => (dirOn('fragile') ? 1.3 : 1) * (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < 6 ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .05 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
+  taken: () => (dirOn('fragile') ? 1.3 : 1) * (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < 6 ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .04 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
     * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1),
   med: () => Math.round((70 + 20 * rk('m_bless')) * (isCls('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),
