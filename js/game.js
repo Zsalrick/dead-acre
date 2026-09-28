@@ -164,7 +164,7 @@ function updateMission(dt) {
 }
 function extract() {
   if (!mission || mission.phase !== 'evac' || mission.leaving) return;
-  if (NET.client) { if (!(mission.boardT > 0)) { netAct('board'); banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); } return; }
+  if (NET.client) { if (!truck.parked) return popText('A furgon még nem állt meg.', '#ff8a70'); if (!(mission.boardT > 0)) { netAct('board'); banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); } return; }
   if (NET.mode && mission.boarded && !netExtractOk()) banner('LEMARADTÁL', 'A furgon nélküled ment el.');
   if (!mission.boarded) { // first press: start loading
     if (!(mission.boardT > 0)) { mission.boardT = BOARD_T; banner('BESZÁLLÁS', `Tarts ki ${BOARD_T} mp-ig a furgon mellett!`); SND.buy(); }

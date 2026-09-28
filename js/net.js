@@ -424,7 +424,7 @@ function applySnapshot(g, hostPeer) {
   else if (M.phase === 'lull' && was.ph === 'wave') { banner('A HULLÁM VÉGE', 'Öljétek meg a maradékot.'); SND.roundEnd(); }
   if (M.evacWarn && !was.ew && (player.down || player.ffyl > 0)) netRevive();
   if (M.evacWarn && !was.ew) { banner('A FURGON ÚTON VAN', `${EVAC_WARN} mp múlva ér a zöld jelzéshez. Induljatok!`); SND.roundEnd(); }
-  if (M.phase === 'evac' && was.ph !== 'evac') { banner('IDŐ LEJÁRT', `Itt a furgon! [E], aztán ${BOARD_T} mp-ig mellette.`); SND.roundEnd(); }
+  if (M.phase === 'evac' && was.ph !== 'evac') { banner('IDŐ LEJÁRT', `Itt a furgon! [E], aztán tarts ki ${BOARD_T} mp-ig mellette.`); SND.roundEnd(); }
   // the van
   if ((M.evacWarn || M.phase === 'evac') && M.pickPlaced !== M.pickup) { M.pickPlaced = M.pickup; M.departT = -1; placeVan(M.pickup, false); truck.beacon.visible = truck.beam.visible = true; }
   if (M.pickPlaced != null && !M.leaving) setVanAt(Math.max(0, +g.vo || 0));

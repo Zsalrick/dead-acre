@@ -42,7 +42,7 @@ stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping; stoneTex.repeat.set(3, 2
 
 // ---------- small builders (all add to mapGroup) ----------
 const put = o => { mapGroup.add(o); return o; };
-const basic = c => new THREE.MeshBasicMaterial({ color: c });
+const basicCache = new Map(), basic = c => basicCache.get(c) || (basicCache.set(c, new THREE.MeshBasicMaterial({ color: c })), basicCache.get(c));
 function glowSprite(color, size, pos) {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   s.scale.set(size, size, 1); s.position.copy(pos); return put(s);
@@ -53,7 +53,7 @@ function pointLight(color, i, d, x, y, z) { // from the pool; past 16 a map ligh
   l.color.setHex(color); l.intensity = i; l.distance = d; l.position.set(x, y, z); return l;
 }
 const mapLabels = [];
-function label(lines, color, size, x, y, z) { const s = textSprite(lines, color, size); s.position.set(x, y, z); mapLabels.push(s); return put(s); }
+function label(lines, color, size, x, y, z) { const s = textSprite(lines, color, size); s.position.set(x, y, z); s.material.depthTest = false; s.renderOrder = 6; s.userData.base = s.scale.clone(); mapLabels.push(s); return put(s); } // signs read through posts and shrink up close
 
 // ---------- set dressing for stations and shops ----------
 const panelCache = {};
@@ -102,7 +102,9 @@ function cylinderSolid(x, z, r, h, mat, y = 0) {
   obstacles.push({ minX: x - r * .85, maxX: x + r * .85, minZ: z - r * .85, maxZ: z + r * .85, h: y + h });
   return m;
 }
+const graveSpots = [];
 function grave(x, z) {
+  graveSpots.push([x, z]);
   const m = put(new THREE.Mesh(unitBox, stoneMat)); m.scale.set(.62, rand(.7, 1.1), .16);
   m.position.set(x, .45, z); m.rotation.set(rand(-.15, .15), rand(-.3, .3), rand(-.15, .15)); m.castShadow = true;
 }
@@ -200,7 +202,7 @@ const MODS = {
 };
 // perk machines (one per area, CoD style): bought with points, last for the job
 const PERKS = {
-  jug:    { name: 'Juggernaut', desc: '+50% max életerő erre a munkára', cost: 2500, color: 0xff4a4a },
+  jug:    { name: 'Nehézpáncél', desc: '+50% max életerő erre a munkára', cost: 2500, color: 0xff4a4a },
   speed:  { name: 'Gyorskezű', desc: '+30% újratöltési sebesség', cost: 2000, color: 0x4aff8a },
   tap:    { name: 'Duplacsapás', desc: '+25% tűzgyorsaság', cost: 2000, color: 0xffd04a },
   runner: { name: 'Futóláb', desc: '+15% mozgás és végtelen sprint', cost: 1500, color: 0x4ac8ff },
@@ -589,7 +591,7 @@ function loadMap(id, seed) {
   scene.remove(mapGroup); disposeTree(mapGroup); mapGroup = new THREE.Group(); scene.add(mapGroup);
   LIGHT_POOL.forEach(l => l.intensity = 0); lightNext = 0;
   obstacles.length = 0; rayBlockers.length = 0; rayBlockers.push(ground);
-  lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0; mapLabels.length = 0;
+  graveSpots.length = 0; lamps.length = 0; props.length = 0; trapState.length = 0; mapSpin.length = 0; mapLabels.length = 0;
   turrets.forEach(t => scene.remove(t.g)); turrets.length = 0;
   MAIN_RECT = MAP.main; SPAWNS = MAP.spawns; BOX_SPOTS = MAP.boxSpots;
   // look
@@ -669,10 +671,10 @@ function buildArea(a) {
   const deep = a.side === 'n' ? [c.minZ + 2.5] : a.side === 's' ? [c.maxZ - 2.5] : a.side === 'e' ? [c.maxX - 2.5] : [c.minX + 2.5];
   const corners = (a.side === 'n' || a.side === 's' ? [[c.minX + 2.5, deep[0]], [c.maxX - 2.5, deep[0]]] : [[deep[0], c.minZ + 2.5], [deep[0], c.maxZ - 2.5]])
     .sort((p, q) => Math.hypot(q[0] - x, q[1] - z) - Math.hypot(p[0] - x, p[1] - z));
-  const keys = Object.keys(PERKS), pk = keys[Math.floor(mulberry(Math.round(mapSeed + c.minX * 7 + c.minZ * 13))() * keys.length)], P = PERKS[pk];
+  const keys = Object.keys(PERKS).filter(k => !Object.values(AREAS).some(o => o.perk && o.perk.key === k)), pk = keys[Math.floor(mulberry(Math.round(mapSeed + c.minX * 7 + c.minZ * 13))() * keys.length)], P = PERKS[pk]; // no perk twice on a map
   const [mx, mz] = corners[0], [chx, chz] = corners[1];
   a.perk = { key: pk, pos: new V3(mx, 0, mz) };
-  addBox(mx, mz, 1, 1, 2.1, matStd({ color: 0x2a2a30, metalness: .4, roughness: .5 }));
+  addBox(mx, mz, 1, 1, 2.1, matStd({ color: new THREE.Color(P.color).multiplyScalar(.28).getHex(), metalness: .4, roughness: .5 }));
   addBox(mx, mz, 1.02, 1.02, .1, new THREE.MeshBasicMaterial({ color: P.color }), 2, false);
   { const hex = '#' + P.color.toString(16).padStart(6, '0'), face = new THREE.Group(); face.position.set(mx, 0, mz); face.rotation.y = Math.atan2(cx - mx, cz - mz); mapGroup.add(face);
     const tex = panelTex('perk' + pk, 128, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, hex); gr.addColorStop(1, '#101014'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
@@ -711,7 +713,7 @@ function buildArea(a) {
     cylinderSolid(x, z, 1.45, .9, matStd({ color: 0x6a6a70 }));
     const water = put(new THREE.Mesh(new THREE.CircleGeometry(1.2, 20), basic(0x3a9ac0))); water.rotation.x = -Math.PI / 2; water.position.set(x, .92, z);
     glowSprite(0x5fd8ff, 2.2, new V3(x, 1.4, z)); pointLight(0x5fd8ff, 1.1, 12, x, 2, z);
-    label(['SZENT KÚT'], '#9feaff', 2.4, x, 3.9, z);
+    label(['SZENT KÚT'], '#9feaff', 2.2, x, 3.5, z);
     for (let k = 0; k < 14; k++) { const q = k / 14 * Math.PI * 2; deco(unitBox, stoneMat, x + Math.cos(q) * 1.5, .5 + (k % 2) * .08, z + Math.sin(q) * 1.5, .6, 1, .42).rotation.y = -q; }
     for (const s2 of [-1, 1]) deco(unitBox, poleMat, x + s2 * 1.45, 1.5, z, .14, 2.9, .14);
     deco(unitBox, matStd({ color: 0x4a3024 }), x, 3.05, z - .45, 3.4, .1, 1.3).rotation.x = .45; deco(unitBox, matStd({ color: 0x4a3024 }), x, 3.05, z + .45, 3.4, .1, 1.3).rotation.x = -.45;
@@ -726,6 +728,7 @@ function buildArea(a) {
     put(new THREE.Mesh(new THREE.SphereGeometry(.12, 8, 6), basic(0xff3a1a))).position.set(x, 1.25, z);
     label(['CSAPDA'], '#ff8a4a', 2, x, 2.3, z);
     const hz = new THREE.MeshLambertMaterial({ map: hazardTex });
+    deco(unitBox, hz, x, .75, z, .34, 1.5, .34); glowSprite(0xff6a1a, 1.4, new V3(x, 1.5, z));
     deco(unitBox, hz, x, 1.12, z, .32, .06, .32); deco(unitBox, hz, x, .02, z, 1.4, .02, 1.4);
     deco(unitBox, ironMat, x + .2, 1.2, z, .05, .45, .05).rotation.z = -.5; deco(new THREE.SphereGeometry(.07, 8, 6), basic(0xd82a1a), x + .31, 1.4, z);
     const along = a.side === 'n' || a.side === 's';
@@ -745,6 +748,7 @@ function buildArea(a) {
     for (let k = 0; k < 9; k++) deco(unitBox, poleMat, txF + 3.35, .4 + k * .75, tzF, .08, .06, .7);
     for (const s2 of [-.35, .35]) deco(unitBox, poleMat, txF + 3.35, 3.5, tzF + s2, .08, 7, .08);
     deco(unitBox, matStd({ color: 0x3a3e46, metalness: .5 }), x, 1.45, z, .7, .12, .5); // console top
+    deco(unitBox, basic(0x7fb8ff), x, 1.53, z, .5, .03, .3); glowSprite(0x7fb8ff, 1.3, new V3(x, 1.7, z));
   }
 }
 function buildBoxAndAmmo() {
@@ -771,7 +775,7 @@ function buildBoxAndAmmo() {
   for (const s2 of [-1, 1]) deco(unitBox, ironMat, ax + s2 * .72, .45, az, .04, .12, .3);
   for (let k = 0; k < 3; k++) deco(unitBox, matStd({ color: 0x4a5a32, metalness: .3 }), ax + 1.15, .22 + (k === 2 ? .44 : 0), az - .25 + (k % 2) * .5, .45, .44, .3);
   for (let k = 0; k < 6; k++) deco(new THREE.CylinderGeometry(.03, .03, .16, 6), brassMat, ax - .5 + k * .2, .79, az, 1, 1, 1).rotation.z = Math.PI / 2;
-  label(['AMMO'], '#e7c85a', 1.6, ax, 1.55, az);
+  label(['LŐSZER'], '#e7c85a', 1.6, ax, 1.55, az);
 }
 // the van: it drops you off, leaves, and comes back for you at another spot when time is up.
 // It parks facing the nearest side fence, so it backs in and drives straight out.
@@ -1081,7 +1085,7 @@ function generateProps(seed) {
     for (let tries = 0; placed < n && tries < n * 30; tries++) {
       const x = R(Z.minX + 3, Z.maxX - 3), z = R(Z.minZ + 3, Z.maxZ - 3), type = pickType();
       const r = type === 'car' ? 3 : type === 'logs' ? 1.8 : 1.3;
-      if (clear.some(([cx, cz, cr]) => Math.hypot(x - cx, z - cz) < cr + r) || overlaps(x, z, r + 1.2)) continue;
+      if (clear.some(([cx, cz, cr]) => Math.hypot(x - cx, z - cz) < cr + r) || overlaps(x, z, r + 1.2) || graveSpots.some(([gx, gz]) => Math.hypot(x - gx, z - gz) < r + .8)) continue;
       makeProp(type, x, z, rng); placed++;
     }
   }
@@ -1130,6 +1134,7 @@ function updateMapFx(dt) {
   mapSpin.forEach(m => m.rotation.z += dt * .4);
   updateVanGates(dt);
   if (rain.visible) updateRain(dt);
+  for (const s of mapLabels) { const d = Math.hypot(s.position.x - player.pos.x, s.position.z - player.pos.z); if (s.userData.base) s.scale.copy(s.userData.base).multiplyScalar(clamp(d / 9, .45, 1)); }
   for (const s of mapLabels) s.material.opacity = clamp(1.5 - Math.hypot(s.position.x - player.pos.x, s.position.z - player.pos.z) / 16, .12, 1); // signs fade with distance
   if (activeMod === 'dark') return;
   for (const l of lamps) {

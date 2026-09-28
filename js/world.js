@@ -123,7 +123,8 @@ function drawTextSprite(s) {
 // ================= WORLD =================
 const obstacles = [];   // AABBs for movement
 const rayBlockers = []; // meshes that stop bullets
-const matStd = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: .95, metalness: 0 }, o));
+const matCache = new Map(); // the same plain material asked twice is the same material: static meshes merge into fewer draw calls
+const matStd = (o) => { const mk = () => new THREE.MeshStandardMaterial(Object.assign({ roughness: .95, metalness: 0 }, o)); if (o && Object.values(o).some(v => v && typeof v === 'object')) return mk(); const k = JSON.stringify(o || {}); let m = matCache.get(k); if (!m) matCache.set(k, m = mk()); return m; };
 // tiling bump detail for every ground texture (normal map from a noise height field; it follows the map's uv repeat)
 const groundNormal = (() => {
   const S = 256, h = new Float32Array(S * S);
