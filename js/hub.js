@@ -398,7 +398,8 @@ $('hubBody').addEventListener('click', e => {
   }
   if (kind === 'gun') { const w = unpackW(P.shop[+a]); if (P.stash.length < stashMax() && pay(shopPrice(w))) { P.stash.push(packW(w)); P.shop[+a] = null; noteFound(w); } }
   if (kind === 'mv') { const [, f, i, t, j] = b.dataset.act.split(':'); moveGun({ L: P.loadout, B: P.bag, S: P.stash, K: SH.w }, f, +i, t, +j); }
-  if (kind === 'wear' && P.gearStash[+a] && !canUse(P.gearStash[+a])) { SND.deny(); popText(`Csak ${P.gearStash[+a].level}. szinttől viselhető`, '#ff8a70'); }
+  if (kind === 'wear' && P.gearStash[+a] && !exoWearOk(P.gear, P.gearStash[+a])) { SND.deny(); popText('Egyszerre csak 1 egzotikus páncél lehet rajtad', '#ff8a70'); }
+  else if (kind === 'wear' && P.gearStash[+a] && !canUse(P.gearStash[+a])) { SND.deny(); popText(`Csak ${P.gearStash[+a].level}. szinttől viselhető`, '#ff8a70'); }
   else if (kind === 'wear') { const it = P.gearStash.splice(+a, 1)[0], old = P.gear[it.slot]; P.gear[it.slot] = it; if (old) P.gearStash.push(old); gearChanged(); }
   if (kind === 'unwear') { P.gearStash.push(P.gear[a]); P.gear[a] = null; gearChanged(); }
   if (kind === 'gshare' && P.gearStash[+a] && SH.g.length < SHARED_MAX) SH.g.push(P.gearStash.splice(+a, 1)[0]);

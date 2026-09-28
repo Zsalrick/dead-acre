@@ -629,13 +629,20 @@ function updateHealthBars() {
     if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) continue;
     const e = hbEl(n++);
     e.hidden = false;
-    e.classList.toggle('big', z.kind === 'brute' || z.tier === 3); const tc = 't' + (z.tier || 0); if (e.dataset.t !== tc) { e.classList.remove('t0', 't1', 't2', 't3'); e.classList.add(tc); e.dataset.t = tc; }
+    e.classList.toggle('big', z.kind === 'brute' || z.tier === 3); const tc = 't' + (z.tier || 0); if (e.dataset.t !== tc) { e.classList.remove('t0', 't1', 't2', 't3', 'tg'); e.classList.add(tc); e.dataset.t = tc; }
     e.style.transform = `translate(${v.x * W + W}px,${-v.y * H + H}px) translate(-50%,-100%)`;
     e.style.zIndex = 1000 - Math.round(v.z * 1000); // the nearer one's label on top
     e.style.opacity = fade; // fades out over the last half second
     const nm = zName(z); if (e.firstChild.textContent !== nm) e.firstChild.textContent = nm;
     const bd = `<u>◆ ${mission ? mission.job.lvl || 1 : 1}</u>${jobTier() ? `<s>☠ +${jobTier()}</s>` : ''}`; if (e.dataset.bd !== bd) { e.querySelector('em').innerHTML = bd; e.dataset.bd = bd; }
     e.querySelector('b').style.width = Math.max(0, z.hp / z.maxHp * 100) + '%';
+  }
+  if (mission && mission.gens && !blind) for (const G of mission.gens) { // the generators: green bars, always shown
+    v.set(G.pos.x, 2.9, G.pos.z).project(camera); if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) continue;
+    const e = hbEl(n++); e.hidden = false; e.classList.remove('t0', 't1', 't2', 't3'); e.classList.add('tg'); e.dataset.t = 'tg'; e.dataset.bd = ''; e.querySelector('em').innerHTML = '';
+    e.style.transform = `translate(${v.x * W + W}px,${-v.y * H + H}px) translate(-50%,-100%)`; e.style.zIndex = 900; e.style.opacity = 1;
+    const nm = `Generátor ${G.name} · ${Math.max(0, Math.round(G.hp / G.max * 100))}%`; if (e.firstChild.textContent !== nm) e.firstChild.textContent = nm;
+    e.querySelector('b').style.width = Math.max(0, G.hp / G.max * 100) + '%';
   }
   for (let i = n; i < hbPool.length; i++) hbPool[i].hidden = true;
   const boss = zombies.find(z => z.K.boss && !z.dead);

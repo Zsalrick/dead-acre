@@ -29,22 +29,27 @@ function setupObjective(M) {
   if (M.job.type === 'supply') buildCrates(M);
   if (M.job.type === 'escort') buildEscort(M);
 }
-// ---------- defense: the generator ----------
+// ---------- defense: three generators; if any one falls the job is lost; hold E to repair (5%/s for points) ----------
+const GEN_REP_RATE = .05, GEN_REP_COST = 300; // per second of holding E
 function buildGenerator(M) {
-  const R = MAIN_RECT, cx = (R.minX + R.maxX) / 2, cz = (R.minZ + R.maxZ) / 2;
-  let spot = null;
-  for (let r = 0; r < 24 && !spot; r += 2) for (let a = 0; a < 6.28 && !spot; a += .45) { const x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r; if (!blockedAt(x, z, 2.4)) spot = [x, z]; }
-  const [x, z] = spot || [cx, cz];
-  const body = matStd({ color: 0x4a5a3a, metalness: .5, roughness: .5 }), dark = matStd({ color: 0x1c1d1f, metalness: .6, roughness: .4 });
-  addBox(x, z, 1.8, 1.2, 1.1, body);
-  addBox(x, z, 1.9, 1.3, .12, dark, 1.1, false);
-  [-.5, .5].forEach(o => { const c = put(new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 1, 14), dark)); c.rotation.z = Math.PI / 2; c.position.set(x, .75, z + o * .9); });
-  const pipe = put(new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 1.2, 8), dark)); pipe.position.set(x + .6, 1.6, z - .3);
-  const lampM = new THREE.MeshBasicMaterial({ color: 0x6aff6a }), lamp = put(new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 8), lampM)); lamp.position.set(x - .6, 1.3, z + .45);
-  const light = pointLight(0x9aff7a, 1.4, 10, x, 2.2, z);
-  label(['GENERÁTOR'], '#9aff7a', 1.8, x, 2.6, z);
-  const max = 6000 * (1 + .3 * (M.job.diff - 1));
-  M.gen = { pos: new V3(x, 0, z), hp: max, max, lampM, light, hitT: -9, target: { pos: new V3(x, 0, z), vel: new V3(), alive: true, gen: true } };
+  const R = MAIN_RECT, cx = (R.minX + R.maxX) / 2, cz = (R.minZ + R.maxZ) / 2, spots = [];
+  for (let k = 0; k < 3; k++) { // spread round the middle, a third of a turn apart
+    let spot = null;
+    for (let r = 12; r < 30 && !spot; r += 2) for (let da = 0; da < 1.2 && !spot; da += .2) { const a = k * 2.094 + .5 + da, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r; if (!blockedAt(x, z, 2.4) && spots.every(s => Math.hypot(s[0] - x, s[1] - z) > 10)) spot = [x, z]; }
+    spots.push(spot || [cx + (k - 1) * 12, cz]);
+  }
+  const body = matStd({ color: 0x4a5a3a, metalness: .5, roughness: .5 }), dark = matStd({ color: 0x1c1d1f, metalness: .6, roughness: .4 }), max = 2600 * (1 + .3 * (M.job.diff - 1));
+  M.gens = spots.map(([x, z], k) => {
+    addBox(x, z, 1.8, 1.2, 1.1, body);
+    addBox(x, z, 1.9, 1.3, .12, dark, 1.1, false);
+    [-.5, .5].forEach(o => { const c = put(new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 1, 14), dark)); c.rotation.z = Math.PI / 2; c.position.set(x, .75, z + o * .9); });
+    const pipe = put(new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 1.2, 8), dark)); pipe.position.set(x + .6, 1.6, z - .3);
+    const lampM = new THREE.MeshBasicMaterial({ color: 0x6aff6a }), lamp = put(new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 8), lampM)); lamp.position.set(x - .6, 1.3, z + .45);
+    const light = pointLight(0x9aff7a, 1.2, 9, x, 2.2, z), name = 'ABC'[k];
+    label([`GENERÁTOR ${name}`], '#9aff7a', 1.2, x, 3.3, z);
+    return { name, pos: new V3(x, 0, z), hp: max, max, lampM, light, hitT: -9, target: { pos: new V3(x, 0, z), vel: new V3(), alive: true, gen: true, gi: k } };
+  });
+  M.gen = M.gens[0]; // older code paths look at one generator: the first
 }
 // ---------- supply: crates in seeded spots; carry them one at a time, in both hands, to a drop-off van that turns up later ----------
 const DROP_AT = 40; // seconds before the drop-off van arrives
@@ -117,17 +122,27 @@ function updateCrates(M, dt) { // every player, every frame: where each crate is
 const GEN_REPAIR = 600;
 function crateFocus() { // also the generator's repair spot
   const M = mission; if (!M) return null;
-  if (M.gen && M.gen.hp > 0 && M.gen.hp < M.gen.max && Math.hypot(M.gen.pos.x - player.pos.x, M.gen.pos.z - player.pos.z) < 2.6) return { type: 'repair' };
+  if (M.gens) { const gi = M.gens.findIndex(G => G.hp > 0 && G.hp < G.max && Math.hypot(G.pos.x - player.pos.x, G.pos.z - player.pos.z) < 2.8); if (gi >= 0) return { type: 'repair', gi }; }
   if (M.esc && M.esc.hp > 0 && M.esc.hp < M.esc.max && Math.hypot(M.esc.pos.x - player.pos.x, M.esc.pos.z - player.pos.z) < 2.2) return { type: 'repair' };
   if (!M.crates) return null;
   if (player.carry != null) return { type: 'carry' };
   const i = M.crates.findIndex(c => c.st === 0 && Math.hypot(c.pos.x - player.pos.x, c.pos.z - player.pos.z) < 2.2);
   return i >= 0 ? { type: 'crate', i } : null;
 }
-function repairGen() { // points for a quarter of the generator back
-  const M = mission, T = M && (M.gen || M.esc); if (!T || player.points < GEN_REPAIR) return SND.deny();
+function repairGen() { // the escort: points for a quarter back (generators are repaired by holding E, see holdRepair)
+  const M = mission, T = M && M.esc; if (!T || player.points < GEN_REPAIR) return SND.deny();
   player.points -= GEN_REPAIR; SND.buy(); burst(T.pos.clone().setY(1.2), 0x9aff7a, 20, 3, .6);
   if (NET.client) netAct('repair'); else T.hp = Math.min(T.max, T.hp + T.max * .25);
+}
+let repAcc = 0;
+function holdRepair(gi, dt) { // hold E at a generator: 5% a second, paid by the second
+  const M = mission, G = M && M.gens && M.gens[gi]; if (!G || G.hp <= 0 || G.hp >= G.max) return false;
+  const cost = GEN_REP_COST * dt; if (player.points < cost) { if (!M.repWarn) { M.repWarn = true; popText('Nincs elég pont a javításhoz', '#ff8a70'); SND.deny(); } return false; }
+  player.points -= cost; M.repWarn = false; const add = G.max * GEN_REP_RATE * dt;
+  if (NET.client) { repAcc += add; if (repAcc > G.max * .01) { netAct('repair', [gi, Math.round(repAcc)]); repAcc = 0; } G.hp = Math.min(G.max, G.hp + add); }
+  else G.hp = Math.min(G.max, G.hp + add);
+  if (Math.random() < dt * 14) burst(G.pos.clone().setY(1.2 + Math.random()), 0x9aff7a, 1, 1.5, .4);
+  return true;
 }
 function takeCrate(i) { // E on a crate: both hands on it (no shooting, sprinting or jumping)
   const c = mission && mission.crates && mission.crates[i]; if (!c || c.st !== 0) return;
@@ -138,12 +153,12 @@ function takeCrate(i) { // E on a crate: both hands on it (no shooting, sprintin
 // ---------- every frame (solo or host) ----------
 function updateObjective(M, dt) {
   const J = M.job; updateCrates(M, dt);
-  if (M.gen) {
-    const hurt = now - M.gen.hitT < .3;
-    M.gen.lampM.color.setHex(M.gen.hp <= 0 ? 0x333333 : hurt ? 0xff4a3a : M.gen.hp < M.gen.max * .3 ? 0xffa03a : 0x6aff6a);
-    M.gen.light.intensity = M.gen.hp <= 0 ? 0 : hurt ? 2.5 : 1.4;
-    if (hurt && Math.random() < dt * 20) burst(M.gen.pos.clone().setY(1.2), 0xffc070, 1, 2, .3);
-    if (M.gen.hp <= 0 && !NET.client) { M.gen.target.alive = false; banner('A GENERÁTOR ELPUSZTULT', 'A munka elbukott.'); SND.explode(); return 'fail'; }
+  if (M.gens) for (const G of M.gens) {
+    const hurt = now - G.hitT < .3;
+    G.lampM.color.setHex(G.hp <= 0 ? 0x333333 : hurt ? 0xff4a3a : G.hp < G.max * .3 ? 0xffa03a : 0x6aff6a);
+    G.light.intensity = G.hp <= 0 ? 0 : hurt ? 2.5 : 1.2;
+    if (hurt && Math.random() < dt * 20) burst(G.pos.clone().setY(1.2), 0xffc070, 1, 2, .3);
+    if (G.hp <= 0 && !NET.client) { G.target.alive = false; banner(`A ${G.name} GENERÁTOR ELPUSZTULT`, 'A munka elbukott.'); SND.explode(); return 'fail'; }
   }
   if (M.esc) { updateEscortLook(M, dt); if (!NET.client && M.esc.hp <= 0) { M.esc.target.alive = false; banner('A TÚLÉLŐ MEGHALT', 'A munka elbukott.'); SND.roar(); return 'fail'; } }
   if (objDone(M) || NET.client) return;
@@ -170,7 +185,7 @@ function objectiveLine(M) {
   if (J.type === 'escort' && M.esc && !objDone(M)) return `Kíséret · túlélő ${Math.max(0, Math.round(M.esc.hp / M.esc.max * 100))}% · ${M.esc.leg === 1 ? 'a holmijáért' : 'a furgonig'} ${Math.round(NET.client ? M.esc.netDist || 0 : M.esc.pos.distanceTo(M.esc.end))} m${M.esc.waiting ? ' · VÁR RÁD' : ''}`;
   if (J.type === 'exterminate' && !objDone(M)) return `Irtás · ${Math.min(M.kc || 0, J.goal)} / ${J.goal} zombi`;
   if (J.type === 'supply' && !objDone(M)) return `Utánpótlás · ${M.crates ? M.crates.filter(c => c.st === 2).length : 0} / ${J.goal} leadva · ${player.carry != null ? (M.drop ? 'vidd a zöld fényű furgonhoz' : 'a lerakó még nem jött meg') : M.drop ? 'hozd a ládákat (sárga fény) a lerakóhoz' : `a lerakó furgon ${Math.max(0, Math.ceil(DROP_AT - M.t))} mp múlva jön · gyűjtsd a ládákat`}`;
-  if (J.type === 'defense' && M.gen && M.phase !== 'evac') return `Generátor ${Math.max(0, Math.round(M.gen.hp / M.gen.max * 100))}% · ${M.wave}. hullám`;
+  if (J.type === 'defense' && M.gens && M.phase !== 'evac') return `Generátorok · ${M.gens.map(G => `${G.name} ${Math.max(0, Math.round(G.hp / G.max * 100))}%`).join(' · ')} · ${M.wave}. hullám · E nyomva: javítás`;
   return null;
 }
 

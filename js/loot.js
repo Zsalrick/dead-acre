@@ -102,7 +102,7 @@ function interact() {
   else if (focus.type === 'crate') { takeCrate(focus.i); focus = null; }
   else if (focus.type === 'carry') { carryAct(); focus = null; }
   else if (focus.type === 'cache') { openCache(); focus = null; }
-  else if (focus.type === 'repair') repairGen();
+  else if (focus.type === 'repair') { if (focus.gi == null) repairGen(); } // generators: held, see holdRepair
   else if (focus.type === 'desk') { if (NET.client) { popText('A lőteret a vezető állítja.', '#ff8a70'); return SND.deny(); } openStation('desk'); }
   else if (!['box', 'ammo'].includes(focus.type)) areaInteract(focus);
   else if (focus.type === 'box') {

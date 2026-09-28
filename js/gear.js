@@ -164,9 +164,12 @@ function clearGearDrops() { while (gearDrops.length) removeGearDrop(gearDrops[ge
 const bagMax = () => 5 + 2 * U('bag'); // the Nagyobb táska upgrade adds 2 a level
 // a gun moved into a hand slot swaps with what was there; hands may never end up empty
 const canUse = w => !w || !profile || w.level <= profile.level || profile.level >= LEVEL_CAP; // over your level: bag only, like The Division
+const exoHandOk = (L, w, j) => !w || !w.unique || !L.some((o, k) => k !== j && o && o.unique); // one exotic gun in your hands at a time
+const exoWearOk = (G, it) => !it || !it.exo || !GEAR_KEYS.some(k => k !== it.slot && G[k] && G[k].exo); // one exotic piece worn at a time
 function moveGun(lists, from, i, to, j) {
   const src = lists[from], dst = lists[to], w = src && src[i];
   if (!w || !dst || (to === 'L' && !canUse(w))) return false;
+  if (to === 'L' && from !== 'L' && !exoHandOk(dst, w, j)) { popText('Egyszerre csak 1 egzotikus fegyver lehet a kezedben', '#ff8a70'); SND.deny(); return false; }
   if (to === 'L') {
     const old = dst[j]; if (from === 'L' && i === j) return false;
     dst[j] = w;

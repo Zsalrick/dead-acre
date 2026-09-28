@@ -120,7 +120,7 @@ function netJobStarted(opts) {
 function netJobEnded() {
   NET.mode = null; NET.client = false; NET.targets = null; player.down = false; NET.ready = false;
   NET.zById.clear(); if (NET.host) NET.job = null;
-  NET.avatars.forEach(a => { scene.remove(a.g); if (a.tag) a.tag.remove(); }); NET.avatars.clear();
+  NET.avatars.forEach(a => { scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); }); NET.avatars.clear();
   if (NET.pr) NET.pr.presence({ p: null, g: null }).catch(() => {});
   publishMember(); setLobby();
 }
@@ -168,6 +168,9 @@ function updateAvatars(dt, peers) {
     let a = NET.avatars.get(p.peer); if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
     if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
+    { const T = Array.isArray(P.tu) ? P.tu : [], key = T.map(t => `${t[0]},${t[1]},${t[2]}`).join('|'); // a teammate's turrets: stand-ins where theirs stand
+      if (a.tuKey !== key) { (a.tus || []).forEach(o => scene.remove(o.g)); a.tus = T.map(t => { const m = turretMesh({ rocket: t[2] & 1, shield: t[2] & 2 }, !!(t[2] & 4)); m.g.position.set(t[0] / 10, 0, t[1] / 10); scene.add(m.g); return m; }); a.tuKey = key; }
+      (a.tus || []).forEach((m, k) => { if (T[k]) m.head.rotation.y = +T[k][3] || 0; }); }
     const q = sampleAt(a.buf, tr - 110);
     a.pos.x = q.x; a.pos.z = q.z;
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
@@ -211,7 +214,7 @@ function updateAvatars(dt, peers) {
     for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && (player.down || player.ffyl > 0)) { netRevive(e[2] ? 1 : .5); banner('FELÉLESZTETTEK', e[2] ? `${a.name} (tábori pap) teljesen rendbe hozott.` : `${a.name} felállított.`); }
     netRemoteDrops(p.peer, P);
   }
-  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); if (a.tag) a.tag.remove(); NET.avatars.delete(peer); }
+  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
 }
 const partySize = () => 1 + [...NET.avatars.values()].length;
 
@@ -220,7 +223,7 @@ const partySize = () => 1 + [...NET.avatars.values()].length;
 let AIM = null;
 function aimSetup() {
   AIM = NET.targets ? NET.targets.slice() : null;
-  if (mission && mission.gen && mission.gen.hp > 0) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(mission.gen.target);
+  if (mission && mission.gens) for (const G of mission.gens) if (G.hp > 0) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(G.target);
   if (mission && mission.esc && mission.esc.target.alive) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(mission.esc.target);
   if (AIM) { NET.selfPos = player.pos; NET.selfVel = player.vel; }
 }
@@ -230,14 +233,14 @@ function netAim(z) {
     z.tgtT = .4; let best = AIM[0], bd = Infinity;
     for (const T of AIM) { if (!T.alive) continue; const d = Math.hypot(T.pos.x - z.pos.x, T.pos.z - z.pos.z) * (T.gen ? .6 : 1); if (d < bd) { bd = d; best = T; } }
     z.tgt = best;
-    const gen = AIM.find(T => T.gen && T.alive); if (gen && z.id % 5 < 2 && !z.K.boss) z.tgt = gen; // on a defense job 2 in 5 zombies go straight for the generator
+    const gens = AIM.filter(T => T.gen && T.alive); if (gens.length && z.id % 5 < 3 && !z.K.boss) z.tgt = gens.reduce((a, b) => Math.hypot(b.pos.x - z.pos.x, b.pos.z - z.pos.z) < Math.hypot(a.pos.x - z.pos.x, a.pos.z - z.pos.z) ? b : a); // on a defense job 3 in 5 zombies go for the nearest generator
   }
   player.pos = z.tgt.pos; player.vel = z.tgt.vel; zTarget = z.tgt;
 }
 function netAimEnd() { if (!AIM) return; player.pos = NET.selfPos; player.vel = NET.selfVel; zTarget = null; }
 // a zombie aimed at a remote player: the damage goes to them instead of the host
 function netRedirectHurt(d) {
-  if (zTarget && zTarget.gen) { const M = mission; if (M && zTarget.esc && M.esc) { M.esc.hp -= d; M.esc.hitT = now; } else if (M && M.gen) { M.gen.hp -= d * .5; M.gen.hitT = now; } return true; } // the generator is sturdier than a person
+  if (zTarget && zTarget.gen) { const M = mission; if (M && zTarget.esc && M.esc) { M.esc.hp -= d; M.esc.hitT = now; } else if (M && M.gens && M.gens[zTarget.gi]) { const G = M.gens[zTarget.gi]; G.hp -= d; G.hitT = now; } return true; } // the generator is sturdier than a person
   if (!zTarget || !zTarget.remote) return false;
   pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10, hurtSrc], 16);
   return true;
@@ -329,7 +332,7 @@ function buildSnapshot() {
     t: Math.round(M.t * 10) / 10, ph: M.phase, pt: Math.round((M.phaseT || 0) * 10) / 10, w: M.wave, r: round, cl: M.cleared ? 1 : 0,
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
-    kc: M.kc || 0, rt: M.rt || 0, be: NET.bev, ca: M.cache && M.cache.t > 0 ? [Math.round(M.cache.x * 10), Math.round(M.cache.z * 10), Math.round(M.cache.t)] : null, tl: NET.tel, gh: M.gen ? Math.max(0, Math.round(M.gen.hp / M.gen.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, M.esc.leg, Math.round(M.esc.pos.distanceTo(M.esc.end))] : null, cr: M.crates ? M.crates.map(c => [Math.round(c.pos.x * 10), Math.round(c.pos.z * 10), c.st, c.by || '']) : null, dv: M.drop ? [Math.round(M.drop.pos.x * 10), Math.round(M.drop.pos.z * 10)] : null, od: M.objDone ? 1 : 0,
+    kc: M.kc || 0, rt: M.rt || 0, be: NET.bev, ca: M.cache && M.cache.t > 0 ? [Math.round(M.cache.x * 10), Math.round(M.cache.z * 10), Math.round(M.cache.t)] : null, tl: NET.tel, gh: M.gens ? M.gens.map(G => Math.round(G.hp / G.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, M.esc.leg, Math.round(M.esc.pos.distanceTo(M.esc.end))] : null, cr: M.crates ? M.crates.map(c => [Math.round(c.pos.x * 10), Math.round(c.pos.z * 10), c.st, c.by || '']) : null, dv: M.drop ? [Math.round(M.drop.pos.x * 10), Math.round(M.drop.pos.z * 10)] : null, od: M.objDone ? 1 : 0,
     tr: trapState.map(T => Math.max(0, Math.round(T.active * 10) / 10)), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
@@ -340,7 +343,7 @@ function myPresence() {
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
-    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
+    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, tu: turrets.filter(t => !t.station).map(t => [Math.round(t.g.position.x * 10), Math.round(t.g.position.z * 10), (t.rocket ? 1 : 0) | (t.shield ? 2 : 0) | (t.small ? 4 : 0), Math.round(t.head.rotation.y * 100) / 100]), h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
 function fresh(key, list) {
@@ -401,7 +404,7 @@ function netHostAct(type, arg, peer) {
   if (type === 'trap' && trapState[arg] && trapState[arg].active <= 0 && trapState[arg].cd <= 0) trapState[arg].active = 20;
   if (type === 'crate' && Array.isArray(arg)) { const [i, act, x, z] = arg; if (act === 't') crateTake(i | 0, peer); else if (act === 'd') crateDrop(i | 0, x / 10, z / 10); else if (act === 'v') crateDeliver(i | 0); }
   if (type === 'mark' && Array.isArray(arg)) for (const id of arg.slice(0, 40)) { const z = NET.zById.get(id); if (z && !z.dead) z.markT = 10; }
-  if (type === 'repair') { const T = M.gen || M.esc; if (T && T.hp > 0) T.hp = Math.min(T.max, T.hp + T.max * .25); }
+  if (type === 'repair') { if (Array.isArray(arg) && M.gens) { const G = M.gens[arg[0] | 0]; if (G && G.hp > 0) G.hp = Math.min(G.max, G.hp + Math.min(+arg[1] || 0, G.max * .2)); } else { const T = M.esc; if (T && T.hp > 0) T.hp = Math.min(T.max, T.hp + T.max * .25); } }
   if (type === 'board' && M.phase === 'evac' && truck.parked && !(M.boardT > 0) && !M.leaving) { M.boardT = BOARD_T; banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); }
 }
 
@@ -473,7 +476,7 @@ function applySnapshot(g, hostPeer) {
   M.kc = +g.kc || 0;
   if (g.rt != null && M.rt != null && g.rt !== M.rt && (player.down || player.ffyl > 0)) netRevive(); M.rt = g.rt;
   if (M.esc && Array.isArray(g.es)) { const E = M.esc, hp = (+g.es[2] || 0) / 1000 * E.max; if (hp < E.hp - 1) E.hitT = now; E.hp = hp; E.net = new V3((+g.es[0] || 0) / 10, 0, (+g.es[1] || 0) / 10); E.moving = !!g.es[3]; E.leg = +g.es[4] || E.leg; E.netDist = +g.es[5] || 0; }
-  if (M.gen && g.gh != null) { const hp = +g.gh * M.gen.max; if (hp < M.gen.hp - 1) M.gen.hitT = now; M.gen.hp = hp; }
+  if (M.gens && Array.isArray(g.gh)) M.gens.forEach((G, k) => { const hp = (+g.gh[k] || 0) * G.max; if (hp < G.hp - 1) G.hitT = now; G.hp = hp; });
   if (M.crates && Array.isArray(g.cr)) { player.carry = null; M.crates.forEach((c, i) => { const e = g.cr[i]; if (!e) return; c.st = +e[2] || 0; c.by = e[3] || ''; if (!(c.st === 1 && c.by === NET.me)) c.pos.set(e[0] / 10, 0, e[1] / 10); if (c.st === 1 && c.by === NET.me) player.carry = i; }); }
   if (g.dv && !M.drop) buildDropVan(M, g.dv[0] / 10, g.dv[1] / 10);
   if (M.crates) updateCrates(M, 0);
@@ -656,7 +659,7 @@ function updateCompass() {
   for (const a of NET.avatars.values()) h += at(bear(a.pos.x, a.pos.z), 'cm', `${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small>`, a.col);
   if (truck.beacon.visible) h += at(bear(truck.pos.x, truck.pos.z), 'cv', 'FURGON');
   const w = curW(); if (w && w.reserve < w.mag && !mission.job.test) h += at(bear(ammoBox.pos.x, ammoBox.pos.z), 'cv ammo', `LŐSZER ${Math.round(Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z))} m`);
-  if (mission.gen) h += at(bear(mission.gen.pos.x, mission.gen.pos.z), 'cv', 'GENERÁTOR');
+  if (mission.gens) for (const G of mission.gens) if (G.hp > 0) h += at(bear(G.pos.x, G.pos.z), 'cv', `GEN ${G.name} ${Math.round(G.hp / G.max * 100)}%`);
   if (mission.esc && mission.esc.target.alive) h += at(bear(mission.esc.pos.x, mission.esc.pos.z), 'cv', 'TÚLÉLŐ');
   if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
 }

@@ -43,6 +43,8 @@ function openProfile(n) {
   profile.throw = profile.throw || { g: 'frag', k: 'steel', own: ['frag', 'steel'] };
   profile.loadout.forEach((o, k) => { const w = o && unpackW(o); if (w && !canUse(w)) { profile.stash.push(o); profile.loadout[k] = null; } }); // a gun above your level goes to the stash
   if (!profile.loadout[0] && !profile.loadout[1]) profile.loadout[0] = packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level)));
+  { let seen = false; profile.loadout.forEach((o, k) => { if (o && o.unique) { if (seen) { profile.stash.push(o); profile.loadout[k] = null; } seen = true; } }); } // one exotic gun in hand
+  { let seen = false; for (const k of GEAR_KEYS) { const it = profile.gear[k]; if (it && it.exo) { if (seen) { profile.gearStash.push(it); profile.gear[k] = null; } seen = true; } } } // one exotic piece worn
   for (const k in profile.gear) { const it = profile.gear[k]; if (it && it.level > profile.level && profile.level < LEVEL_CAP) { profile.gearStash.push(it); profile.gear[k] = null; } } // armor above your level can't be worn
   gearChanged();
   profile.name = profile.name || `Zsoldos ${n}`;

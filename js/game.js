@@ -357,6 +357,7 @@ $('loadout').addEventListener('click', e => {
   if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { SND.salvage('g'); itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ${FAB}`, it.q); mission.fabric = (mission.fabric || 0) + fieldParts(it.q); } invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
+    if (kind === 'wear' && mission.gear[+f] && !exoWearOk(profile.gear, mission.gear[+f])) { SND.deny(); popText('Egyszerre csak 1 egzotikus páncél lehet rajtad', '#ff8a70'); return renderPauseInv(); }
     if (kind === 'wear' && mission.gear[+f] && !canUse(mission.gear[+f])) { SND.deny(); popText(`Csak ${mission.gear[+f].level}. szinttől viselhető`, '#ff8a70'); return renderPauseInv(); }
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
     else { mission.gear.push(G0[f]); G0[f] = null; invSel = `M:${mission.gear.length - 1}`; }
@@ -559,7 +560,7 @@ function updateHUD() {
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Láda felvétele (két kézzel)';
     else if (focus.type === 'carry') prompt = mission.drop && Math.hypot(mission.drop.pos.x - player.pos.x, mission.drop.pos.z - player.pos.z) < 5 ? '<b>[E]</b> Láda leadása' : '<b>[E]</b> Láda letétele';
     else if (focus.type === 'desk') prompt = NET.client ? 'Lőtér-vezérlő · csak a vezető állíthatja' : '<b>[E]</b> Lőtér-vezérlő: a célbábuk rangja, fajtája, tulajdonsága';
-    else if (focus.type === 'repair') prompt = `<b>[E]</b> ${mission && mission.esc ? 'Túlélő ellátása' : 'Generátor javítása'} (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
+    else if (focus.type === 'repair') prompt = focus.gi != null ? `<b>[E]</b> nyomva: ${mission.gens[focus.gi].name} generátor javítása · +5%/mp · ${GEN_REP_COST} pont/mp${player.points < GEN_REP_COST ? ' (kevés a pont)' : ''}` : `<b>[E]</b> Túlélő ellátása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
     else if (!['box', 'ammo', 'drop', 'gear', 'desk', 'carry'].includes(focus.type)) prompt = areaPrompt(focus);
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;
@@ -689,14 +690,14 @@ const SWAP_HOLD = .4, SELL_HOLD = .8;
 let fHold = 0, fLatch = false, sellHold = 0, sellLatch = false, needClick = false;
 const lootFocus = () => focus && (focus.type === 'drop' || (focus.type === 'box' && box.state === 'ready')) ? focus : null;
 function takeLoot(f, swap) {
-  const w = f.type === 'drop' ? f.drop.w : box.weapon, ok = canUse(w), hand = ok ? player.slots.indexOf(null) : -1;
+  const w = f.type === 'drop' ? f.drop.w : box.weapon, exoOk = exoHandOk(player.slots, w, player.slots.indexOf(null) >= 0 ? player.slots.indexOf(null) : swap ? player.cur : -1), ok = canUse(w) && exoOk, hand = ok ? player.slots.indexOf(null) : -1;
   if (!ok) swap = false; // above your level: it can only ride in the bag
   if (!swap && hand < 0 && player.bag.length >= bagMax()) { popText(ok ? 'Tele a táska · tartsd nyomva az F-et a cseréhez' : `${w.level}. szintű: csak a táskába teheted, de tele van`, '#ff8a70'); return SND.deny(); }
   if (f.type === 'drop') { netTookDrop(f.drop); removeDrop(f.drop); } else { box.state = 'idle'; scene.remove(box.show); box.show = null; boxUsed(); }
   focus = null; itemFeed('felvette', w.name, w.unique ? 5 : w.q);
   if (swap || hand >= 0) return giveWeapon(w);
   player.bag.push(w); trackBest(w); noteFound(w); SND.pickup(w.q);
-  popText(ok ? `${w.name} a táskába (${player.bag.length}/${bagMax()})` : `${w.name} a táskába · ${w.level}. szinttől használhatod`, ok ? rarColor(w) : '#ff8a70');
+  popText(ok ? `${w.name} a táskába (${player.bag.length}/${bagMax()})` : !exoOk ? `${w.name} a táskába · egyszerre csak 1 egzotikus fegyver lehet kézben` : `${w.name} a táskába · ${w.level}. szinttől használhatod`, ok ? rarColor(w) : '#ff8a70');
 }
 let reviveHold = 0, xHold = 0;
 const scrapHint = (q, gear) => mission && mission.job.test ? '' : `<span class="scrap"><kbd>X</kbd>tartsd: szétszedés +${fieldParts(Math.min(4, q))} ${gear ? FAB : '⚙'}</span>`;
@@ -712,6 +713,7 @@ function updateSellHold(dt) {
     $('hold').hidden = reviveHold <= 0; $('holdLbl').textContent = 'Felélesztés…'; $('holdfill').style.width = reviveHold / reviveT() * 100 + '%'; return;
   }
   reviveHold = 0;
+  if (focus && focus.type === 'repair' && focus.gi != null) { const on = keys.KeyE && holdRepair(focus.gi, dt); $('hold').hidden = !on; if (on) { const G = mission.gens[focus.gi]; $('holdLbl').textContent = `${G.name} generátor javítása…`; $('holdfill').style.width = G.hp / G.max * 100 + '%'; } return; }
   if (focus && (focus.type === 'gear' || focus.type === 'drop') && !mission.job.test && keys.KeyX) { // hold X over loot on the ground: take it apart for parts
     xHold += dt; $('hold').hidden = false; $('holdLbl').textContent = 'Szétszedés…'; $('holdfill').style.width = Math.min(1, xHold / HOLD_T) * 100 + '%';
     if (xHold >= HOLD_T) { scrapGround(focus); xHold = 0; focus = null; fLatch = true; }
