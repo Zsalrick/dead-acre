@@ -29,7 +29,9 @@ const ELEMENTS = {
 // weapon categories (skills and makers both key off these)
 const CAT = { carbine: 'rifle', sawed: 'shotgun', plasma: 'energy', ar: 'rifle', burst: 'rifle', lmg: 'heavy', minigun: 'heavy', dmr: 'marks', sniper: 'marks', crossbow: 'marks', lever: 'marks',
   smg: 'smg', mpistol: 'smg', pistol: 'pistol', deagle: 'pistol', revolver: 'pistol', shotgun: 'shotgun', autoshot: 'shotgun', dbarrel: 'shotgun',
-  launcher: 'explosive', raygun: 'energy', tesla: 'energy', flamer: 'energy' };
+  launcher: 'explosive', raygun: 'energy', tesla: 'energy', flamer: 'energy',
+  autopistol: 'pistol', magnum: 'pistol', pdw: 'smg', blitz: 'smg', bullpup: 'rifle', heavyar: 'rifle', scout: 'marks', antimat: 'marks', hmg: 'heavy', squad: 'heavy',
+  slug: 'shotgun', drumshot: 'shotgun', laser: 'energy', arc: 'energy', rocket: 'explosive' };
 // makers: every gun a maker builds carries its signature perk; one base can come from several makers.
 // rpm/mag/reload/res/acc are baked into the rolled stats, dmg/head/crit/critDmg apply live when the gun hits
 const MAKERS = {
@@ -105,6 +107,37 @@ const BASES = [
     model: { len: .36, h: .13, barrel: .16, br: .028, coil: true, stock: .2 } },
   { id: 'tesla', name: 'Tesla Gun', dmg: 58, rpm: 300, mag: 30, res: 150, reload: 2.6, spread: .8, mode: 'auto', range: 45, zoom: 1.3, snd: 'zap', kick: .006, chain: 3, energy: true, rl: 'cell', tracer: 0x7fd8ff,
     model: { len: .3, h: .13, barrel: .16, br: .03, coil: true } },
+  // two more per category, one more explosive
+  { id: 'autopistol', name: 'Auto Pistol', dmg: 22, rpm: 700, mag: 18, res: 144, reload: 1.4, spread: 2.2, mode: 'auto', range: 70, zoom: 1.3, snd: 'light', kick: .008, rl: 'mag',
+    model: { len: .21, h: .1, barrel: .07, br: .016, mag: .14 } },
+  { id: 'magnum', name: 'Magnum', dmg: 150, rpm: 110, mag: 5, res: 40, reload: 2.4, spread: .8, mode: 'semi', range: 100, zoom: 1.4, snd: 'heavy', kick: .05, headMult: 2.6, rl: 'revolver',
+    model: { len: .2, h: .12, barrel: .22, br: .026, drum: true } },
+  { id: 'pdw', name: 'PDW', dmg: 26, rpm: 780, mag: 40, res: 280, reload: 2.1, spread: 2, mode: 'auto', range: 80, zoom: 1.4, snd: 'light', kick: .006, rl: 'mag',
+    model: { len: .36, h: .12, barrel: .1, br: .018, mag: .16, stock: .18, sight: true } },
+  { id: 'blitz', name: 'Blitz SMG', dmg: 17, rpm: 1150, mag: 25, res: 250, reload: 1.7, spread: 2.8, mode: 'auto', range: 55, zoom: 1.3, snd: 'light', kick: .005, rl: 'mag',
+    model: { len: .3, h: .13, barrel: .08, br: .018, mag: .24, stock: .14 } },
+  { id: 'bullpup', name: 'Bullpup Rifle', dmg: 40, rpm: 700, mag: 30, res: 240, reload: 2.6, spread: 1.4, mode: 'auto', range: 110, zoom: 1.5, snd: 'mid', kick: .009, rl: 'mag',
+    model: { len: .4, h: .13, barrel: .2, br: .02, mag: .18, sight: true } },
+  { id: 'heavyar', name: 'Heavy Rifle', dmg: 48, rpm: 540, mag: 25, res: 200, reload: 2.5, spread: 1.5, mode: 'auto', range: 120, zoom: 1.5, snd: 'mid', kick: .012, rl: 'mag',
+    model: { len: .5, h: .13, barrel: .28, br: .023, mag: .18, stock: .25, sight: true } },
+  { id: 'scout', name: 'Scout Rifle', dmg: 140, rpm: 150, mag: 8, res: 64, reload: 2.6, spread: 2, adsSpread: .03, mode: 'semi', range: 180, zoom: 2.8, snd: 'heavy', kick: .03, pierce: 2, headMult: 2.6, scopeView: true, rl: 'mag',
+    model: { len: .5, h: .11, barrel: .36, br: .019, mag: .1, stock: .27, scope: true } },
+  { id: 'antimat', name: 'Anti-Materiel Rifle', dmg: 420, rpm: 35, mag: 4, res: 24, reload: 3.8, spread: 6, adsSpread: 0, mode: 'semi', range: 250, zoom: 4.5, snd: 'heavy', kick: .07, pierce: 6, headMult: 3, scopeView: true, rl: 'mag',
+    model: { len: .64, h: .14, barrel: .56, br: .03, mag: .12, stock: .3, scope: true } },
+  { id: 'hmg', name: 'Heavy Machine Gun', dmg: 46, rpm: 520, mag: 80, res: 240, reload: 5, spread: 2.6, mode: 'auto', range: 110, zoom: 1.35, snd: 'mid', kick: .012, rl: 'box',
+    model: { len: .6, h: .16, barrel: .36, br: .03, box: true, stock: .26 } },
+  { id: 'squad', name: 'Squad Autorifle', dmg: 30, rpm: 800, mag: 75, res: 300, reload: 3.8, spread: 2.6, mode: 'auto', range: 100, zoom: 1.4, snd: 'light', kick: .007, rl: 'box',
+    model: { len: .5, h: .14, barrel: .28, br: .024, box: true, stock: .22 } },
+  { id: 'slug', name: 'Slug Shotgun', dmg: 160, rpm: 90, mag: 5, res: 40, reload: .55, single: true, spread: 1, mode: 'semi', range: 70, zoom: 1.35, snd: 'boom', kick: .05, pierce: 1, rl: 'shell',
+    model: { len: .46, h: .12, barrel: .4, br: .028, stock: .24, pump: true } },
+  { id: 'drumshot', name: 'Drum Shotgun', dmg: 11, pellets: 8, rpm: 300, mag: 20, res: 80, reload: 3.6, spread: 6, mode: 'auto', range: 26, zoom: 1.2, snd: 'boom', kick: .03, rl: 'mag',
+    model: { len: .44, h: .13, barrel: .26, br: .03, drum: true, stock: .2 } },
+  { id: 'laser', name: 'Laser Rifle', dmg: 30, rpm: 600, mag: 50, res: 250, reload: 2.6, spread: .6, mode: 'auto', range: 130, zoom: 1.5, snd: 'ray', kick: .003, pierce: 1, energy: true, rl: 'cell', tracer: 0xff3a3a,
+    model: { len: .44, h: .12, barrel: .22, br: .02, coil: true, stock: .22, sight: true } },
+  { id: 'arc', name: 'Arc Pistol', dmg: 40, rpm: 360, mag: 24, res: 120, reload: 2, spread: 1, mode: 'auto', range: 35, zoom: 1.3, snd: 'zap', kick: .006, chain: 2, energy: true, rl: 'cell', tracer: 0x7fd8ff,
+    model: { len: .2, h: .12, barrel: .1, br: .026, coil: true } },
+  { id: 'rocket', name: 'Rocket Launcher', dmg: 480, rpm: 40, mag: 1, fixedMag: true, res: 12, reload: 2.8, spread: .5, mode: 'semi', range: 120, zoom: 1.4, snd: 'thump', kick: .07, splash: 6, rl: 'mag',
+    model: { len: .6, h: .14, barrel: .5, br: .06, stock: .1 } },
 ];
 
 function rollRarity(luck = 0) {

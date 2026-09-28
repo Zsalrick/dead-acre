@@ -607,7 +607,7 @@ function frame(t) {
     if (flashT > 0) { flashT -= dt; $('flash').style.opacity = Math.max(0, flashT * 1.6); }
     if (state === 'playing') { updateHUD(); tickStats(dt); }
   }
-  playMusic(['menu', 'hub', 'results'].includes(state) ? 'hub' : MAP_ID);
+  playMusic(['menu', 'hub', 'results'].includes(state) ? 'hub' : MUSIC[MAP_ID] ? MAP_ID : 'farm');
   const kb = (state === 'hub' || (state === 'paused' && !$('pause').hidden)) && $('settings').hidden && $('keybar').innerHTML !== '';
   if ($('keybar').hidden === kb) $('keybar').hidden = !kb;
   const cur = state === 'playing' ? 'none' : 'default';

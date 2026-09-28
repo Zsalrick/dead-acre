@@ -61,6 +61,7 @@ function findFocus() {
   const ch = cacheFocus(); if (ch) return ch;
   const cf = crateFocus(); if (cf) return cf;
   const af = areaFocus(); if (af) return af;
+  if (MAP.range) return null;
   if (Math.hypot(box.pos.x - player.pos.x, box.pos.z - player.pos.z) < 2.6) return { type: 'box', w: box.state === 'ready' ? box.weapon : null };
   if (Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z) < 2.4) return { type: 'ammo' };
   return null;
@@ -85,7 +86,7 @@ function interact() {
 }
 function updateBox(dt) {
   box.label.position.y = 2.1 + Math.sin(now * 2) * .12;
-  box.label.visible = box.state === 'idle';
+  box.label.visible = box.state === 'idle' && !MAP.range;
   if (box.state === 'spin') {
     box.t -= dt; box.swapT -= dt;
     if (box.swapT <= 0) {

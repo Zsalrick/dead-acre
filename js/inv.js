@@ -54,10 +54,11 @@ function tile(sel, pic, name, sub, color, o = {}) {
     <span class="ttx"><b class="tn">${name}</b><small class="ts">${sub}</small></span>
     ${o.val != null ? `<b class="tv">${o.val}<small>${o.valLbl}</small></b>` : ''}${o.n ? `<i class="tb">${o.n}</i>` : ''}${o.price ? `<i class="tprice">${o.price}</i>` : ''}</button>`;
 }
-const wTile = (sel, w, o = {}) => tile(sel, wPic(w), w.name, `${RARITIES[w.q].name} · ${w.base.name}`, rarColor(w),
+const favTag = x => x.fav ? '★' : x.junk ? '🗑' : '';
+const wTile = (sel, w, o = {}) => tile(sel, wPic(w), (favTag(w) ? favTag(w) + ' ' : '') + w.name, `${RARITIES[w.q].name} · ${w.base.name}`, rarColor(w),
   Object.assign({ lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
-const gTile = (sel, it, o = {}) => tile(sel, gPic(it), it.name, (it.exo ? `Egzotikus · ${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`), gCol(it),
+const gTile = (sel, it, o = {}) => tile(sel, gPic(it), (favTag(it) ? favTag(it) + ' ' : '') + it.name, (it.exo ? `Egzotikus · ${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`), gCol(it),
   Object.assign({ lv: `Lv ${it.level}`, val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
 const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="tpic">${pic ? `<img src="${pic}" alt="">` : ''}</span><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
 const invLayout = (left, detail) => `<div class="inv"><div class="invl">${left}</div><aside class="invd">${detail}</aside></div>`;

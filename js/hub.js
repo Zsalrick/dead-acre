@@ -126,10 +126,41 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
-const KEY_LABEL = { KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+const KEY_LABEL = { KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+// selling and salvaging: weapons from the hands, bag or stash, armor worn or stored; favourites are locked, trash goes in bulk
+const wList = sl => ({ L: profile.loadout, B: profile.bag, S: profile.stash })[sl] || [];
+const wAt = (sl, i) => unpackW(wList(sl)[+i]);
+function wRemove(sl, i) { const L = wList(sl); if (sl === 'L') { L[+i] = null; if (!L[0] && L[1]) { L[0] = L[1]; L[1] = null; } } else L.splice(+i, 1); }
+const gearAt = (sl, k) => sl === 'W' ? profile.gear[k] : profile.gearStash[+k];
+function gRemove(sl, k) { if (sl === 'W') { profile.gear[k] = null; gearChanged(); } else profile.gearStash.splice(+k, 1); }
+const salvageGain = x => PARTS[x.q] + expRefund(x);
+const wSellBtns = (w, sl, i, lone) => hbtn(`Eladás $${sellValue(w)}`, `sell:${sl}:${i}`, w.fav || lone, 'KeyX') + hbtn(`Szétszedés +${salvageGain(w)} ⚙`, `salvage:${sl}:${i}`, w.fav || lone, 'KeyB') +
+  hbtn(w.fav ? '★ Kedvenc' : 'Kedvenc', `fav:${sl}:${i}`, false, 'KeyV') + hbtn(w.junk ? '🗑 Kukában' : 'Kukába', `trash:${sl}:${i}`, w.fav, 'KeyJ');
+const gSellBtns = (it, sl, k) => hbtn(`Eladás $${gearValue(it)}`, `gsell:${sl}:${k}`, it.fav, 'KeyX') + hbtn(`Szétszedés +${salvageGain(it)} ⚙`, `gsalvage:${sl}:${k}`, it.fav, 'KeyB') +
+  hbtn(it.fav ? '★ Kedvenc' : 'Kedvenc', `gfav:${sl}:${k}`, false, 'KeyV') + hbtn(it.junk ? '🗑 Kukában' : 'Kukába', `gtrash:${sl}:${k}`, it.fav, 'KeyJ');
+function trashBar(kind) { // bulk sell / salvage everything marked as trash
+  const P = profile, items = kind === 'w' ? [...P.bag, ...P.stash].map(unpackW).filter(w => w && w.junk && !w.fav) : P.gearStash.filter(it => it.junk && !it.fav);
+  if (!items.length) return '';
+  const cash = items.reduce((a, x) => a + (kind === 'w' ? sellValue(x) : gearValue(x)), 0), parts = items.reduce((a, x) => a + salvageGain(x), 0);
+  return `<div class="trashbar"><b>🗑 Kukában: ${items.length} db</b>${hbtn(`Összes eladása · $${cash}`, `trashsell:${kind}`)}${hbtn(`Összes szétszedése · +${parts} ⚙`, `trashsalv:${kind}`)}</div>`;
+}
+const CONFIRM_ACTS = ['sell', 'salvage', 'gsell', 'gsalvage', 'trashsell', 'trashsalv'];
+let confirmOk = false;
+function askConfirm(b) { // "are you sure?" before anything is sold or taken apart
+  const src = [...document.querySelectorAll('#hubBody [data-act]')].find(x => x.dataset.act === b.dataset.act && x.childNodes.length) || b;
+  const box = $('confirm'), lbl = [...src.childNodes].filter(n => n.nodeName !== 'KBD').map(n => n.textContent).join('').trim();
+  const [k, sl, i] = b.dataset.act.split(':'), x = /^trash/.test(k) ? null : k[0] === 'g' ? gearAt(sl, i) : wAt(sl, i), what = x ? `„${x.name}”` : 'a kukába tett összes tárgyat';
+  box.querySelector('p').innerHTML = `Biztosan: <b>${lbl}</b><br><small>${what} · nem vonható vissza</small>`; box.hidden = false;
+  const done = ok => { box.hidden = true; removeEventListener('keydown', key, true); if (ok) { confirmOk = true; try { fireAct($('hubBody'), b.dataset.act); } finally { confirmOk = false; } } };
+  const key = e => { e.stopPropagation(); e.preventDefault(); if (e.code === 'Enter' || e.code === 'KeyY') done(true); else if (e.code === 'Escape' || e.code === 'KeyN') done(false); }; // nothing else reacts while it is open
+  addEventListener('keydown', key, true);
+  box.querySelector('[data-yes]').onclick = () => done(true); box.querySelector('[data-no]').onclick = () => done(false);
+}
 const MV_TIP = { L: 'Kézbe veszed: ezzel harcolsz a munkán.', B: 'A táskába teszed: a munkára is jön, ott kézbe veheted.', S: 'A raktárba teszed: a bázison marad, biztonságban.', K: 'A karakterek közti ládába teszed: a többi mentésed is eléri.' };
 const TIPS = {
-  sell: 'Eladod pénzért.', gsell: 'Eladod pénzért.', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.',
+  sell: 'Eladod pénzért.', gsell: 'Eladod pénzért.', fav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.', gfav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.',
+  trash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.', gtrash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.',
+  trashsell: 'Eladja az összes kukába jelölt tárgyat (kézben lévőt nem).', trashsalv: 'Szétszedi az összes kukába jelölt tárgyat (kézben lévőt nem).', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.',
   'hforge:level': 'A fegyver szintje +2: a sebzés szintenként kb. 8%-kal nő. A korlát a saját szintedhez igazodik.',
   'hforge:rarity': 'Egy fokkal ritkább lesz a fegyver: nagyobb sebzés, tár, tűzgyorsaság és pontosság.',
   'hforge:anoint': 'Dob egy új, véletlen felkenést: utána elfogadod, vagy megtartod a régit. Minden újradobás drágább ezen a fegyveren.',
@@ -154,7 +185,7 @@ const hbtn = (label, act, off, key, tip) => `<button class="sbtn"${tipAttr(tip |
 const hhold = (label, act, off, key) => `<button class="sbtn hold"${tipAttr('Tartsd lenyomva: a tárgy megsemmisül, és alkatrészt (⚙) kapsz érte, ha kijutsz.')} data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
 const fieldParts = q => Math.max(1, Math.floor(PARTS[q] / 2)); // taking a gun apart in the field: half what the bench at home gets
-const testJob = () => ({ map: 'farm', diff: 1, dur: 1e6, mod: null, boss: false, type: 'test', test: true, title: 'Lőtér', client: '', reward: 0, xp: 0, lvl: profile.level, goal: 0 });
+const testJob = () => ({ map: 'range', diff: 1, dur: 1e6, mod: null, boss: false, type: 'test', test: true, title: 'Lőtér', client: '', reward: 0, xp: 0, lvl: profile.level, goal: 0 });
 const HUB = {
   skills: () => skillsTab(),
   vet: () => vetTab(),
@@ -181,10 +212,10 @@ const HUB = {
     if (!lists[sl] || !lists[sl][+si]) { sl = 'L'; si = lists.L[0] ? 0 : 1; invSel = `L:${si}`; }
     const i = +si, w = lists[sl][i], bagFull = lists.B.length >= bagMax(), stashFull = lists.S.length >= stashMax(), lone = lists.L.filter(Boolean).length < 2;
     let acts = '';
-    if (w && sl === 'L') acts = hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Raktárba', `mv:L:${i}:S`, lone || stashFull, 'KeyR') + hbtn('Karakterládába', `mv:L:${i}:K`, lone || sharedFull, 'KeyK');
+    if (w && sl === 'L') acts = hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Raktárba', `mv:L:${i}:S`, lone || stashFull, 'KeyR') + hbtn('Karakterládába', `mv:L:${i}:K`, lone || sharedFull, 'KeyK') + wSellBtns(w, 'L', i, lone);
     else if (w && sl === 'K') acts = hbtn('Kézbe', `mv:K:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('Táskába', `mv:K:${i}:B`, bagFull, 'KeyT') + hbtn('Raktárba', `mv:K:${i}:S`, stashFull, 'KeyR');
     else if (w) acts = hbtn('Kézbe', `mv:${sl}:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('1. kézbe', `mv:${sl}:${i}:L:0`, !canUse(w), 'Digit1') + hbtn('2. kézbe', `mv:${sl}:${i}:L:1`, !canUse(w), 'Digit2') +
-      hbtn('Karakterládába', `mv:${sl}:${i}:K`, sharedFull, 'KeyK') + (sl === 'B' ? hbtn('Raktárba', `mv:B:${i}:S`, stashFull, 'KeyR') : hbtn('Táskába', `mv:S:${i}:B`, bagFull, 'KeyT') + hbtn(`Eladás $${sellValue(w)}`, `sell:${i}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[w.q]} ⚙`, `salvage:${i}`, false, 'KeyB'));
+      hbtn('Karakterládába', `mv:${sl}:${i}:K`, sharedFull, 'KeyK') + (sl === 'B' ? hbtn('Raktárba', `mv:B:${i}:S`, stashFull, 'KeyR') : hbtn('Táskába', `mv:S:${i}:B`, bagFull, 'KeyT')) + wSellBtns(w, sl, i, false);
     if (w) acts += hbtn('Kovács ›', 'goforge', false, 'KeyG');
     const cmp = sl === 'L' ? lists.L[1 - i] : lists.L[0] || lists.L[1];
     const hands = lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('');
@@ -193,7 +224,7 @@ const HUB = {
       <h3>Raktár <small>${lists.S.length} / ${stashMax()}</small></h3><div class="tiles" data-drop="S">${lists.S.map((x, k) => wTile(`S:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A vett és talált fegyverek ide kerülnek')}</div>
       <h3>Karakterek közti láda <small>${SH.w.length} / ${SHARED_MAX} · a saját mentéseid között, nem a csapattal</small></h3><div class="tiles shared" data-drop="K">${lists.K.map((x, k) => wTile(`K:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'Tegyél ide fegyvert, és a másik mentésed is eléri')}</div>`;
     const junk = `<span class="junk"><b>Auto-szétszedés kijutáskor</b>${['Ki', 'Közönséges', 'Nem mindennapi', 'Ritka'].map((t, q) => `<button class="chip${(P.junkQ == null ? -1 : P.junkQ) === q - 1 ? ' on' : ''}" data-act="junk:${q - 1}" data-tip="${q ? `Kijutáskor a talált ${t.toLowerCase()} és gyengébb fegyvereket magától alkatrészre szedi.` : 'Nincs automatikus szétszedés.'}">${t}${q ? '-ig' : ''}</button>`).join('')}</span>`;
-    return `${buildsRow(junk)}
+    return `${buildsRow(junk)}${trashBar('w')}
 
       ${invLayout(left, w ? weaponDetail(w, cmp, acts) : noDetail('Válassz egy fegyvert.'))}`;
   },
@@ -203,14 +234,14 @@ const HUB = {
     const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : sl === 'H' ? SH.g[+si] : null;
     if (!get()) { const k = GEAR_KEYS.find(k => P.gear[k]); [sl, si] = k ? ['W', k] : ['G', '0']; invSel = `${sl}:${si}`; }
     const it = get();
-    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + hbtn(`Eladás $${gearValue(it)}`, `gsell:${si}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[it.q]} ⚙`, `gsalvage:${si}`, false, 'KeyB');
+    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'W', si) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'G', si);
     const worn = GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('');
     const sorted = st.map((x, k) => [x, k]).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
     const left = `<h3>Viselt</h3><div class="tiles worn" data-drop="W">${worn}</div>
       <h3>Páncélraktár <small>${st.length} / ${gearMax()}</small></h3><div class="tiles" data-drop="G">${sorted.map(([x, k]) => gTile(`G:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'A munkán talált páncél ide kerül')}</div>
       <h3>Karakterek közti láda <small>${SH.g.length} / ${SHARED_MAX} · a saját mentéseid között, nem a csapattal</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>
 `;
-    return `${buildsRow()}
+    return `${buildsRow()}${trashBar('g')}
       <p class="lede">Sisak, mellvért, nadrág, csizma. A páncél a pajzsodat növeli, minden darab márkabónuszt ad, és 2/3/4 azonos márkájú darab szettbónuszt. Kattints egy darabra a részletekért.</p>
       ${invLayout(left, it ? gearDetail(it, sl === 'G' ? P.gear[it.slot] : null, acts) : noDetail('Még nincs páncélod. A zombik dobják, és a boltban is van.'))}`;
   },
@@ -298,6 +329,7 @@ $('hubMenuBtn').onclick = () => { saveProfile(); openMenu(); };
 $('hubBody').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const [kind, a, c] = b.dataset.act.split(':'), P = profile;
+  if (CONFIRM_ACTS.includes(kind) && !confirmOk) return askConfirm(b);
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
   if (kind === 'goforge') { hubTab = 'forge'; return renderHub(); }
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
@@ -339,11 +371,18 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'unwear') { P.gearStash.push(P.gear[a]); P.gear[a] = null; gearChanged(); }
   if (kind === 'gshare' && P.gearStash[+a] && SH.g.length < SHARED_MAX) SH.g.push(P.gearStash.splice(+a, 1)[0]);
   if (kind === 'gunshare' && SH.g[+a] && P.gearStash.length < gearMax()) P.gearStash.push(SH.g.splice(+a, 1)[0]);
-  if (kind === 'gsell') { P.cash += gearValue(P.gearStash.splice(+a, 1)[0]); }
+  if (kind === 'gsell') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.cash += gearValue(it); } }
   if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < gearMax() && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
-  if (kind === 'salvage') { const w = P.stash[+a] && unpackW(P.stash[+a]); if (w) { P.stash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[w.q] + expRefund(w); } } // expertise half back; the core is spent
-  if (kind === 'gsalvage') { const it = P.gearStash[+a]; if (it) { P.gearStash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[it.q] + expRefund(it); } }
-  if (kind === 'sell') { const w = unpackW(P.stash.splice(+a, 1)[0]); P.cash += sellValue(w); }
+  if (kind === 'salvage') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.parts = (P.parts || 0) + salvageGain(w); } } // expertise half back; the core is spent
+  if (kind === 'gsalvage') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.parts = (P.parts || 0) + salvageGain(it); } }
+  if (kind === 'fav' || kind === 'trash') { const w = wAt(a, c); if (w) { if (kind === 'fav') { w.fav = !w.fav; if (w.fav) w.junk = false; } else if (!w.fav) w.junk = !w.junk; wList(a)[+c] = packW(w); } }
+  if (kind === 'gfav' || kind === 'gtrash') { const it = gearAt(a, c); if (it) { if (kind === 'gfav') { it.fav = !it.fav; if (it.fav) it.junk = false; } else if (!it.fav) it.junk = !it.junk; } }
+  if (kind === 'trashsell' || kind === 'trashsalv') { // every trash-marked piece in the bag and stash (weapons) or the armor stash
+    const sell = kind === 'trashsell';
+    if (a === 'w') for (const sl of ['S', 'B']) { const L = wList(sl); for (let k = L.length - 1; k >= 0; k--) { const w = unpackW(L[k]); if (w && w.junk && !w.fav) { L.splice(k, 1); if (sell) P.cash += sellValue(w); else P.parts = (P.parts || 0) + salvageGain(w); } } }
+    else for (let k = P.gearStash.length - 1; k >= 0; k--) { const it = P.gearStash[k]; if (it.junk && !it.fav) { P.gearStash.splice(k, 1); if (sell) P.cash += gearValue(it); else P.parts = (P.parts || 0) + salvageGain(it); } }
+  }
+  if (kind === 'sell') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.cash += sellValue(w); } }
   SND.buy(); saveProfile(); saveShared(); renderHub();
 });
 

@@ -129,7 +129,7 @@ const lootLvl = (x = 0) => clamp(jobLvl() + x + Math.floor(Math.random() * 3) - 
 // any kind can turn up at any threat; below its usual threat (min) it is rarer the further below it is
 function pickKind() {
   const opts = Object.keys(KINDS).filter(k => !KINDS[k].max || zombies.filter(z => !z.dead && z.kind === k).length < KINDS[k].max);
-  const ws = opts.map(k => { const K = KINDS[k]; return Math.max(0, K.w(Math.max(round, K.min))) * (round >= K.min ? 1 : .3 * Math.pow(.72, K.min - round - 1)); });
+  const ws = opts.map(k => { const K = KINDS[k]; return Math.max(0, K.w(Math.max(round, K.min))) * clamp(.2 + .8 * round / K.min, .2, 1); }); // before its wave a kind is rarer, never absent
   let x = Math.random() * ws.reduce((a, b) => a + b);
   for (let i = 0; i < opts.length; i++) if ((x -= ws[i]) <= 0) return opts[i];
   return 'walker';
@@ -823,11 +823,11 @@ function setZTier(z, tier, traits) {
 function rollTier(z, kind) {
   if (z.K.boss || kind === 'spawnling' || NET.client || !mission || mission.job.test) return;
   const d = mission.job.diff - 1, t = jobTier(), r = Math.random();
-  const pN = .006 + .003 * d + .004 * t, pE = .03 + .012 * d + .02 * t + (roundMod.elite ? .2 : 0), pV = .14 + .03 * d + .03 * t;
+  const w = Math.min(20, round - 1), pN = .006 + .003 * d + .004 * t + .0015 * w, pE = .03 + .012 * d + .02 * t + .006 * w + (roundMod.elite ? .2 : 0), pV = .14 + .03 * d + .03 * t + .012 * w;
   const tier = r < pN ? 3 : r < pN + pE ? 2 : r < pN + pE + pV ? 1 : 0;
   if (tier) setZTier(z, tier);
 }
-const zName = z => { const T = ZTIERS[z.tier || 0], tr = (z.traits || []).map(k => AFFIX[k].name);
+const zName = z => { if (z.dummy) return 'Célbábu'; const T = ZTIERS[z.tier || 0], tr = (z.traits || []).map(k => AFFIX[k].name);
   return (z.tier === 3 ? `„${NAMED[z.id % NAMED.length]}” · ${z.K.name}` : (T.name ? T.name + ' ' : '') + z.K.name) + (tr.length ? ` (${tr.join(', ')})` : ''); };
 function zBit(z) { if (z.traits && z.traits.includes('vamp') && !z.dead) { z.hp = Math.min(z.maxHp, z.hp + z.maxHp * .12); burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xb3141b, 8, 2, .4); } }
 const AFFIX_KEYS = Object.keys(AFFIX);

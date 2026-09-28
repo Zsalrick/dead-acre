@@ -539,8 +539,41 @@ const MAPS = {
       east:  { side: 'e', at: -10, name: 'Ügyelet', cost: 1000, core: { minX: 46, maxX: 68, minZ: -22, maxZ: 2 }, spawns: [[65, -19], [65, -1]], station: ['forge', 56, -12] },
     },
   },
+  range: {
+    name: 'Lőtér · Elhagyatott ház', desc: 'Egy elhagyott ház a kertjével, körben erdő. Csak célbábuk vannak.', minLevel: 1, range: true,
+    main: { minX: -34, maxX: 34, minZ: -28, maxZ: 28 }, look: { tex: 'grass', ground: 0x7d8c5c, fog: 0x0c1410, fogD: [.016, .022], fence: 0x8a7a60 },
+    vans: [[-20, 23], [20, 24]], ammo: [0, 0], boxSpots: [[0, 0]], spawns: [[-31, -25], [31, -25]],
+    lamps: [[-8, -2], [10, 4], [0, 14]],
+    clear: [[0, -16, 10], [-22, -16, 5], [0, 4, 16]],
+    props: [['crate', 1], ['barrel', 1], ['logs', 2], ['hay', 1]], propN: [6, 10],
+    build() {
+      const wall = matStd({ color: 0x9a8f7a }), dark = matStd({ color: 0x1a1c1e }), plank = matStd({ color: 0x6a5238 }), green = matStd({ color: 0x3f6a2e }), soil = matStd({ color: 0x3a2a1c });
+      // the house: boarded windows, a sagging porch
+      house(0, -18, 16, 10, 6, wall, 0x3a2a24, 's');
+      for (const x of [-5, 5]) { addBox(x, -12.94, 2, .06, 1.4, dark, 2.4, false); for (const dy of [2.6, 3.3]) addBox(x, -12.9, 2.3, .08, .25, plank, dy, false).rotation.z = (dy > 3 ? -.12 : .1); }
+      addBox(0, -11.4, 16, 3, .2, plank, 3, false); [[-7.5, -10.1], [7.5, -10.1], [-2.5, -10.1]].forEach(([x, z]) => addBox(x, z, .2, .2, 3, plank));
+      addBox(2.5, -10.1, .2, .2, 2.4, plank).rotation.z = .25; // a broken porch post
+      // the shed and the garden: beds, a scarecrow, a swing, a table
+      house(-24, -18, 7, 6, 3.6, plank, 0x2a2420, 'e');
+      for (let i = 0; i < 4; i++) { addBox(-20 + i * 4.2, 6, 3, 1.4, .3, soil); for (let k = 0; k < 4; k++) { const b = put(new THREE.Mesh(new THREE.SphereGeometry(.35 + (k % 2) * .12, 7, 5), green)); b.position.set(-21.1 + i * 4.2 + k * .7, .45, 6 + (k % 2 ? .3 : -.3)); } }
+      const sc = put(new THREE.Group()); sc.position.set(-14, 0, 12); [[.12, 2.2, .12, 0, 1.1, 0], [1.6, .12, .12, 0, 1.7, 0], [.6, .7, .4, 0, 1.55, 0], [.4, .4, .4, 0, 2.2, 0]].forEach(([w, h, d, x, y, z], i) => { const m = new THREE.Mesh(unitBox, i === 2 ? matStd({ color: 0x7a3a2a }) : i === 3 ? matStd({ color: 0xc8a860 }) : plank); m.scale.set(w, h, d); m.position.set(x, y, z); sc.add(m); });
+      obstacles.push({ minX: -14.4, maxX: -13.6, minZ: 11.6, maxZ: 12.4, h: 2.4 });
+      [[-2, 0], [2, 0]].forEach(([dx]) => addBox(16 + dx, 12, .2, .2, 3, plank)); addBox(16, 12, 4.4, .2, .2, plank, 3); addBox(16, 12, 1, .5, .08, plank, .8, false);
+      addBox(20, 2, 2, 1.2, .1, plank, .9); [[-.8, -.4], [.8, -.4], [-.8, .4], [.8, .4]].forEach(([a, b]) => addBox(20 + a, 2 + b, .1, .1, .9, plank, 0, false));
+      // a picket fence round the garden, with a gap
+      const pk = matStd({ color: 0xb8b0a0 }); for (let x = -24; x <= 24; x += 1.2) if (Math.abs(x) > 3) addBox(x, 16, .12, .08, 1, pk, 0, false);
+      for (const s of [-1, 1]) for (const y of [.35, .75]) addBox(s * 13.5, 16.05, 21, .05, .08, pk, y, false);
+      // targets to shoot at on the far side
+      const tTex = panelTex('target', 128, 128, (g, w, h) => { g.fillStyle = '#e8e2d0'; g.fillRect(0, 0, w, h); ['#b3141b', '#e8e2d0', '#b3141b', '#e8e2d0', '#b3141b'].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(64, 64, 58 - i * 12, 0, 7); g.fill(); }); });
+      for (const [x, z] of [[-12, -4], [-4, -6], [6, -5], [14, -3]]) { addBox(x, z, 1.4, .1, 1.4, matStd({ map: tTex }), 1); addBox(x - .5, z, .1, .1, 1, plank, 0, false); addBox(x + .5, z, .1, .1, 1, plank, 0, false); }
+      // woods: pines in the yard's corners and along the edges
+      for (let i = 0; i < 40; i++) { const a = mulberry(mapSeed + i * 13)(), b = mulberry(mapSeed + i * 29 + 5)(), x = -32 + a * 64, z = -26 + b * 52;
+        if (Math.abs(x) < 26 && z > -24 && z < 20) continue; if (inVanLane(x, z, 3)) continue; pine(x, z); }
+    },
+    areas: {},
+  },
 };
-const MAP_IDS = Object.keys(MAPS);
+const MAP_IDS = Object.keys(MAPS).filter(k => !MAPS[k].range); // the testing ground is not a job map
 
 // ---------- bounds & routing ----------
 const SIDE = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
@@ -619,7 +652,7 @@ function loadMap(id, seed) {
     const a = Math.random() * Math.PI * 2, r = rand(8, 30);
     const x = clamp(Math.cos(a), -1, 1) * (Math.max(Math.abs(ext.minX), ext.maxX) + r), z = Math.sin(a) * (Math.max(Math.abs(ext.minZ), ext.maxZ) + r);
     if (Object.values(AREAS).some(A => inRect({ minX: A.core.minX - 4, maxX: A.core.maxX + 4, minZ: A.core.minZ - 4, maxZ: A.core.maxZ + 4 }, x, z)) || inVanLane(x, z, 3)) continue;
-    id === 'mill' ? pine(x, z) : deadTree(x, z);
+    id === 'mill' || id === 'range' ? pine(x, z) : deadTree(x, z);
   }
   generateProps(seed);
   baseFog = lerp(L.fogD[0], L.fogD[1], mulberry(seed + 1)());
@@ -768,6 +801,7 @@ function buildBoxAndAmmo() {
   deco(unitBox, new THREE.MeshBasicMaterial({ color: 0x6fd6ff }), 0, .91, 0, 1.7, .02, .8, box.deco);
   box.state = 'idle'; if (box.show) { scene.remove(box.show); box.show = null; }
   placeBox(Math.floor(mulberry(mapSeed + 3)() * BOX_SPOTS.length));
+  if (MAP.range) { [box.mesh, box.deco, box.label, box.beam].forEach(o => o.visible = false); box.light.intensity = 0; box.obs.minX = box.obs.maxX = 1e4; ammoBox.pos.set(1e4, 0, 1e4); return; } // the testing ground sells nothing
   const [ax, az] = MAP.ammo; ammoBox.pos.set(ax, 0, az);
   addBox(ax, az, 1.4, .8, .7, new THREE.MeshLambertMaterial({ color: 0x3f4f2c }));
   addBox(ax, az, 1.45, .82, .12, new THREE.MeshLambertMaterial({ color: 0xc7a03a }), .45, false);
