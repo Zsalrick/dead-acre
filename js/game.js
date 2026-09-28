@@ -62,12 +62,48 @@ function startJob(job, opts = {}) {
   $('introT').textContent = job.title.toUpperCase(); $('introS').textContent = job.test ? 'Célbábuk, végtelen lőszer · cserélj fegyvert a társaiddal · Esc: vissza' : `${MAPS[job.map].name} · ${fmtTime(job.dur)} túlélés`;
   $('introS2').innerHTML = `${'★'.repeat(job.diff)}${'☆'.repeat(5 - job.diff)} · ${DIFF_NAMES[job.diff - 1]}${job.mod ? ` · ${MODS[job.mod].label}` : ''}${job.boss ? ' · A Mészáros is eljön' : ''}`;
   $('intro').hidden = false; $('hud').hidden = true; mission.introS = $('introS').textContent; mission.goT = -1;
-  state = 'intro'; initAudio(); lockPointer();
+  state = 'intro'; initAudio(); lockPointer(); showLoading(job);
   netJobStarted({ seed, a, b, client: !!opts.client });
 }
 // the ride in: everyone sits in the back of the van (look around freely), it drives round to the gate and backs in,
 // then you climb down off the tailgate and draw. The leader starts the van once everyone is seated; members follow its clock.
 const SEATS = [[-.8, .62], [-.8, -.62], [-1.7, .62], [-1.7, -.62]], BED_Y = 1.3; // van space: +x is the bonnet, the tailgate at -2.4
+const LOAD_MIN = 5, loadEl = M => (performance.now() - (M.loadAt || 0)) / 1000; // real seconds: a slow first frame doesn't stretch it
+function mapShot() { // one picture of the map from above a corner, thinner fog so it reads
+  try {
+    const R = MAIN_RECT, cx = (R.minX + R.maxX) / 2, cz = (R.minZ + R.maxZ) / 2, w = R.maxX - R.minX, h = R.maxZ - R.minZ;
+    const cam = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, .5, 800); cam.position.set(cx + w * .45, Math.max(w, h) * .45, cz + h * .7); cam.lookAt(cx, 0, cz);
+    const fd = scene.fog.density; scene.fog.density = fd * .15; scene.updateMatrixWorld(); renderer.render(scene, cam);
+    const url = renderer.domElement.toDataURL('image/jpeg', .82); scene.fog.density = fd; return url;
+  } catch (e) { return ''; }
+}
+function showLoading(job) {
+  const L = $('loadscr'), M = MAPS[job.map], B = job.bounty && BOUNTIES[job.bounty], sp = typeof spTags === 'function' ? spTags(job) : [];
+  $('lsImg').src = mapShot(); $('lsImg').hidden = !$('lsImg').src;
+  $('lsEy').textContent = `${M.name}${job.test ? ' · gyakorlás' : ''}`;
+  $('lsT').textContent = job.title;
+  $('lsS').innerHTML = job.test ? 'Célbábuk, végtelen lőszer, nincs veszély' : `<span class="lsst" style="color:${B ? '#ff8c1a' : DIFF_COL[job.diff - 1]}">${'★'.repeat(job.diff)}${'☆'.repeat(5 - job.diff)}</span> ${DIFF_NAMES[job.diff - 1]} · Megbízó: ${job.client || '–'}`;
+  const f = job.test ? [] : [
+    ['Feladat', B ? `Fejvadászat: ${B.name}` : job.type && job.type !== 'survive' ? JOB_TYPES[job.type].name : 'Túlélés'],
+    ['Idő', noClock(job) ? 'nincs időkorlát' : fmtTime(job.dur)], ['Zóna', `${job.lvl || profile.level}. szint`], ['Kezdő veszély', START_THREAT[job.diff - 1]],
+    ['Díj', `$${job.reward} · ${job.xp} XP`],
+    ...(job.mod && MODS[job.mod] ? [['Módosító', MODS[job.mod].label]] : []), ...sp.map(S => ['Különleges', `<b style="color:${S.color}">${S.name}</b>`]),
+    ...(job.boss && !B ? [['Főellenség', 'A Mészáros is eljön']] : []), ...((job.dir || []).length ? [['Direktívák', job.dir.map(k => DIRECTIVES[k] ? DIRECTIVES[k].name : k).join(', ')]] : []),
+  ];
+  $('lsF').innerHTML = f.map(([k, v]) => `<li><small>${k}</small><span>${v}</span></li>`).join('');
+  L.dataset.h = ''; L.classList.remove('out'); L.hidden = false; mission.loadAt = performance.now();
+}
+function updateLoading(M) {
+  const L = $('loadscr'); if (L.hidden) return;
+  if (M.goT >= 0) { if (!L.classList.contains('out')) { L.classList.add('out'); setTimeout(() => { if (L.classList.contains('out')) L.hidden = true; }, 600); } return; }
+  const mem = NET.mode ? partyMembers() : [], list = mem.length ? mem : [{ me: true, n: myName(), lv: profile.level, c: profile.cls }];
+  const rows = list.map(m => ({ ...m, ok: m.me || NET.avatars.has(m.peer) })), n = rows.filter(r => r.ok).length;
+  const h = rows.map(r => { const C = CLASSES[r.c]; return `<div class="lsp${r.ok ? ' ok' : ''}" style="--pc:${C ? C.color : '#c9c1a8'}"><i></i><b>${esc(r.n || '?')}${r.me ? ' <small>(te)</small>' : ''}</b><span>${C ? C.name : 'Nincs kaszt'} · ${r.lv || 1}. szint</span><em>${r.ok ? 'kész' : 'tölt…'}</em></div>`; }).join('');
+  if (L.dataset.h !== h) { L.dataset.h = h; $('lsP').innerHTML = h; }
+  const k = Math.min(1, loadEl(M) / LOAD_MIN) * .6 + n / rows.length * .4;
+  $('lsFill').style.width = k * 100 + '%';
+  $('lsTxt').textContent = loadEl(M) < LOAD_MIN ? 'Betöltés…' : n < rows.length ? `Várakozás a többiekre · ${n} / ${rows.length}` : 'Indulás';
+}
 const RIDE = { wait: 1.2, road: 4.4, stop: .5, back: 3.4, exit: 1.9 };
 const rideLen = () => RIDE.road + RIDE.stop + RIDE.back;
 function mySeat() { if (!NET.mode) return 0; const ids = partyMembers().filter(m => m.st === 'job').map(m => m.peer).sort(); return clamp(ids.indexOf(NET.me), 0, 3); }
@@ -83,12 +119,12 @@ function ridePose(t) { // t seconds into the drive: along the road outside the f
   truck.g.rotation.y = Math.atan2(-side * hl, truck.dir * hf); truck.g.visible = true;
 }
 function updateIntro(dt) {
-  const M = mission; M.intro += dt;
+  const M = mission; M.intro += dt; updateLoading(M);
   if (M.goT < 0) { // everyone takes a seat; the leader (or you alone) starts the engine
     M.seat = mySeat();
     const want = NET.mode ? partyMembers().filter(m => !m.me).length : 0;
     if (NET.mode && want) $('introS').textContent = `A többiekre vár… ${NET.avatars.size + 1} / ${want + 1}`;
-    if (!NET.client && M.intro > RIDE.wait && (NET.avatars.size >= want || M.intro > 15)) M.goT = 0;
+    if (!NET.client && loadEl(M) > LOAD_MIN && (NET.avatars.size >= want || loadEl(M) > 30)) M.goT = 0; // after the loading screen: at least 5 s, and everyone in (30 s at most)
     if (M.goT >= 0) { $('introS').textContent = M.introS; }
   } else {
     if (!M.engine) { M.engine = 1; if (M.goT < rideLen()) nz(rideLen() - M.goT, 150, .28, 'lowpass', .6); $('introS').textContent = M.introS; }

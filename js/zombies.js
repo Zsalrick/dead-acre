@@ -121,8 +121,11 @@ function mkZombie(kind) {
   return { decos: merged, g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
 }
 // ×1.12 per threat level: guns (+7.5% per level, rarity, upgrades, gear) can keep up instead of falling hopelessly behind
-function zombieHp() { return 100 * Math.pow(1.1, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .08 * jobTier()) * (dirOn('tough') ? 1.25 : 1); }
+function zombieHp() { return 140 * Math.pow(1.08, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .1 * (((mission && mission.job.diff) || 1) - 1)) * (1 + .08 * jobTier()) * (dirOn('tough') ? 1.25 : 1); }
 // the job's level: zombies and loot scale with it, so the world keeps pace with you forever
+// how hard a zombie hits: ×1.035 a zone level, +10% a star, +8% a Rémálom tier (the wave adds +4% a threat level on each hit, zWave)
+const zDmgMul = () => Math.pow(1.035, jobLvl() - 1) * (1 + .1 * (((mission && mission.job.diff) || 1) - 1)) * (1 + .08 * jobTier());
+const zWave = () => 1 + .04 * (round - 1);
 const jobLvl = () => (mission && mission.job.lvl) || (profile ? profile.level : 1);
 const jobTier = () => (mission && mission.job.tier) || 0; // Rémálom +N: endless difficulty past 5 stars
 const lootLvl = (x = 0) => clamp(jobLvl() + x + Math.floor(Math.random() * 3) - 1, 1, LEVEL_CAP + 2 * jobTier()); // gear tops out at 30, Rémálom tiers push it past
@@ -149,7 +152,7 @@ function spawnZombieAt(kind, x, zz, rise = 1) {
   const K = KINDS[kind], m = mkZombie(kind);
   const z = {
     kind, K, ...m, pos: new V3(x, 0, zz),
-    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg * (1 + .08 * jobTier()), scale: K.scale(),
+    hp: zombieHp() * K.hp * (K.boss ? 1 : roundMod.hp) * (NET.mode === 'host' ? 1 + .15 * (partySize() - 1) : 1) /* tougher with a bigger party */, speed: K.speed(round) * roundMod.speed, dmg: K.dmg * zDmgMul(), scale: K.scale(),
     armor: K.armor ? zombieHp() * K.armor : 0, leapCd: rand(1, 3), crouch: 0, leap: null, buffT: 0, broodT: 4, bossT: 5, op: .12,
     heading: 0, side: Math.random() < .5 ? -1 : 1, strafeT: rand(2, 4), walkT: rand(0, 6), rise: 1, atkCd: 0, windup: 0,
     burnT: 0, burnDps: 0, burnAcc: 0, slowT: 0, flash: 0, groanT: rand(1, 6), dead: false, deathT: 0,
@@ -226,7 +229,7 @@ function addPoints(n) {
 }
 function popBloater(z) {
   z.exploded = true; z.dead = true; z.g.visible = false; z.deathT = 2.9;
-  explode(new V3(z.pos.x, 1, z.pos.z), { r: 4.2, zdmg: 90 + zombieHp() * .9, pr: 3.8, pdmg: 45, color: 0x9dff3a });
+  explode(new V3(z.pos.x, 1, z.pos.z), { r: 4.2, zdmg: 90 + zombieHp() * .9, pr: 3.8, pdmg: 45 * zDmgMul(), color: 0x9dff3a });
 }
 function killZombie(z, o) {
   if (z.dummy) { z.dead = true; z.deathT = 0; z.fallDir = 1; if (!o.remote) { hitmarker(true); SND.kill(); } if (mission && mission.dummyQ) mission.dummyQ.push({ t: 2.5, spot: z.spot }); return; }
@@ -311,7 +314,7 @@ function gunslingerFire(z, dmg = 9) {
   if (!hit && wall) burst(end, 0xffc070, 4, 2, .3);
   const dist = z.pos.distanceTo(player.pos);
   SND.zshot(clamp(.7 - dist / 45, .12, .7));
-  if (hit) { if (liveWorld()) hurtPlayer(dmg); }
+  if (hit) { if (liveWorld()) hurtPlayer(dmg * zDmgMul()); }
   else if (t > 0 && miss < 2.5) SND.whiz();
   z.gunKick = .5;
 }
@@ -334,7 +337,7 @@ function updateZProjs(dt) {
     if (Math.random() < dt * 20) burst(pos, 0x9dff3a, 1, .5, .3);
     const tp = p.tgt ? p.tgt.pos : player.pos, direct = !p.remote && pos.distanceTo(new V3(tp.x, (tp.y || 0) + 1, tp.z)) < .7;
     if (pos.y <= .05 || direct) {
-      if (direct && p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, 15, 'Köpködő'], 16); else if (direct && liveWorld()) hurtPlayer(15); // the one it was aimed at takes the hit
+      if (direct && p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, Math.round(15 * zDmgMul()), 'Köpködő'], 16); else if (direct && liveWorld()) hurtPlayer(15 * zDmgMul()); // the one it was aimed at takes the hit
       const pm = new THREE.Mesh(puddleGeo, new THREE.MeshBasicMaterial({ color: 0x7fe02a, transparent: true, opacity: .55, depthWrite: false }));
       pm.position.set(pos.x, .03, pos.z); scene.add(pm);
       puddles.push({ m: pm, t: 5 });
@@ -516,7 +519,7 @@ function updateZombies(dt) {
         z.windup -= dt;
         if (z.windup <= 0) {
           z.atkCd = 1.1;
-          if (dist < reachD + .35 && liveWorld()) { hurtPlayer(z.dmg * (1 + .03 * (round - 1))); zBit(z); }
+          if (dist < reachD + .35 && liveWorld()) { hurtPlayer(z.dmg * zWave()); zBit(z); }
           if (!K.crawl) z.armL.rotation.x = z.armR.rotation.x = -.6;
         }
       } else if (dist < reachD && z.atkCd <= 0) z.windup = .38;
@@ -542,7 +545,7 @@ function updateLeaper(z, dt, dist) {
     if (u >= 1) {
       z.leap = null; z.leapCd = rand(3.5, 5);
       burst(new V3(z.pos.x, .1, z.pos.z), 0x3a3020, 10, 2.5, .5);
-      if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 1.9 && liveWorld()) { hurtPlayer(z.dmg * (1 + .03 * (round - 1))); zBit(z); }
+      if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 1.9 && liveWorld()) { hurtPlayer(z.dmg * zWave()); zBit(z); }
     }
     return true;
   }
@@ -574,7 +577,7 @@ function updateBoss(z, dt, dist, toPlayer) {
         z.bossState = null; z.bossT = rand(1.5, 2.5); z.armR.rotation.x = -.3;
         SND.slam(); player.shake = Math.max(player.shake, .5);
         burst(new V3(z.pos.x + Math.sin(z.heading) * 2, .2, z.pos.z + Math.cos(z.heading) * 2), 0x3a3020, 30, 5, .8);
-        if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 3.6 && liveWorld()) hurtPlayer(45);
+        if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 3.6 && liveWorld()) hurtPlayer(45 * zDmgMul());
       }
     }
     z.g.position.set(z.pos.x, 0, z.pos.z);
@@ -586,7 +589,7 @@ function updateBoss(z, dt, dist, toPlayer) {
     const before = z.pos.clone(); collide(z.pos, .7);
     z.walkT += dt * 16; const sw = Math.sin(z.walkT) * .8; z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
     z.g.position.set(z.pos.x, 0, z.pos.z); z.g.rotation.y = z.heading = z.chargeAng;
-    if (!z.hitDone && dist < 2.2 && liveWorld()) { z.hitDone = true; hurtPlayer(z.dmg * (1 + .03 * (round - 1))); player.shake = .6; zBit(z); }
+    if (!z.hitDone && dist < 2.2 && liveWorld()) { z.hitDone = true; hurtPlayer(z.dmg * zWave()); player.shake = .6; zBit(z); }
     if (z.stateT <= 0 || before.distanceTo(z.pos) > .05) { z.bossState = null; z.bossT = rand(5, 8); }
     return true;
   }
@@ -880,7 +883,7 @@ function bellHit(at) {
   SND.roar(); tn(110, 2.5, .25, 'sine', 108); burst(new V3(at.x, 3, at.z), 0xd8c47a, 30, 6, .8);
   if (player.down || Math.hypot(player.pos.x - at.x, player.pos.z - at.z) > 30) return;
   if (!hasSight(new V3(at.x, 2.6, at.z), new V3(player.pos.x, 1.6, player.pos.z))) return popText('A fedezék megvédett!', '#7dff7a');
-  player.chillT = 2.2; player.shake = .9; hurtPlayer(14); popText('A harang elkábított!', '#d8c47a');
+  player.chillT = 2.2; player.shake = .9; hurtPlayer(14 * zDmgMul()); popText('A harang elkábított!', '#d8c47a');
 }
 
 // what your gear and skills do when you kill: the same for the host, solo, and a party member's confirmed kills
