@@ -50,16 +50,16 @@ const gPic = it => gearIcon(it.slot, BRANDS[it.brand].color, it.name);
 // o: n (slot number) · tag (új/saját ribbon) · price · cant (can't afford) · up (better than what you use) · lv · val/valLbl (key stat) · bc (brand color)
 function tile(sel, pic, name, sub, color, o = {}) {
   return `<button class="tile${invSel === sel ? ' on' : ''}${o.cant ? ' cant' : ''}" data-act="sel:${sel}" draggable="true" style="--rc:${color}${o.bc ? `;--bc:${o.bc}` : ''}">
-    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lock ? ' lock' : ''}"${o.lock ? ' title="Még nem használhatod"' : ''}>${o.lv}</i>` : ''}${o.up ? '<i class="tup" title="Jobb, mint amit most használsz">▲</i>' : ''}${o.tag ? `<i class="ttag">${o.tag}</i>` : ''}</span>
+    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lock ? ' lock' : ''}"${o.lock ? ' title="Még nem használhatod"' : ''}>${o.lv}</i>` : ''}${o.up ? '<i class="tup" title="Jobb, mint amit most használsz">▲</i>' : ''}${o.tag ? `<i class="ttag">${o.tag}</i>` : ''}${o.exp ? `<i class="texp" title="Szakértelem ${o.exp}/10">✦${o.exp}</i>` : ''}</span>
     <span class="ttx"><b class="tn">${name}</b><small class="ts">${sub}</small></span>
     ${o.val != null ? `<b class="tv">${o.val}<small>${o.valLbl}</small></b>` : ''}${o.n ? `<i class="tb">${o.n}</i>` : ''}${o.price ? `<i class="tprice">${o.price}</i>` : ''}</button>`;
 }
 const favTag = x => x.fav ? '★' : x.junk ? '🗑' : '';
 const wTile = (sel, w, o = {}) => tile(sel, wPic(w), (favTag(w) ? favTag(w) + ' ' : '') + w.name, `${RARITIES[w.q].name} · ${w.base.name}`, rarColor(w),
-  Object.assign({ lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
+  Object.assign({ exp: w.exp, lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
 const gTile = (sel, it, o = {}) => tile(sel, gPic(it), (favTag(it) ? favTag(it) + ' ' : '') + it.name, (it.exo ? `Egzotikus · ${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`), gCol(it),
-  Object.assign({ lv: `Lv ${it.level}`, val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
+  Object.assign({ exp: it.exp, lv: `Lv ${it.level}`, val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
 const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="tpic">${pic ? `<img src="${pic}" alt="">` : ''}</span><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
 const invLayout = (left, detail) => `<div class="inv"><div class="invl">${left}</div><aside class="invd">${detail}</aside></div>`;
 const noDetail = t => `<div class="dnone">${t}</div>`;
@@ -108,7 +108,8 @@ function weaponDetail(w, cmp, actions) {
     <table class="dtab">
       ${drow('DPS', A.dps, x('dps'))}
       ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · egyedi ${pctS(A.roll)}`)}
-      ${drow('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), 'kaszt, képességek, páncél, gyártó')}
+      ${drow('Szakértelem', `${w.exp || 0}/10`, c ? arrow(w.exp || 0, c.exp || 0) : '', `+${2 * (w.exp || 0)}% sebzés ezzel a fegyverrel${(w.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, w.exp ? 'core' : '', `<i class="rbar" style="--p:${(w.exp || 0) * 10}%"></i>`)}
+      ${drow('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), 'kaszt, képességek, páncél, gyártó, szakértelem')}
       ${drow('Tűzgyorsaság', `${w.rpm}/p`, c ? arrow(w.rpm, c.rpm) : '')}
       ${drow('Tár', w.mag, c ? arrow(w.mag, c.mag) : '')}
       ${drow(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? arrow(w.reload, c.reload, true, 2) : '', `gyorsaság ${pctS(reloadMul() - 1)}`)}
@@ -124,7 +125,6 @@ function weaponDetail(w, cmp, actions) {
     <h4 class="dsec">Egyéb</h4>
     <table class="dtab">
       ${drow('Tartalék lőszer', A.res, x('res'))}
-      ${w.exp ? drow('Szakértelem', `${w.exp}/10`, '', `+${2 * w.exp}% sebzés`, 'core') : ''}
       ${w.roll != null ? drow('Dobás minősége', `${w.roll}%`, c && c.roll != null ? arrow(w.roll, c.roll) : '', w.roll >= 90 ? 'szinte tökéletes' : w.roll >= 70 ? 'jó dobás' : 'kalibrálható a kovácsnál', w.roll >= 90 ? 'core' : '') : ''}
     </table>
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
@@ -154,8 +154,7 @@ function gearDetail(it, cmp, actions) {
       <div class="dsub"><span style="color:${B.color}">${B.name}</span> · ${B.tag}</div></div>
     ${c ? `<div class="dcmp">Összevetve a viselt darabbal: <span style="color:${RARITIES[c.q].color}">${c.name}</span></div>` : ''}
     ${it.exo && EXOTICS[it.exo] ? `<div class="duniq" style="border-color:${EXO_COL}"><b>Egzotikus tehetség:</b> ${EXOTICS[it.exo].talent}</div>` : ''}
-    ${it.exp ? `<div class="doc"><b>Szakértelem ${it.exp}/10:</b> +${3 * it.exp}% páncél és tulajdonság</div>` : ''}
-    <table class="dtab" style="--bc:${B.color}">${rows}</table>
+    <table class="dtab" style="--bc:${B.color}">${drow('Szakértelem', `${it.exp || 0}/10`, c ? arrow(it.exp || 0, c.exp || 0) : '', `+${3 * (it.exp || 0)}% minden értékre${(it.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, it.exp ? 'core' : '', `<i class="rbar" style="--p:${(it.exp || 0) * 10}%"></i>`)}${rows}</table>
     <div class="dsets" style="--bc:${B.color}"><b>${B.name}</b> ${pipsB} <small>${cnt}/4 viselve</small><ul>${sets}</ul>
       ${B.t4 ? `<p class="dt4${cnt >= 4 ? ' on' : ''}"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</p>` : ''}
       ${next ? `<p class="dnext">Még ${next[0] - cnt} darab: ${GSTATS[next[1]].name} ${fmtG(next[1], next[2])}</p>` : ''}</div>
