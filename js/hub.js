@@ -111,7 +111,7 @@ function renderHub() {
   $('hubLvl').textContent = P.level;
   $('hubXp').style.width = P.xp / xpNeed(P.level) * 100 + '%';
   $('hubXpTxt').textContent = `${P.xp} / ${xpNeed(P.level)} XP · veterán ${vetEarned()}${vetAvail() ? ` (+${vetAvail()})` : ''}`;
-  $('hubCash').textContent = `$${P.cash}`; $('hubParts').textContent = `${P.parts || 0} ⚙ alkatrész${P.oc ? ` · ${P.oc} mag` : ''}`;
+  $('hubCash').textContent = `$${P.cash}`; $('hubParts').textContent = `${P.parts || 0} ⚙`;
   rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   $('hubTokens').textContent = P.tokens || 0;
@@ -127,8 +127,31 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
 const KEY_LABEL = { KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
-const hbtn = (label, act, off, key) => `<button class="sbtn" data-act="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
-const hhold = (label, act, off, key) => `<button class="sbtn hold" data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
+const MV_TIP = { L: 'Kézbe veszed: ezzel harcolsz a munkán.', B: 'A táskába teszed: a munkára is jön, ott kézbe veheted.', S: 'A raktárba teszed: a bázison marad, biztonságban.', K: 'A karakterek közti ládába teszed: a többi mentésed is eléri.' };
+const TIPS = {
+  sell: 'Eladod pénzért.', gsell: 'Eladod pénzért.', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.',
+  'hforge:level': 'A fegyver szintje +2: a sebzés szintenként kb. 8%-kal nő. A korlát a saját szintedhez igazodik.',
+  'hforge:rarity': 'Egy fokkal ritkább lesz a fegyver: nagyobb sebzés, tár, tűzgyorsaság és pontosság.',
+  'hforge:anoint': 'Lecseréli a felkenést egy véletlen újra (különleges hatás, pl. képességhasználat után).',
+  'hforge:recal': 'Újradobja a fegyver véletlen értékeit (sebzés, tűzgyorsaság, tár, újratöltés, pontosság), és a dobás minőségét (%).',
+  goforge: 'A Kovácshoz: szintemelés, ritkaság, felkenés, kalibrálás, szakértelem és túlhajtás.',
+  wear: 'Felveszed ezt a páncélt.', unwear: 'Leveszed: a páncélraktárba kerül.', gshare: 'A karakterek közti ládába teszed.', gunshare: 'A páncélraktáradba teszed.',
+  gun: 'Megveszed: a raktárba kerül.', gbuy: 'Megveszed: a páncélraktárba kerül.', item: 'Megveszed a munkákra.', drop: 'Eldobod a földre: a csapattársad felveheti.',
+  tier: 'Rémálom-fokozat: erősebb zombik, cserébe több XP, pénz és jobb zsákmány.', job: 'Elindítod ezt a munkát.', reroll: 'Új munkaajánlatok a térképre.',
+  testground: 'Lőtér: próbáld ki a fegyvereidet bábukon, és cserélj a csapattal. Nincs veszély.',
+  deep: 'Heti Mélyfúrás: 3 egymás utáni, egyre nehezebb munka. A végén egzotikus tárgy, 2 mag és 60 ⚙.', deepnext: 'A Mélyfúrás következő szakasza.',
+  respec: 'Visszakapod a fába tett érdemérmeket, és újraoszthatod őket.', sk: 'Egy szinttel fejleszted ezt a képességet (1 érdemérem).', cls: 'Ezt a kasztot választod.',
+  aug: 'A képesség-módosító megváltoztatja a kasztképességed működését. Egyszerre egy lehet aktív, szabadon váltható.', swcls: 'Átváltasz erre a kasztra. Ingyenes, a pontjaid kasztonként megmaradnak.',
+  claim: 'Beváltod a teljesített kontrakt jutalmát.', bsave: 'A mostani fegyvereidet és páncélodat elmented ebbe a buildbe.', bload: 'Felveszed a buildbe mentett felszerelést.',
+  pcreate: 'Csapatot hozol létre: kapsz egy kódot, amivel a barátod csatlakozhat.', pjoin: 'Csatlakozol ehhez a csapathoz.', pjoinc: 'Csatlakozás csapatkóddal.', pready: 'Jelzed a vezetőnek, hogy készen állsz.',
+  pleave: 'Kilépsz a csapatból.', pcopy: 'A csapatkódot a vágólapra másolod.', preveal: 'Megmutatja vagy elrejti a csapatkódot.',
+};
+function actTip(act) { const p = act.split(':'); return p[0] === 'mv' ? MV_TIP[p[3]] || '' : TIPS[p[0] + ':' + p[1]] || TIPS[p[0]] || ''; }
+const tipAttr = t => t ? ` data-tip="${t.replace(/"/g, '&quot;')}"` : '';
+const expTip = (it, gear) => gear ? `Szakértelem: +3% a darab minden értékére szintenként (páncél, márka, statok). Most: +${3 * (it.exp || 0)}%, legfeljebb +30%.`
+  : `Szakértelem: +2% sebzés ezzel a fegyverrel szintenként. Most: +${2 * (it.exp || 0)}%, legfeljebb +20%.`;
+const hbtn = (label, act, off, key, tip) => `<button class="sbtn"${tipAttr(tip || actTip(act))} data-act="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
+const hhold = (label, act, off, key) => `<button class="sbtn hold"${tipAttr('Tartsd lenyomva: a tárgy megsemmisül, és alkatrészt (⚙) kapsz érte, ha kijutsz.')} data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
 const fieldParts = q => Math.max(1, Math.floor(PARTS[q] / 2)); // taking a gun apart in the field: half what the bench at home gets
 const testJob = () => ({ map: 'farm', diff: 1, dur: 1e6, mod: null, boss: false, type: 'test', test: true, title: 'Lőtér', client: '', reward: 0, xp: 0, lvl: profile.level, goal: 0 });
@@ -168,7 +191,7 @@ const HUB = {
       <h3>Táska <small>${lists.B.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="B">${lists.B.map((x, k) => wTile(`B:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A munkára is jön')}</div>
       <h3>Raktár <small>${lists.S.length} / ${stashMax()}</small></h3><div class="tiles" data-drop="S">${lists.S.map((x, k) => wTile(`S:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'A vett és talált fegyverek ide kerülnek')}</div>
       <h3>Karakterek közti láda <small>${SH.w.length} / ${SHARED_MAX} · a saját mentéseid között, nem a csapattal</small></h3><div class="tiles shared" data-drop="K">${lists.K.map((x, k) => wTile(`K:${k}`, x, { cmp: lists.L[0] })).join('') || emptyTile('Üres', 'Tegyél ide fegyvert, és a másik mentésed is eléri')}</div>`;
-    const junk = `<span class="junk"><b>Auto-szétszedés kijutáskor</b>${['Ki', 'Közönséges', 'Nem mindennapi', 'Ritka'].map((t, q) => `<button class="chip${(P.junkQ == null ? -1 : P.junkQ) === q - 1 ? ' on' : ''}" data-act="junk:${q - 1}">${t}${q ? '-ig' : ''}</button>`).join('')}</span>`;
+    const junk = `<span class="junk"><b>Auto-szétszedés kijutáskor</b>${['Ki', 'Közönséges', 'Nem mindennapi', 'Ritka'].map((t, q) => `<button class="chip${(P.junkQ == null ? -1 : P.junkQ) === q - 1 ? ' on' : ''}" data-act="junk:${q - 1}" data-tip="${q ? `Kijutáskor a talált ${t.toLowerCase()} és gyengébb fegyvereket magától alkatrészre szedi.` : 'Nincs automatikus szétszedés.'}">${t}${q ? '-ig' : ''}</button>`).join('')}</span>`;
     return `${buildsRow(junk)}
 
       ${invLayout(left, w ? weaponDetail(w, cmp, acts) : noDetail('Válassz egy fegyvert.'))}`;
@@ -202,10 +225,10 @@ const HUB = {
       (w.q < 4 ? hbtn(`Ritkaság: ${RARITIES[w.q + 1].name} · ${HFORGE.rarity(w)} ⚙`, `hforge:rarity:${sl}:${i}`, pp < HFORGE.rarity(w), 'KeyV') : '') +
       (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '') +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
-      hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM') +
+      hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w)) +
       ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
     })();
-    const gActs = it ? hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it), 'KeyM') : '';
+    const gActs = it ? hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it), 'KeyM', expTip(it, true)) : '';
     const sec = (t, x) => x ? `<h3>${t}</h3><div class="tiles">${x}</div>` : '';
     const left = sec('Kézben', lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : '').join('')) + sec('Táska', lists.B.map((x, k) => wTile(`B:${k}`, x)).join('')) + sec('Raktár', lists.S.map((x, k) => wTile(`S:${k}`, x)).join('')) +
       sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
@@ -217,7 +240,8 @@ const HUB = {
     return `<div class="statpage"><h3>Karakter</h3><ul class="mlist kv"><li><b>Kaszt</b><span>${P.cls ? CLASSES[P.cls].name : 'nincs'}</span></li><li><b>Szint</b><span>${P.level}</span></li><li><b>Max életerő</b><span>${Math.round(maxHp())}</span></li>${ws.map((w, k) => `<li><b>${k + 1}. kéz · ${w.name}</b><span>DPS ${dps(w)}</span></li>`).join('')}</ul>
       <h3>Páncél összesítve</h3>${gearSummary()}
       <h3>Márka-kódex</h3><div class="brands">${Object.values(BRANDS).map(B => `<div class="brand" style="--bc:${B.color}"><b>${B.name}</b><small>${B.tag} · minden darab: ${GSTATS[B.core[0]].name} ${fmtG(...B.core)}</small>
-        <ul>${B.sets.map(([n, k, v]) => `<li>${n} db: ${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('')}${B.t4 ? `<li class="t4"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</li>` : ''}</ul></div>`).join('')}</div></div>`;
+        <ul>${B.sets.map(([n, k, v]) => `<li>${n} db: ${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('')}${B.t4 ? `<li class="t4"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</li>` : ''}</ul></div>`).join('')}</div>
+      <h3>Fegyvergyártók <small>minden fegyveren ott a gyártó bónusza</small></h3><ul class="mlist kv">${Object.values(MAKERS).map(m => `<li><b>${m.name}</b><span>${m.perk}</span><small>${m.cats.map(c => CAT_NAMES[c]).join(', ')}</small></li>`).join('')}</ul></div>`;
   },
   upgrades() {
     return `<div class="hubhead"><h2>Fejlesztések</h2></div><p class="lede">Tartós fejlesztések dollárért. Minden munkára veled jönnek.</p>

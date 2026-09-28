@@ -160,7 +160,7 @@ function updateKeybar(root) {
   const bar = $('keybar'), inv = root.querySelector('.inv');
   if (!inv) { bar.innerHTML = ''; return; }
   const btns = [...inv.querySelectorAll('.invd [data-key]')]; bar.btns = btns;
-  const acts = btns.map((b, i) => `<span data-i="${i}"${b.disabled ? ' class="off"' : ''}><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '')}</span>`);
+  const acts = btns.map((b, i) => `<span data-i="${i}"${b.dataset.tip ? ` data-tip="${b.dataset.tip.replace(/"/g, '&quot;')}"` : ''}${b.disabled ? ' class="off"' : ''}><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '')}</span>`);
   bar.innerHTML = `<span><kbd>←↑↓→</kbd>Választás</span>${acts.join('')}`;
 }
 function invKey(e, root) {
@@ -260,3 +260,14 @@ $('keybar').addEventListener('pointerdown', e => { // the bar is the action list
   const sp = e.target.closest('[data-i]'), b = sp && $('keybar').btns && $('keybar').btns[+sp.dataset.i]; if (!b || b.disabled) return;
   e.preventDefault(); if (b.classList.contains('hold')) startHold(b, b.closest('#loadout,#hubBody') || document.body); else b.click();
 });
+
+// hover descriptions: anything with data-tip (disabled buttons too, so :hover instead of mouse events)
+const tipEl = document.createElement('div'); tipEl.id = 'tip'; tipEl.hidden = true; document.body.appendChild(tipEl);
+addEventListener('pointermove', e => {
+  const h = document.pointerLockElement ? null : [...document.querySelectorAll('[data-tip]:hover')].pop();
+  if (!h) { tipEl.hidden = true; return; }
+  if (tipEl.textContent !== h.dataset.tip) tipEl.textContent = h.dataset.tip; tipEl.hidden = false;
+  const w = tipEl.offsetWidth, ht = tipEl.offsetHeight;
+  tipEl.style.left = Math.min(innerWidth - w - 8, e.clientX + 14) + 'px'; tipEl.style.top = (e.clientY - ht - 14 < 8 ? e.clientY + 20 : e.clientY - ht - 14) + 'px';
+});
+addEventListener('pointerdown', () => { tipEl.hidden = true; });
