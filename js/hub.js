@@ -111,7 +111,7 @@ function renderHub() {
   $('hubLvl').textContent = P.level;
   $('hubXp').style.width = P.xp / xpNeed(P.level) * 100 + '%';
   $('hubXpTxt').textContent = `${P.xp} / ${xpNeed(P.level)} XP · veterán ${vetEarned()}${vetAvail() ? ` (+${vetAvail()})` : ''}`;
-  $('hubCash').textContent = `$${P.cash}`;
+  $('hubCash').textContent = `$${P.cash}`; $('hubParts').textContent = `${P.parts || 0} ⚙ alkatrész${P.oc ? ` · ${P.oc} mag` : ''}`;
   rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   $('hubTokens').textContent = P.tokens || 0;
