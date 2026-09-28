@@ -49,6 +49,17 @@ function makeJob0() {
     reward: Math.round(reward * (type === 'survive' ? 1 : type === 'escort' ? .9 : 1.15) / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl), xp: jobXp(diff, dur, { mod, boss, type }) };
 }
 const makeJob = () => withSpecials(makeJob0());
+// a job can be taken easier than it came: 1 star up to the stars it spawned with; pay, XP, time and goal follow
+const payBase = (d, dur, boss, lvl) => (250 + 180 * Math.pow(d, 1.4) + lvl * 35) * (dur / 300) * (boss ? 1.3 : 1);
+function setDiff(j, d) {
+  if (!j.d0) j.d0 = j.diff, j.b0 = { reward: j.reward, xp: j.xp, dur: j.dur, boss: j.boss, goal: j.goal };
+  const B = j.b0, d0 = j.d0, lvl = j.lvl || profile.level; d = clamp(d, 1, d0);
+  const dur = d === d0 ? B.dur : 300 + (d - 1) * 45, boss = B.boss && d >= 3, o = { mod: j.mod, boss, type: j.type };
+  j.diff = d; j.dur = dur; j.boss = boss;
+  j.reward = Math.round(B.reward * payBase(d, dur, boss, lvl) / payBase(d0, B.dur, B.boss, lvl) / 10) * 10;
+  j.xp = Math.round(B.xp * jobXp(d, dur, o) / jobXp(d0, B.dur, { mod: j.mod, boss: B.boss, type: j.type }) / 10) * 10;
+  if (j.type === 'exterminate') j.goal = 50 + 25 * d; else if (j.type === 'supply') j.goal = 5 + d;
+}
 function rollBoard() {
   profile.jobs = []; // three different jobs, on different maps while there are enough maps
   const nMaps = MAP_IDS.filter(id => MAPS[id].minLevel <= profile.level).length;
@@ -125,6 +136,7 @@ function jobCard(j, i, notReady) {
     <div class="jc-top"><small>${M.name}${j.map === featuredMap() ? ' · ★ heti kiemelt' : ''}</small><small style="color:${col}">${type}</small></div>
     <h2>${j.title}</h2>
     <p class="jc-sub"><span class="jstars">${stars(j.diff)}</span> Megbízó: ${j.client} · ${DIFF_NAMES[j.diff - 1]}</p>
+    ${!B && !j.tier && !j.deep && (j.d0 || j.diff) > 1 ? `<div class="tiersel diffsel">${hbtn('−', `jdiff:${i}:-1`, off || j.diff <= 1)}<b style="color:${col}">${stars(j.diff)}</b>${hbtn('+', `jdiff:${i}:1`, off || j.diff >= (j.d0 || j.diff))}<small>${off ? 'a vezető állítja' : `Könnyíthetsz rajta: 1 és ${j.d0 || j.diff} csillag között`}</small></div>` : ''}
     ${j.tier ? `<p class="jtier">RÉMÁLOM +${j.tier} · zóna Lv ${j.lvl} · +${10 + 5 * j.tier} ⚙ és garantált legendás</p>${j.base ? `<div class="tiersel">${hbtn('−', `tier:${i}:-1`, j.tier <= 1)}<b>+${j.tier}</b>${hbtn('+', `tier:${i}:1`, j.tier >= (profile.tier || 0) + 1)}<small>Feloldva: +${(profile.tier || 0) + 1}-ig</small></div>` : ''}` : ''}
     <ul class="jc-facts">${facts.map(f => `<li>${f}</li>`).join('')}</ul>
     ${weak ? `<p class="jwarn">Vigyázz: a legjobb fegyvered Lv ${gl}, a zóna ${lv}. szintű. Itt nagyon kevés leszel.</p>` : ''}
@@ -470,6 +482,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'bsave') saveBuild(+a);
   if (kind === 'bload') loadBuild(+a);
   if (kind === 'slot' && !wheelBusy && P.stash.length < stashMax()) { slotCostPaid = slotCost() * (a === 'gold' ? 4 : 1); if (pay(slotCostPaid)) spinSlot(a === 'gold'); }
+  if (kind === 'jdiff') { const j = P.jobs[+a]; if (j && !j.bounty && !j.tier && !j.deep) setDiff(j, j.diff + +c); }
   if (kind === 'tier') { const j = P.jobs[+a]; if (j && j.tier && j.base) { const T = clamp(j.tier + +c, 1, (P.tier || 0) + 1); setTier(j, T); P.tierSel = T; } }
   if (kind === 'junk') P.junkQ = clamp(+a, -1, 2);
   if (kind === 'wfilt') { wFilter = a; return renderHub(); }
