@@ -519,6 +519,31 @@ function modHudText() { // what makes this job harder or richer, for the corner 
   if (J.tier) L.push(`<b class="nm">Rémálom +${J.tier}</b>`); if (J.map === featuredMap()) L.push('<b class="ft">Heti kiemelt pálya · +25% XP</b>');
   return L.join('');
 }
+// what is working for (or against) you right now, as small icons over the item bar (Borderlands style): a timer or a stack count
+function buffIcons(w) {
+  const B = player.buf || {}, L = [], add = (ic, name, col, v, max) => L.push(`<span class="bf" style="--bc:${col}" data-tip="${name}"><i>${ic}</i>${v != null ? `<b>${v}</b>` : ''}${max ? `<u style="width:${clamp(v / max, 0, 1) * 100}%"></u>` : ''}</span>`);
+  const sec = t => Math.max(0, Math.ceil(t));
+  if (player.adrenT > 0) add('»', 'Adrenalin', '#7fc4ff', sec(player.adrenT), 12);
+  if (player.stormT > 0) add('∞', 'Tűzvihar: nem fogy a tár', '#ff8a3a', sec(player.stormT), 11);
+  if (player.eyeT > 0) add('◎', 'Halálszem: amit eltalálsz, megjelölődik', '#b46cff', sec(player.eyeT), 20);
+  if (now < (player.overT || 0)) add('⚙', 'Túlhajtás: +40% tűzgyorsaság', '#ffd23f', sec(player.overT - now), 8);
+  if (powers.insta > 0) add('✖', 'Insta-Kill', '#b6ff8a', sec(powers.insta), 15);
+  if (powers.double > 0) add('2×', 'Dupla pont', '#b6ff8a', sec(powers.double), 15);
+  if (w && w.tal === 'frenzy' && now < (player.frenzyT || 0)) add('✦', 'Vérszomj: +20% sebzés', '#ff5a4a', sec(player.frenzyT - now), 5);
+  if (w && w.tal === 'bread' && player.bread) add('◐', 'Kenyérkosár: a következő fejlövés +40%', '#ffd23f');
+  if (w && w.tal === 'optimist') add('▼', `Optimista: +${Math.round(30 * (1 - w.ammo / Math.max(1, w.mag)))}% sebzés`, '#9fd0ff', `${Math.round(30 * (1 - w.ammo / Math.max(1, w.mag)))}%`);
+  if (w && w.anoint === 'reload' && B.reload > 0) add('✧', `${anoName('reload')}: +50% sebzés`, '#6ff0c8', sec(B.reload), 5);
+  if (w && w.anoint === 'swap' && B.swap > 0) add('✧', `${anoName('swap')}: +40% sebzés`, '#6ff0c8', sec(B.swap), 4);
+  if (w && w.anoint === 'ability' && B.ability > 0) add('✧', `${anoName('ability')}: +50% tűzgyorsaság`, '#6ff0c8', sec(B.ability), 8);
+  if (w && w.anoint === 'first' && (w.fired || 0) < 3) add('✧', `${anoName('first')}: dupla sebzés`, '#6ff0c8', 3 - (w.fired || 0));
+  if (w && w.anoint === 'lowhp' && player.hp < maxHp() * .35) add('✧', `${anoName('lowhp')}: +60% sebzés`, '#6ff0c8');
+  if (w && w.unique === 'hydra' && now < (player.hydraUntil || 0)) add('∞', 'Hidra: nem fogy a tár', '#ff3b3b', sec(player.hydraUntil - now), 3);
+  if (w && w.unique === 'reaper' && player.uStack) add('☠', 'Kaszás: halmozott sebzés', '#ff3b3b', player.uStack);
+  if (player.bloodN && now < (player.bloodT || 0)) add('♦', `Vérszomj (Gravetide): +${5 * player.bloodN}% sebzés`, '#e06a58', player.bloodN);
+  if (typeof exoOn === 'function' && exoOn('berserk') && player.hp < maxHp()) add('♥', `Berzerker: +${Math.round(50 * (1 - player.hp / maxHp()))}% sebzés`, '#ff5a3a', `${Math.round(50 * (1 - player.hp / maxHp()))}%`);
+  if (player.chillT > 0) add('❄', 'Lelassítva', '#8ff0ff', sec(player.chillT), 3);
+  return L.join('');
+}
 function updateHUD() {
   const w = curW();
   focus = findFocus();
@@ -577,8 +602,8 @@ function updateHUD() {
   setHTML('hint', hint);
   $('rlhint').hidden = !hint || player.ads > .6; $('rlhint').firstChild.textContent = hint;
   $('rlfill').style.width = player.reloading ? reloadProgress() * 100 + '%' : '0';
-  setHTML('powers', Object.keys(player.perks || {}).filter(k => player.perks[k] && PERKS[k]).map(k => `<span class="pw perk" style="color:#${PERKS[k].color.toString(16).padStart(6, '0')}">${PERKS[k].name}</span>`).join('') + Object.entries(powers).filter(([, t]) => t > 0).map(([k, t]) => `<span class="pw">${POWERS[k].label} ${Math.ceil(t)}<i style="width:${t / 15 * 100}%"></i></span>`).join('') +
-    (player.adrenT > 0 ? `<span class="pw adren">Adrenalin ${Math.ceil(player.adrenT)}<i style="width:${player.adrenT / 12 * 100}%"></i></span>` : ''));
+  setHTML('powers', Object.keys(player.perks || {}).filter(k => player.perks[k] && PERKS[k]).map(k => `<span class="pw perk" style="color:#${PERKS[k].color.toString(16).padStart(6, '0')}">${PERKS[k].name}</span>`).join(''));
+  setHTML('buffs', buffIcons(w));
   if (card && bannerT > 0) $('banner').style.opacity = .25;
   // crosshair
   const cross = $('cross');
