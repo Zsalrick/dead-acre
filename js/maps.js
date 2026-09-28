@@ -987,6 +987,19 @@ function keepClearPoints() {
   return pts;
 }
 const overlaps = (x, z, r) => obstacles.some(o => x > o.minX - r && x < o.maxX + r && z > o.minZ - r && z < o.maxZ + r);
+// prop details: shared materials so the merge keeps them to a few draw calls
+const twineMat = new THREE.MeshLambertMaterial({ color: 0x5a4a2a }), rimMat = new THREE.MeshStandardMaterial({ color: 0x2a2c2e, metalness: .6, roughness: .5 });
+const glassMat = new THREE.MeshStandardMaterial({ color: 0x1a2630, metalness: .6, roughness: .2 }), bumperMat = new THREE.MeshStandardMaterial({ color: 0x8a8e92, metalness: .8, roughness: .3 });
+const headMat = new THREE.MeshBasicMaterial({ color: 0xe8e2c0 }), tailMat = new THREE.MeshBasicMaterial({ color: 0x8a1a12 }), rustMat = new THREE.MeshLambertMaterial({ color: 0x6a3a1a });
+const logEndMat = new THREE.MeshLambertMaterial({ map: panelTex('logend', 64, 64, (g, w, h) => { g.fillStyle = '#b08a5a'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(90,60,30,.6)'; g.lineWidth = 2; for (let r = 4; r < 32; r += 5) { g.beginPath(); g.arc(32, 32, r, 0, 7); g.stroke(); } }) });
+const flameTex = panelTex('flame', 64, 64, (g, w, h) => { g.fillStyle = '#e8b82a'; g.beginPath(); g.moveTo(32, 4); g.lineTo(60, 58); g.lineTo(4, 58); g.closePath(); g.fill(); g.fillStyle = '#111'; g.font = 'bold 34px Impact'; g.textAlign = 'center'; g.fillText('!', 32, 52); });
+const crateEdge = new THREE.MeshLambertMaterial({ color: 0x3a2818 }), crateStencils = ['TÖRÉKENY', 'LŐSZER', 'KONZERV', 'ORVOSI', 'GYÚLÉKONY'].map(t => new THREE.MeshLambertMaterial({ map: panelTex('st' + t, 128, 48, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(20,14,8,.75)'; g.font = 'bold 22px Impact, sans-serif'; g.textAlign = 'center'; g.fillText(t, w / 2, 32); }), transparent: true }));
+function crateTrim(g, s, y0, ox, rng, oz = 0) { // dark edges, iron corners and sometimes a stencil
+  const e = .07;
+  for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const m = new THREE.Mesh(unitBox, crateEdge); m.scale.set(e, s, e); m.position.set(ox + a * s / 2, y0 + s / 2, oz + b * s / 2); g.add(m); }
+  for (const y of [0, s]) for (const [a, b, sx, sz] of [[0, -1, s, e], [0, 1, s, e], [-1, 0, e, s], [1, 0, e, s]]) { const m = new THREE.Mesh(unitBox, crateEdge); m.scale.set(sx, e, sz); m.position.set(ox + a * s / 2, y0 + y, oz + b * s / 2); g.add(m); }
+  if (rng() < .5) { const p = new THREE.Mesh(new THREE.PlaneGeometry(s * .8, s * .3), crateStencils[Math.floor(rng() * crateStencils.length)]); p.position.set(ox, y0 + s * .55, oz + s / 2 + .005); g.add(p); }
+}
 function makeProp(type, x, z, rng) {
   const g = new THREE.Group(), obs = [], blk = [];
   const solid = (mesh, hx, hz, h) => { mesh.castShadow = mesh.receiveShadow = true; g.add(mesh); blk.push(mesh); if (hx) obs.push({ minX: x - hx, maxX: x + hx, minZ: z - hz, maxZ: z + hz, h }); return mesh; };
@@ -996,14 +1009,19 @@ function makeProp(type, x, z, rng) {
   if (type === 'crate' || type === 'stack') {
     const s = 1.2 + rng() * .6;
     solid(boxM(crateMat, s, s, s, 0, s / 2, 0), s / 2, s / 2, s);
-    if (type === 'stack') solid(boxM(crateMat, s * .8, s * .8, s * .8, rng() * .2, s + s * .4, rng() * .2));
+    crateTrim(g, s, 0, 0, rng);
+    if (type === 'stack') { const t = s * .8, ox = rng() * .2, oz = rng() * .2; solid(boxM(crateMat, t, t, t, ox, s + t / 2, oz)); crateTrim(g, t, s, ox, rng, oz); }
   } else if (type === 'hay') {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(.85, .85, 1.8, 16), propHayMat);
     m.rotation.set(0, turn ? Math.PI / 2 : 0, Math.PI / 2); m.position.y = .85;
     solid(m, turn ? .9 : .85, turn ? .85 : .9, 1.7);
+    for (const o of [-.45, .45]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(.865, .865, .06, 16), twineMat); b.rotation.copy(m.rotation); b.position.set(turn ? 0 : o, .85, turn ? o : 0); g.add(b); }
   } else if (type === 'barrel' || type === 'boom') {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, 1.1, 14), type === 'boom' ? boomBarrelMat : barrelMat);
     m.position.y = .55; solid(m, .42, .42, 1.1);
+    for (const y of [.2, .9]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.435, .435, .06, 14), rimMat); r.position.y = y; g.add(r); }
+    const lid = new THREE.Mesh(new THREE.CylinderGeometry(.36, .36, .02, 14), rimMat); lid.position.y = 1.105; g.add(lid);
+    if (type === 'boom') { const sign = new THREE.Mesh(new THREE.PlaneGeometry(.42, .42), new THREE.MeshBasicMaterial({ map: flameTex, transparent: true })); sign.position.set(0, .45, .425); g.add(sign); }
     if (type === 'boom') {
       const band = new THREE.Mesh(new THREE.CylinderGeometry(.43, .43, .12, 14), basic(0xf2c12a)); band.position.y = .7; g.add(band);
       m.userData.onHit = () => blowBarrel(prop); // shooting it sets it off
@@ -1013,6 +1031,11 @@ function makeProp(type, x, z, rng) {
     const [hx, hz] = turn ? [W / 2, L / 2] : [L / 2, W / 2];
     solid(boxM(mat, turn ? W : L, .9, turn ? L : W, 0, .75, 0), hx, hz, 1.9);
     solid(boxM(mat, turn ? W * .9 : L * .5, .7, turn ? L * .5 : W * .9, 0, 1.55, 0));
+    const along = (a, c, sa, sc, y, sy, m2) => g.add(boxM(m2, turn ? sc : sa, sy, turn ? sa : sc, turn ? c : a, y, turn ? a : c));
+    along(0, 0, L * .52, W * .92, 1.58, .5, glassMat); // windows round the cabin
+    along(0, 0, L * .3, W * .94, 1.58, .5, glassMat);
+    for (const e of [-1, 1]) { along(e * L * .5, 0, .12, W * .9, .55, .22, bumperMat); for (const s2 of [-1, 1]) along(e * L * .5, s2 * W * .34, .04, .3, .88, .16, e > 0 ? headMat : tailMat); }
+    if (rng() < .6) along((rng() - .5) * L * .6, (rng() < .5 ? -1 : 1) * W * .5, .9, .02, .8, .5, rustMat);
     for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
       const t = new THREE.Mesh(new THREE.CylinderGeometry(.38, .38, .25, 12), tireMat);
       t.rotation.set(turn ? Math.PI / 2 : 0, 0, turn ? 0 : Math.PI / 2);
@@ -1025,6 +1048,7 @@ function makeProp(type, x, z, rng) {
       m.position.set(turn ? (i - 1) * .55 : 0, .28, turn ? 0 : (i - 1) * .55);
       if (i === 2) m.position.set(0, .75, 0);
       solid(m);
+      for (const e of [-1, 1]) { const ring = new THREE.Mesh(new THREE.CircleGeometry(.27, 10), logEndMat); const p0 = m.position; if (turn) { ring.position.set(p0.x, p0.y, e * 1.301); if (e < 0) ring.rotation.y = Math.PI; } else { ring.position.set(e * 1.301, p0.y, p0.z); ring.rotation.y = e * Math.PI / 2; } g.add(ring); }
     }
     obs.push(turn ? { minX: x - .9, maxX: x + .9, minZ: z - 1.3, maxZ: z + 1.3, h: 1 } : { minX: x - 1.3, maxX: x + 1.3, minZ: z - .9, maxZ: z + .9, h: 1 });
   }
