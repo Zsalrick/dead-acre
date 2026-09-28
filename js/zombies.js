@@ -173,6 +173,7 @@ function zHeadPos(z) { return tmpV.set(z.pos.x, (z.K.crawl ? 1 : 2) * z.scale + 
 
 const tallyHit = (amt, o) => { if (o.remote || o.chain) return; if (!o.dot && player.hitsN < player.shotsN) player.hitsN++; player.dmgDone += amt; };
 function hurtZombie(z, amt, o = {}) {
+  if (!o.remote && !o.chain && o.head && o.crit && !z.dead && rk('h_refund') && o.w && o.w.ammo < o.w.mag) { o.w.ammo++; o.refunded = true; } // Takarékos: a critical headshot gives the round back
   if (NET.client && mission) { if (!z.dead) { tallyHit(amt, o); if (!o.dot) z.flinch = .12; } return netHit(z, amt, o); } // a party member's hit goes to the host
   if (z.dead) return;
   if (z.invulnT > 0) { z.flash = .08; return; } // a bounty boss between phases
@@ -244,7 +245,7 @@ function killZombie(z, o) {
   weaponOnKill(z, o);
   killPerks(z, o);
   noteBaseKill(o.w);
-  if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
+  if (o.head) { player.heads++; stats.heads++; if (rk('h_refund') && !o.refunded && o.w && o.w.ammo < o.w.mag) o.w.ammo++; }
   if (SK && rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
   addPoints(z.K.points || (o.melee ? 130 : o.head ? 100 : 60));
   hitmarker(true); SND.kill();
