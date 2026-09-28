@@ -119,6 +119,9 @@ function renderHub() {
   $('hubCls').textContent = P.cls ? CLASSES[P.cls].name : 'nincs kaszt'; $('hubCls').style.setProperty('--cc', P.cls ? CLASSES[P.cls].color : '');
   document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.classList.toggle('on', !!(b.dataset.hub === hubTab || (b.dataset.group && HUB_GROUPS[b.dataset.group].some(([k]) => k === hubTab)))));
   const grp = Object.values(HUB_GROUPS).find(g => g.some(([k]) => k === hubTab)), sub = grp ? `<nav class="subnav">${grp.map(([k, t]) => `<button class="sbtab${k === hubTab ? ' on' : ''}" data-sub="${k}">${t}</button>`).join('')}</nav>` : '';
+  if (P.abandonNote) { const n = P.abandonNote; delete P.abandonNote; saveProfile();
+    if (n === 'lost') toast('A MUNKÁT FÉLBEHAGYTAD', ['Kiléptél munka közben: a nálad lévő fegyverek és páncél elvesztek.', 'A Boltban (Elveszett felszerelés) drágán visszavásárolhatod őket.'], '#ff5a4a', 9000);
+    else { toast('KIESTÉL A CSAPATBÓL', ['A hátizsákod tartalma a csapatnál maradt, a pályán.', P.rejoin ? 'Visszacsatlakozhatsz: Csapat fül.' : ''], '#ff8a70', 9000); if (P.rejoin) hubTab = 'party'; } }
   const hb = $('hubBody'), same = renderHub.tab === hubTab, keep = same ? [hb.scrollTop, ...[...hb.querySelectorAll('.invl,.invd')].map(e => e.scrollTop)] : null; renderHub.tab = hubTab; hb.innerHTML = sub + HUB[hubTab](); // in a party the strip is on every tab
   if (keep) { hb.scrollTop = keep[0]; [...hb.querySelectorAll('.invl,.invd')].forEach((e, k) => { if (keep[k + 1] != null) e.scrollTop = keep[k + 1]; }); } // a click re-renders the tab: stay where you were
   updateKeybar($('hubBody'));
@@ -168,6 +171,7 @@ function showRecal(w, list, i) {
 }
 // what an action changed, as a toast: money, parts, fabric, cores, tokens, and anything that arrived in your storage
 let slotCostPaid = 0;
+const lostPrice = (x, k) => Math.round((k === 'w' ? sellValue(x) : gearValue(x)) * 6 / 10) * 10; // buying your own lost gear back: six times what it sells for
 const hubSnap = () => { const P = profile; return { cash: P.cash, parts: P.parts || 0, fab: P.fabric || 0, oc: P.oc || 0, tok: P.tokens || 0, st: P.stash.slice(), gs: P.gearStash.slice(), vet: vetSpent ? vetSpent() : 0 }; };
 const TOAST_TITLE = { gun: 'Fegyver megvéve', gbuy: 'Páncél megvéve', item: 'Tárgy megvéve', ttype: 'Gránát- / késfajta', up: 'Fejlesztés', sell: 'Eladva', gsell: 'Eladva', salvage: 'Szétszedve', gsalvage: 'Szétszedve',
   trashsell: 'A kuka eladva', trashsalv: 'A kuka szétszedve', opt: 'Optimalizálva', gopt: 'Optimalizálva', hforge: 'Kovács', gexp: 'Szakértelem', ocset: 'Túlhajtás', anoacc: 'Felkenés elfogadva', claim: 'Kontrakt jutalma',
@@ -243,7 +247,7 @@ const testJob = () => ({ map: 'range', diff: 1, dur: 1e6, mod: null, boss: false
 const HUB = {
   skills: () => skillsTab(),
   vet: () => vetTab(),
-  party: () => `<div class="hubhead"><h2>Csapat</h2></div><p class="lede">Hozz létre csapatot, vagy csatlakozz egy kóddal. A vezető választja a munkát, a tagok jelzik, hogy készen állnak.</p>${partyPanel()}`,
+  party: () => `<div class="hubhead"><h2>Csapat</h2></div>${profile.rejoin && profile.rejoin.until > Date.now() && !NET.code ? `<div class="rejoin"><b>Visszacsatlakozás</b><span>Munka közben estél ki. Ha a csapat még játszik, visszaállhatsz közéjük.</span>${hbtn(`Vissza a csapatba (${String(profile.rejoin.code || '').split('~')[0].toUpperCase()})`, 'prejoin')}</div>` : ''}<p class="lede">Hozz létre csapatot, vagy csatlakozz egy kóddal. A vezető választja a munkát, a tagok jelzik, hogy készen állnak.</p>${partyPanel()}`,
   bweap: () => bookWeapons(), btal: () => bookTalents(), bgear: () => bookGear(), bzomb: () => bookZombies(), bboss: () => bookBounties(), bjobs: () => bookJobs(),
   coll: () => collTab(),
   jobs() { // a county map with the jobs on it (Deep Rock style); the picked one's card on the side
@@ -348,18 +352,21 @@ const HUB = {
       return srow(`<img class="sico" src="${ICONS[k]}" alt="">${ITEMS[k].name}${n > 1 ? ` ×${n}` : ''}`, `${ITEMS[k].desc} · nálad: ${P.inv[k]}/${itemMax(k)}`, `$${c}`, `item:${k}`, full || P.cash < c, full ? 'Tele' : 'Megveszem');
     }).join('');
     let [sl, si] = invSel.split(':');
-    const get = () => sl === 'P' ? P.shop[+si] && unpackW(P.shop[+si]) : sl === 'Q' ? P.gshop[+si] : sl === 'I' && ITEMS[si] ? si : null;
+    const get = () => sl === 'P' ? P.shop[+si] && unpackW(P.shop[+si]) : sl === 'Q' ? P.gshop[+si] : sl === 'I' && ITEMS[si] ? si : sl === 'X' ? P.lost && P.lost.w[+si] && unpackW(P.lost.w[+si]) : sl === 'Y' ? P.lost && P.lost.g[+si] : null;
     if (!get()) { const a = P.shop.findIndex(Boolean), b = P.gshop.findIndex(Boolean); [sl, si] = a >= 0 ? ['P', a] : ['Q', b]; invSel = `${sl}:${si}`; }
     const x = get();
     let detail = noDetail('Minden elfogyott. Munka után megújul a kínálat.');
     if (x && sl === 'P') { const c = shopPrice(x); detail = weaponDetail(x, unpackW(P.loadout[0]) || unpackW(P.loadout[1]), hbtn(`Megveszem · $${c}`, `gun:${si}`, P.cash < c || P.stash.length >= stashMax(), 'KeyF')); }
     if (x && sl === 'I') { const c = ITEM_PRICE[x], full = P.inv[x] >= itemMax(x); detail = itemDetail(x, hbtn(full ? 'Tele' : `Megveszem · $${c}`, `item:${x}`, full || P.cash < c, 'KeyF')); }
+    if (x && sl === 'X') { const c = lostPrice(x, 'w'); detail = weaponDetail(x, unpackW(P.loadout[0]) || unpackW(P.loadout[1]), hbtn(`Visszavásárlás · $${c}`, `lostbuy:w:${si}`, P.cash < c || P.stash.length >= stashMax(), 'KeyF', 'A kilépéskor elveszett fegyvered, a raktárba kerül.')); }
+    if (x && sl === 'Y') { const c = lostPrice(x, 'g'); detail = gearDetail(x, P.gear[x.slot], hbtn(`Visszavásárlás · $${c}`, `lostbuy:g:${si}`, P.cash < c || P.gearStash.length >= gearMax(), 'KeyF', 'A kilépéskor elveszett páncélod, a páncélraktárba kerül.')); }
     if (x && sl === 'Q') { const c = gearPrice(x); detail = gearDetail(x, P.gear[x.slot], hbtn(`Megveszem · $${c}`, `gbuy:${si}`, P.cash < c || P.gearStash.length >= gearMax(), 'KeyF')); }
     const L0 = unpackW(P.loadout[0]) || unpackW(P.loadout[1]);
     const guns = P.shop.map((o, k) => { if (!o) return ''; const w = unpackW(o), c = shopPrice(w); return wTile(`P:${k}`, w, { cmp: L0, price: `$${c}`, cant: P.cash < c }); }).join('');
     const gear = P.gshop.map((it, k) => it ? gTile(`Q:${k}`, it, { cmp: P.gear[it.slot] || null, price: `$${gearPrice(it)}`, cant: P.cash < gearPrice(it) }) : '').join('');
     const cons = Object.entries(ITEM_PRICE).map(([k, c]) => tile(`I:${k}`, ICONS[k], itemName(k), `${ITEMS[k].desc}`, ITEMS[k].color, { val: `${P.inv[k]}/${itemMax(k)}`, valLbl: 'nálad', price: `$${c}`, cant: P.cash < c || P.inv[k] >= itemMax(k) })).join('');
-    const left = `<h3>Fegyverek</h3><div class="tiles">${guns || emptyTile('Elfogyott', 'Munka után megújul')}</div>
+    const LS = P.lost, lostW = LS ? LS.w.map((o, k) => { const w = unpackW(o); return w ? wTile(`X:${k}`, w, { price: `$${lostPrice(w, 'w')}`, cant: P.cash < lostPrice(w, 'w') }) : ''; }).join('') : '', lostG = LS ? LS.g.map((it, k) => gTile(`Y:${k}`, it, { price: `$${lostPrice(it, 'g')}`, cant: P.cash < lostPrice(it, 'g') })).join('') : '';
+    const left = `${lostW || lostG ? `<h3 class="losth">Elveszett felszerelés <small>munka közbeni kilépéskor maradt ott · drágán visszavásárolható · egy újabb elvesztés lecseréli</small></h3><div class="tiles">${lostW}${lostG}</div>` : ''}<h3>Fegyverek</h3><div class="tiles">${guns || emptyTile('Elfogyott', 'Munka után megújul')}</div>
       <h3>Páncél</h3><div class="tiles">${gear || emptyTile('Elfogyott', 'Munka után megújul')}</div>
       <h3>Felszerelés</h3><div class="tiles">${cons}</div>
       <h3>Szerencsekerék <small>pénzért bármi kijöhet, a semmitől a legendásig</small></h3><div class="slist">${srow('Pörgetés', `${SLOT_TXT}`, `$${slotCost()}`, 'slot', P.cash < slotCost() || P.stash.length >= stashMax(), 'Pörgetés')}${P.lastSlot ? `<p class="note">Legutóbb: ${P.lastSlot}</p>` : ''}</div>
@@ -392,6 +399,11 @@ $('hubBody').addEventListener('click', e => {
   if (CONFIRM_ACTS.includes(kind) && !confirmOk) return askConfirm(b);
   const before = hubSnap();
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
+  if (kind === 'prejoin' && P.rejoin) { const c = P.rejoin.code; P.rejoin = null; saveProfile(); partyJoin(c, false); return renderHub(); }
+  if (kind === 'lostbuy') { const L = P.lost, list = L && (a === 'w' ? L.w : L.g), x = list && list[+c]; if (!x) return;
+    const it = a === 'w' ? unpackW(x) : x, price = lostPrice(it, a); if (P.cash < price || (a === 'w' ? P.stash.length >= stashMax() : P.gearStash.length >= gearMax())) return SND.deny();
+    P.cash -= price; list.splice(+c, 1); if (a === 'w') P.stash.push(x); else P.gearStash.push(x); if (!L.w.length && !L.g.length) P.lost = null;
+    toast('VISSZAVÁSÁROLVA', [`<i style="color:${a === 'w' ? rarColor(it) : gCol(it)}">${it.name}</i> · −$${price}`, a === 'w' ? 'A raktárba került.' : 'A páncélraktárba került.'], '#9dff6a'); saveProfile(); return renderHub(); }
   if (kind === 'goforge') { hubTab = 'forge'; return renderHub(); }
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); const [l, k] = invSel.split(':'), L = { L: P.loadout, B: P.bag, S: P.stash }[l]; if (L && L[+k] && L[+k].isNew) delete L[+k].isNew; const g = l === 'G' ? P.gearStash[+k] : l === 'W' ? P.gear[k] : null; if (g && g.isNew) delete g.isNew; return renderHub(); } // seen: no longer new
   if (kind === 'jsel') { jobSel = +a; if (NET.host) publishMember(); return renderHub(); }

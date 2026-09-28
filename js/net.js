@@ -46,11 +46,26 @@ async function partyJoin(code, host) {
   if (!pr) { NET.joinErr = NET.p2p && !host ? `Nincs ilyen kódú csapat, vagy nem elérhető (${code.toUpperCase()}).` : 'Nem sikerült csatlakozni.'; if (state === 'hub') renderHub(); return; }
   NET.joinErr = '';
   Object.assign(NET, { pr, code, host, hadHost: false, seenJs: 0, last: {}, dirty: true, showCode: false, copied: false, leaveArmed: false });
-  pr.onPeers(() => onPartyChange(), () => partyLeave());
+  pr.onPeers(() => onPartyChange(), () => (mission && NET.mode && !mission.job.test && !mission.leaving && NET.p2p ? p2pMigrate() : partyLeave()));
   publishMember(); setLobby();
   if (state === 'hub') renderHub();
 }
 function fallbackCopy(t) { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e) {} a.remove(); }
+async function p2pMigrate() { // P2P: the hub (the leader) is gone. The member with the lowest id opens the next hub; the rest dial in.
+  if (NET.migrating) return; NET.migrating = true;
+  const old = NET.pr, gen = (NET.gen || 0) + 1, base = NET.code.split('~')[0], code = `${base}~${gen}`;
+  const was = (NET.lastPeers || []).filter(p => !p.h && p.st === 'job').map(p => (p.me ? NET.me : p.peer)).sort(), leadMe = was[0] === NET.me || !was.length;
+  try { old.leave(); } catch (e) {}
+  banner('A CSAPATVEZETŐ KIESETT', leadMe ? 'Te veszed át a vezetést…' : 'Újracsatlakozás az új vezetőhöz…');
+  let pr = null;
+  for (let k = 0; k < (leadMe ? 1 : 12) && !pr; k++) { try { pr = await NET.room.join('p-' + code, { host: leadMe }); } catch (e) { await new Promise(r => setTimeout(r, 1500)); } }
+  NET.migrating = false;
+  if (!pr) { banner('A CSAPAT SZÉTESETT', 'Nem sikerült újracsatlakozni.'); if (mission) finishJob(false, true); return partyLeave(); }
+  Object.assign(NET, { pr, code, gen, host: leadMe, last: {}, dirty: true, bkKey: '' });
+  pr.onPeers(() => onPartyChange(), () => (mission && NET.mode && !mission.job.test && NET.p2p ? p2pMigrate() : partyLeave()));
+  if (leadMe) promoteToHost(); else { NET.hadHost = false; toast('ÚJRA A CSAPATBAN', ['Az új vezető viszi tovább a munkát.'], '#9dff6a'); }
+  publishMember(); setLobby();
+}
 async function partyLeave() {
   const pr = NET.pr;
   Object.assign(NET, { pr: null, code: null, host: false, job: null, hadHost: false });
@@ -179,8 +194,8 @@ function updateAvatars(dt, peers) {
   const seen = new Set();
   for (const p of peers) {
     if (p.sameTab || !p.presence || !p.presence.p) continue;
-    const P = p.presence.p; seen.add(p.peer);
-    let a = NET.avatars.get(p.peer); if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
+    const P = p.presence.p; seen.add(p.peer); const bkNow = p.presence.bk;
+    let a = NET.avatars.get(p.peer); if (a) a.bk = bkNow; if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
     if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
     { const T = Array.isArray(P.tu) ? P.tu : [], key = T.map(t => `${t[0]},${t[1]},${t[2]}`).join('|'); // a teammate's turrets: stand-ins where theirs stand
@@ -233,7 +248,7 @@ function updateAvatars(dt, peers) {
     for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && (player.down || player.ffyl > 0)) { netRevive(e[2] ? 1 : .5); banner('FELÉLESZTETTEK', e[2] ? `${a.name} (tábori pap) teljesen rendbe hozott.` : `${a.name} felállított.`); }
     netRemoteDrops(p.peer, P);
   }
-  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
+  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { if (NET.host) dropBackpack(a); scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
 }
 const partySize = () => 1 + [...NET.avatars.values()].length;
 
@@ -384,9 +399,17 @@ function netTick(dt) {
   if (!NET.host) {
     if (host) NET.hadHost = true;
     else if (NET.hadHost) { // the leader left
+      if (mission && NET.client && !mission.job.test && !mission.leaving) { // mid-job: the member with the lowest id takes over; the others wait for them
+        const next = successorPeer(peers);
+        if (next === NET.me) { promoteToHost(); return; }
+        NET.waitHost = NET.waitHost || performance.now();
+        if (performance.now() - NET.waitHost < 9000) return;
+      }
+      NET.waitHost = 0;
       if (mission && NET.client) { banner('A CSAPATVEZETŐ KILÉPETT', 'A munka véget ért.'); finishJob(false, true); }
       partyLeave(); return;
     }
+    NET.waitHost = 0;
     const J = host && host.presence.job, G = host && host.presence.g;
     if (J && G && J.js !== NET.seenJs && (state === 'hub' || state === 'results') && J.job && MAPS[J.job.map]) {
       NET.seenJs = J.js; startJob(J.job, { seed: +J.seed || 1, a: J.a | 0, b: J.b | 0, client: true });
@@ -395,6 +418,9 @@ function netTick(dt) {
   if (!mission || !NET.mode) return;
   updateAvatars(dt, peers);
   if (NET.avatars.size) { mission.partyMax = Math.max(mission.partyMax || 1, partySize()); { const B = new Map((mission.board || []).map(b => [b.n, b])); for (const a of NET.avatars.values()) B.set(a.name, { n: a.name, k: a.kc || 0, r: a.rvc || 0, d: a.dd || 0 }); mission.board = [...B.values()]; } } // kept for the results, even if the host leaves first
+  { const bk = mission.job.test ? null : { w: player.bag.map(packW), g: mission.gear, pa: mission.parts || 0, fa: mission.fabric || 0 }, key = JSON.stringify(bk); // the backpack, sent when it changes
+    if (key !== NET.bkKey) { NET.bkKey = key; NET.pr.presence({ bk }).catch(() => {}); } }
+  NET.lastPeers = peers.filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, h: !!p.presence.m.h, st: p.presence.m.st }));
   const out = { p: myPresence() };
   if (NET.host) {
     NET.selfPos = player.pos; NET.selfVel = player.vel;
@@ -420,6 +446,17 @@ function netTick(dt) {
     banner('A MUNKA VÉGET ÉRT', 'A csapatvezető befejezte.'); mission.hostEnd = true; finishJob(false, false); return;
   }
   NET.pr.presence(out).catch(() => {});
+}
+const successorPeer = peers => peers.filter(p => p.presence && p.presence.m && !p.presence.m.h && p.presence.m.st === 'job').map(p => p.peer).sort()[0];
+function promoteToHost() { // this member becomes the leader: the proxies become the real zombies, the clock and the spawns carry on here
+  const M = mission; NET.host = true; NET.mode = 'host'; NET.client = false; NET.hadHost = false; NET.waitHost = 0;
+  let maxId = 0; for (const z of zombies) { maxId = Math.max(maxId, z.id || 0); z.net = null; z.predDead = 0; if (!z.dead) NET.zById.set(z.id, z); }
+  zidSeq = Math.max(zidSeq, maxId + 1);
+  if (M.job.bounty) M.bountyBoss = zombies.find(z => z.bounty && !z.dead) || (M.bountyDone || M.t > bountyPre(M.job) + 3 ? true : null);
+  NET.job = { job: M.job, seed: mapSeed, a: 0, b: M.pickup || 0, js: Date.now() };
+  NET.tel = []; NET.bev = []; NET.kills = []; NET.dmgs = []; NET.lastG = null;
+  banner('TE LETTÉL A VEZETŐ', 'A csapatvezető kiesett, a munka folytatódik.'); SND.power();
+  publishMember(); setLobby();
 }
 function netHostAct(type, arg, peer) {
   const M = mission; if (!M) return;
@@ -656,6 +693,14 @@ function netShareDrop(kind, obj, d) {
   NET.drops.push([s, kind, kind === 'w' ? packW(obj) : obj, Math.round(d.pos.x * 10) / 10, Math.round(d.pos.z * 10) / 10, performance.now()]);
 }
 function netTookDrop(d) { if (NET.mode && d && d.nid && NET.pks) pushRoll(NET.pks, [++NET.seq, d.nid], 8); }
+function dropBackpack(a) { // a teammate dropped out: their bag, found armor, parts and fabric stay where they stood, for anyone to pick up
+  const M = mission, b = a.bk; if (!M || M.job.test || M.leaving || !b || typeof b !== 'object') return;
+  const spot = () => new V3(a.pos.x + rand(-1.2, 1.2), 0, a.pos.z + rand(-1.2, 1.2)); let n = 0;
+  for (const o of (Array.isArray(b.w) ? b.w : []).slice(0, 20)) { if (!o || !BASES.some(x => x.id === o.base)) continue; const w = unpackW(cleanStrs(Object.assign({}, o))); w.owned = false; w.ammo = w.mag; w.reserve = resMax(w); netShareDrop('w', w, spawnDrop(w, spot())); n++; }
+  for (const o of (Array.isArray(b.g) ? b.g : []).slice(0, 12)) { if (!o || !GEAR_SLOTS[o.slot] || !BRANDS[o.brand] || typeof o.stats !== 'object') continue; const it = cleanStrs(Object.assign({}, o, { stats: Object.assign({}, o.stats) })); delete it.found; netShareDrop('g', it, spawnGearDrop(it, spot())); n++; }
+  for (const [k, v] of [['parts', b.pa], ['fabric', b.fa]]) if (+v > 0) { const c = Math.min(9999, +v | 0); netShareDrop('r', { q: 0, k, n: c }, spawnResDrop(k, c, spot())); n++; }
+  if (n) toast(`${a.name.toUpperCase()} KIESETT`, ['A hátizsákja tartalma ott maradt, ahol állt: bárki felveheti.'], '#ff8a70', 6000);
+}
 const cleanStrs = o => { for (const k in o) if (typeof o[k] === 'string') o[k] = o[k].replace(/[<>&"]/g, ''); return o; }; // peers are untrusted: names end up in innerHTML
 function netRemoteDrops(peer, P) {
   for (const [s, kind, o, x, z] of fresh('dr' + peer, P.dr)) {
@@ -664,7 +709,8 @@ function netRemoteDrops(peer, P) {
     if (kind === 'w' && BASES.some(b => b.id === o.base)) {
       const w = unpackW(cleanStrs(Object.assign({}, o))); w.owned = false; w.ammo = w.mag; w.reserve = resMax(w);
       spawnDrop(w, pos).nid = nid;
-    } else if (kind === 'g' && GEAR_SLOTS[o.slot] && BRANDS[o.brand] && o.stats && typeof o.stats === 'object') {
+    } else if (kind === 'r' && (o.k === 'parts' || o.k === 'fabric') && +o.n > 0) spawnResDrop(o.k, Math.min(9999, +o.n | 0), pos).nid = nid;
+    else if (kind === 'g' && GEAR_SLOTS[o.slot] && BRANDS[o.brand] && o.stats && typeof o.stats === 'object') {
       const it = cleanStrs(Object.assign({}, o, { stats: Object.assign({}, o.stats) })); delete it.found;
       spawnGearDrop(it, pos).nid = nid;
     }
@@ -672,6 +718,7 @@ function netRemoteDrops(peer, P) {
   for (const [, nid] of fresh('pk' + peer, P.pk)) {
     const d = drops.find(q => q.nid === nid); if (d) removeDrop(d);
     const g = gearDrops.find(q => q.nid === nid); if (g) removeGearDrop(g);
+    const r = resDrops.find(q => q.nid === nid); if (r) removeResDrop(r);
   }
 }
 // ---------- compass along the top: where you look, your mates, the van ----------

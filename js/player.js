@@ -242,7 +242,7 @@ function shoot() {
   if (!(player.stormT > 0) && !(w.unique === 'hydra' && now < (player.hydraUntil || 0))) w.ammo--; // Tűzvihar: the mag does not drain
   const sm = shotMul(w), forceCrit = w.unique === 'thirteen' && w.ammo === 0; w.fired = (w.fired || 0) + 1;
   NET.shots = (NET.shots || 0) + 1; // partners hear and see it
-  if (b.flame) { if ((vm.flameN = (vm.flameN || 0) + 1) % 3 === 0) SND.flame(); } else SND[b.snd]();
+  if (b.flame) SND.flame(); else SND[b.snd](); // the flamethrower holds one roar (audio.js flameHold)
   vm.kick = .06 + b.kick; vm.kickR = b.kick * 4;
   if (vm.flash) { vm.flash.visible = true; vm.flash.material.rotation = Math.random() * 6; vm.flashT = .045; }
   const mz = muzzleWorld(); muzzleLight.position.copy(mz); muzzleLight.intensity = 3; muzzleLight.color.set(b.energy ? 0x60ff70 : 0xffb060);

@@ -24,7 +24,7 @@ function startJob(job, opts = {}) {
   applyMod(job.mod);
   clearZombieStuff();
   while (drops.length) removeDrop(drops[0]);
-  powerUps.forEach(p => scene.remove(p.s)); powerUps.length = 0;
+  powerUps.forEach(p => scene.remove(p.s)); powerUps.length = 0; clearResDrops();
   projs.forEach(p => scene.remove(p.m)); projs.length = 0; fireZones.length = 0;
   itemDrops.forEach(d => scene.remove(d.s)); itemDrops.length = 0; clearGearDrops();
   const P = profile;
@@ -50,6 +50,7 @@ function startJob(job, opts = {}) {
   setupObjective(mission);
   player.pos.set(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 2.8); player.vel.set(0, 0, 0);
   player.carry = null; contractSeen = null;
+  if (!job.test) { profile.inMission = { coop: !!NET.pr, code: NET.code, alone: !NET.pr, at: Date.now() }; saveProfile(); } // cleared by finishJob; still here on the next load = the job was abandoned
   if (job.test) { player.points = 0; if (!opts.client) setupTestGround(mission); }
   player.yaw = Math.atan2(player.pos.x, player.pos.z); player.pitch = 0;
   powers.insta = powers.double = 0;
@@ -237,6 +238,7 @@ function finishJob(success, abandoned) {
   rollBoard(); rollShop(); saveProfile();
   clearZombieStuff();
   NET.revs = 0;
+  delete P.inMission;
   const deep = deepFinished(J, success); saveProfile(); // the dive's progress and reward are saved right away
   showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, bd, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
 }
@@ -557,6 +559,7 @@ function buffIcons(w) {
 function updateHUDFx(dt) { if (typeof updateRemoteAuras === 'function') updateRemoteAuras(dt); }
 function updateHUD() {
   if ((updateHUD.cw = (updateHUD.cw || 0) + 1) % 60 === 0) contractWatch();
+  if (updateHUD.cw % 300 === 0 && profile.inMission && mission) { profile.inMission.alone = !NET.mode || NET.avatars.size === 0; saveProfile(); } // were you the last one there?
   const w = curW();
   focus = findFocus();
   let card = '', prompt = '';
@@ -568,11 +571,12 @@ function updateHUD() {
       card = cardHTML(focus.w, (ok ? `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : bagTxt}</span><span><kbd>F</kbd>tartsd: Csere</span>` : `<span class="lvlock"><kbd>F</kbd>${bagTxt} · ${focus.w.level}. szinttől használhatod</span>`) + scrapHint(focus.w.q), curW()); }
     else if (focus.type === 'cache') prompt = '<b>[E]</b> Utánpótlás-láda kinyitása';
     else if (focus.type === 'revive') prompt = `<b>[E]</b> nyomva: ${esc(focus.name)} felélesztése`;
+    else if (focus.type === 'res') prompt = `<b>[F]</b> ${focus.rd.n} ${focus.rd.k === 'fabric' ? FAB + ' anyag' : '⚙ alkatrész'} felvétele`;
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Láda felvétele (két kézzel)';
     else if (focus.type === 'carry') prompt = mission.drop && Math.hypot(mission.drop.pos.x - player.pos.x, mission.drop.pos.z - player.pos.z) < 5 ? '<b>[E]</b> Láda leadása' : '<b>[E]</b> Láda letétele';
     else if (focus.type === 'desk') prompt = NET.client ? 'Lőtér-vezérlő · csak a vezető állíthatja' : '<b>[E]</b> Lőtér-vezérlő: a célbábuk rangja, fajtája, tulajdonsága';
     else if (focus.type === 'repair') prompt = focus.gi != null ? `<b>[E]</b> nyomva: ${mission.gens[focus.gi].name} generátor javítása · +5%/mp · ${GEN_REP_COST} pont/mp${player.points < GEN_REP_COST ? ' (kevés a pont)' : ''}` : `<b>[E]</b> Túlélő ellátása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
-    else if (!['box', 'ammo', 'drop', 'gear', 'desk', 'carry'].includes(focus.type)) prompt = areaPrompt(focus);
+    else if (!['box', 'ammo', 'drop', 'gear', 'desk', 'carry', 'res'].includes(focus.type)) prompt = areaPrompt(focus);
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;
   }
@@ -675,7 +679,7 @@ function frame(t) {
     if (!(state === 'playing' || netLive())) return;
     updateFx(dt);
     updateProjs(dt);
-    updateItemDrops(dt); updateGearDrops(dt); updatePings(dt); updateMatesHud(); updateCompass();
+    updateItemDrops(dt); updateGearDrops(dt); updateResDrops(dt); updatePings(dt); updateMatesHud(); updateCompass();
     updateAreas(dt); if (mission) updateCache(mission, dt);
     updateMapFx(dt);
     if (state === 'playing') updateSellHold(dt);
@@ -731,6 +735,7 @@ function updateSellHold(dt) {
     return;
   }
   xHold = 0;
+  if (focus && focus.type === 'res') { if (keys.KeyF && !fLatch) { takeRes(focus.rd); focus = null; fLatch = true; } else if (!keys.KeyF) fLatch = false; $('hold').hidden = true; return; }
   if (focus && focus.type === 'gear') { if (keys.KeyF && !fLatch) { takeGear(focus.gd); focus = null; fLatch = true; } else if (!keys.KeyF) fLatch = false; $('hold').hidden = true; return; }
   const f = lootFocus();
   if (keys.KeyF) { if (f && !fLatch && (fHold += dt) >= SWAP_HOLD) { takeLoot(f, true); fLatch = true; } }

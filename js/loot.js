@@ -85,6 +85,8 @@ function findFocus() {
   for (const d of drops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; best = d; } }
   let bg = null; // whichever loot is nearest: a gun or a piece of armor
   for (const d of gearDrops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; bg = d; } }
+  let br = null; for (const d of resDrops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; br = d; } }
+  if (br) return { type: 'res', rd: br };
   if (bg) return { type: 'gear', gd: bg, it: bg.it };
   if (best) return { type: 'drop', drop: best, w: best.w };
   const rf = reviveFocus(); if (rf) return rf;
@@ -303,6 +305,16 @@ function knifeHit(p, z, head, point) {
     if (next) { p.bounces--; p.redirected = true; p.t = 2; const to = new V3(next.pos.x, 1.3 * next.scale, next.pos.z); p.m.position.copy(point); p.v.copy(to.sub(point).setLength(30)); p.v.y += 1; }
   }
 }
+// ---------- parts / fabric on the ground: picked up with F like any loot (a disconnected player's backpack) ----------
+const resDrops = [];
+function spawnResDrop(k, n, pos) {
+  const s = textSprite([`${n} ${k === 'fabric' ? FAB : '⚙'}`, k === 'fabric' ? 'anyag' : 'alkatrész'], '#e8e2d0', .7, 'rgba(0,0,0,.55)'); s.position.set(pos.x, .9, pos.z); scene.add(s);
+  const d = { k, n, s, pos: s.position, t: 180 }; resDrops.push(d); return d;
+}
+function removeResDrop(d) { scene.remove(d.s); if (d.s.material.map) d.s.material.map.dispose(); d.s.material.dispose(); const i = resDrops.indexOf(d); if (i >= 0) resDrops.splice(i, 1); }
+function takeRes(d) { netTookDrop(d); mission[d.k] = (mission[d.k] || 0) + d.n; const u = d.k === 'fabric' ? FAB : '⚙'; itemFeed('felvette', `${d.n} ${u}`, 0); SND.pickup(1); popText(`+${d.n} ${u} (kijutáskor a tiéd)`, '#e8e2d0'); removeResDrop(d); }
+function updateResDrops(dt) { for (let i = resDrops.length - 1; i >= 0; i--) { const d = resDrops[i]; d.t -= dt; d.s.position.y = .9 + Math.sin(now * 2 + i) * .08; if (d.t <= 0) removeResDrop(d); } }
+function clearResDrops() { while (resDrops.length) removeResDrop(resDrops[resDrops.length - 1]); }
 // burning ground: molotovs (hurt zombies) and boss hazards (hurt players)
 const fireZones = [];
 function addFireZone(pos, r, t, hazard = 0, visual = false) { fireZones.push({ pos: pos.clone().setY(0), r, t, tick: 0, hazard, visual }); if (!visual && !hazard) pushFx(['f', Math.round(pos.x * 10), Math.round(pos.z * 10), Math.round(r * 10), Math.round(t)]); } // a teammate's copy only burns to look at

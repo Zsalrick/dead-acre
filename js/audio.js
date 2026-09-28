@@ -11,6 +11,13 @@ function initAudio() {
     initMusic();
   } catch (e) { ac = null; }
 }
+let flameLp = null;
+function flameHold(v = 1) { // a looping, filtered noise that fades in while the trigger is held and out right after
+  if (!ac || !noiseBuf) return; const t = ac.currentTime;
+  if (!flameLp) { const s = ac.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 650; f.Q.value = .6; const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90; const g = ac.createGain(); g.gain.value = 0; s.connect(f).connect(hp).connect(g).connect(master); s.start(); flameLp = { s, f, g, v: 0 }; }
+  const L = flameLp; L.v = Math.max(L.v, .26 * v * sndVol); L.g.gain.setTargetAtTime(L.v, t, .04); L.f.frequency.setTargetAtTime(560 + Math.random() * 260, t, .08);
+  clearTimeout(L.off); L.off = setTimeout(() => { L.v = 0; L.g.gain.setTargetAtTime(0, ac.currentTime, .09); }, 140);
+}
 let sndVol = 1; // scales every sound; withVol plays one at a distance
 const withVol = (v, f) => { const o = sndVol; sndVol = o * v; try { f(); } finally { sndVol = o; } };
 function nz(dur, freq, vol, type = 'lowpass', q = .7, delay = 0) {
@@ -61,7 +68,7 @@ const SND = {
   deny() { tn(160, .18, .12, 'square', 120); },
   // new weapons
   bow() { nz(.12, 1800, .35, 'bandpass', 2); tn(180, .18, .18, 'triangle', 90); },
-  flame(v = 1) { nz(.32, 620, .16 * v, 'lowpass', .4); nz(.12, 2400, .035 * v, 'bandpass', 1.5, .05); }, // a roar with a little crackle
+  flame(v = 1) { flameHold(v); if (Math.random() < .12) nz(.05, 2800, .03 * v * sndVol, 'bandpass', 2); }, // a held roar (flameHold) and the odd crackle
   thump() { nz(.2, 400, .6, 'lowpass', 1); tn(120, .15, .3, 'sine', 50); },
   zap() { tn(1800, .08, .1, 'sawtooth', 300); nz(.1, 5000, .15, 'highpass', 1); },
   spin(v) { tn(220 + v * 500, .09, .05 * v, 'sawtooth', 240 + v * 520); },

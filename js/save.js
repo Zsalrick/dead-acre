@@ -50,6 +50,16 @@ function openProfile(n) {
   profile.name = profile.name || `Zsoldos ${n}`;
   profile.skills = profile.skills || {}; profile.tokens = profile.tokens || 0; if (profile.cls === undefined) profile.cls = null;
   if (typeof syncTokens === 'function') syncTokens(); // merit tokens: level - 1 per class
+  if (profile.inMission) { // the game was closed during a job
+    const IM = profile.inMission; delete profile.inMission;
+    if (IM.coop && !IM.alone) { profile.bag = []; profile.rejoin = IM.code ? { code: IM.code, until: Date.now() + 15 * 60e3 } : null; profile.abandonNote = 'coop'; } // the backpack stayed with the party
+    else { // solo, or the last one out: everything you carried goes to the lost-and-found, to buy back dearly (a newer loss replaces an older one)
+      const w = [...profile.loadout.filter(Boolean), ...profile.bag], g = GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean);
+      profile.lost = w.length || g.length ? { w, g, at: Date.now() } : null;
+      profile.loadout = [packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level))), null]; profile.bag = []; for (const k of GEAR_KEYS) profile.gear[k] = null; gearChanged();
+      profile.abandonNote = 'lost';
+    }
+  }
   if (!profile.jobs.length) rollBoard();
   if (!profile.shop.length || !profile.gshop.length || profile.shop.filter(o => o && o.level > profile.level).length + profile.gshop.filter(it => it && it.level > profile.level).length > 1) rollShop(); // at most one item above your level
   saveProfile();
