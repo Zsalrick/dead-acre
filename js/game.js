@@ -333,9 +333,9 @@ $('loadout').addEventListener('click', e => {
     const w = f === 'L' ? player.slots[+i] : player.bag[+i];
     if (!w || (f === 'L' && player.slots.filter(Boolean).length < 2)) return;
     if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
-    itemFeed('szétszedte', w.name, w.unique ? 5 : w.q); mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
+    itemFeed('szétszedte', `${w.name} · +${fieldParts(w.q)} ⚙`, w.unique ? 5 : w.q); mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
   }
-  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { itemFeed('szétszedte', it.name, it.q); mission.parts = (mission.parts || 0) + fieldParts(it.q); } invSel = ''; }
+  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ⚙`, it.q); mission.parts = (mission.parts || 0) + fieldParts(it.q); } invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
@@ -646,7 +646,7 @@ const scrapHint = q => mission && mission.job.test ? '' : `<span class="scrap"><
 function scrapGround(f) { // parts are paid out only if you extract, like taking it apart from the bag
   const it = f.type === 'gear' ? f.gd.it : f.drop.w, q = it.unique ? 5 : it.q;
   if (f.type === 'gear') { netTookDrop(f.gd); removeGearDrop(f.gd); } else { netTookDrop(f.drop); removeDrop(f.drop); }
-  mission.parts = (mission.parts || 0) + fieldParts(Math.min(4, q)); itemFeed('szétszedte', it.name, q); SND.explode();
+  mission.parts = (mission.parts || 0) + fieldParts(Math.min(4, q)); itemFeed('szétszedte', `${it.name} · +${fieldParts(Math.min(4, q))} ⚙`, q); SND.explode();
   popText(`${it.name} szétszedve · +${fieldParts(Math.min(4, q))} ⚙ kijutáskor`, '#c8c0a8');
 }
 function updateSellHold(dt) {

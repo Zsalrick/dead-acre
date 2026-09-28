@@ -664,12 +664,12 @@ function killFeed(a, aCol, wName, wCol, b, bCol, head, verb) {
 // picking up, dropping and taking things apart go in the feed too, for the whole party
 function itemFeed(verb, name, q) {
   const col = CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a';
-  killFeed(NET.mode ? myName() : 'Te', col, '', '', name, RARITIES[q] ? RARITIES[q].color : '#cfc6b0', false, verb);
+  killFeed(myName(), col, '', '', name, RARITIES[q] ? RARITIES[q].color : '#cfc6b0', false, verb);
   if (NET.mode && NET.kf) pushRoll(NET.kf, [++NET.seq, '', q, String(name).slice(0, 40), 0, verb], 6);
 }
 function myKill(w, kindName, head) {
   const col = CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#f2a33a', wq = w.unique ? 5 : w.q || 0;
-  killFeed(NET.mode ? myName() : 'Te', col, w.unique || w.q >= 4 || !w.base ? w.name : w.base.name, RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0', kindName, '#c9c1a8', head);
+  killFeed(myName(), col, w.unique || w.q >= 4 || !w.base ? w.name : w.base.name, RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0', kindName, '#c9c1a8', head);
   if (NET.mode && NET.kf) pushRoll(NET.kf, [++NET.seq, String(w.name).slice(0, 40), wq, kindName, head ? 1 : 0], 6);
 }
 // ---------- party chat: Enter opens it, Enter sends, Esc closes ----------

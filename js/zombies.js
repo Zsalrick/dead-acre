@@ -258,22 +258,25 @@ function dropLoot(z, p) {
     spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
     if (!z.bounty && Math.random() < .05) spawnGearDrop(makeExotic(null, lootLvl(2)), p.clone().add(new V3(0, 0, 1.4)));
     if (!z.bounty) banner('A MÉSZÁROS ELESETT', 'Epikus vagy jobb fegyvert hagyott maga után.'); SND.roar();
-  } else if (z.elite) {
-    if (mission && (mission.job.diff >= 4 || jobTier() > 0) && Math.random() < .006) spawnGearDrop(makeExotic(null, lootLvl(1)), p.clone().add(new V3(0, 0, 1.2)));
-    spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3 + dLuck))), lootLvl()), p);
-  } else if (z.kind === 'brood') spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p);
+  } else if (z.tier === 3) { // a named zombie: always a gun, rare or better, and a fair chance of armor
+    if (mission && (mission.job.diff >= 4 || jobTier() > 0) && Math.random() < .02) spawnGearDrop(makeExotic(null, lootLvl(1)), p.clone().add(new V3(0, 0, 1.2)));
+    spawnDrop(makeWeapon(pick(BASES), uq(Math.max(2, rollRarity(.4 + dLuck))), lootLvl()), p);
+  } else if (z.elite) { // loot is scarcer now, so each drop means more
+    if (mission && (mission.job.diff >= 4 || jobTier() > 0) && Math.random() < .004) spawnGearDrop(makeExotic(null, lootLvl(1)), p.clone().add(new V3(0, 0, 1.2)));
+    if (Math.random() < .25) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3 + dLuck))), lootLvl()), p);
+  } else if (z.kind === 'brood') { if (Math.random() < .3) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p); }
   else if (z.kind === 'brute') {
-    spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p);
-    if (Math.random() < .2) spawnPower(p.clone().add(new V3(1.2, 0, 0)));
+    if (Math.random() < .2) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p);
+    if (Math.random() < .15) spawnPower(p.clone().add(new V3(1.2, 0, 0)));
   }
-  else if (z.K.gun && Math.random() < .3) spawnDrop(makeWeapon(BASES.find(b => b.id === 'revolver'), rollRarity(.1), lootLvl()), p);
-  else if (Math.random() < .06 * SK.drop()) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(round >= 6 ? 1 : 0, rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck))), lootLvl()), p);
+  else if (z.K.gun && Math.random() < .06) spawnDrop(makeWeapon(BASES.find(b => b.id === 'revolver'), rollRarity(.1), lootLvl()), p);
+  else if (Math.random() < .015 * SK.drop()) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(round >= 6 ? 1 : 0, rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck))), lootLvl()), p);
   else if (Math.random() < (round <= 3 ? .07 : .025)) spawnPower(p, 'ammo'); // ammo packs: plenty early on, when the starter guns run dry
   else if (Math.random() < .02) spawnPower(p);
   else if (Math.random() < .04) spawnItem(pick(['med', 'med', 'gren', 'gren', 'knife', 'knife', 'knife', 'adren']), p);
   // gear: the boss always drops a piece, big and elite zombies often, the rest rarely
   const addCut = mission && mission.job.bounty && !z.K.boss ? .3 : 1; // a bounty's adds are fodder
-  const gc = z.K.boss ? 1 : addCut * (z.elite || ['brute', 'brood', 'armored', 'screamer'].includes(z.kind) ? .25 : .03 * SK.drop());
+  const gc = z.K.boss ? 1 : addCut * (z.tier === 3 ? .5 : z.elite || ['brute', 'brood', 'armored', 'screamer'].includes(z.kind) ? .045 : .006 * SK.drop());
   if (Math.random() < gc) spawnGearDrop(makeGear(null, z.K.boss ? Math.max(3, rollRarity(.3 + dLuck)) : rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck), z.K.boss ? lootLvl(2) : lootLvl()), p.clone().add(new V3(.8, 0, .8)));
 }
 
