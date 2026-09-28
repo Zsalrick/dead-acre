@@ -825,3 +825,27 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 .jsvg g text.ls{font:500 12px var(--fb)}
 .jsvg g text.lpay{font:600 13px var(--fb)}
 .jsvg g text.tag{font:700 11.5px var(--fc);letter-spacing:.14em}
+.jc-foot .sbtn.rdyb{background:transparent;border-color:var(--pos);color:var(--pos)}.jc-foot .sbtn.rdyb.on{background:var(--pos);color:#0e0f0c}
+
+.tbadges{position:absolute;right:6px;top:6px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}.tbadges .tbadge{position:static}
+
+/* being hit: blood at the edges that fades, a blue flash if the shield took it; the bars jolt, and pulse when health is low */
+#hitfx{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .8s ease-out;
+  background:radial-gradient(circle at 0 0,rgba(120,0,0,.9),transparent 26%),radial-gradient(circle at 100% 0,rgba(120,0,0,.75),transparent 22%),
+  radial-gradient(circle at 0 100%,rgba(120,0,0,.85),transparent 28%),radial-gradient(circle at 100% 100%,rgba(120,0,0,.8),transparent 25%),
+  radial-gradient(ellipse at center,transparent 50%,rgba(150,0,0,.55) 100%)}
+#hitfx.sh{background:radial-gradient(ellipse at center,transparent 55%,rgba(60,150,255,.45) 100%)}
+#bl.hit .bars{animation:hpjolt .35s ease-out}
+@keyframes hpjolt{0%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}100%{transform:none}}
+#bl.hit #hpn{animation:hpnum .35s ease-out}@keyframes hpnum{30%{color:#ff6a5a;transform:scale(1.25)}}
+.bars #hp.low{box-shadow:0 0 0 1px rgba(224,58,46,.7),0 0 14px rgba(224,58,46,.5);animation:lowpulse 1s ease-in-out infinite}
+.bars #hp.low+#hpn{color:#ff6a5a}
+@keyframes lowpulse{50%{box-shadow:0 0 0 1px rgba(224,58,46,.3),0 0 4px rgba(224,58,46,.2)}}
+
+/* Halálszem: an orange hunter's world · Szentelt kör: a warm golden edge while you stand in it */
+#eyefx,#aurafx{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s}
+#eyefx{background:radial-gradient(ellipse at center,rgba(255,140,30,.05) 30%,rgba(255,110,10,.42) 100%);mix-blend-mode:screen}
+#eyefx.on{opacity:1}
+#aurafx{background:radial-gradient(ellipse at center,transparent 58%,rgba(242,210,122,.38) 100%);box-shadow:inset 0 0 60px rgba(242,210,122,.35)}
+#aurafx.on{opacity:1;animation:aurapulse 2.4s ease-in-out infinite}
+@keyframes aurapulse{50%{opacity:.65}}

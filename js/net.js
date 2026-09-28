@@ -139,7 +139,7 @@ function netJobStarted(opts) {
 function netJobEnded() {
   NET.mode = null; NET.client = false; NET.targets = null; player.down = false; NET.ready = false;
   NET.zById.clear(); if (NET.host) NET.job = null;
-  NET.avatars.forEach(a => { scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); }); NET.avatars.clear();
+  NET.avatars.forEach(a => { scene.remove(a.g); if (a.ring) scene.remove(a.ring); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); }); NET.avatars.clear();
   if (NET.pr) NET.pr.presence({ p: null, g: null, bk: null }).catch(() => {}); // bk too: they kept their things, nothing to drop
   publishMember(); setLobby();
 }
@@ -183,7 +183,7 @@ function playFx(e, a) {
   else if (t === 'f') addFireZone(P(e[2], e[3]), (+e[4] || 30) / 10, +e[5] || 5, 0, true);
   else if (t === 'b') { const x = (+e[2] || 0) / 10, z = (+e[3] || 0) / 10, pr = props.find(q => q.blk && Math.hypot(q.x - x, q.z - z) < .5); if (pr) blowBarrel(pr, true); }
   else if (t === 'ab') { const C = CLASSES[e[2]]; if (C && a) { popText(`${a.name}: ${C.ability.name}`, C.color); withVol(dv(a.pos) * .7, () => SND.power()); } }
-  else if (t === 'au') { const m = new THREE.Mesh(new THREE.RingGeometry(5.6, 6, 48), new THREE.MeshBasicMaterial({ color: 0xf2d27a, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.copy(P(e[2], e[3])).setY(.05); scene.add(m); remoteAuras.push({ m, t: +e[4] || 8 }); }
+  else if (t === 'au' && false) { const m = new THREE.Mesh(new THREE.RingGeometry(5.6, 6, 48), new THREE.MeshBasicMaterial({ color: 0xf2d27a, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.copy(P(e[2], e[3])).setY(.05); scene.add(m); remoteAuras.push({ m, t: +e[4] || 8 }); }
   else if (t === 'zs') { const p = P(e[3], e[4]), f = SND[e[2]]; if (f) withVol(dv(p), () => f()); }
   else if (t === 'sp') { const from = P(e[2], e[4], e[3]), v = new V3((+e[5] || 0) / 10, (+e[6] || 0) / 10, (+e[7] || 0) / 10), m = new THREE.Mesh(acidGeo, acidMat); m.position.copy(from); scene.add(m); zProjs.push({ m, v, remote: true }); withVol(dv(from), () => SND.spit()); }
   else if (t === 'bo') { const p = P(e[3], e[4]); burst(p.clone().setY(1), +e[5] || 0xff7a1a, 30, 6, .7); withVol(dv(p), () => (SND[e[2]] || SND.roar)()); if (Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < 14) player.shake = Math.max(player.shake, .5); }
@@ -201,7 +201,7 @@ function updateAvatars(dt, peers) {
     if (!p.presence.p) { const a0 = NET.avatars.get(p.peer); if (a0) a0.bk = p.presence.bk; continue; } // left the job, not the party: no backpack to drop
     const P = p.presence.p; seen.add(p.peer); const bkNow = p.presence.bk;
     let a = NET.avatars.get(p.peer); if (a) { a.bk = bkNow; a.seenAt = performance.now(); } if (!a && NET.host) for (const L of [drops, gearDrops, resDrops]) for (const d of L.filter(d => d.bkOf === p.peer)) { netTookDrop(d); (L === drops ? removeDrop : L === gearDrops ? removeGearDrop : removeResDrop)(d); } // they're back: their backpack goes back to them
-    if (!a) { const u = p.presence.m && p.presence.m.u; if (u) for (const [pid, o] of NET.avatars) if (o.uid === u) { scene.remove(o.g); if (o.tag) o.tag.remove(); (o.tus || []).forEach(t => scene.remove(t.g)); NET.avatars.delete(pid); } } // the same player under a new id (P2P reconnect): the old figure goes, nothing is dropped
+    if (!a) { const u = p.presence.m && p.presence.m.u; if (u) for (const [pid, o] of NET.avatars) if (o.uid === u) { scene.remove(o.g); if (o.ring) scene.remove(o.ring); if (o.tag) o.tag.remove(); (o.tus || []).forEach(t => scene.remove(t.g)); NET.avatars.delete(pid); } } // the same player under a new id (P2P reconnect): the old figure goes, nothing is dropped
     if (!a) { a = makeAvatar(p.presence.m); a.uid = p.presence.m && p.presence.m.u; a.seenAt = performance.now(); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
     if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
@@ -250,7 +250,10 @@ function updateAvatars(dt, peers) {
     // pings
     if (Array.isArray(P.pg) && P.pg[0] !== a.lastPing) { a.lastPing = P.pg[0]; addPing(p.peer, a.name, a.col, new V3(P.pg[1] / 10, P.pg[2] / 10, P.pg[3] / 10), String(P.pg[4]).slice(0, 60)); }
     // a medic's aura (Feltámasztó augment) brings back the downed
-    if (a.au && Math.hypot(player.pos.x - a.au[0], player.pos.z - a.au[1]) < 6) { // a medic's circle heals the whole party
+    { // their circle on the ground, following them
+      if (a.au && !a.ring) { a.ring = new THREE.Mesh(new THREE.RingGeometry(5.6, 6, 48), new THREE.MeshBasicMaterial({ color: 0xf2d27a, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false })); a.ring.rotation.x = -Math.PI / 2; scene.add(a.ring); }
+      if (a.ring) { a.ring.visible = !!a.au; if (a.au) { a.ring.position.set(a.au[0], .04, a.au[1]); a.ring.scale.setScalar((a.au[3] || 6) / 6); } } }
+    if (a.au && Math.hypot(player.pos.x - a.au[0], player.pos.z - a.au[1]) < (a.au[3] || 6)) { // a medic's circle heals the whole party
       if (player.down && a.au[2]) netRevive(); else if (!player.down) player.hp = Math.min(maxHp(), player.hp + 12 * dt);
     }
     for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && (player.down || player.ffyl > 0)) { netRevive(e[2] ? 1 : .5); banner('FELÉLESZTETTEK', e[2] ? `${a.name} (tábori pap) teljesen rendbe hozott.` : `${a.name} felállított.`); }
@@ -260,7 +263,7 @@ function updateAvatars(dt, peers) {
   for (const [peer, a] of NET.avatars) if (!seen.has(peer)) {
     if (NET.host) { dropBackpack(a, peer); if (mission && mission.crates) mission.crates.forEach((c, i) => { if (c.st === 1 && c.by === peer) crateDrop(i, a.pos.x, a.pos.z); }); } // their crate falls where they stood
     if (profile && profile.inMission) { profile.inMission.alone = NET.avatars.size <= 1; markCarry(); } // closing now: were you the last one?
-    scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
+    scene.remove(a.g); if (a.ring) scene.remove(a.ring); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
 }
 const partySize = () => 1 + [...NET.avatars.values()].length;
 
@@ -392,7 +395,7 @@ function myPresence() {
   const w = curW();
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, si: mission && mission.intro >= 0 && mission.goT < rideLen() ? (mission.seat | 0) + 1 : 0, sh: NET.shots || 0, kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
-    au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
+    au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0, aura.r] : null, rv: NET.rv,
     wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, fx: NET.fx, we: w ? w.element || '' : '', tu: turrets.filter(t => !t.station).map(t => [Math.round(t.g.position.x * 10), Math.round(t.g.position.z * 10), (t.rocket ? 1 : 0) | (t.shield ? 2 : 0) | (t.small ? 4 : 0), Math.round(t.head.rotation.y * 100) / 100]), h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
@@ -605,7 +608,7 @@ function updateProxies(dt) {
     z.g.rotation.y = q.h;
     z.flash -= dt; z.markT = (z.markT || 0) - dt;
     const em = z.flash > 0 || (s.fl & 256 && Math.sin(now * 40) > 0) ? 0x777777 : s.fl & 16 ? 0x4a1800 : s.fl & 32 ? 0x10384a : s.fl & 64 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : s.fl & 4 ? 0x3a2a00 : 0x0d100b;
-    for (const m of z.mats) m.emissive.setHex(em);
+    for (const m of z.mats) m.emissive.setHex(player.eyeT > 0 && !(z.flash > 0) ? 0xb01818 : em); // Halálszem: every zombie lit red
     if (K.ghost) { z.op = lerp(z.op || .1, s.fl & 128 ? .9 : .1, Math.min(1, dt * 4)); for (const m of z.mats) m.opacity = z.op; }
     if (z.armorParts && s.fl & 8) z.armorParts.forEach(a => a.visible = false);
     if (s.fl & 16 && Math.random() < dt * 12) burst(new V3(z.pos.x, rand(.6, 1.9) * z.scale, z.pos.z), 0xff7a20, 1, 1, .35);
@@ -614,7 +617,7 @@ function updateProxies(dt) {
     z.amp = lerp(z.amp || 0, Math.min(.75, .15 + moving * .18), k);
     const sw = Math.sin(z.walkT) * z.amp;
     z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
-    z.upper.rotation.x = lerp(z.upper.rotation.x, s.fl & 512 ? 1.1 : K.lean, k); if (z.flinch > 0) { z.flinch -= dt; z.upper.rotation.x -= z.flinch * 2.5; }
+    z.upper.rotation.x = lerp(z.upper.rotation.x, s.fl & 512 ? 1.1 : K.lean, k); if (z.flinch > 0) { z.flinch -= dt; z.upper.rotation.x -= z.flinch * 26 * dt; }
     if (K.crawl) { z.armL.rotation.x = -1.3 + sw * 1.2; z.armR.rotation.x = -1.3 - sw * 1.2; }
     else { const reach = -1.35 - (s.fl & 2 ? .9 : 0); z.armL.rotation.x = lerp(z.armL.rotation.x, reach, k); if (!K.gun) z.armR.rotation.x = lerp(z.armR.rotation.x, reach, k); else z.armR.rotation.x = -1.5; }
     if (K.bloat) z.torso.scale.x = 1.55 + Math.sin(now * (s.fl & 256 ? 30 : 3)) * (s.fl & 256 ? .15 : .04);
@@ -714,6 +717,17 @@ function updateMatesHud() {
     el.classList.toggle('down', a.down); el.dataset.edge = edge;
   }
   if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
+  // the escort's survivor: tagged like a teammate, always on screen (blind directive or not)
+  const E = mission && mission.esc, show = E && E.target && E.target.alive && E.hp > 0 && state !== 'intro';
+  let et = updateMatesHud.esc; if (!et) { et = updateMatesHud.esc = document.createElement('div'); et.className = 'matetag esc'; $('pings').appendChild(et); }
+  et.hidden = !show; if (!show) return;
+  const p = NET.client && E.net ? E.net : E.pos, v = new V3(p.x, 2.4, p.z).project(camera), off = v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1;
+  const cl = new V3(p.x, 2.4, p.z).sub(camera.position).applyQuaternion(camera.quaternion.clone().invert());
+  let x = v.x, y = v.y, edge = 0;
+  if (cl.z > 0 || off) { edge = cl.x >= 0 ? 1 : -1; x = edge * .92; y = clamp(off && cl.z <= 0 ? v.y : 0, -.35, .3); } // pinned to a side, clear of the corners
+  et.style.transform = `translate(${(x + 1) / 2 * W}px,${(1 - y) / 2 * H}px) translate(-50%,-100%)`; et.style.setProperty('--pc', '#7dcf5a'); et.dataset.edge = edge;
+  const h = `<b>TÚLÉLŐ <small>${Math.round(Math.hypot(p.x - player.pos.x, p.z - player.pos.z))} m${E.waiting ? ' · vár rád' : ''}</small></b><i><em style="width:${clamp(E.hp / E.max, 0, 1) * 100}%"></em></i>`;
+  if (et.dataset.h !== h) { et.dataset.h = h; et.innerHTML = h; }
 }
 
 // ---------- what a player drops in a party shows up for everyone; whoever picks it up takes it from all ----------

@@ -49,7 +49,7 @@ const gPic = it => gearIcon(it.slot, BRANDS[it.brand].color, it.name);
 // ---------- tiles: a card with the picture on top ----------
 // o: lv · lock (under your level) · badge ('ÚJ', '★ KEDVENC', 'KUKA') · rar (the small coloured line) · val (right of the bottom line, html) · n (hand number) · exp · cant · bc (brand color)
 function tile(sel, pic, name, sub, color, o = {}) {
-  const badge = o.lockLv ? `<i class="tbadge lock">${o.lockLv}. szinttől</i>` : (o.badge || o.tag) ? `<i class="tbadge${o.badgeCls ? ' ' + o.badgeCls : ''}">${o.badge || o.tag}</i>` : '';
+  const badge = `<span class="tbadges">${o.lockLv ? `<i class="tbadge lock">${o.lockLv}. szinttől</i>` : ''}${(o.badge || o.tag) ? `<i class="tbadge${o.badgeCls ? ' ' + o.badgeCls : ''}">${o.badge || o.tag}</i>` : ''}</span>`; // level lock on top, new / favourite / trash under it
   return `<button class="tile${invSel === sel ? ' on' : ''}${o.cant ? ' cant' : ''}" data-act="sel:${sel}" draggable="true" style="--rc:${color}${o.bc ? `;--bc:${o.bc}` : ''}">
     <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lockLv ? ' lock' : ''}">${o.lv}</i>` : ''}${badge}${o.n ? `<kbd class="tkey">${o.n}</kbd>` : ''}${o.exp && !o.n ? `<i class="texp" title="Szakértelem ${o.exp}/10">✦${o.exp}</i>` : ''}</span>
     <span class="ttx">${o.rar ? `<small class="trar">${o.rar}</small>` : ''}<b class="tn">${name}</b><span class="tmeta"><small class="ts">${sub}</small>${o.val != null ? `<b class="tv">${o.val}</b>` : ''}</span></span></button>`;
@@ -218,31 +218,31 @@ function weaponDetail(w, cmp, actions) {
 
 // ---------- detail: armor ----------
 function gearDetail(it, cmp, actions) {
-  const B = BRANDS[it.brand], cnt = brandCounts()[it.brand] || 0, c = cmp && cmp !== it ? cmp : null;
-  const val = (g, k) => { if (!g) return 0; let v = k === 'armor' ? g.armor : g.stats[k] || 0; if (BRANDS[g.brand].core[0] === k) v += coreVal(g); return v; };
-  const keys = [...new Set(['armor', B.core[0], ...Object.keys(it.stats), ...(c ? [BRANDS[c.brand].core[0], ...Object.keys(c.stats)] : [])])];
+  const tb = it.exo ? exoTarget() : it.brand, B = BRANDS[tb || it.brand], cnt = tb ? brandCounts()[tb] || 0 : 0, c = cmp && cmp !== it ? cmp : null; // an exotic shows the set it counts toward now
+  const val = (g, k) => { if (!g) return 0; let v = k === 'armor' ? g.armor : g.stats[k] || 0; if (!g.exo && BRANDS[g.brand].core[0] === k) v += coreVal(g); return v; };
+  const keys = [...new Set(['armor', ...(it.exo ? [] : [B.core[0]]), ...Object.keys(it.stats), ...(c ? [...(c.exo ? [] : [BRANDS[c.brand].core[0]]), ...Object.keys(c.stats)] : [])])];
   const rollMax = k => { const S = GSTATS[k]; return S.roll[1] * (1 + it.q * .12) * (S.flat ? 1 + .06 * (it.level - 1) : 1); };
   const rows = keys.map(k => {
     const v = val(it, k), parts = [];
     if (k === 'armor') parts.push(`alap +${it.armor}`); else if (it.stats[k]) parts.push(`tulajdonság ${fmtG(k, it.stats[k])}`);
-    if (B.core[0] === k) parts.push(`márka ${fmtG(k, coreVal(it))}`);
+    if (!it.exo && B.core[0] === k) parts.push(`márka ${fmtG(k, coreVal(it))}`);
     const d = c ? v - val(c, k) : 0, p = it.stats[k] ? Math.min(1, it.stats[k] / rollMax(k)) : null;
     const cmpH = c ? (Math.abs(d) < 1e-6 ? '<em class="eq">=</em>' : `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmtG(k, Math.abs(d)).slice(1)}</em>`) : p != null ? `<em class="eq">${Math.round(p * 100)}% dobás</em>` : '';
-    return srw(k === 'armor' ? 'Páncél' : GSTATS[k].name, v ? (k === 'armor' ? Math.round(v) : fmtG(k, v)) : '—', cmpH, k === 'armor' ? null : p, parts.join(' · '), B.core[0] === k ? 'core' : '');
+    return srw(k === 'armor' ? 'Páncél' : GSTATS[k].name, v ? (k === 'armor' ? Math.round(v) : fmtG(k, v)) : '—', cmpH, k === 'armor' ? null : p, parts.join(' · '), !it.exo && B.core[0] === k ? 'core' : '');
   }).join('');
   const next = B.sets.find(([n]) => n > cnt), sets = B.sets.map(([n, k, v]) => `${n} db: ${GSTATS[k].name} ${fmtG(k, v)}`).join(' · ');
   const setLine = (on, t) => `<span style="color:${on ? 'var(--tx)' : 'var(--tx4)'}">${on ? '✓' : '·'} ${t}</span>`;
   return `<div class="dscroll" style="--rc:${gCol(it)};--bc:${B.color}">
     <div class="dvimg"><img src="${gPic(it)}" alt=""></div>
     <div class="dvhead"><div class="dk">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level}</div><div class="dname">${it.name}</div>
-      <div class="dsub">${GEAR_SLOTS[it.slot]} · ${it.exo ? 'bármely márka' : B.name} · ${B.tag}</div><div class="dperk">${B.name} szett · ${sets}</div></div>
+      <div class="dsub">${GEAR_SLOTS[it.slot]} · ${it.exo ? 'egzotikus: bármely márkához számít' : `${B.name} · ${B.tag}`}</div><div class="dperk">${it.exo ? (tb ? `Most ide számít: ${B.name} (a legtöbbet viselt márkád)` : 'Más páncél nélkül egy szetthez sem számít') : `${B.name} szett · ${sets}`}</div></div>
     <div class="dvbody">
       ${!canUse(it) ? `<div class="dlock">Csak ${it.level}. szinttől viselhető. Addig a raktárban tarthatod.</div>` : ''}
       ${c ? `<div class="dcmp">összevetve a viselt darabbal: <span style="color:${gCol(c)}">${c.name}</span></div>` : ''}
       <div class="srows">${rows}</div>
       <div class="dboxes">
         ${it.exo && EXOTICS[it.exo] ? dbox('Egzotikus tehetség', '', EXOTICS[it.exo].talent, EXO_COL) : ''}
-        ${dbox(`${B.name} szett · ${cnt}/4 viselve`, '', B.sets.map(([n, k, v]) => setLine(cnt >= n, `${n} db: ${GSTATS[k].name} ${fmtG(k, v)}`)).join('') + (B.t4 ? setLine(cnt >= 4, `4 db · ${B.t4[0]}: ${B.t4[1]}`) : '') + (next ? `<span style="color:var(--amb)">Még ${next[0] - cnt} darab a következő bónuszig</span>` : ''), B.color)}
+        ${it.exo && !tb ? '' : dbox(`${B.name} szett · ${cnt}/4 viselve${wornGear().some(g => g.exo) && tb === exoTarget() ? ' (egzotikussal)' : ''}`, '', B.sets.map(([n, k, v]) => setLine(cnt >= n, `${n} db: ${GSTATS[k].name} ${fmtG(k, v)}`)).join('') + (B.t4 ? setLine(cnt >= 4, `4 db · ${B.t4[0]}: ${B.t4[1]}`) : '') + (next ? `<span style="color:var(--amb)">Még ${next[0] - cnt} darab a következő bónuszig</span>` : ''), B.color)}
         ${dbox('Szakértelem', `${it.exp || 0}/10 · +${3 * (it.exp || 0)}% minden értékre`, expPips(it.exp || 0) + ((it.exp || 0) < 10 ? '<span>A kovácsnál fejleszthető.</span>' : ''), '#f0a024')}
       </div>
     </div></div>

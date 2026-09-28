@@ -301,6 +301,12 @@ function hurtAt(pos, r, d) {
   if (NET.mode === 'host') for (const [peer, a] of NET.avatars) if (!a.down && Math.hypot(a.pos.x - pos.x, a.pos.z - pos.z) < r) pushRoll(NET.dmgs, [++NET.seq, peer, Math.round(d * 10) / 10], 16);
 }
 let hurtSrc = null;
+function hitFx(d, shieldOnly) { // blood (or a blue flash on the shield) at the screen's edges, and the health bar jolts
+  const f = $('hitfx'), s = clamp(.35 + d / Math.max(1, maxHp()) * 4, .35, 1);
+  f.className = shieldOnly ? 'sh' : ''; f.style.transition = 'none'; f.style.opacity = shieldOnly ? s * .6 : s;
+  requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = ''; f.style.opacity = 0; }));
+  const b = $('bl'); b.classList.remove('hit'); void b.offsetWidth; b.classList.add('hit');
+}
 function hurtPlayer(d, quiet) {
   if (netRedirectHurt(d)) return; // a host zombie hit another player
   if (!liveWorld() || (mission && mission.leaving) || player.down) return;
@@ -312,7 +318,7 @@ function hurtPlayer(d, quiet) {
   player.hp -= d; player.lastHurt = now; if (d > 0) player.bloodN = 0;
   if (player.hp <= 0 && rk('s_wind') && !mission.wind) { mission.wind = true; player.hp = 1; banner('MÁSODIK SZÉL', 'Még nem most.'); }
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }
-  if (!quiet) { player.shake = .25; SND.hurt(); }
+  if (!quiet) { player.shake = .25; SND.hurt(); hitFx(d, hadShield && player.shield > 0); }
   if (player.hp <= 0 && perk('second')) { player.perks.second = false; player.hp = maxHp() * .5; banner('MÁSODIK ESÉLY', 'Még egyszer.'); SND.power(); }
   if (player.hp <= 0) { player.hp = 0; player.downBy = hurtSrc || 'a horda'; killFeed(player.downBy, '#c9c1a8', '', '', 'Te', '#ff4a3a'); startFFYL(); } // on the ground: kill something before the clock runs out
 }
@@ -343,7 +349,7 @@ let quitArmed = false, pausedAt = 0;
 let pauseWant = null; // Tab / I asks for the inventory; Esc (or losing the mouse) opens the menu
 function pauseMode(m) { $('pause').dataset.mode = m; if (m === 'inv') renderPauseInv(); else renderPauseMenu(); $('keybar').hidden = m !== 'inv'; }
 function renderPauseMenu(help) {
-  const M = mission, J = M.job, T = JOB_TYPES[J.type], left = Math.max(0, (J.dur || 0) - (M.t || 0));
+  const M = mission, J = M.job, T = JOB_TYPES[J.type], left = Math.max(0, (J.dur || 0) - (M.t || 0)); renderPauseMenu.help = !!help;
   if (help) { $('pmission').innerHTML = `<div class="eyebrow">Szünet</div><div class="pmt">Irányítás</div><div class="pmhelp">${TABS.controls().replace(/<h2>.*?<\/h2>/, '')}</div>`; return; }
   const objL = objectiveLine(M), main = M.phase === 'evac' ? ['Szállj be a furgonba', ''] : objL ? [objL, ''] : J.test ? ['Lőtér: célbábuk, nincs veszély', ''] : ['Éld túl, amíg a furgon visszajön', fmtTime(left)];
   const P = profile, ct = !J.test && P.daily ? P.daily.list.map(c => [c, cProg(c, false)]).filter(([c, p]) => !c.got && p < c.n).sort((a, b) => b[1] / b[0].n - a[1] / a[0].n)[0] : null;
@@ -456,7 +462,7 @@ addEventListener('keydown', e => {
   if (state === 'hub' && e.code === 'Enter' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { const b = document.querySelector(hubTab === 'jobs' ? '#hubBody .jc-foot .sbtn' : hubTab === 'skills' ? '#hubBody .ksfoot .sbtn' : null); if (b) { if (!b.disabled) b.click(); else SND.deny(); return; } }
   if (state === 'hub' && hubTab === 'swheel' && e.code === 'Space') { e.preventDefault(); const b = document.querySelector('#hubBody [data-act="slot"]'); if (b && !b.disabled) b.click(); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'menu' && e.code === 'Escape' && performance.now() - pausedAt > 400) { resume(); return; }
-  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && e.code === 'Escape') { pauseMode('menu'); return; }
+  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && e.code === 'Escape') { closePauseForClick(); return; } // Esc closes the inventory (the mouse comes back on the next click)
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && invKey(e, $('loadout'))) return;
   if (state === 'station' && (e.code === 'Escape' || e.code === 'KeyE')) { closeStation(e.code === 'Escape'); return; }
   if (state === 'paused' && (e.code === 'Escape' || e.code === 'KeyP') && noLock) { resume(); return; }
@@ -548,8 +554,8 @@ function renderSlots() {
 function gearGroundCard(it, act) { // armor on the ground: the same card as a gun, with its armor against what you wear
   const B = BRANDS[it.brand], worn = profile.gear[it.slot], d = worn ? it.armor - worn.armor : 0;
   return `<div class="gck" style="color:${gCol(it)}">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level} · a földön</div><div class="gcn">${it.name}</div>
-    <div class="gcs">${GEAR_SLOTS[it.slot]} · <span style="color:${B.color}">${B.name}</span> · ${B.tag}</div>
-    <div class="gcst"><div><small>Páncél</small><b>${it.armor}${d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</b></div><div><small>${GSTATS[B.core[0]].name}</small><b>${fmtG(B.core[0], coreVal(it))}</b></div>${Object.entries(it.stats).slice(0, 1).map(([k, v]) => `<div><small>${GSTATS[k].name}</small><b>${fmtG(k, v)}</b></div>`).join('')}</div>
+    <div class="gcs">${GEAR_SLOTS[it.slot]} · ${it.exo ? 'egzotikus, bármely márkához számít' : `<span style="color:${B.color}">${B.name}</span> · ${B.tag}`}</div>
+    <div class="gcst"><div><small>Páncél</small><b>${it.armor}${d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</b></div>${it.exo ? '' : `<div><small>${GSTATS[B.core[0]].name}</small><b>${fmtG(B.core[0], coreVal(it))}</b></div>`}${Object.entries(it.stats).slice(0, 1).map(([k, v]) => `<div><small>${GSTATS[k].name}</small><b>${fmtG(k, v)}</b></div>`).join('')}</div>
     ${it.exo && EXOTICS[it.exo] ? `<div class="gcx" style="color:${EXO_COL}">${EXOTICS[it.exo].talent}</div>` : ''}
     <div class="act">${act}</div>`;
 }
@@ -666,6 +672,7 @@ function updateHUD() {
   if (!locked && !noLock && !lockPending && !needClick) { needClick = true; $('clickHint').hidden = false; } // lost the mouse somehow: say so
   $('adsDot').style.opacity = player.ads > .6 && !w.base.scopeView ? 1 : 0;
   $('vig').style.opacity = clamp((1 - player.hp / maxHp()) * 1.1, 0, .7);
+  $('eyefx').classList.toggle('on', player.eyeT > 0); $('aurafx').classList.toggle('on', inHolyAura());
   if (mission) {
     const M = mission, left = Math.max(0, M.job.dur - M.t);
     const noc = noClock(M.job) && !objDone(M);
@@ -727,8 +734,11 @@ refreshMenu();
 
 let slowmo = 0; // a moment of slow motion (a bounty falls)
 let fpsN = 0, fpsT = 0;
-function frame(t) {
-  requestAnimationFrame(frame);
+function frame(t) { requestAnimationFrame(frame); step(t); }
+// a party's leader in a hidden tab (alt-tab, another tab): the browser stops animation frames, so a worker's clock keeps the world going for everyone
+{ try { const wk = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50)'], { type: 'text/javascript' })));
+  wk.onmessage = () => { if (document.hidden && NET.mode === 'host' && mission && liveWorld()) step(performance.now()); }; } catch (e) {} }
+function step(t) {
   const cap = FPS_CAPS[SET.fpsCap] || 0; if (cap && t - last < 1000 / cap - 1) return; // the frame limiter: skip until the next slot
   let dt = Math.min(.05, (t - last) / 1000); last = t;
   fpsN++; if (t - fpsT > 500) { const e = $('fps'); e.hidden = !SET.showFps; if (SET.showFps) e.textContent = `${Math.round(fpsN * 1000 / (t - fpsT))} FPS`; fpsN = 0; fpsT = t; }
@@ -763,6 +773,7 @@ function frame(t) {
     if (bannerT > 0 && (bannerT -= dt) <= 0) $('banner').style.opacity = 0;
     if (flashT > 0) { flashT -= dt; $('flash').style.opacity = Math.max(0, flashT * 1.6); }
     if (state === 'playing') { updateHUD(); tickStats(dt); }
+    if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'menu' && !renderPauseMenu.help && (step.pm = (step.pm || 0) + dt) > .5) { step.pm = 0; renderPauseMenu(); } // in a party the clock keeps running on the pause screen
   }
   playMusic(['menu', 'hub', 'results'].includes(state) ? 'hub' : MUSIC[MAP_ID] ? MAP_ID : 'farm');
   const kb = (state === 'hub' || (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv')) && $('settings').hidden && $('keybar').innerHTML !== '';

@@ -20,6 +20,8 @@ const HFORGE = { recal: w => 10 + Math.floor(w.level / 3), level: w => 2 + Math.
 const ITEM_PRICE = { med: 300, gren: 250, knife: 220, adren: 450 };
 const shopPrice = w => Math.round(sellValue(w) * 4 / 10) * 10;
 
+// XP by difficulty (steeper at the top) and length; objectives, twists and the Butcher add a little. A bounty: a bit over a job of its stars
+const jobXp = (diff, dur, o = {}) => Math.round((150 + 110 * Math.pow(diff, 1.25)) * Math.max(1, (dur || 300) / 300) * (o.mod ? 1.15 : 1) * (o.boss ? 1.2 : 1) * (o.type && o.type !== 'survive' ? 1.1 : 1) / 10) * 10;
 function makeJob() {
   const lvl = profile.level, maps = MAP_IDS.filter(id => MAPS[id].minLevel <= lvl);
   const map = pick(maps), maxD = lvl >= 22 ? 5 : lvl >= 16 ? 4 : lvl >= 10 ? 3 : lvl >= 5 ? 2 : 1;
@@ -32,7 +34,7 @@ function makeJob() {
   const title = type === 'survive' ? title0 : `${JOB_TYPES[type].name}: ${title0}`;
   const reward = Math.round((250 + 180 * Math.pow(diff, 1.4) + lvl * 35) * (dur / 300) * (mod ? 1.2 : 1) * (boss ? 1.3 : 1) / 10) * 10;
   return { map, diff, dur, mod, boss, title, client, type, goal: type === 'exterminate' ? 50 + 25 * diff : type === 'supply' ? 5 + diff : 0,
-    reward: Math.round(reward * (type === 'survive' ? 1 : type === 'escort' ? .9 : 1.15) / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl), xp: 120 * diff + (boss ? 150 : 0) + (mod ? 50 : 0) };
+    reward: Math.round(reward * (type === 'survive' ? 1 : type === 'escort' ? .9 : 1.15) / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl), xp: jobXp(diff, dur, { mod, boss, type }) };
 }
 function rollBoard() {
   profile.jobs = []; // three different jobs, on different maps while there are enough maps
@@ -40,7 +42,7 @@ function rollBoard() {
   for (let k = 0; profile.jobs.length < 3 && k < 60; k++) { const j = makeJob(); if (!profile.jobs.some(o => o.title === j.title || (o.map === j.map && profile.jobs.length < nMaps))) profile.jobs.push(j); }
   while (profile.jobs.length < 3) profile.jobs.push(makeJob());
   if (!profile.jobs.some(j => j.diff === 1)) profile.jobs[0] = Object.assign(makeJob(), { diff: 1, boss: false }); // always one easy job
-  const j = profile.jobs[0]; j.dur = 300; j.reward = Math.round((470 + profile.level * 35) / 10) * 10; j.xp = 120; j.lvl = profile.level;
+  const j = profile.jobs[0]; j.dur = 300; j.reward = Math.round((470 + profile.level * 35) / 10) * 10; j.xp = jobXp(1, 300); j.lvl = profile.level;
   if (profile.level >= 3) profile.jobs.push(makeBounty());
   if (profile.level >= LEVEL_CAP) { // Rémálom +N after the cap: pick any tier you have unlocked, clear the top one to unlock the next
     let j; for (let k = 0; k < 40 && (!j || j.diff < 5); k++) j = makeJob(); // a 5-star base, so Rémálom never pays less than the board
@@ -58,12 +60,13 @@ function makeBounty() {
   const lvl = profile.level, key = pick(Object.keys(BOUNTIES).filter(k => lvl >= (BOUNTIES[k].minLvl || 3))), B = BOUNTIES[key];
   const map = pick(MAP_IDS.filter(id => MAPS[id].minLevel <= lvl)), diff = Math.min(5, 2 + Math.floor(lvl / 6));
   return { map, diff, dur: 0, mod: null, boss: false, bounty: key, title: `Fejvadászat: ${B.name}`, client: 'Megyei seriff',
-    reward: Math.round((700 + 300 * diff + lvl * 60) * 1.6 / 10) * 10, xp: 350 + 120 * diff, lvl: Math.min(LEVEL_CAP, lvl) }; // ×1.6: a bounty out-pays a regular job
+    reward: Math.round((700 + 300 * diff + lvl * 60) * 1.6 / 10) * 10, xp: Math.round(jobXp(diff, 300) * 1.1 / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl) }; // ×1.6: a bounty out-pays a regular job
 }
 function rollShop() {
   const lvl = profile.level;
-  profile.shop = [0, 1, 2, 3].map(k => packW(makeWeapon(pick(BASES), Math.min(4, rollRarity(.15 + lvl * .02)), lvl + (k === 0 ? 1 : 0)))); // your level; one gun a level above to aim for · exotics only drop
-  profile.gshop = [0, 1, 2].map(() => makeGear(null, rollRarity(.15 + lvl * .02), lvl));
+  const more = 2 * Math.floor(Math.min(30, lvl) / 10); // +2 guns and +2 armor pieces at levels 10, 20 and 30
+  profile.shop = Array.from({ length: 4 + more }, (_, k) => k).map(k => packW(makeWeapon(pick(BASES), Math.min(4, rollRarity(.15 + lvl * .02)), lvl + (k === 0 ? 1 : 0)))); // your level; one gun a level above to aim for · exotics only drop
+  profile.gshop = Array.from({ length: 3 + more }).map(() => makeGear(null, rollRarity(.15 + lvl * .02), lvl));
 }
 
 // ---------- rendering ----------
@@ -107,7 +110,7 @@ function jobCard(j, i, notReady) {
     ${weak ? `<p class="jwarn">Vigyázz: a legjobb fegyvered Lv ${gl}, a zóna ${lv}. szintű. Itt nagyon kevés leszel.</p>` : ''}
     ${j.mod ? `<div class="jmodbox"><small>Módosító · ${MODS[j.mod].label}</small><span>${MODS[j.mod].sub}</span></div>` : ''}
     ${dirs}
-    <div class="jc-foot"><div class="jc-pay"><b>$${Math.round(j.reward * (1 + .1 * n))}</b><small>+${Math.round(j.xp * (1 + .15 * n))} XP${n ? ` · direktívák: +${10 * n}% pénz, +${15 * n}% XP` : ''}</small></div>${hbtn(btn, `job:${i}`, off || notReady > 0)}</div>
+    <div class="jc-foot"><div class="jc-pay"><b>$${Math.round(j.reward * (1 + .1 * n))}</b><small>+${Math.round(j.xp * (1 + .15 * n))} XP${n ? ` · direktívák: +${10 * n}% pénz, +${15 * n}% XP` : ''}</small></div>${off ? `<button class="sbtn rdyb${NET.ready ? ' on' : ''}" data-act="pready">${NET.ready ? '✓ Kész vagyok · a vezető indít' : 'Kész vagyok'}</button>` : hbtn(btn, `job:${i}`, notReady > 0)}</div>
   </article>`;
 }
 const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;

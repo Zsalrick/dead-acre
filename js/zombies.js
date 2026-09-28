@@ -388,7 +388,7 @@ function updateZombies(dt) {
     z.slowT -= dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
     const fuseBlink = z.fuse > 0 && Math.sin(now * 40) > 0;
     const em = z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0x0d100b; // a faint glow so they read against the dark
-    for (const m of z.mats) m.emissive.setHex(em);
+    for (const m of z.mats) m.emissive.setHex(player.eyeT > 0 && !(z.flash > 0) ? 0xb01818 : em); // Halálszem: every zombie lit red
     if (z.dummy) { z.g.position.set(z.pos.x, 0, z.pos.z); continue; } // a target dummy: it just stands there
 
     if (z.rise > 0) {
@@ -451,7 +451,7 @@ function updateZombies(dt) {
     const sw = Math.sin(z.walkT) * z.amp;
     z.legL.rotation.x = sw; z.legR.rotation.x = -sw;
     ease(z.upper.rotation, 'x', K.lean);
-    if (z.flinch > 0) { z.flinch -= dt; z.upper.rotation.x -= z.flinch * 2.5; } // a hit jolts the torso back
+    if (z.flinch > 0) { z.flinch -= dt; z.upper.rotation.x -= z.flinch * 26 * dt; } // a hit jolts the torso back
     z.upper.rotation.z = Math.sin(z.walkT * .5) * .06;
     if (K.crawl) { z.armL.rotation.x = -1.3 + sw * 1.2; z.armR.rotation.x = -1.3 - sw * 1.2; }
     else {

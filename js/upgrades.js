@@ -35,7 +35,7 @@ const resMax = w => Math.round(w.maxRes * (1 + .15 * U('ammo') + SK.ammo() + G('
 function updateVitals(dt) {
   const since = now - player.lastHurt;
   if (!dirOn('noregen') && since > 3.2 * (1 - .08 * U('regen')) - SK.regenDelay()) player.hp = Math.min(maxHp(), player.hp + 45 * (1 + .25 * U('regen')) * (SK.regen() + G('regen')) * dt);
-  if (maxShield() > 0 && since > 4 - .35 * U('shieldRegen')) player.shield = Math.min(maxShield(), player.shield + 12 * (1 + .35 * U('shieldRegen')) * dt);
+  const ha = inHolyAura(); if (maxShield() > 0 && since > (4 - .35 * U('shieldRegen')) * (ha ? .5 : 1)) player.shield = Math.min(maxShield(), player.shield + 12 * (1 + .35 * U('shieldRegen')) * (ha ? 2 : 1) * dt); // the priest's circle doubles it
 }
 
 // ================= STATION MODAL =================

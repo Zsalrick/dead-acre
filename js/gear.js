@@ -91,15 +91,20 @@ const gearPrice = it => Math.round(gearValue(it) * 4 / 10) * 10;
 // ---------- totals (cached; call gearChanged() after the worn set changes) ----------
 let gearCache = null;
 const wornGear = () => profile && profile.gear ? GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean) : [];
-function brandCounts() { // an exotic is a wildcard: it counts toward the brand you wear most
+function exoTarget() { // an exotic is a wildcard: it counts toward the brand you wear most; a tie goes to the brand it completes a bonus for, then by name (never at random)
   const c = {}, w = wornGear(); w.forEach(it => { if (!it.exo) c[it.brand] = (c[it.brand] || 0) + 1; });
-  const ex = w.filter(it => it.exo).length, top = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; if (ex && top) c[top] += ex;
+  const ex = w.filter(it => it.exo).length, gain = b => BRANDS[b].sets.filter(([n]) => c[b] < n && c[b] + ex >= n).length;
+  return Object.keys(c).sort((a, b) => c[b] - c[a] || gain(b) - gain(a) || a.localeCompare(b))[0] || null;
+}
+function brandCounts() {
+  const c = {}, w = wornGear(); w.forEach(it => { if (!it.exo) c[it.brand] = (c[it.brand] || 0) + 1; });
+  const ex = w.filter(it => it.exo).length, top = exoTarget(); if (ex && top) c[top] += ex;
   return c;
 }
 function gearTotals() {
   if (gearCache) return gearCache;
   const t = {}, add = (k, v) => t[k] = (t[k] || 0) + v, count = brandCounts();
-  for (const it of wornGear()) { const e = 1 + .03 * (it.exp || 0); add('armor', it.armor * e); for (const k in it.stats) add(k, it.stats[k] * e); add(BRANDS[it.brand].core[0], coreVal(it) * e); } // expertise: +3% a level
+  for (const it of wornGear()) { const e = 1 + .03 * (it.exp || 0); add('armor', it.armor * e); for (const k in it.stats) add(k, it.stats[k] * e); if (!it.exo) add(BRANDS[it.brand].core[0], coreVal(it) * e); } // an exotic has its talent instead of a brand core // expertise: +3% a level
   for (const b in count) for (const [n, k, v] of BRANDS[b].sets) if (count[b] >= n) add(k, v);
   if (vetOpen()) for (const k in SH.vet.ranks) if (VET[k] && SH.vet.ranks[k] > 0) add(k, vetVal(k, SH.vet.ranks[k])); // veteran ranks (vet.js): shared, from level 30
   return gearCache = t;
