@@ -1,7 +1,7 @@
 ﻿// ================= SETTINGS =================
 // per-viewer preferences, kept in localStorage (guarded: it can be blocked)
 const SET_KEY = 'deadacre.settings';
-const SET_DEF = { binds: {}, sens: 1, adsSens: .8, invertY: false, fov: 75, master: .8, music: .5, sfx: 1, gfx: devicePixelRatio > 1.25 ? 1 : 2 }; // gfx: high-DPI laptop screens start on medium
+const SET_DEF = { binds: {}, fpsCap: 0, showFps: true, sens: 1, adsSens: .8, invertY: false, fov: 75, master: .8, music: .5, sfx: 1, gfx: devicePixelRatio > 1.25 ? 1 : 2 }; // gfx: high-DPI laptop screens start on medium
 const SET = Object.assign({}, SET_DEF, (() => { try { return JSON.parse(localStorage.getItem(SET_KEY)) || {}; } catch (e) { return {}; } })());
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch (e) {} applyVolumes(); }
 
@@ -172,7 +172,9 @@ const SET_UI = [
   ['music', 'Zene', 0, 1, .05, v => `${Math.round(v * 100)}%`],
   ['sfx', 'Effektek', 0, 1, .05, v => `${Math.round(v * 100)}%`],
   ['gfx', 'Minőség', 0, 2, 1, v => ['Alacsony', 'Közepes', 'Magas'][v]],
+  ['fpsCap', 'FPS-korlát', 0, 5, 1, v => v ? `${FPS_CAPS[v]} FPS` : 'Nincs'],
 ];
+const FPS_CAPS = [0, 30, 60, 90, 120, 144];
 // key bindings: SET.binds maps an action's default key to the key the player chose; the game reads the default codes
 const BINDS = [['KeyW', 'Előre'], ['KeyS', 'Hátra'], ['KeyA', 'Balra'], ['KeyD', 'Jobbra'], ['ShiftLeft', 'Sprint'], ['Space', 'Ugrás'], ['KeyR', 'Újratöltés'], ['KeyE', 'Használat, felélesztés'],
   ['KeyF', 'Felvétel a földről'], ['Digit1', '1. fegyver'], ['Digit2', '2. fegyver'], ['KeyV', 'Kés'], ['KeyH', 'Gyógycsomag'], ['KeyG', 'Gránát'], ['KeyQ', 'Dobókés'], ['KeyX', 'Adrenalin'],
@@ -201,6 +203,7 @@ function openSettings() {
     `<label class="setrow"><span>Függőleges egér megfordítása</span><input type="checkbox" data-set="invertY"${SET.invertY ? ' checked' : ''}><output></output></label>` +
     '<h3>Hang</h3>' + SET_UI.slice(3, 6).map(row).join('') +
     '<h3>Grafika</h3>' + SET_UI.slice(6).map(row).join('') +
+    `<label class="setrow"><span>FPS-számláló a sarokban</span><input type="checkbox" data-set="showFps"${SET.showFps ? ' checked' : ''}><output></output></label>` +
     '<h3>Billentyűk <small>kattints, majd nyomd meg az új gombot (Esc: mégse)</small></h3><div class="binds">' + BINDS.map(([d, n]) => `<div class="setrow"><span>${n}</span><button class="sbtn bindb${bindWait === d ? ' wait' : ''}" data-bind="${d}">${bindWait === d ? 'Nyomj egy gombot…' : keyName(boundKey(d))}</button></div>`).join('') + '</div>';
   $('settings').hidden = false;
 }

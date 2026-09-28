@@ -573,9 +573,12 @@ loadMap('farm', 1234);
 refreshMenu();
 
 let slowmo = 0; // a moment of slow motion (a bounty falls)
+let fpsN = 0, fpsT = 0;
 function frame(t) {
   requestAnimationFrame(frame);
+  const cap = FPS_CAPS[SET.fpsCap] || 0; if (cap && t - last < 1000 / cap - 1) return; // the frame limiter: skip until the next slot
   let dt = Math.min(.05, (t - last) / 1000); last = t;
+  fpsN++; if (t - fpsT > 500) { const e = $('fps'); e.hidden = !SET.showFps; if (SET.showFps) e.textContent = `${Math.round(fpsN * 1000 / (t - fpsT))} FPS`; fpsN = 0; fpsT = t; }
   if (slowmo > 0) { slowmo -= dt; dt *= .35; }
   netTick(dt);
   if (state === 'menu' || state === 'hub' || state === 'results') {

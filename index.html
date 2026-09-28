@@ -807,6 +807,10 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 #confirm .cbox{min-width:320px;max-width:440px;padding:18px 22px;background:#101211;border:1px solid #ffd23f;box-shadow:0 10px 40px rgba(0,0,0,.6)}#confirm p{margin:0 0 14px;font-size:15px;line-height:1.5}#confirm p small{color:var(--dim)}#confirm .cbox>div{display:flex;gap:10px;justify-content:flex-end}
 .trashbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 8px;padding:6px 12px;border:1px solid rgba(255,138,112,.35);background:rgba(255,138,112,.06)}.trashbar b{color:#ff8a70;font-size:13px}
 .srow.desk>span{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.srow.desk{grid-template-columns:200px 1fr}
+#fps{position:fixed;top:4px;right:8px;z-index:60;font:700 11px/1 ui-monospace,Consolas,monospace;color:#9fdc7a;background:rgba(0,0,0,.45);padding:3px 6px;pointer-events:none}
+.setlist h3 small{display:block;font-family:'Chakra Petch',system-ui,sans-serif;font-weight:500;font-size:12px;color:var(--dim);margin-top:4px}
+.binds{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:0 24px}.binds .setrow{grid-template-columns:minmax(0,1fr) 120px;gap:10px;padding:6px 0}.binds .setrow span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bindb{width:120px;min-width:0;padding:7px 8px;justify-content:center}
 </style>
 
 <div id="game">
@@ -900,6 +904,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
   </div>
 
   <div id="keybar" hidden></div>
+  <div id="fps" hidden></div>
   <div id="confirm" hidden><div class="cbox"><p></p><div><button class="sbtn" data-yes><kbd>Enter</kbd>Igen</button><button class="sbtn" data-no><kbd>Esc</kbd>Mégse</button></div></div></div>
 
   <div id="settings" class="screen" hidden>
@@ -916,12 +921,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <div id="chat" hidden><div id="chatLog"></div><input id="chatIn" maxlength="120" placeholder="Üzenet a csapatnak… (Enter: küldés, Esc: mégse)" autocomplete="off" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="js/data.js?v=41" charset="utf-8"></script>
-<script src="js/audio.js?v=41" charset="utf-8"></script>
-<script src="js/music.js?v=41" charset="utf-8"></script>
-<script src="js/world.js?v=41" charset="utf-8"></script>
-<script src="js/maps.js?v=41" charset="utf-8"></script>
-<script src="js/fx.js?v=41" charset="utf-8"></script>
+<script src="js/data.js?v=42" charset="utf-8"></script>
+<script src="js/audio.js?v=42" charset="utf-8"></script>
+<script src="js/music.js?v=42" charset="utf-8"></script>
+<script src="js/world.js?v=42" charset="utf-8"></script>
+<script src="js/maps.js?v=42" charset="utf-8"></script>
+<script src="js/fx.js?v=42" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -929,21 +934,21 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=41" charset="utf-8"></script>
-<script src="js/player.js?v=41" charset="utf-8"></script>
-<script src="js/zombies.js?v=41" charset="utf-8"></script>
-<script src="js/loot.js?v=41" charset="utf-8"></script>
-<script src="js/upgrades.js?v=41" charset="utf-8"></script>
-<script src="js/gear.js?v=41" charset="utf-8"></script>
-<script src="js/vet.js?v=41" charset="utf-8"></script>
-<script src="js/inv.js?v=41" charset="utf-8"></script>
-<script src="js/save.js?v=41" charset="utf-8"></script>
-<script src="js/menu.js?v=41" charset="utf-8"></script>
-<script src="js/skills.js?v=41" charset="utf-8"></script>
-<script src="js/hub.js?v=41" charset="utf-8"></script>
-<script src="js/book.js?v=41" charset="utf-8"></script>
-<script src="js/game.js?v=41" charset="utf-8"></script>
-<script src="js/jobs.js?v=41" charset="utf-8"></script>
+<script src="js/gfx.js?v=42" charset="utf-8"></script>
+<script src="js/player.js?v=42" charset="utf-8"></script>
+<script src="js/zombies.js?v=42" charset="utf-8"></script>
+<script src="js/loot.js?v=42" charset="utf-8"></script>
+<script src="js/upgrades.js?v=42" charset="utf-8"></script>
+<script src="js/gear.js?v=42" charset="utf-8"></script>
+<script src="js/vet.js?v=42" charset="utf-8"></script>
+<script src="js/inv.js?v=42" charset="utf-8"></script>
+<script src="js/save.js?v=42" charset="utf-8"></script>
+<script src="js/menu.js?v=42" charset="utf-8"></script>
+<script src="js/skills.js?v=42" charset="utf-8"></script>
+<script src="js/hub.js?v=42" charset="utf-8"></script>
+<script src="js/book.js?v=42" charset="utf-8"></script>
+<script src="js/game.js?v=42" charset="utf-8"></script>
+<script src="js/jobs.js?v=42" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=41" charset="utf-8"></script>
-<script src="js/net.js?v=41" charset="utf-8"></script>
+<script src="js/p2p.js?v=42" charset="utf-8"></script>
+<script src="js/net.js?v=42" charset="utf-8"></script>
