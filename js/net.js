@@ -87,7 +87,8 @@ function onPartyChange() {
 }
 function publishMember() {
   if (!NET.pr) return;
-  NET.pr.presence({ m: { n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, bd: NET.host && profile ? profile.jobs : null, dr: NET.host && profile ? profile.dirs || [] : null, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
+  NET.uid = NET.uid || Math.random().toString(36).slice(2, 10);
+  NET.pr.presence({ m: { u: NET.uid, n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, bd: NET.host && profile ? profile.jobs : null, dr: NET.host && profile ? profile.dirs || [] : null, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
 }
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;
@@ -197,8 +198,9 @@ function updateAvatars(dt, peers) {
     if (p.sameTab || !p.presence) continue;
     if (!p.presence.p) { const a0 = NET.avatars.get(p.peer); if (a0) a0.bk = p.presence.bk; continue; } // left the job, not the party: no backpack to drop
     const P = p.presence.p; seen.add(p.peer); const bkNow = p.presence.bk;
-    let a = NET.avatars.get(p.peer); if (a) a.bk = bkNow; if (!a && NET.host) for (const L of [drops, gearDrops, resDrops]) for (const d of L.filter(d => d.bkOf === p.peer)) { netTookDrop(d); (L === drops ? removeDrop : L === gearDrops ? removeGearDrop : removeResDrop)(d); } // they're back: their backpack goes back to them
-    if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
+    let a = NET.avatars.get(p.peer); if (a) { a.bk = bkNow; a.seenAt = performance.now(); } if (!a && NET.host) for (const L of [drops, gearDrops, resDrops]) for (const d of L.filter(d => d.bkOf === p.peer)) { netTookDrop(d); (L === drops ? removeDrop : L === gearDrops ? removeGearDrop : removeResDrop)(d); } // they're back: their backpack goes back to them
+    if (!a) { const u = p.presence.m && p.presence.m.u; if (u) for (const [pid, o] of NET.avatars) if (o.uid === u) { scene.remove(o.g); if (o.tag) o.tag.remove(); (o.tus || []).forEach(t => scene.remove(t.g)); NET.avatars.delete(pid); } } // the same player under a new id (P2P reconnect): the old figure goes, nothing is dropped
+    if (!a) { a = makeAvatar(p.presence.m); a.uid = p.presence.m && p.presence.m.u; a.seenAt = performance.now(); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
     if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
     { const T = Array.isArray(P.tu) ? P.tu : [], key = T.map(t => `${t[0]},${t[1]},${t[2]}`).join('|'); // a teammate's turrets: stand-ins where theirs stand
@@ -437,7 +439,7 @@ function netTick(dt) {
   if (NET.host) {
     NET.selfPos = player.pos; NET.selfVel = player.vel;
     NET.targets = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }];
-    for (const [peer, a] of NET.avatars) NET.targets.push({ pos: a.pos, vel: a.vel, alive: !a.down, remote: true, peer });
+    for (const [peer, a] of NET.avatars) NET.targets.push({ pos: a.pos, vel: a.vel, alive: !a.down && performance.now() - (a.seenAt || 0) < 1500, remote: true, peer }); // a figure left over while reconnecting isn't prey
     for (const p of peers) { // members' hits and actions
       if (p.sameTab || !p.presence || !p.presence.p) continue;
       for (const [, zid, dmg, fl, burn] of fresh('h' + p.peer, p.presence.p.h)) {
@@ -725,7 +727,7 @@ function revokeTake(nid) { // someone got there first: what we picked up goes
   const d = NET.mine && NET.mine.get(nid); if (!d || !mission) return; NET.mine.delete(nid);
   if (d.it) { const i = mission.gear.indexOf(d.it); if (i >= 0) mission.gear.splice(i, 1); for (const k of GEAR_KEYS) if (profile.gear[k] === d.it) { profile.gear[k] = null; gearChanged(); } }
   else if (d.k) mission[d.k] = Math.max(0, (mission[d.k] || 0) - d.n);
-  else if (d.w) { const i = player.bag.indexOf(d.w); if (i >= 0) player.bag.splice(i, 1); else { const s = player.slots.indexOf(d.w); if (s >= 0 && player.slots.filter(Boolean).length > 1) { player.slots[s] = null; if (player.cur === s) player.cur = 1 - s; equipView(); renderSlots(); } } }
+  else if (d.w) { const i = player.bag.indexOf(d.w); if (i >= 0) player.bag.splice(i, 1); else { const s = player.slots.indexOf(d.w); if (s >= 0) { if (player.slots.filter(Boolean).length > 1) { player.slots[s] = null; if (player.cur === s) player.cur = 1 - s; } else { const w = makeWeapon(BASES[0], 0, Math.max(1, profile.level)); w.ammo = w.mag; w.reserve = resMax(w); player.slots[s] = w; } equipView(); renderSlots(); } } }
   popText('Egy társad előbb vette fel', '#ff8a70'); SND.deny();
 }
 const tagBk = (d, peer) => { d.bkOf = peer || '?'; return d; };
