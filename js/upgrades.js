@@ -85,8 +85,9 @@ function renderStation() {
       `<div class="wcard" style="--rc:${rarColor(w)};margin-top:18px;max-width:320px">${cardHTML(w, '', null)}</div>`;
   } else if (stationKind === 'desk') {
     const S = mission.range, chip = (act, on, txt) => `<button class="chip${on ? ' on' : ''}" data-act="${act}">${txt}</button>`;
-    title = 'Lőtér-vezérlő'; lede = 'Állítsd be a célbábukat: öt sáv, 10, 20, 30, 40 és 55 méteren. Minden változtatás után újra felállnak.';
+    title = 'Lőtér-vezérlő'; lede = `Állítsd be a célbábukat: öt sáv, 10, 20, 30, 40 és 55 méteren. Pont annyi életerejük van, mint egy munkán a ${jobLvl()}. szinten, a ${S.wave}. hullámban. Minden változtatás után újra felállnak.`;
     body = `<div class="srow desk"><div><b>Rang</b><small>több életerő és színes csík</small></div><span>${ZTIERS.map((T, k) => chip(`desk:rank:${k}`, S.rank === k, T.name || 'Sima')).join('')}</span></div>
+      <div class="srow desk"><div><b>Hullám</b><small>ennyi életereje lenne egy munkán, a te szinteden</small></div><span>${[1, 5, 10, 15, 20, 30].map(n => chip(`desk:wave:${n}`, S.wave === n, `${n}.`)).join('')}</span></div>
       <div class="srow desk"><div><b>Fajta</b><small>a páncélost fejre kell lőni</small></div><span>${RANGE_KINDS.map(k => chip(`desk:kind:${k}`, S.kind === k, KINDS[k].name)).join('')}</span></div>
       <div class="srow desk"><div><b>Tulajdonság</b><small>elit és nevesített bábun</small></div><span>${chip('desk:trait:', !S.trait, 'Nincs')}${RANGE_TRAITS.map(k => chip(`desk:trait:${k}`, S.trait === k, AFFIX[k].name)).join('')}</span></div>` +
       srow('Újraállítás', 'Mind az öt bábu teljes életerővel áll fel.', '', 'desk:reset:', false, 'Újraállít');
@@ -103,7 +104,7 @@ function renderStation() {
 $('stationBody').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const [kind, key, val] = b.dataset.act.split(':'), P = player, w = curW();
-  if (kind === 'desk') { const S = mission.range; if (key === 'rank') S.rank = +val; if (key === 'kind' && KINDS[val]) S.kind = val; if (key === 'trait') S.trait = val || null; resetDummies(mission); SND.buy(); return renderStation(); }
+  if (kind === 'desk') { const S = mission.range; if (key === 'rank') S.rank = +val; if (key === 'wave') S.wave = clamp(+val || 1, 1, 60); if (key === 'kind' && KINDS[val]) S.kind = val; if (key === 'trait') S.trait = val || null; resetDummies(mission); SND.buy(); return renderStation(); }
   const pay = c => { if (P.points < c) return false; P.points -= c; return true; };
   if (kind === 'up') { if (U(key) < UPGRADES[key].max && pay(upCost(key))) { P.up[key] = U(key) + 1; if (key === 'maxHp') P.hp += 20; if (key === 'shield') P.shield += 25; } }
   else if (kind === 'forge') {

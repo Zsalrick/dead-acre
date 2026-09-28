@@ -123,7 +123,7 @@ function objectiveLine(M) {
 // ---------- the testing ground: dummies that stand still and get back up, no waves, no clock, endless ammo ----------
 function spawnDummy(x, z) {
   const S = (mission && mission.range) || {}, d = spawnZombieAt(S.kind || 'walker', x, z, 0);
-  Object.assign(d, { dummy: true, speed: 0, dmg: 0, spot: [x, z], hp: zombieHp() * 40 * (d.K.hp || 1), heading: Math.PI }); d.maxHp = d.hp;
+  Object.assign(d, { dummy: true, speed: 0, dmg: 0, spot: [x, z], heading: Math.PI }); // the same health it would have on a job at your level and this wave
   if (S.rank) setZTier(d, S.rank, S.rank >= 2 && S.trait ? [S.trait] : []);
   d.maxHp = d.hp; d.g.position.set(x, 0, z);
   return d;
@@ -131,10 +131,11 @@ function spawnDummy(x, z) {
 const RANGE_KINDS = ['walker', 'crawler', 'runner', 'brute', 'armored'], RANGE_TRAITS = ['rage', 'regen', 'tough', 'fast', 'vamp'];
 function resetDummies(M) { // clear the lanes and stand five new targets up with the desk's settings
   for (const z of zombies) if (z.dummy && !z.dead) { z.dead = true; z.deathT = 2.9; z.g.visible = false; }
+  round = M.range.wave; $('round').textContent = round;
   M.dummyQ = []; for (const [x, d] of RANGE_LANES) spawnDummy(x, RANGE_LINE - d);
 }
 function setupTestGround(M) {
-  M.range = { rank: 0, kind: 'walker', trait: null };
+  M.range = { rank: 0, kind: 'walker', trait: null, wave: 1 };
   resetDummies(M);
 }
 function testRefill() { [...player.slots, ...player.bag].forEach(w => { if (w && w.reserve < resMax(w)) w.reserve = resMax(w); }); }
