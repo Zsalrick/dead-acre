@@ -195,7 +195,7 @@ function hubToast(kind, B, act) {
   if (kind === 'ttype') { const T = TYPE_LISTS[x1] && TYPE_LISTS[x1][x2]; if (T) D.push(T.name); }
   if (kind === 'wear') { const it = GEAR_KEYS.map(k => P.gear[k]).find(g => g && !B.st.includes(g) && B.gs.includes(g)); if (it) D.push(`<i style="color:${gCol(it)}">${it.name}</i> rajtad`); }
   if (kind === 'vet' && GSTATS[x1]) D.push(`${GSTATS[x1].name}: ${SH.vet.ranks[x1]}. rang`);
-  if (kind === 'slot') { const won = P.cash - B.cash + slotCostPaid; L.length = 0; L.push(`Fizetve: $${slotCostPaid}`); if (won > 0) L.push(`Nyeremény: $${won}`); if ((P.parts || 0) > B.parts) L.push(`+${(P.parts || 0) - B.parts} ⚙`); newW.forEach(w => L.push(`<i style="color:${rarColor(w)}">${w.name}</i>`)); if (L.length === 1) L.push('Most semmi…'); }
+  if (kind === 'slot') return; // the wheel shows its own result when it stops
   if (kind === 'bsave') D.push(`${+x1 + 1}. build mentve`); if (kind === 'bload') D.push(`${+x1 + 1}. build felvéve`);
   if (kind === 'junk') D.push(+x1 < 0 ? 'Auto-szétszedés kikapcsolva' : `Kijutáskor szétszedi: ${RARITIES[+x1].name} és gyengébb`);
   if (kind === 'dir' && DIRECTIVES[x1]) D.push(`${DIRECTIVES[x1].name}: ${(P.dirs || []).includes(x1) ? 'bekapcsolva' : 'kikapcsolva'}`);
@@ -243,6 +243,14 @@ const hbtn = (label, act, off, key, tip) => `<button class="sbtn"${tipAttr(tip |
 const HOLD_TIP = { sell: 'Tartsd lenyomva: eladod pénzért.', gsell: 'Tartsd lenyomva: eladod pénzért.', salvage: 'Tartsd lenyomva: szétszeded alkatrészre (⚙).', gsalvage: 'Tartsd lenyomva: szétszeded anyagra (▦).' };
 const hhold = (label, act, off, key) => `<button class="sbtn hold"${tipAttr(HOLD_TIP[act.split(':')[0]] || 'Tartsd lenyomva: a tárgy megsemmisül; az alkatrészt (⚙) vagy anyagot (▦) kijutáskor kapod meg.')} data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
+function bestHand(L, w) { // where a gun goes: the other exotic's hand, an empty hand, the hand with the same kind of gun, else the weaker one
+  const u = o => o && (typeof o.base === 'string' ? unpackW(o) : o), W = u(w), H = L.map(u);
+  if (!W) return freeHand(L);
+  if (W.unique) { const e = H.findIndex(h => h && h.unique); if (e >= 0) return e; }
+  if (!H[0]) return 0; if (!H[1]) return 1;
+  const same = H.findIndex(h => CAT[h.base.id] === CAT[W.base.id]); if (same >= 0) return same;
+  return dps(H[0]) <= dps(H[1]) ? 0 : 1;
+}
 const fieldParts = q => Math.max(1, Math.floor(PARTS[q] / 2)); // taking a gun apart in the field: half what the bench at home gets
 const testJob = () => ({ map: 'range', diff: 1, dur: 1e6, mod: null, boss: false, type: 'test', test: true, title: 'Lőtér', client: '', reward: 0, xp: 0, lvl: profile.level, goal: 0 });
 const HUB = {
@@ -273,8 +281,8 @@ const HUB = {
     const i = +si, w = lists[sl][i], bagFull = lists.B.length >= bagMax(), stashFull = lists.S.length >= stashMax(), lone = lists.L.filter(Boolean).length < 2;
     let acts = '';
     if (w && sl === 'L') acts = hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Raktárba', `mv:L:${i}:S`, lone || stashFull, 'KeyR') + hbtn('Karakterládába', `mv:L:${i}:K`, lone || sharedFull, 'KeyK') + wSellBtns(w, 'L', i, lone);
-    else if (w && sl === 'K') acts = hbtn('Kézbe', `mv:K:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('Táskába', `mv:K:${i}:B`, bagFull, 'KeyT') + hbtn('Raktárba', `mv:K:${i}:S`, stashFull, 'KeyR');
-    else if (w) acts = hbtn('Kézbe', `mv:${sl}:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('1. kézbe', `mv:${sl}:${i}:L:0`, !canUse(w), 'Digit1') + hbtn('2. kézbe', `mv:${sl}:${i}:L:1`, !canUse(w), 'Digit2') +
+    else if (w && sl === 'K') acts = hbtn(`Kézbe → ${bestHand(lists.L, w) + 1}. kéz`, `mv:K:${i}:L:${bestHand(lists.L, w)}`, !canUse(w), 'KeyF') + hbtn('Táskába', `mv:K:${i}:B`, bagFull, 'KeyT') + hbtn('Raktárba', `mv:K:${i}:S`, stashFull, 'KeyR');
+    else if (w) acts = hbtn(`Kézbe → ${bestHand(lists.L, w) + 1}. kéz`, `mv:${sl}:${i}:L:${bestHand(lists.L, w)}`, !canUse(w), 'KeyF') + hbtn('1. kézbe', `mv:${sl}:${i}:L:0`, !canUse(w), 'Digit1') + hbtn('2. kézbe', `mv:${sl}:${i}:L:1`, !canUse(w), 'Digit2') +
       hbtn('Karakterládába', `mv:${sl}:${i}:K`, sharedFull, 'KeyK') + (sl === 'B' ? hbtn('Raktárba', `mv:B:${i}:S`, stashFull, 'KeyR') : hbtn('Táskába', `mv:S:${i}:B`, bagFull, 'KeyT')) + wSellBtns(w, sl, i, false);
     if (w) acts += hbtn('Kovács ›', 'goforge', false, 'KeyG');
     const cmp = sl === 'L' ? lists.L[1 - i] : lists.L[0] || lists.L[1];
@@ -348,9 +356,13 @@ const HUB = {
   },
   shop() { return shopPage('P'); }, sgear() { return shopPage('Q'); }, skit() { return shopPage('I'); }, slost() { return shopPage('X'); },
   swheel() {
-    const P = profile;
-    return `<div class="hubhead"><h2>Szerencsekerék</h2></div><p class="lede">Pénzért bármi kijöhet, a semmitől a legendásig. A nyert fegyver a raktárba kerül, ezért kell hely a raktárban.</p>
-      <div class="slist">${srow('Pörgetés', SLOT_TXT, `$${slotCost()}`, 'slot', P.cash < slotCost() || P.stash.length >= stashMax(), P.stash.length >= stashMax() ? 'Tele a raktár' : 'Pörgetés')}</div>${P.lastSlot ? `<p class="note">Legutóbb: ${P.lastSlot}</p>` : ''}`;
+    const P = profile, full = P.stash.length >= stashMax(), c = slotCost(), O = wheelOdds(false), OG = wheelOdds(true), pc = v => v ? `${v < .01 ? (v * 100).toFixed(1) : Math.round(v * 100)}%` : '–', pity = P.wheelPity || 0;
+    return `<div class="hubhead"><h2>Szerencsekerék</h2></div><p class="lede">Pörgesd meg: pénz, alkatrész, anyag, tárgyak, fegyver, páncél, túlhajtás-mag, vagy a főnyeremény. Az arany pörgetés négyszer annyiba kerül, de nincs üres mező, a nyeremények háromszorosak, a legendás és a jackpot háromszor gyakoribb.</p>
+      <div class="wheelpage"><div class="wheelwrap"><i class="wptr"></i>${wheelSvg()}</div>
+      <div class="wheelside"><div class="wbtns">${hbtn(full ? 'Tele a raktár' : `Pörgetés · $${c}`, 'slot', full || P.cash < c || wheelBusy, 'KeyF')}${hbtn(full ? 'Tele a raktár' : `Arany pörgetés · $${c * 4}`, 'slot:gold', full || P.cash < c * 4 || wheelBusy, 'KeyG')}</div>
+        <div class="wpity"><b>Balszerencse-mérő</b><i><em style="width:${pity / PITY_MAX * 100}%"></em></i><small>${pity} / ${PITY_MAX} · ha megtelik, a következő pörgetés biztosan legendás fegyver</small></div>
+        <table class="wodds"><tr><th></th><th>Mező</th><th>Esély</th><th>Arany</th></tr>${WHEEL.map((s, k) => `<tr><td><i style="background:${s.c}">${s.ic}</i></td><td>${s.n}</td><td>${pc(O[k])}</td><td>${pc(OG[k])}</td></tr>`).join('')}</table>
+        ${P.lastSlot ? `<p class="note">Legutóbb: ${P.lastSlot}</p>` : ''}</div></div>`;
   },
   career() {
     const t = Math.round(stats.time / 60), ptime = t < 60 ? `${t} p` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
@@ -383,7 +395,7 @@ $('hubBody').addEventListener('click', e => {
     P.cash -= price; list.splice(+c, 1); delete x.found; if (a === 'w') P.stash.push(x); else P.gearStash.push(x); if (!L.w.length && !L.g.length) P.lost = null;
     toast('VISSZAVÁSÁROLVA', [`<i style="color:${a === 'w' ? rarColor(it) : gCol(it)}">${it.name}</i> · −$${price}`, a === 'w' ? 'A raktárba került.' : 'A páncélraktárba került.'], '#9dff6a'); saveProfile(); return renderHub(); }
   if (kind === 'goforge') { hubTab = 'forge'; return renderHub(); }
-  if (kind === 'sel') { invSel = b.dataset.act.slice(4); const [l, k] = invSel.split(':'), L = { L: P.loadout, B: P.bag, S: P.stash }[l]; if (L && L[+k] && L[+k].isNew) delete L[+k].isNew; const g = l === 'G' ? P.gearStash[+k] : l === 'W' ? P.gear[k] : null; if (g && g.isNew) delete g.isNew; return renderHub(); } // seen: no longer new
+  if (kind === 'sel') { invSel = b.dataset.act.slice(4); const [l, k] = invSel.split(':'), L = { L: P.loadout, B: P.bag, S: P.stash }[l]; if (L && L[+k] && L[+k].isNew) delete L[+k].isNew; const g = l === 'G' ? P.gearStash[+k] : l === 'W' ? P.gear[k] : null; if (g && g.isNew) delete g.isNew; renderHub(); return selDbl($('hubBody'), invSel); } // seen: no longer new
   if (kind === 'jsel') { jobSel = +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
   if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.parts || 0) >= expCost(it)) { P.parts -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
@@ -392,7 +404,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); if (NET.host) publishMember(); }
   if (kind === 'bsave') saveBuild(+a);
   if (kind === 'bload') loadBuild(+a);
-  if (kind === 'slot' && P.stash.length < stashMax()) { slotCostPaid = slotCost(); if (pay(slotCostPaid)) spinSlot(); }
+  if (kind === 'slot' && !wheelBusy && P.stash.length < stashMax()) { slotCostPaid = slotCost() * (a === 'gold' ? 4 : 1); if (pay(slotCostPaid)) spinSlot(a === 'gold'); }
   if (kind === 'tier') { const j = P.jobs[+a]; if (j && j.tier && j.base) { const T = clamp(j.tier + +c, 1, (P.tier || 0) + 1); setTier(j, T); P.tierSel = T; } }
   if (kind === 'junk') P.junkQ = clamp(+a, -1, 2);
   if (kind === 'testground') { if (NET.code && !NET.host) return; return startJob(testJob()); }
@@ -447,7 +459,7 @@ $('hubBody').addEventListener('click', e => {
   }
   if (kind === 'sell') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.cash += sellValue(w); } }
   hubToast(kind, before, b.dataset.act);
-  SND.buy(); saveProfile(); saveShared(); renderHub();
+  SND.buy(); saveProfile(); saveShared(); renderHub(); if (kind === 'slot') wheelGo();
 });
 
 // ---------- after a job ----------
@@ -524,15 +536,48 @@ function typeRows(slot) {
 }
 
 // ---------- the slot machine: a cash sink with a jackpot ----------
-const slotLvl = () => profile.level >= LEVEL_CAP ? LEVEL_CAP + 2 * (profile.tier || 0) : profile.level, slotCost = () => 400 + 120 * slotLvl(), SLOT_TXT = '55% semmi vagy pénz vissza · 25% ⚙ · 15% fegyver · 4% legendás · 1% egzotikus';
-function spinSlot() {
-  const P = profile, r = Math.random(), lv = slotLvl();
-  let msg;
-  if (r < .35) msg = 'Semmi. A gép nyert.';
-  else if (r < .55) { const c = Math.round(slotCost() * rand(.5, 2)); P.cash += c; msg = `$${c} vissza`; }
-  else if (r < .80) { const n = 4 + Math.floor(Math.random() * 10); P.parts = (P.parts || 0) + n; msg = `+${n} ⚙`; }
-  else { const q = r < .95 ? Math.max(1, rollRarity(.4)) : r < .99 ? 4 : 5, w = makeWeapon(pick(BASES), q, lv); P.stash.push(packW(w)); noteFound(w); msg = `${w.name} (${w.unique ? 'egzotikus' : RARITIES[w.q].name}) a raktárba`; if (q >= 4) { banner('JACKPOT!', w.name); SND.legend(w.unique); } }
-  P.lastSlot = msg; SND.sell();
+const slotLvl = () => profile.level >= LEVEL_CAP ? LEVEL_CAP + 2 * (profile.tier || 0) : profile.level, slotCost = () => 400 + 120 * slotLvl();
+const PITY_MAX = 10; // ten spins without gear: the next one lands on Legendás
+const giveW = (P, q, lv) => { const w = makeWeapon(pick(BASES), q, lv); P.stash.push(packW(w)); noteFound(w); return `<i style="color:${rarColor(w)}">${w.name}</i> a raktárba`; };
+const WHEEL = [ // w: odds; the slice size on screen is only roughly the odds, so the rare ones are still visible
+  { n: 'Üres', w: 24, c: '#34302c', ic: '✕', f: () => 'Semmi. A kerék nyert.' },
+  { n: 'Pénz', w: 19, c: '#2f6b35', ic: '$', f: (P, lv, g) => { const c = Math.round(slotCost() * rand(.5, 2) * (g ? 3 : 1) / 10) * 10; P.cash += c; return `+$${c}`; } },
+  { n: 'Alkatrész', w: 14, c: '#5c6068', ic: '⚙', f: (P, lv, g) => { const n = (4 + Math.floor(Math.random() * 10)) * (g ? 3 : 1); P.parts = (P.parts || 0) + n; return `+${n} ⚙ alkatrész`; } },
+  { n: 'Anyag', w: 8, c: '#7a6440', ic: '▦', f: (P, lv, g) => { const n = (3 + Math.floor(Math.random() * 6)) * (g ? 3 : 1); P.fabric = (P.fabric || 0) + n; return `+${n} ▦ anyag`; } },
+  { n: 'Utántöltés', w: 8, c: '#963434', ic: '✚', f: P => { ITEM_KEYS.forEach(k => P.inv[k] = itemMax(k)); return 'Minden tárgyad (gyógyítás, gránát, kés, stimuláns) tele'; } },
+  { n: 'Fegyver', w: 13, c: '#2f5fa8', ic: '⌖', gear: 1, f: (P, lv, g) => giveW(P, Math.max(g ? 3 : 1, rollRarity(.4)), lv) },
+  { n: 'Páncél', w: 8, c: '#6243a8', ic: '⛨', gear: 1, f: (P, lv, g) => { const it = makeGear(pick(GEAR_KEYS), Math.max(g ? 3 : 1, rollRarity(.4)), lv); if (P.gearStash.length >= gearMax()) { P.fabric = (P.fabric || 0) + PARTS[it.q]; return `${it.name}: a páncélraktár tele, szétszedve (+${PARTS[it.q]} ▦)`; } P.gearStash.push(it); return `<i style="color:${gCol(it)}">${it.name}</i> a páncélraktárba`; } },
+  { n: 'Mag', w: 3, c: '#a8842f', ic: '◆', f: P => { P.oc = (P.oc || 0) + 1; return '+1 ◆ túlhajtás-mag'; } },
+  { n: 'Legendás', w: 2.4, c: '#e07a1f', ic: '★', gear: 1, big: 1, f: (P, lv) => giveW(P, 4, lv) },
+  { n: 'JACKPOT', w: .6, c: '#f2c230', ic: '♛', gear: 1, big: 1, f: (P, lv) => giveW(P, 5, lv) },
+];
+const wheelW = (s, g) => s.w * (g ? (s.n === 'Üres' ? 0 : s.big ? 3 : 1) : 1); // the gold spin: no blanks, triple jackpot odds
+const wheelOdds = g => { const T = WHEEL.reduce((a, s) => a + wheelW(s, g), 0); return WHEEL.map(s => wheelW(s, g) / T); };
+const WHEEL_ARC = (() => { const v = WHEEL.map(s => Math.max(s.w, 7)), T = v.reduce((a, b) => a + b, 0); let a = 0; return v.map(x => { const r = [a, a + x / T * 360]; a = r[1]; return r; }); })();
+let wheelRot = 0, wheelAnim = null;
+function spinSlot(gold) { // picks a slice, pays it out now (saved), the wheel shows it after the spin
+  const P = profile, lv = slotLvl(), O = wheelOdds(gold);
+  let k = 0, r = Math.random(); while (k < WHEEL.length - 1 && (r -= O[k]) > 0) k++;
+  if ((P.wheelPity || 0) >= PITY_MAX - 1 && !WHEEL[k].gear) k = WHEEL.findIndex(s => s.n === 'Legendás');
+  P.wheelPity = WHEEL[k].gear ? 0 : (P.wheelPity || 0) + 1;
+  const msg = WHEEL[k].f(P, lv, gold); P.lastSlot = `${WHEEL[k].n}: ${msg}`;
+  const [a0, a1] = WHEEL_ARC[k], th = a0 + (a1 - a0) * rand(.2, .8), to = wheelRot + 360 * 5 + (((-th - wheelRot) % 360) + 360) % 360;
+  wheelAnim = { from: wheelRot, to, k, msg }; wheelRot = to;
+}
+function wheelGo() { // after the render: spin it, tick, then reveal
+  const A = wheelAnim, el = document.querySelector('#hubBody .wheel'); wheelAnim = null; if (!A) return;
+  const S = WHEEL[A.k], done = () => { wheelBusy = false; document.querySelectorAll('#hubBody [data-act^="slot"]').forEach(b => b.disabled = false); if (S.big) { banner(S.n === 'JACKPOT' ? 'JACKPOT!' : 'LEGENDÁS!', ''); SND.legend(S.n === 'JACKPOT'); } else if (S.n === 'Üres') SND.deny(); else SND.sell(); toast(`SZERENCSEKERÉK · ${S.n.toUpperCase()}`, [A.msg], S.c === '#34302c' ? '#aaa' : S.c); };
+  if (!el || !el.animate) return done();
+  wheelBusy = true; document.querySelectorAll('#hubBody [data-act^="slot"]').forEach(b => b.disabled = true);
+  el.animate([{ transform: `rotate(${A.from}deg)` }, { transform: `rotate(${A.to}deg)` }], { duration: 3600, easing: 'cubic-bezier(.12,.75,.12,1)' }).onfinish = done;
+  let t = 0; for (let n = 0; n < 26; n++) { t += 40 + n * n * .9; setTimeout(() => tn(1500 + Math.random() * 300, .02, .05, 'square'), t); } // the clicker slows down with the wheel
+}
+let wheelBusy = false;
+function wheelSvg() {
+  const R = 150, pt = (a, r) => { const t = (a - 90) * Math.PI / 180; return `${(160 + r * Math.cos(t)).toFixed(1)} ${(160 + r * Math.sin(t)).toFixed(1)}`; };
+  return `<svg viewBox="0 0 320 320" class="wheel" style="transform:rotate(${wheelRot}deg)"><circle cx="160" cy="160" r="156" fill="#111" stroke="#c9a24a" stroke-width="4"/>${WHEEL.map((s, k) => { const [a0, a1] = WHEEL_ARC[k], m = (a0 + a1) / 2;
+    return `<path d="M160 160 L${pt(a0, R)} A${R} ${R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${pt(a1, R)} Z" fill="${s.c}" stroke="#0c0c0c" stroke-width="2"/><text transform="translate(${pt(m, R * .72)}) rotate(${m})" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="${a1 - a0 < 20 ? 15 : 20}" font-weight="700">${s.ic}</text>`; }).join('')}
+    ${Array.from({ length: 24 }, (_, k) => `<circle cx="${pt(k * 15, 150).split(' ')[0]}" cy="${pt(k * 15, 150).split(' ')[1]}" r="3" fill="#ffe7a0"/>`).join('')}<circle cx="160" cy="160" r="26" fill="#1a1a1a" stroke="#c9a24a" stroke-width="4"/><text x="160" y="161" text-anchor="middle" dominant-baseline="middle" fill="#c9a24a" font-size="18" font-weight="700">DA</text></svg>`;
 }
 
 // ---------- builds (Division loadouts): three saved sets of two guns and four armor pieces ----------

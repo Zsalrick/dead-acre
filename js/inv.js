@@ -62,6 +62,29 @@ const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
 const gTile = (sel, it, o = {}) => tile(sel, gPic(it), (favTag(it) ? favTag(it) + ' ' : '') + it.name, (it.exo ? `Egzotikus · ${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`), gCol(it),
   Object.assign({ tag: newTag(it), exp: it.exp, lv: `Lv ${it.level}`, lock: !canUse(it), val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
 const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="tpic">${pic ? `<img src="${pic}" alt="">` : ''}</span><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
+// double-click a tile: its main [F] action (buy, equip); a tile already on you does nothing
+let lastSel = { s: '', t: 0 };
+function selDbl(root, sel) {
+  const t = performance.now(), d = lastSel.s === sel && t - lastSel.t < 450; lastSel = { s: d ? '' : sel, t };
+  if (!d || /^[LW]:/.test(sel)) return;
+  const b = root.querySelector('.invd [data-act][data-key="KeyF"]'); if (b && !b.disabled) b.click(); else SND.deny();
+}
+// right-click a tile: a small menu with what it is and everything it can do (the detail panel's buttons)
+function closeCtx() { document.querySelectorAll('.ctxm').forEach(m => m.remove()); }
+addEventListener('contextmenu', e => {
+  closeCtx(); const t = e.target.closest && e.target.closest('.tile[data-act^="sel:"]'), root = t && t.closest('#hubBody,#loadout'); if (!root) return;
+  lastSel = { s: '', t: 0 }; t.click(); // selected: the detail panel now holds its actions
+  const btns = [...root.querySelectorAll('.invd [data-act], .invd [data-hact]')].filter(b => !b.closest('.tile')); if (!btns.length) return;
+  const nm = root.querySelector('.invd .dname'), sub = root.querySelector('.invd .dband, .invd .dsub'), m = document.createElement('div'); m.className = 'ctxm';
+  m.innerHTML = '<div class="ctxh"><b></b><small></small></div>'; m.querySelector('b').textContent = nm ? nm.textContent : ''; m.querySelector('small').textContent = sub ? sub.innerText.replace(/\s+/g, ' ') : '';
+  btns.forEach(b => { const c = b.cloneNode(true); c.removeAttribute('data-key'); m.appendChild(c); });
+  const kb = $('keybar'), lim = (kb && !kb.hidden ? kb.getBoundingClientRect().top : innerHeight) - 8; // stay above the key bar
+  m.style.maxHeight = lim - 8 + 'px'; root.appendChild(m); const r = m.getBoundingClientRect();
+  m.style.left = Math.min(e.clientX, innerWidth - r.width - 8) + 'px'; m.style.top = Math.max(8, Math.min(e.clientY, lim - r.height)) + 'px';
+});
+addEventListener('pointerdown', e => { if (!(e.target.closest && e.target.closest('.ctxm'))) closeCtx(); }, true);
+addEventListener('keydown', e => { if (e.code === 'Escape') closeCtx(); }, true);
+addEventListener('click', e => { if (e.target.closest && e.target.closest('.ctxm [data-act]')) setTimeout(closeCtx, 0); });
 const invLayout = (left, detail) => `<div class="inv"><div class="invl">${left}</div><aside class="invd">${detail}</aside></div>`;
 const noDetail = t => `<div class="dnone">${t}</div>`;
 
