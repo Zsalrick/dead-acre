@@ -65,7 +65,7 @@ function startJob(job, opts = {}) {
 // cinematic: the van backs in, then the camera drops to your eyes beside it
 function updateIntro(dt) {
   const M = mission, t = M.intro += dt, d = truck.dir, sd = -Math.sign(truck.pos.z || 1);
-  setVanAt(30 * Math.pow(1 - clamp(t / 3, 0, 1), 2));
+  setVanAt(vanRun() * Math.pow(1 - clamp(t / 3, 0, 1), 2));
   const cine = new V3(truck.pos.x - d * 9, 3.2, truck.pos.z + sd * 4.5), eye = new V3(player.pos.x, 1.65, player.pos.z);
   const u = smooth(clamp((t - 3.3) / 1.4, 0, 1));
   camera.position.lerpVectors(cine, eye, u);
@@ -103,7 +103,7 @@ function updateMission(dt) {
     if (!truck.g.visible && M.departT > 1) M.departT = -1;
   }
   if (M.arriveT >= 0) { // ...and backs in at the pickup spot when time is up
-    M.arriveT += dt; setVanAt(30 * Math.pow(1 - clamp(M.arriveT / ARRIVE_T, 0, 1), 2));
+    M.arriveT += dt; setVanAt(vanRun() * Math.pow(1 - clamp(M.arriveT / ARRIVE_T, 0, 1), 2));
     if (M.arriveT >= ARRIVE_T) { M.arriveT = -1; setVanAt(0); popText('A furgon megérkezett · [E] beszállás', '#7dff7a'); SND.power(); }
   }
   if (M.boardT > 0) { // loading up: stay by the van until it is done

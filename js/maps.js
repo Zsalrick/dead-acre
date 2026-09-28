@@ -1,7 +1,7 @@
 ﻿// ================= MAPS =================
 // A map is data: its yard, gates into unlockable areas, the station each area holds, spawn points, where the
 // mystery box / ammo crate / escape truck stand, and a build() for its buildings. loadMap() rebuilds everything.
-const GATE_HALF = 2.6, BOX_COST = 950, AMMO_COST = 500;
+const VAN_HALF = 2.2, GATE_HALF = 2.6, BOX_COST = 950, AMMO_COST = 500;
 let MAP = null, MAP_ID = 'farm', MAIN_RECT = { minX: -38, maxX: 38, minZ: -38, maxZ: 38 }, AREAS = {}, SPAWNS = [], BOX_SPOTS = [];
 const lamps = [], props = [];
 let mapSeed = 1, baseFog = .03;
@@ -592,7 +592,7 @@ function loadMap(id, seed) {
     if (d.side === 'n') rect.maxZ += 2; if (d.side === 's') rect.minZ -= 2; if (d.side === 'e') rect.minX -= 2; if (d.side === 'w') rect.maxX += 2;
     AREAS[k] = Object.assign({}, d, { core: c, rect, gate, out: new V3(ox, 0, oz), unlocked: false, desc: STATION_INFO[d.station[0]] });
   }
-  buildFences();
+  buildFences(); buildVanGates();
   MAP.build();
   MAP.lamps.forEach(([x, z]) => lamp(x, z));
   SPAWNS.forEach(([x, z]) => { const m = put(new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.1, .12, 10), new THREE.MeshLambertMaterial({ color: 0x2a2116 }))); m.position.set(x, .06, z); });
@@ -617,10 +617,11 @@ function allRectsBound() {
 }
 function buildFences() {
   const R = MAIN_RECT, H = 2.3, T = .3, e = .2;
-  const gaps = s => Object.values(AREAS).filter(a => a.side === s).map(a => a.at).sort((a, b) => a - b);
+  const vanSide = x => vanDir(x) < 0 ? 'w' : 'e';
+  const gaps = s => [...Object.values(AREAS).filter(a => a.side === s).map(a => [a.at, GATE_HALF]), ...MAP.vans.filter(([x]) => vanSide(x) === s).map(([, z]) => [z, VAN_HALF])].sort((a, b) => a[0] - b[0]);
   const run = (from, to, gapList, place) => {
     let a = from;
-    for (const g of gapList) { if (g - GATE_HALF > a) place(a, g - GATE_HALF); a = g + GATE_HALF; }
+    for (const [g, h] of gapList) { if (g - h > a) place(a, g - h); a = Math.max(a, g + h); }
     if (to > a) place(a, to);
   };
   run(R.minX - e, R.maxX + e, gaps('n'), (a, b) => addBox((a + b) / 2, R.minZ - e, b - a, T, H, fenceMat));
@@ -747,13 +748,15 @@ function placeVan(i, parked) {
   const [x, z] = MAP.vans[i]; truck.dir = vanDir(x); truck.pos.set(x, 0, z);
   truck.g.rotation.y = truck.dir > 0 ? 0 : Math.PI;
   truck.beacon.position.set(x, 3.6, z); truck.beam.position.set(x, 20, z);
-  setVanAt(parked ? 0 : 30);
+  setVanAt(parked ? 0 : vanRun());
 }
+// how far out the van starts: from the road beyond its gate
+const vanRun = () => Math.abs(truck.pos.x - (truck.dir < 0 ? MAIN_RECT.minX : MAIN_RECT.maxX)) + 14;
 // off: metres the van is away from its spot along its lane (outward)
 function setVanAt(off) {
   const x = truck.pos.x + truck.dir * off, z = truck.pos.z;
   truck.g.position.set(x, 0, z);
-  truck.g.visible = inRect({ minX: MAIN_RECT.minX - 1.5, maxX: MAIN_RECT.maxX + 1.5, minZ: -1e4, maxZ: 1e4 }, x, z);
+  truck.g.visible = inRect({ minX: MAIN_RECT.minX - 40, maxX: MAIN_RECT.maxX + 40, minZ: -1e4, maxZ: 1e4 }, x, z); // seen coming down the road, then through its gate
   truck.parked = off < .05;
   Object.assign(truck.obs, truck.parked ? { minX: x - 2.4, maxX: x + 2.4, minZ: z - 1.1, maxZ: z + 1.1 } : { minX: 1e4, maxX: 1e4, minZ: 1e4, maxZ: 1e4 });
 }
@@ -1046,6 +1049,7 @@ function applyMod(key) {
 }
 function updateMapFx(dt) {
   mapSpin.forEach(m => m.rotation.z += dt * .4);
+  updateVanGates(dt);
   if (rain.visible) updateRain(dt);
   for (const s of mapLabels) s.material.opacity = clamp(1.5 - Math.hypot(s.position.x - player.pos.x, s.position.z - player.pos.z) / 16, .12, 1); // signs fade with distance
   if (activeMod === 'dark') return;
@@ -1070,5 +1074,33 @@ function updateRain(dt) {
   if ((boltT -= dt) <= 0) { // lightning
     boltT = rand(6, 14); const f = $('flash'); f.style.background = '#cfe0ff'; f.style.opacity = .55; flashT = .35; setTimeout(() => { if (f.style.background.includes('207')) f.style.background = ''; }, 450);
     setTimeout(() => { if (activeMod === 'storm') { nz(2.5, 120, .9, 'lowpass', .7); tn(40, 1.8, .4, 'sine', 28); } }, rand(300, 1400));
+  }
+}
+
+// the van's gates: a real gap in the fence with two swinging leaves, lit posts and a road leading away
+const vanGates = [];
+const gateMat = new THREE.MeshStandardMaterial({ color: 0x6a6e72, metalness: .6, roughness: .45 }), gateBar = new THREE.MeshStandardMaterial({ color: 0xc8a23a, metalness: .3, roughness: .6 });
+function buildVanGates() {
+  vanGates.length = 0;
+  for (const [vx, z] of MAP.vans) {
+    const d = vanDir(vx), x = d < 0 ? MAIN_RECT.minX - .2 : MAIN_RECT.maxX + .2, g = new THREE.Group(); g.position.set(x, 0, z);
+    const leaves = [-1, 1].map(s => {
+      const hinge = new THREE.Group(); hinge.position.set(0, 0, s * VAN_HALF); g.add(hinge);
+      const L = VAN_HALF - .1, frame = (w, h, dd, px, py, pz, m) => { const e = new THREE.Mesh(unitBox, m); e.scale.set(w, h, dd); e.position.set(px, py, pz); e.castShadow = true; hinge.add(e); };
+      frame(.12, .12, L, 0, 2.1, -s * L / 2, gateMat); frame(.12, .12, L, 0, .25, -s * L / 2, gateMat); frame(.12, 2, .12, 0, 1.15, -s * L, gateMat);
+      for (let k = 1; k < 5; k++) frame(.05, 1.85, .05, 0, 1.17, -s * L * k / 5, gateMat);
+      frame(.08, .12, L * 1.02, 0, 1.2, -s * L / 2, gateBar);
+      return { hinge, s };
+    });
+    for (const s of [-1, 1]) { const p = new THREE.Mesh(unitBox, gateMat); p.scale.set(.45, 3, .45); p.position.set(0, 1.5, s * (VAN_HALF + .15)); p.castShadow = true; g.add(p); const cap = new THREE.Mesh(new THREE.SphereGeometry(.16, 10, 8), basic(0xffb040)); cap.position.set(0, 3.15, s * (VAN_HALF + .15)); g.add(cap); }
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(40, VAN_HALF * 2 - .4), new THREE.MeshStandardMaterial({ color: 0x2e2c28, roughness: 1 })); road.rotation.x = -Math.PI / 2; road.position.set(d * 20, .015, 0); road.receiveShadow = true; g.add(road);
+    put(g); vanGates.push({ g, leaves, x, z, d, open: 0 });
+  }
+}
+function updateVanGates(dt) { // open while the van is close to its gate, closed otherwise
+  for (const G of vanGates) {
+    const near = truck.g.visible && Math.abs(truck.g.position.z - G.z) < 1 && Math.abs(truck.g.position.x - G.x) < 11;
+    G.open += ((near ? 1 : 0) - G.open) * Math.min(1, dt * 3);
+    for (const { hinge, s } of G.leaves) hinge.rotation.y = -s * G.d * G.open * 1.7;
   }
 }
