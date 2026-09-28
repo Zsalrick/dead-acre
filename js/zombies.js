@@ -121,7 +121,7 @@ function mkZombie(kind) {
   return { decos: merged, g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
 }
 // ×1.12 per threat level: guns (+7.5% per level, rarity, upgrades, gear) can keep up instead of falling hopelessly behind
-function zombieHp() { return 100 * Math.pow(1.1, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .08 * jobTier()); }
+function zombieHp() { return 100 * Math.pow(1.1, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .08 * jobTier()) * (dirOn('tough') ? 1.25 : 1); }
 // the job's level: zombies and loot scale with it, so the world keeps pace with you forever
 const jobLvl = () => (mission && mission.job.lvl) || (profile ? profile.level : 1);
 const jobTier = () => (mission && mission.job.tier) || 0; // Rémálom +N: endless difficulty past 5 stars
@@ -251,7 +251,7 @@ function killZombie(z, o) {
 // what a kill drops; in a party each killer rolls their own
 function dropLoot(z, p) {
   if (mission && mission.job.bounty && !z.K.boss && Math.random() < .6) return; // a bounty's adds mostly drop nothing
-  const dLuck = mission ? .06 * (mission.job.diff - 1) + .08 * jobTier() + (NET.mode ? .05 * (partySize() - 1) : 0) + (mission.job.map === featuredMap() ? .1 : 0) : 0; // harder jobs and bigger parties roll better loot
+  const dLuck = mission ? .05 * dirCount(mission.job) + .06 * (mission.job.diff - 1) + .08 * jobTier() + (NET.mode ? .05 * (partySize() - 1) : 0) + (mission.job.map === featuredMap() ? .1 : 0) : 0; // harder jobs and bigger parties roll better loot
   const uq = q => { const T = jobTier(); if (T) { q = Math.max(q, 2); if (Math.random() < .013 * T) q = Math.max(q, 4); } return mission && (mission.job.diff >= 5 || T > 0) && Math.random() < .012 + .003 * T ? 5 : q; }; // Rémálom: at least rare, sometimes legendary; 'Mi a fasz?' and Rémálom: 1-2% uniques
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
@@ -589,6 +589,7 @@ function hbEl(i) {
   return hbPool[i];
 }
 function updateHealthBars() {
+  if (dirOn('blind')) { hbPool.forEach(e => e.hidden = true); }
   const parts = [];
   for (const z of zombies) if (!z.dead) parts.push(...z.parts);
   ray.set(camera.position, new V3(0, 0, -1).applyQuaternion(camera.quaternion)); ray.far = 70;
@@ -596,7 +597,7 @@ function updateHealthBars() {
   const looked = h && h.object.userData.z;
   const W = innerWidth / 2, H = innerHeight / 2, v = new V3();
   let n = 0;
-  for (const z of zombies) {
+  for (const z of dirOn('blind') ? [] : zombies) {
     if (z.dead || z.rise > .5 || z.K.boss || (z.K.ghost && z.op < .4) || (z !== looked && !(now - (z.hitT || -99) < 2.5))) continue;
     v.set(z.pos.x, (z.K.crawl ? 1.1 : 2.25) * z.scale + z.g.position.y, z.pos.z).project(camera);
     if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) continue;

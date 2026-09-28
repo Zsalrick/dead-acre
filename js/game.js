@@ -15,6 +15,7 @@ const EVAC_WARN = 40, BOARD_T = 6;
 
 // opts (party jobs): seed and van spots come from the host so everyone gets the same layout; client: the host runs the world
 function startJob(job, opts = {}) {
+  if (!opts.client && !job.test) job.dir = (profile.dirs || []).filter(k => DIRECTIVES[k]); // the host's chosen directives travel with the job
   if (noClock(job)) job.dur = 1e6; // no clock: the job ends when the goal is met
   mission = { job, t: 0, phase: 'wave', phaseT: noClock(job) ? 1e9 : WAVE_T, wave: 1, brought: [], gear: [], bossDone: !job.boss || !!opts.client, leaving: 0, intro: 0, departT: -1, arriveT: -1 };
   const seed = opts.seed || 1 + Math.floor(Math.random() * 1e9);
@@ -213,8 +214,8 @@ function finishJob(success, abandoned) {
   clearGearDrops(); clearFx(); if (M.esc) scene.remove(M.esc.a.g); if (M.cache && M.cache.g) scene.remove(M.cache.g);
   const w = settleWeapons(success, M);
   // dying after the clock ran out (during evac) still pays a quarter of the fee
-  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
-  const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1) * (J.map === featuredMap() ? 1.25 : 1)); // the first five jobs: double XP; the featured map +25%
+  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1)) * (1 + .1 * dirCount(J))) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
+  const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1) * (J.map === featuredMap() ? 1.25 : 1) * (1 + .15 * dirCount(J))); // the first five jobs: double XP; the featured map +25%; directives +15% each
   P.cash += cash; stats.cash += cash;
   const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts;
   let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun

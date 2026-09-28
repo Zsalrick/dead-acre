@@ -29,11 +29,11 @@ const critMult = () => 1.5 + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + 
 const headBonus = () => 1 + .15 * U('head') + SK.head() + G('head') + (mkOf(curW()).head || 0);
 const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed') + (perk('runner') ? .15 : 0) + (exoOn('league') ? .2 : 0);
 const reloadMul = () => 1 + .06 * U('reload') + SK.reload() + G('reload') + (perk('speed') ? .3 : 0);
-const resMax = w => Math.round(w.maxRes * (1 + .15 * U('ammo') + SK.ammo() + G('ammo')));
+const resMax = w => Math.round(w.maxRes * (1 + .15 * U('ammo') + SK.ammo() + G('ammo')) * (dirOn('ammo') ? .5 : 1));
 
 function updateVitals(dt) {
   const since = now - player.lastHurt;
-  if (since > 3.2 * (1 - .08 * U('regen')) - SK.regenDelay()) player.hp = Math.min(maxHp(), player.hp + 45 * (1 + .25 * U('regen')) * (SK.regen() + G('regen')) * dt);
+  if (!dirOn('noregen') && since > 3.2 * (1 - .08 * U('regen')) - SK.regenDelay()) player.hp = Math.min(maxHp(), player.hp + 45 * (1 + .25 * U('regen')) * (SK.regen() + G('regen')) * dt);
   if (maxShield() > 0 && since > 4 - .35 * U('shieldRegen')) player.shield = Math.min(maxShield(), player.shield + 12 * (1 + .35 * U('shieldRegen')) * dt);
 }
 

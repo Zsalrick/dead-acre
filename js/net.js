@@ -640,6 +640,7 @@ function netRemoteDrops(peer, P) {
 const CARD = [['É', 0], ['ÉNY', Math.PI / 4], ['NY', Math.PI / 2], ['DNY', 3 * Math.PI / 4], ['D', Math.PI], ['DK', -3 * Math.PI / 4], ['K', -Math.PI / 2], ['ÉK', -Math.PI / 4]];
 function updateCompass() {
   const el = $('compassIn'); if (!el || !mission) return;
+  $('compass').hidden = dirOn('blind'); if (dirOn('blind')) return;
   let row = 0; const span = Math.PI * .6, at = (b, cls, txt, col) => { const r = angDiff(b - player.yaw); if (Math.abs(r) > span) return ''; const low = cls !== 'cc' && cls !== 'cc big'; return `<i class="${cls}" style="left:${(50 - r / span * 50).toFixed(1)}%${col ? `;--pc:${col}` : ''}${low ? `;top:${14 + (row++ % 2) * 11}px` : ''}">${txt}</i>`; };
   const bear = (x, z) => Math.atan2(-(x - player.pos.x), -(z - player.pos.z));
   let h = CARD.map(([t, b]) => at(b, t.length === 1 ? 'cc big' : 'cc', t)).join('');

@@ -147,7 +147,7 @@ const HUB = {
       const tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase();
       return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy})" style="--jc:${col}"><line x1="0" y1="0" x2="${-dx}" y2="${-dy}"/><circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 10 : 8}"/><text y="-24">${tag}</text></g>`;
     }).join('');
-    return partyPanel() + `${contractsStrip()}<div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
+    return partyPanel() + `${contractsStrip()}${directivesRow()}<div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
       <div class="jobmap"><svg viewBox="0 0 900 440" class="jsvg" role="img" aria-label="Munkatérkép">${MAP_ART}${locs}${marks}</svg><div class="jside">${hostPick()}${jobCard(J[jobSel], jobSel, notReady)}</div></div>`;
   },
   arsenal() {
@@ -253,6 +253,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'jsel') { jobSel = +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
+  if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); }
   if (kind === 'bsave') saveBuild(+a);
   if (kind === 'bload') loadBuild(+a);
   if (kind === 'slot' && P.stash.length < stashMax() && pay(slotCost())) spinSlot();
@@ -381,4 +382,9 @@ function hostPick() {
 function hubCycle(d) { // Q / E: previous / next top tab
   const tops = [...document.querySelectorAll('.mbtn[data-hub]')], i = tops.findIndex(b => b.classList.contains('on'));
   const b = tops[(Math.max(0, i) + d + tops.length) % tops.length]; if (b) { hubTab = b.dataset.hub; renderHub(); }
+}
+
+function directivesRow() { // toggles; the leader's choice is what the party plays
+  const D = profile.dirs || [], n = D.length, off = NET.code && !NET.host;
+  return `<div class="dirs"><b>Direktívák</b>${Object.entries(DIRECTIVES).map(([k, d]) => `<button class="chip${D.includes(k) ? ' on' : ''}" data-act="dir:${k}" title="${d.desc}"${off ? ' disabled' : ''}>${d.name}</button>`).join('')}<small>${n ? `+${15 * n}% XP · +${10 * n}% pénz · jobb zsákmány` : 'önként vállalt nehezítés több jutalomért'}${off ? ' · a vezető választja' : ''}</small></div>`;
 }

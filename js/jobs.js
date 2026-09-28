@@ -10,6 +10,16 @@ const JOB_TYPES = {
   test:        { name: 'Lőtér', label: 'LŐTÉR', desc: () => 'Célbábuk, végtelen lőszer, csere a társakkal.' },
   supply:      { name: 'Utánpótlás', label: 'UTÁNPÓTLÁS', desc: j => `Gyűjts össze ${j.goal} utánpótlás-ládát. Nincs időkorlát.` },
 };
+// directives (The Division): hardships you choose before a job, each paying more XP, cash and loot luck
+const DIRECTIVES = {
+  noregen: { name: 'Nincs regeneráció', desc: 'Az életerő nem töltődik magától, csak gyógycsomaggal.' },
+  ammo:    { name: 'Szűkös lőszer', desc: 'Fele akkora tartalék lőszer.' },
+  tough:   { name: 'Edzett horda', desc: 'A zombik 25%-kal többet bírnak.' },
+  fragile: { name: 'Törékeny', desc: '30%-kal több sebzést kapsz.' },
+  blind:   { name: 'Vakon', desc: 'Nincs iránytű és nincs életerő-csík a zombikon.' },
+};
+const dirOn = k => !!(mission && mission.job.dir && mission.job.dir.includes(k));
+const dirCount = job => (job && job.dir ? job.dir.length : 0);
 const noClock = job => !!(job && (job.test || job.type === 'escort' || job.bounty || job.type === 'exterminate' || job.type === 'supply'));
 const objDone = M => !!(M.bountyDone || M.objDone);
 
