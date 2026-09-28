@@ -224,6 +224,7 @@ function updateAvatars(dt, peers) {
     a.g.rotation.set(0, a.yaw, a.down ? 1.45 : 0);
     a.legL.rotation.x = sw; a.legR.rotation.x = -sw;
     if (+P.si && truck.g) { const s = SEATS[(P.si - 1) & 3], w = new V3(s[0], BED_Y + .1 - .92, s[1]).applyMatrix4(truck.g.matrixWorld); a.pos.set(w.x, 0, w.z); a.g.position.copy(w); a.g.rotation.set(0, a.yaw, 0); a.legL.rotation.x = a.legR.rotation.x = Math.PI / 2; } // riding in the back: in our own van, not lagging behind it
+    a.gunG.visible = !+P.si; // no guns out in the back of the van
     a.torso.rotation.x = a.pitch * .45; a.head.rotation.x = a.pitch * .55;
     const rl = P.rl ? Math.sin(now * 9) * .35 - .5 : 0;
     a.armR.rotation.x = a.pitch * .55; a.armL.rotation.x = a.pitch * .55 + rl;

@@ -108,15 +108,18 @@ const RIDE = { wait: 1.2, road: 4.4, stop: .5, back: 3.4, exit: 1.9 };
 const rideLen = () => RIDE.road + RIDE.stop + RIDE.back;
 function mySeat() { if (!NET.mode) return 0; const ids = partyMembers().filter(m => m.st === 'job').map(m => m.peer).sort(); return clamp(ids.indexOf(NET.me), 0, 3); }
 function ridePose(t) { // t seconds into the drive: along the road outside the fence, a turn out, then reversing in through the gate
-  const Dd = vanRun(), side = truck.pos.z >= 0 ? 1 : -1, Ls = 24, R = 6, La = R * Math.PI / 2;
+  const [x, z, ry, moving] = ridePath(t, truck.pos.x, truck.pos.z, truck.dir, truck.side);
+  truck.g.position.set(x, moving ? .025 * Math.sin(now * 11) : 0, z); truck.g.rotation.y = ry; truck.g.visible = true;
+}
+function ridePath(t, px, pz, dir, side = pz >= 0 ? 1 : -1) { // where the van is t seconds into the drive to the spot (px, pz): [x, z, heading, moving]
+  const Dd = Math.abs(px - (dir < 0 ? MAIN_RECT.minX : MAIN_RECT.maxX)) + 14, Ls = 24, R = 6, La = R * Math.PI / 2;
   let f, l, hf, hl;
   if (t < RIDE.road) { const s = smooth(clamp(t / RIDE.road, 0, 1)) * (Ls + La);
     if (s < Ls) { f = Dd; l = -30 + s; hf = 0; hl = 1; } else { const a = Math.PI - (s - Ls) / R; f = Dd + R + R * Math.cos(a); l = -R + R * Math.sin(a); hf = Math.sin(a); hl = -Math.cos(a); } }
   else if (t < RIDE.road + RIDE.stop) { f = Dd + R; l = 0; hf = 1; hl = 0; }
   else { const v = clamp((t - RIDE.road - RIDE.stop) / RIDE.back, 0, 1); f = (Dd + R) * Math.pow(1 - v, 2); l = 0; hf = 1; hl = 0; }
   const moving = t < rideLen() && Math.abs(t - RIDE.road - RIDE.stop / 2) > RIDE.stop / 2;
-  truck.g.position.set(truck.pos.x + truck.dir * f, moving ? .025 * Math.sin(now * 11) : 0, truck.pos.z + side * l);
-  truck.g.rotation.y = Math.atan2(-side * hl, truck.dir * hf); truck.g.visible = true;
+  return [px + dir * f, pz + side * l, Math.atan2(-side * hl, dir * hf), moving];
 }
 function updateIntro(dt) {
   const M = mission; M.intro += dt; updateLoading(M);
@@ -190,7 +193,7 @@ function endIntro() {
   if (!M.landed) { setVanAt(0); truck.g.rotation.y = truck.dir > 0 ? 0 : Math.PI; truck.g.visible = true; if (M.goT >= 0) { player.pos.set(truck.pos.x - truck.dir * 3.6, 0, truck.pos.z); collide(player.pos, .4); } } // skipped the ride: stand behind the van
   M.intro = -1; M.departT = 0; state = 'playing';
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
-  equipView(); player.switchT = SWITCH_T; SND.pickup(1); // off the tailgate, weapon up
+  equipView(); vm.blend = null; player.switchT = SWITCH_T / 2; SND.pickup(1); // off the tailgate: the weapon only comes up from below (starting at the top of the swap curve made it blink)
   if (!stats.jobs || M.job.test) showHelp(12); // the first job (and the testing ground): the controls on screen
   if (M.job.test) banner('LŐTÉR', 'Célbábuk előtted. Esc: leltár és vissza a bázisra.'); else { banner('1. HULLÁM', noClock(M.job) ? 'Jönnek. A furgon akkor jön, ha kész a feladat.' : 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart(); }
   if (!locked && !noLock) { needClick = true; $('clickHint').hidden = false; } // one click grabs the mouse

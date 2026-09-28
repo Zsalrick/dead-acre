@@ -670,7 +670,7 @@ function loadMap(id, seed) {
   generateProps(seed);
   baseFog = lerp(L.fogD[0], L.fogD[1], mulberry(seed + 1)());
   lamps.forEach((l, i) => { l.flicker = mulberry(seed + 7 + i)() < .35; });
-  clearMod(); mergeStatic();
+  clearRideCorridor(); clearMod(); mergeStatic();
 }
 function allRectsBound() {
   const all = [MAIN_RECT, ...Object.values(AREAS).map(a => a.core)];
@@ -853,7 +853,7 @@ function buildTruck() {
 }
 // parked: collision on and the van standing there; otherwise it is only the destination
 function placeVan(i, parked) {
-  const [x, z] = MAP.vans[i]; truck.dir = vanDir(x); truck.pos.set(x, 0, z);
+  const [x, z] = MAP.vans[i]; truck.dir = vanDir(x); truck.pos.set(x, 0, z); truck.side = (MAP.vanSide || [])[i] || (z >= 0 ? 1 : -1);
   truck.g.rotation.y = truck.dir > 0 ? 0 : Math.PI;
   truck.beacon.position.set(x, 3.6, z); truck.beam.position.set(x, 20, z);
   setVanAt(parked ? 0 : vanRun());
@@ -1215,11 +1215,11 @@ function updateRain(dt) {
 }
 
 // the van's gates: a real gap in the fence with two swinging leaves, lit posts and a road leading away
-const vanGates = [];
+const vanGates = [], roadMat = new THREE.MeshStandardMaterial({ color: 0x2e2c28, roughness: 1 }), dirtMat = new THREE.MeshStandardMaterial({ color: 0x4a4032, roughness: 1 });
 const gateMat = new THREE.MeshStandardMaterial({ color: 0x6a6e72, metalness: .6, roughness: .45 }), gateBar = new THREE.MeshStandardMaterial({ color: 0xc8a23a, metalness: .3, roughness: .6 });
 function buildVanGates() {
   vanGates.length = 0;
-  for (const [vx, z] of MAP.vans) {
+  for (const [vi, [vx, z]] of MAP.vans.entries()) {
     const d = vanDir(vx), x = d < 0 ? MAIN_RECT.minX - .2 : MAIN_RECT.maxX + .2, g = new THREE.Group(); g.position.set(x, 0, z);
     const leaves = [-1, 1].map(s => {
       const hinge = new THREE.Group(); hinge.position.set(0, 0, s * VAN_HALF); g.add(hinge);
@@ -1230,7 +1230,9 @@ function buildVanGates() {
       return { hinge, s };
     });
     for (const s of [-1, 1]) { const p = new THREE.Mesh(unitBox, gateMat); p.scale.set(.45, 3, .45); p.position.set(0, 1.5, s * (VAN_HALF + .15)); p.castShadow = true; g.add(p); const cap = new THREE.Mesh(new THREE.SphereGeometry(.16, 10, 8), basic(0xffb040)); cap.position.set(0, 3.15, s * (VAN_HALF + .15)); g.add(cap); }
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(40, VAN_HALF * 2 - .4), new THREE.MeshStandardMaterial({ color: 0x2e2c28, roughness: 1 })); road.rotation.x = -Math.PI / 2; road.position.set(d * 20, .015, 0); road.receiveShadow = true; g.add(road);
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(40, VAN_HALF * 2 - .4), roadMat); road.rotation.x = -Math.PI / 2; road.position.set(d * 20, .015, 0); road.receiveShadow = true; g.add(road);
+    const side = (MAP.vanSide || [])[vi] || (z >= 0 ? 1 : -1), along = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 38), dirtMat); along.rotation.x = -Math.PI / 2; along.position.set(d * 14.2, .012, -side * 17); along.receiveShadow = true; g.add(along); // the county road the van comes down
+    const turn = new THREE.Mesh(new THREE.CircleGeometry(5.5, 20), dirtMat); turn.rotation.x = -Math.PI / 2; turn.position.set(d * 17, .013, -side * 2.5); turn.receiveShadow = true; g.add(turn);
     put(g); vanGates.push({ g, leaves, x, z, d, open: 0 });
   }
 }
@@ -1265,5 +1267,35 @@ function resolveVanLanes() {
     for (const c of [...mapGroup.children]) { if (!c.isMesh) continue; box.setFromObject(c); if (box.max.x > R.minX && box.min.x < R.maxX && box.max.z > R.minZ && box.min.z < R.maxZ && (d < 0 ? box.min.x + box.max.x < 2 * edge : box.min.x + box.max.x > 2 * edge)) { mapGroup.remove(c); const i = rayBlockers.indexOf(c); if (i >= 0) rayBlockers.splice(i, 1); } }
     for (let i = obstacles.length - 1; i >= 0; i--) if (rectsHit(R, obstacles[i]) && (d < 0 ? obstacles[i].minX + obstacles[i].maxX < 2 * edge : obstacles[i].minX + obstacles[i].maxX > 2 * edge)) obstacles.splice(i, 1);
   }
+  // the side it comes down the road from: the one clear of the areas outside the fence
+  const areaHit = r => Object.values(AREAS).some(A => rectsHit(r, { minX: A.core.minX - 1.5, maxX: A.core.maxX + 1.5, minZ: A.core.minZ - 1.5, maxZ: A.core.maxZ + 1.5 }));
+  MAP.vanSide = MAP.vans.map(([x, z]) => { const pref = z >= 0 ? 1 : -1; return [pref, -pref].find(s => !rideRects(x, z, s).some(areaHit)) || pref; });
+}
+// the whole drive in (along the fence, the turn, the reverse through the gate): whatever stands outside the fence in its way goes,
+// trees and other grouped props included
+function rideCorridor() {
+  return MAP.vans.flatMap(([vx, vz], i) => rideRects(vx, vz, (MAP.vanSide || [])[i]));
+}
+function rideRects(vx, vz, side) {
+  const rects = [];
+  {
+    for (let t = 0; t <= rideLen(); t += .25) { const [x, z, ry] = ridePath(t, vx, vz, vanDir(vx), side || (vz >= 0 ? 1 : -1)), cs = Math.cos(ry), sn = Math.sin(ry); let r = null;
+      for (const [lx, lz] of [[2.6, 1.3], [2.6, -1.3], [-2.6, 1.3], [-2.6, -1.3]]) { const cx = x + lx * cs + lz * sn, cz = z - lx * sn + lz * cs; r = r ? { minX: Math.min(r.minX, cx), maxX: Math.max(r.maxX, cx), minZ: Math.min(r.minZ, cz), maxZ: Math.max(r.maxZ, cz) } : { minX: cx, maxX: cx, minZ: cz, maxZ: cz }; }
+      rects.push({ minX: r.minX - .8, maxX: r.maxX + .8, minZ: r.minZ - .8, maxZ: r.maxZ + .8 }); }
+  }
+  return rects;
+}
+function clearRideCorridor() {
+  const rects = rideCorridor(), box = new THREE.Box3(), outside = b => (b.min.x + b.max.x) / 2 < MAIN_RECT.minX - 1 || (b.min.x + b.max.x) / 2 > MAIN_RECT.maxX + 1 || (b.min.z + b.max.z) / 2 < MAIN_RECT.minZ - 1 || (b.min.z + b.max.z) / 2 > MAIN_RECT.maxZ + 1;
+  mapGroup.updateMatrixWorld(true);
+  for (const c of [...mapGroup.children]) {
+    if (c.isInstancedMesh) continue; box.setFromObject(c); if (box.isEmpty()) continue;
+    const s = box.getSize(new V3()); if (s.x > 30 || s.z > 30 || box.max.y < .15 || !outside(box)) continue; // ground, roads, the fence line stay
+    const R = { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z };
+    if (Object.values(AREAS).some(A => rectsHit(R, { minX: A.core.minX - .5, maxX: A.core.maxX + .5, minZ: A.core.minZ - .5, maxZ: A.core.maxZ + .5 }))) continue; // an area's own buildings stay
+    if (rects.some(q => rectsHit(q, R))) { mapGroup.remove(c); const i = rayBlockers.indexOf(c); if (i >= 0) rayBlockers.splice(i, 1); }
+  }
+  for (let i = obstacles.length - 1; i >= 0; i--) { const o = obstacles[i]; if (o.gate) continue; const cx = (o.minX + o.maxX) / 2, cz = (o.minZ + o.maxZ) / 2;
+    if ((cx < MAIN_RECT.minX - 1 || cx > MAIN_RECT.maxX + 1 || cz < MAIN_RECT.minZ - 1 || cz > MAIN_RECT.maxZ + 1) && rects.some(q => rectsHit(q, o))) obstacles.splice(i, 1); }
 }
 const inVanLane = (x, z, pad) => (MAP.vans || []).some(([vx, vz]) => { const R = laneRect(vx, vz); return x > R.minX - pad && x < R.maxX + pad && z > R.minZ - pad && z < R.maxZ + pad; });
