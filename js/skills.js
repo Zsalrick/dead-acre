@@ -91,7 +91,7 @@ const CLASSES = {
     ],
   },
 };
-const RESPEC = 300, RECLASS = 800;
+const RESPEC = 0, RECLASS = 800; // re-spending the tree is free
 // augments change how the class ability works; unlock with merit tokens, one active per class, switch freely
 const AUGMENTS = {
   soldier: [['ignite', 'Gyújtólövedék', 'A Tűzvihar alatt minden találat felgyújtja a célt.'], ['bulwark', 'Rohampáncél', 'A Tűzvihar alatt 40%-kal kevesebb sebzést kapsz.'], ['resupply', 'Utánpótlás-láda', 'A Tűzvihar +2 gránátot ad, és minden tárat megtölt.']],
@@ -233,7 +233,7 @@ function skillsTab() {
       }).join('') + '</div>';
   }).join('');
   return `${picker}<div class="hubhead"><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2>
-      <div class="hubbtns">${mine ? hbtn(`Pontok és módosítók vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
+      <div class="hubbtns">${mine ? hbtn('Pontok és módosítók vissza (ingyen)', 'respec', !spent && !augOwned(V)) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
     <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${mine ? Math.round(abilityCd()) : C.ability.cd} mp.</p>
     <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent} pont${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
     <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · 12, 15 és 18 elköltött pontnál nyílik egy-egy</small></h3>
