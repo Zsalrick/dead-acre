@@ -93,7 +93,8 @@ function publishMember() {
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;
   if (NET.joining) return `<div class="party"><b>Csatlakozás…</b></div>`;
-  if (NET.p2p && !NET.code) return `<div class="party slim"><b>Csapat</b><span class="note">egyedül vagy</span>${hbtn('Csapat létrehozása', 'pcreate')}<input id="pcode" maxlength="5" placeholder="KÓD" autocomplete="off" spellcheck="false">${hbtn('Csatlakozás', 'pjoinc')}${NET.joinErr ? `<span class="note perr">${esc(NET.joinErr)}</span>` : ''}</div>`;
+  if (NET.p2p && !NET.code) return `<div class="pcards"><div class="pcard red"><small>Vezetőként</small><h3>Csapat létrehozása</h3><p>Kapsz egy 5 betűs kódot. Küldd el a barátaidnak, legfeljebb 4-en lehettek.</p>${hbtn('Létrehozás', 'pcreate')}</div>
+    <div class="pcard blu"><small>Tagként</small><h3>Csatlakozás kóddal</h3><input id="pcode" maxlength="5" placeholder="KÓD" autocomplete="off" spellcheck="false">${hbtn('Csatlakozás', 'pjoinc')}${NET.joinErr ? `<p class="perr">${esc(NET.joinErr)}</p>` : ''}</div></div>`;
   if (!NET.code) {
     const open = openParties();
     return `<div class="party"><div class="phead"><b>Csapat</b>${hbtn('Csapat létrehozása', 'pcreate')}</div>
@@ -104,8 +105,9 @@ function partyPanel() {
   // the code is hidden until you ask (streams, screenshots); copying works without revealing it
   const codeBox = NET.p2p ? `<div class="pcode"><span class="pcodebig">KÓD: ${NET.showCode ? NET.code.toUpperCase() : '•••••'}</span>
       <div class="pcodebtns">${hbtn(NET.showCode ? 'Elrejt' : 'Megmutat', 'preveal')}${hbtn(NET.copied ? 'Másolva ✓' : 'Kód másolása', 'pcopy')}</div></div>` : '';
-  return `<div class="party in"><div class="phead"><b>Csapat · ${mem.length} fő · ${NET.host ? 'te vagy a vezető' : 'tag vagy'}</b>${hbtn(NET.leaveArmed ? 'Biztos kilépsz? Kattints újra' : 'Kilépés', 'pleave')}</div>${codeBox}
-    <div class="pmem">${mem.map(m => `<span class="pm${m.h ? ' host' : ''}"><b>${esc(m.n)}</b>${m.me ? ' (te)' : ''} · ${m.lv}. szint · ${CLASSES[m.c] ? CLASSES[m.c].name : 'nincs kaszt'}${m.h ? ' · vezető' : m.rdy ? ' · <b class="rdy">KÉSZ</b>' : ' · <b class="nrdy">nem kész</b>'}${m.st === 'job' ? ' · munkán' : ''}</span>`).join('')}</div>${NET.host ? '' : hbtn(NET.ready ? 'Mégsem vagyok kész' : 'Kész vagyok', 'pready')}
+  return `<div class="party in"><div class="pbar">${NET.p2p ? `<div><small>Csapatkód</small><b class="pcodebig">${NET.showCode ? NET.code.split('-')[0].toUpperCase() : '•••••'}</b></div>${hbtn(NET.showCode ? 'Elrejt' : 'Megmutat', 'preveal')}${hbtn(NET.copied ? 'Másolva ✓' : 'Másolás', 'pcopy')}` : `<div><small>Csapat</small><b class="pcodebig">${mem.length} fő</b></div>`}<span class="sp"></span>${hbtn(NET.leaveArmed ? 'Biztos? Kattints újra' : 'Kilépés', 'pleave')}</div>
+    <div class="pmem">${[0, 1, 2, 3].map(k => { const m = mem[k]; if (!m) return '<div class="pm empty"><b>Üres hely</b><small>várakozik…</small></div>'; const C = CLASSES[m.c];
+      return `<div class="pm${m.h ? ' host' : ''}" style="--cc:${C ? C.color : '#8a867c'}"><em>${m.h ? 'Vezető' : m.rdy ? 'Kész' : 'Várakozik'}${m.st === 'job' ? ' · munkán' : ''}</em><b>${esc(m.n)}${m.me ? ' (te)' : ''}</b><small>${m.lv}. szint · ${C ? C.name : 'nincs kaszt'}</small></div>`; }).join('')}</div>${NET.host ? '' : hbtn(NET.ready ? 'Mégsem vagyok kész' : 'Kész vagyok', 'pready')}
     <span class="note">${NET.host ? 'Te választod a munkát: amikor elvállalsz egyet, a csapat veled jön.' : 'A csapatvezető választ munkát; amikor elindítja, veled is automatikusan indul.'}</span></div>`;
 }
 function partyAction(kind, a) {

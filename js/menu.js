@@ -124,9 +124,10 @@ function showTab(name) {
   document.querySelectorAll('.mnav [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === menuTab));
   const p = $('mpanel');
   p.hidden = !menuTab;
-  if (menuTab) { p.innerHTML = TABS[menuTab](); p.scrollTop = 0; }
+  if (menuTab) { p.innerHTML = '<button class="mclose" data-close title="Bezárás">✕</button>' + TABS[menuTab](); p.scrollTop = 0; }
 }
 document.querySelectorAll('.mnav [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+$('mpanel').addEventListener('click', e => { if (e.target.closest('[data-close]')) showTab(menuTab); });
 
 // three career slots; deleting one needs a second click
 let delArmed = 0;
@@ -134,12 +135,14 @@ function refreshMenu() {
   const fmt = t => new Date(t).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const ps = [1, 2, 3].map(readProfile), latest = ps.reduce((b, p, i) => p && (b < 0 || p.at > ps[b].at) ? i : b, -1);
   $('slotList').innerHTML = [1, 2, 3].map(n => {
-    const p = ps[n - 1], C = p && p.cls && CLASSES[p.cls];
-    return `<div class="slotrow"><button class="mbtn${p ? ' used' : ''}${latest === n - 1 ? ' primary' : ''}" data-slot="${n}">${p ? `${latest === n - 1 ? 'Folytatás · ' : ''}${esc(p.name || `Zsoldos ${n}`)}` : `${n}. karakter · Új karakter`}
-      ${p ? `<span class="srow2"><span>${p.level}. szint</span>${C ? `<span style="color:${C.color}">${C.name}</span>` : ''}<span style="color:var(--lantern)">$${p.cash}</span><span>${p.stats.jobs} munka</span><span>${fmt(p.at)}</span></span>` : '<small>Kezdj egy pisztollyal és $300-ral</small>'}</button>
-      ${p ? `<button class="mdel" data-del="${n}">${delArmed === n ? 'Biztos?' : 'Törlés'}</button>` : ''}</div>`;
+    const p = ps[n - 1], C = p && p.cls && CLASSES[p.cls], last = latest === n - 1;
+    return `<div class="slotrow${last ? ' last' : ''}${p ? '' : ' empty'}"><button class="mslot" data-slot="${n}"><span class="snum">${n}</span>
+      <span class="sinfo"><b>${p ? esc(p.name || `Zsoldos ${n}`) : '+ Új karakter'}</b>${p ? `<small><span>${p.level}. szint</span>${C ? `<span style="color:${C.color}">${C.name}</span>` : ''}<span class="cash">$${p.cash.toLocaleString('hu-HU')}</span><span>${p.stats.jobs} munka</span><span>${fmt(p.at)}</span></small>` : '<small>Kezdj egy pisztollyal és $300-ral</small>'}</span>
+      ${p ? `<span class="sgo">${last ? 'Folytatás' : 'Betöltés'} ›</span>` : ''}</button>${p ? `<button class="mdel" data-del="${n}">${delArmed === n ? 'Biztos?' : 'Törlés'}</button>` : ''}</div>`;
   }).join('');
-  if (menuTab) $('mpanel').innerHTML = TABS[menuTab]();
+  $('menuVer').textContent = `${GAME_VER} · Billentyűzet és egér szükséges`;
+  { const seenK = Object.keys(KINDS).filter(k => stats && stats.killsBy && stats.killsBy[k]).length; $('mBesN').textContent = `${Object.keys(KINDS).length} zombifajta`; $('mArsN').textContent = `${BASES.length} fegyvertípus`; }
+  if (menuTab) $('mpanel').innerHTML = '<button class="mclose" data-close title="Bezárás">✕</button>' + TABS[menuTab]();
 }
 $('slotList').addEventListener('click', e => {
   const s = e.target.closest('[data-slot]'), d = e.target.closest('[data-del]');

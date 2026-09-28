@@ -96,10 +96,10 @@ function textSprite(lines, color, scale, glow) {
   return s;
 }
 // the display font may still be loading at startup; redraw the labels made so far once it is ready
-if (document.fonts) document.fonts.load('64px "Black Ops One"').then(() => { textSprites.forEach(drawTextSprite); textSprites = null; }).catch(() => {});
+if (document.fonts) document.fonts.load('800 64px "Big Shoulders Display"').then(() => { textSprites.forEach(drawTextSprite); textSprites = null; }).catch(() => {});
 function drawTextSprite(s) {
   const [lines, color, scale, glow] = s.userData.text;
-  const FS = 64, LH = 74, PAD = 28, font = `${FS}px "Black Ops One", Impact, sans-serif`;
+  const FS = 64, LH = 74, PAD = 28, font = `800 ${FS}px "Big Shoulders Display", Impact, sans-serif`;
   const c = document.createElement('canvas'), g = c.getContext('2d');
   g.font = font;
   let w = Math.ceil(Math.max(...lines.map(l => g.measureText(l).width)) + PAD * 2), h = lines.length * LH + PAD;

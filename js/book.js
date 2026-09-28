@@ -3,6 +3,22 @@
 const bcard = (pic, title, sub, body, col) => `<article class="bcard"${col ? ` style="--bc:${col}"` : ''}>${pic ? `<img src="${pic}" alt="">` : ''}<div><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}${body}</div></article>`;
 const bkv = rows => `<dl class="bkv">${rows.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
 const bhead = (t, lede) => `<div class="hubhead"><h2>${t}</h2></div>${lede ? `<p class="lede">${lede}</p>` : ''}`;
+// the handbook as a list and one big page: the sections render as before, then get re-laid out
+const bookSel = {};
+function bookView(html) {
+  const t = document.createElement('div'); t.innerHTML = html;
+  const items = []; t.querySelectorAll('h3, .bcard').forEach(el => items.push(el.tagName === 'H3' ? { g: el.innerHTML } : { el }));
+  const cards = items.filter(x => x.el); if (!cards.length) return html;
+  const i = clamp(bookSel[hubTab] || 0, 0, cards.length - 1), el = cards[i].el; let k = -1;
+  const list = items.map(x => x.g ? `<div class="bkg">${x.g}</div>` : (k++, `<button class="bki${k === i ? ' on' : ''}" data-act="bsel:${k}"><b>${x.el.querySelector('h4').innerHTML}</b>${x.el.querySelector('small') ? `<small>${x.el.querySelector('small').innerHTML}</small>` : ''}</button>`)).join('');
+  const img = el.querySelector(':scope > img'), logo = el.querySelector(':scope > .mlogo'), body = el.querySelector(':scope > div').cloneNode(true), h = body.querySelector('h4'), sub = body.querySelector(':scope > small');
+  h.remove(); if (sub) sub.remove();
+  body.querySelectorAll('dl.bkv').forEach(dl => { const t = [...dl.children]; dl.outerHTML = `<div class="bkv">${t.filter(x => x.tagName === 'DT').map(dt => `<div><small>${dt.innerHTML}</small><b>${dt.nextElementSibling ? dt.nextElementSibling.innerHTML : ''}</b></div>`).join('')}</div>`; });
+  const col = el.style.getPropertyValue('--bc') || '#f0a024', lede = t.querySelector('.lede');
+  return `<div class="bookv"><div class="bkl"><small class="bkn">${cards.length} bejegyzés</small>${list}</div>
+    <div class="bkd" style="--bc:${col}"><div class="bkimg">${img ? `<img src="${img.src}" alt="">` : logo ? logo.outerHTML : ''}</div>
+      <div class="bkt">${sub ? `<small class="bkk">${sub.innerHTML}</small>` : ''}<h2>${h.innerHTML}</h2><div class="bkbody">${body.innerHTML}</div>${lede ? `<p class="bklede">${lede.innerHTML}</p>` : ''}</div></div></div>`;
+}
 const pctR = (a, b) => `${Math.round(a * 100)}–${Math.round(b * 100)}%`;
 
 function bookWeapons() {

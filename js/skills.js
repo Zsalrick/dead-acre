@@ -222,30 +222,36 @@ function skillsTab() {
   }
   const V = CLASSES[skView] ? skView : P.cls, mine = V === P.cls, C = CLASSES[V], SKV = mine ? P.skills : (P.clsSkills || {})[V] || {};
   const lvOf = id => SKV[id] || 0, spent = C.tree.reduce((a, [id]) => a + lvOf(id), 0), tok = mine ? P.tokens : clsTokens(V);
-  const picker = `<nav class="clspick">${Object.entries(CLASSES).map(([k, c]) => `<button class="chip${k === V ? ' on' : ''}" data-act="skview:${k}" style="--cc:${c.color}">${c.name}${k === P.cls ? ' · aktív' : ''}</button>`).join('')}</nav>`;
+  const bars = (l, max) => `<span class="kbars">${Array.from({ length: max }, (_, k) => `<i class="${k < l ? 'on' : ''}"></i>`).join('')}</span>`;
+  const augs = (AUGMENTS[V] || []), sel = C.tree.find(t => t[0] === skNode) || augs.find(t => t[0] === skNode) || C.tree[0]; skNode = sel[0];
+  const classes = Object.entries(CLASSES).map(([k, c]) => `<button class="kcls${k === V ? ' on' : ''}" data-act="skview:${k}" style="--cc:${c.color}"><b>${c.name}</b><small>${c.tag}</small><em>${k === P.cls ? 'Aktív' : 'Váltás ingyen'}</em></button>`).join('');
   const rows = [0, 1, 2, 3, 4].map(r => {
     const need = r * 3, open = spent >= need;
-    return `<div class="trow${open ? '' : ' locked'}"><div class="tlabel">${r + 1}. sor<small>${open ? 'nyitva' : `zárva · ${need} elköltött érdemérem kell (${spent}/${need})`}</small></div>` +
-      C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => {
-        const l = lvOf(id), maxed = l >= max;
-        return `<div class="node${l ? ' has' : ''}${maxed ? ' max' : ''}"><b>${name}</b>${pips(l, max)}
-          <small>${desc(Math.max(1, l))}${!maxed && l ? ` → ${desc(l + 1)}` : ''}</small>
-          ${mine ? hbtn(maxed ? 'Kész' : 'Tanul · 1 érdemérem', `sk:${id}`, maxed || !open || P.tokens < 1) : ''}</div>`;
-      }).join('') + '</div>';
+    return `<div class="krow${open ? '' : ' locked'}"><div class="klab"><b>${r + 1}. sor</b><small>${open ? 'nyitva' : `${need} elköltött kell (${spent}/${need})`}</small></div>` +
+      C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => { const l = lvOf(id);
+        return `<button class="knode${id === skNode ? ' on' : ''}${l ? ' has' : ''}${l >= max ? ' max' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${l}/${max}</em></span>${bars(l, max)}<small>${desc(Math.max(1, l))}</small></button>`; }).join('') + '</div>';
   }).join('');
-  return `${picker}<div class="hubhead"><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2>
-      <div class="hubbtns">${mine ? hbtn('Pontok és módosítók vissza (ingyen)', 'respec', !spent && !augOwned(V)) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
-    <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${mine ? Math.round(abilityCd()) : C.ability.cd} mp.</p>
-    <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent}${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
-    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · 12, 15 és 18 elköltött érdeméremnél nyílik egy-egy</small></h3>
-    <div class="augs">${(AUGMENTS[V] || []).map(([id, name, desc]) => {
-      const own = (P.augOwn || []).includes(id), on = mine && augOn(id);
-      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? (own || augOwned(V) < augAllowed() ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érdemérem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : `<small class="lockt">Zárva · ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]} elköltött érdemérem kell (van: ${spent})</small>`) : ''}</div>`;
-    }).join('')}</div>
-    <div class="tree">${rows}</div>`;
+  const augRow = augs.length ? `<div class="krow"><div class="klab"><b>Módosítók</b><small>${AUG_AT.join(' / ')} elköltöttnél</small></div>${augs.map(([id, name, desc]) => { const own = (P.augOwn || []).includes(id), on = mine && augOn(id);
+    return `<button class="knode aug${id === skNode ? ' on' : ''}${own ? ' has' : ''}${on ? ' max' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${on ? 'aktív' : own ? 'megvan' : ''}</em></span><small>${desc}</small></button>`; }).join('')}</div>` : '';
+  // the right-hand panel: the selected node and what learning it costs
+  const isAug = augs.some(t => t[0] === skNode), ri = isAug ? -1 : C.tree.indexOf(sel), row = Math.floor(ri / 3), l = isAug ? 0 : lvOf(sel[0]), max = isAug ? 1 : sel[2];
+  let cta = '', info = '';
+  if (isAug) { const own = (P.augOwn || []).includes(sel[0]), on = mine && augOn(sel[0]), can = own || augOwned(V) < augAllowed();
+    info = `<div class="kbox"><small>${C.ability.name} módosítása</small><span>${sel[2]}</span></div>${!can ? `<p class="note">Zárva: ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]} elköltött érdemérem kell (van: ${spent}).</p>` : ''}`;
+    cta = mine ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érdemérem`, `aug:${sel[0]}`, on || !can || (!own && P.tokens < AUG_COST)) : '';
+  } else { const open = spent >= row * 3, maxed = l >= max;
+    info = `<div class="kbox"><small>Szintenként</small><span>${sel[3](1)}</span></div>${l && !maxed ? `<div class="kbox"><small>Most → következő</small><span>${sel[3](l)} → ${sel[3](l + 1)}</span></div>` : ''}${!open ? `<p class="note">Zárva: ${row * 3} elköltött érdemérem kell ebben a fában (${spent}/${row * 3}).</p>` : ''}`;
+    cta = mine ? hbtn(maxed ? 'Kész' : 'Tanul · 1 érdemérem', `sk:${sel[0]}`, maxed || !open || P.tokens < 1) : ''; }
+  const side = `<aside class="kside" style="--cc:${C.color}"><div class="kstop"><small>${isAug ? 'Módosító' : `${row + 1}. sor`} · ${C.name}</small><h2>${sel[1]}</h2>${isAug ? '' : `<div class="kmax">${bars(l, max)}<b>${l} / ${max}</b></div>`}${info}</div>
+    <div class="ksfoot"><div class="ktok"><span>${mine ? 'Elérhető érdemérem' : `Érdemérem (${C.name})`}</span><b>${tok}</b></div>${mine ? cta : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></aside>`;
+  return `<div class="ktab" style="--kc:${C.color}"><div class="kleft"><h3>Kasztok</h3>${classes}<p class="kinfo">Minden szintlépés egy érdemérmet ad. A kasztváltás ingyenes, a pontjaid kasztonként megmaradnak.</p></div>
+    <div class="kmid"><div class="khead"><div><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2><p><b>Passzív:</b> ${C.passive}</p></div>${mine ? hbtn('Pontok vissza (ingyen)', 'respec', !spent && !augOwned(V)) : ''}</div>
+      <div class="kabil" style="--cc:${C.color}"><kbd>C</kbd><b>${C.ability.name}</b><span>${C.ability.desc}</span><small>töltődés ${mine ? Math.round(abilityCd()) : C.ability.cd} mp</small></div>
+      <div class="ktree">${rows}${augRow}</div></div>
+    ${side}</div>`;
 }
 // every class keeps its own tree and its own tokens: switching is free and nothing is re-bought
-let skView = null;
+let skView = null, skNode = null; // the class shown, and the node picked in its tree
 // merit tokens: exactly (level - 1) per class, 29 at the cap; each class keeps its own tree
 const tokEarned = () => Math.max(0, profile.level - 1);
 const clsSpent = (k, S) => CLASSES[k].tree.reduce((a, [id]) => a + ((S || {})[id] || 0), 0) + (AUGMENTS[k] || []).filter(x => (profile.augOwn || []).includes(x[0])).length * AUG_COST;
@@ -267,7 +273,8 @@ function switchClass(k) {
 function giveTokens() { syncTokens(); } // a level-up: the count follows the level
 function skillAction(kind, a) {
   const P = profile;
-  if (kind === 'skview') { skView = a; return true; }
+  if (kind === 'skview') { skView = a; skNode = null; return true; }
+  if (kind === 'sknode') { skNode = a; return true; }
   if (kind === 'swcls' && CLASSES[a] && a !== P.cls && state === 'hub') { switchClass(a); skView = a; banner(CLASSES[a].name.toUpperCase(), 'Kaszt váltva · a pontjaid megmaradtak'); return true; }
   if (kind === 'cls') { const first = !P.cls; switchClass(a); if (first) { hubTab = 'jobs'; banner('KÉSZEN ÁLLSZ', 'Válassz egy munkát a térképen, és indulás!'); } return true; }
   if (kind === 'sk') {

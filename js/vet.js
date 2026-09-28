@@ -91,7 +91,8 @@ function contractsStrip() {
   rollContracts();
   const P = profile, row = (c, i, weekly) => {
     const p = cProg(c, weekly), done = p >= c.n, rw = weekly ? 'egzotikus + 40 ⚙' : `$${dailyReward().cash} + ${dailyReward().parts} ⚙`;
-    return `<div class="ctr${weekly ? ' wk' : ''}${c.got ? ' got' : ''}"><b>${weekly ? 'HETI' : 'NAPI'}</b><span>${cDef(c, weekly).txt(c.n)}<small>${Math.max(0, Math.floor(p))} / ${c.n} · ${rw}</small><i><em style="width:${Math.max(0, p) / c.n * 100}%"></em></i></span>${c.got ? '<em class="ok">✓</em>' : done ? hbtn('Átvétel', `claim:${i}`) : ''}</div>`;
+    return `<div class="ctr${weekly ? ' wk' : ''}${c.got ? ' got' : ''}"><div class="ctop"><b>${weekly ? 'HETI' : 'NAPI'}</b><small>${Math.min(c.n, Math.max(0, Math.floor(p)))} / ${c.n}</small></div><div class="ctit">${cDef(c, weekly).txt(c.n)}</div><i><em style="width:${Math.min(100, Math.max(0, p) / c.n * 100)}%"></em></i>
+      <div class="cfoot"><small>${rw}</small>${c.got ? '<em class="ok">✓ Begyűjtve</em>' : done ? hbtn('Begyűjt', `claim:${i}`) : ''}</div></div>`;
   };
   return `<div class="contracts">${P.daily.list.map((c, i) => row(c, i, false)).join('')}${row(P.weekly.c, 'w', true)}</div>`;
 }
@@ -130,10 +131,11 @@ function deepState() { const P = profile, d = P.deep && P.deep.wk === weekKey() 
 function deepCard() {
   if (profile.level < 16) return '';
   const D = deepDive(), st = deepState(), off = NET.code && !NET.host;
-  const rows = D.stages.map((S, i) => `<li class="${i < st.stage || st.done ? 'ok' : i === st.stage ? 'cur' : ''}"><b>${i + 1}.</b> ${MAPS[S.map].name} · ${S.type === 'bounty' ? BOUNTIES[S.bounty].name : JOB_TYPES[S.type].name} · ${stars(S.diff)}${S.mod ? ` · ${MODS[S.mod].label}` : ''}</li>`).join('');
-  return `<div class="deep"><div><small>HETI MÉLYFÚRÁS · minden héten új, mindenkinek ugyanaz</small><b>Három munka egymás után</b><ul>${rows}</ul>
-    <p>Jutalom egyszer egy héten: egzotikus páncél, 2 túlhajtás-mag és 60 ⚙. Ha elbuksz egy szakaszt, elölről kezded.</p></div>
-    ${st.done ? '<em class="ok">✓ E heti kész</em>' : hbtn(st.stage ? `Folytatás: ${st.stage + 1}. szakasz` : 'Mélyfúrás indítása', `deep:${st.stage}`, off)}</div>`;
+  const rows = D.stages.map((S, i) => `<li class="${i < st.stage || st.done ? 'ok' : i === st.stage ? 'cur' : ''}"><b>${i + 1}.</b> ${MAPS[S.map].name} · ${S.type === 'bounty' ? BOUNTIES[S.bounty].name : JOB_TYPES[S.type].name} · ${stars(S.diff)}</li>`).join('');
+  const left = Math.ceil(7 - ((Date.now() / 864e5 + 3) % 7));
+  return `<div class="deep"><div class="ctop"><b>HETI MÉLYFÚRÁS</b><small>még ${left} nap</small></div><div class="ctit">3 egymás utáni, egyre nehezebb munka</div>
+    <div class="dbars">${[0, 1, 2].map(i => `<i class="${i < st.stage || st.done ? 'ok' : ''}"></i>`).join('')}</div><ul>${rows}</ul>
+    <div class="cfoot"><small>Egzotikus · 2 mag · 60 ⚙</small>${st.done ? '<em class="ok">✓ E heti kész</em>' : hbtn(st.stage ? `${st.stage + 1}. szakasz ›` : 'Indítás ›', `deep:${st.stage}`, off)}</div></div>`;
 }
 function deepFinished(J, success) { // called from finishJob: progress, failure reset, the weekly reward
   if (!J.deep || J.deep.wk !== weekKey()) return null;

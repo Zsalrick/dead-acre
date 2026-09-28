@@ -46,22 +46,24 @@ function gearIcon(slot, color, name = '') {
 const wPic = w => gunShot(w.base, w.q);
 const gPic = it => gearIcon(it.slot, BRANDS[it.brand].color, it.name);
 
-// ---------- tiles ----------
-// o: n (slot number) · tag (új/saját ribbon) · price · cant (can't afford) · up (better than what you use) · lv · val/valLbl (key stat) · bc (brand color)
+// ---------- tiles: a card with the picture on top ----------
+// o: lv · lock (under your level) · badge ('ÚJ', '★ KEDVENC', 'KUKA') · rar (the small coloured line) · val (right of the bottom line, html) · n (hand number) · exp · cant · bc (brand color)
 function tile(sel, pic, name, sub, color, o = {}) {
+  const badge = o.lockLv ? `<i class="tbadge lock">${o.lockLv}. szinttől</i>` : (o.badge || o.tag) ? `<i class="tbadge${o.badgeCls ? ' ' + o.badgeCls : ''}">${o.badge || o.tag}</i>` : '';
   return `<button class="tile${invSel === sel ? ' on' : ''}${o.cant ? ' cant' : ''}" data-act="sel:${sel}" draggable="true" style="--rc:${color}${o.bc ? `;--bc:${o.bc}` : ''}">
-    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lock ? ' lock' : ''}"${o.lock ? ' title="Még nem használhatod"' : ''}>${o.lv}</i>` : ''}${o.up ? '<i class="tup" title="Jobb, mint amit most használsz">▲</i>' : ''}${o.tag ? `<i class="ttag">${o.tag}</i>` : ''}${o.exp ? `<i class="texp" title="Szakértelem ${o.exp}/10">✦${o.exp}</i>` : ''}</span>
-    <span class="ttx"><b class="tn">${name}</b><small class="ts">${sub}</small></span>
-    ${o.val != null ? `<b class="tv">${o.val}<small>${o.valLbl}</small></b>` : ''}${o.n ? `<i class="tb">${o.n}</i>` : ''}${o.price ? `<i class="tprice">${o.price}</i>` : ''}</button>`;
+    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lockLv ? ' lock' : ''}">${o.lv}</i>` : ''}${badge}${o.n ? `<kbd class="tkey">${o.n}</kbd>` : ''}${o.exp && !o.n ? `<i class="texp" title="Szakértelem ${o.exp}/10">✦${o.exp}</i>` : ''}</span>
+    <span class="ttx">${o.rar ? `<small class="trar">${o.rar}</small>` : ''}<b class="tn">${name}</b><span class="tmeta"><small class="ts">${sub}</small>${o.val != null ? `<b class="tv">${o.val}</b>` : ''}</span></span></button>`;
 }
-const favTag = x => x.fav ? '★' : x.junk ? '🗑' : '';
-const newTag = x => x.isNew ? 'új' : '';
-const wTile = (sel, w, o = {}) => tile(sel, wPic(w), (favTag(w) ? favTag(w) + ' ' : '') + w.name, `${RARITIES[w.q].name} · ${w.base.name}`, rarColor(w),
-  Object.assign({ tag: newTag(w), exp: w.exp, lv: `Lv ${w.level}`, lock: !canUse(w), val: dps(w), valLbl: 'DPS', up: o.cmp && o.cmp !== w && dps(w) > dps(o.cmp) }, o));
+const delta = (d, lowBetter, fmt = v => Math.round(v)) => !d ? '' : `<em class="${(lowBetter ? d < 0 : d > 0) ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${fmt(Math.abs(d))}</em>`;
+const tBadge = x => x.isNew ? ['ÚJ', ''] : x.fav ? ['★ Kedvenc', 'fav'] : x.junk ? ['Kuka', 'junk'] : [null, ''];
+const wTile = (sel, w, o = {}) => { const [bg, bc] = tBadge(w), d = o.cmp && o.cmp !== w ? dps(w) - dps(o.cmp) : 0;
+  return tile(sel, wPic(w), w.name, o.price ? `DPS ${dps(w)}` : o.sub || `${w.base.name}${o.n ? '' : ' · ' + w.maker}`, rarColor(w),
+    Object.assign({ rar: w.unique ? 'Egzotikus' : RARITIES[w.q].name, badge: bg, badgeCls: bc, exp: w.exp, lv: `Lv ${w.level}`, lockLv: !canUse(w) && w.level, val: o.price ? `<span class="tp">${o.price}</span>${delta(d)}` : `DPS ${dps(w)}${delta(d)}` }, o)); };
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
-const gTile = (sel, it, o = {}) => tile(sel, gPic(it), (favTag(it) ? favTag(it) + ' ' : '') + it.name, (it.exo ? `Egzotikus · ${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`), gCol(it),
-  Object.assign({ tag: newTag(it), exp: it.exp, lv: `Lv ${it.level}`, lock: !canUse(it), val: it.armor, valLbl: 'páncél', bc: BRANDS[it.brand].color, up: 'cmp' in o && o.cmp !== it && gearScore(it) > gearScore(o.cmp) }, o));
-const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="tpic">${pic ? `<img src="${pic}" alt="">` : ''}</span><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
+const gTile = (sel, it, o = {}) => { const [bg, bc] = tBadge(it), d = o.cmp && o.cmp !== it ? it.armor - o.cmp.armor : 0;
+  return tile(sel, gPic(it), it.name, it.exo ? `${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`, gCol(it),
+    Object.assign({ rar: it.exo ? 'Egzotikus' : RARITIES[it.q].name, badge: bg, badgeCls: bc, exp: it.exp, lv: `Lv ${it.level}`, lockLv: !canUse(it) && it.level, bc: BRANDS[it.brand].color, val: o.price ? `<span class="tp">${o.price}</span>${delta(d)}` : `Páncél ${it.armor}${delta(d)}` }, o)); };
+const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''}><span class="ttx"><b class="tn">${label}</b><small class="ts">${sub}</small></span></div>`;
 // double-click a tile: its main [F] action (buy, equip); a tile already on you does nothing
 let lastSel = { s: '', t: 0 };
 function selDbl(root, sel) {
@@ -74,18 +76,31 @@ function closeCtx() { document.querySelectorAll('.ctxm').forEach(m => m.remove()
 addEventListener('contextmenu', e => {
   closeCtx(); const t = e.target.closest && e.target.closest('.tile[data-act^="sel:"]'), root = t && t.closest('#hubBody,#loadout'); if (!root) return;
   lastSel = { s: '', t: 0 }; t.click(); // selected: the detail panel now holds its actions
-  const btns = [...root.querySelectorAll('.invd [data-act], .invd [data-hact]')].filter(b => !b.closest('.tile')); if (!btns.length) return;
+  const btns = [...root.querySelectorAll('.invd [data-act], .invd [data-hact]')].filter(b => !b.closest('.tile') && b.classList.contains('sbtn')); if (!btns.length) return;
   const nm = root.querySelector('.invd .dname'), sub = root.querySelector('.invd .dband, .invd .dsub'), m = document.createElement('div'); m.className = 'ctxm';
   m.innerHTML = '<div class="ctxh"><b></b><small></small></div>'; m.querySelector('b').textContent = nm ? nm.textContent : ''; m.querySelector('small').textContent = sub ? sub.innerText.replace(/\s+/g, ' ') : '';
   btns.forEach(b => { const c = b.cloneNode(true); c.removeAttribute('data-key'); m.appendChild(c); });
   const kb = $('keybar'), lim = (kb && !kb.hidden ? kb.getBoundingClientRect().top : innerHeight) - 8; // stay above the key bar
-  m.style.maxHeight = lim - 8 + 'px'; root.appendChild(m); const r = m.getBoundingClientRect();
-  m.style.left = Math.min(e.clientX, innerWidth - r.width - 8) + 'px'; m.style.top = Math.max(8, Math.min(e.clientY, lim - r.height)) + 'px';
+  root.appendChild(m); m.style.maxHeight = (lim - 8) / (m.currentCSSZoom || 1) + 'px'; const r = m.getBoundingClientRect();
+  const z = m.currentCSSZoom || 1; // inside the scaled UI: position in its own (zoomed) pixels
+  m.style.left = Math.min(e.clientX, innerWidth - r.width - 8) / z + 'px'; m.style.top = Math.max(8, Math.min(e.clientY, lim - r.height)) / z + 'px';
 });
 addEventListener('pointerdown', e => { if (!(e.target.closest && e.target.closest('.ctxm'))) closeCtx(); }, true);
 addEventListener('keydown', e => { if (e.code === 'Escape') closeCtx(); }, true);
 addEventListener('click', e => { if (e.target.closest && e.target.closest('.ctxm [data-act]')) setTimeout(closeCtx, 0); });
-const invLayout = (left, detail) => `<div class="inv"><div class="invl">${left}</div><aside class="invd">${detail}</aside></div>`;
+// two columns (a wide list | detail) or three (your hands / what's on you | the list | detail), like the design
+const invLayout = (left, detail, mid) => mid == null ? `<div class="inv two"><div class="invm">${left}</div><aside class="invd">${detail}</aside></div>`
+  : `<div class="inv"><div class="invl">${left}</div><div class="invm">${mid}</div><aside class="invd">${detail}</aside></div>`;
+function markCta(root) { // the detail panel shows one big button (the [F] one); the rest live in the key bar and the right-click menu
+  root.querySelectorAll('.invd .dact').forEach(d => {
+    const bs = d.querySelectorAll(':scope > .sbtn'), b = d.querySelector(':scope > .sbtn[data-key="KeyF"]') || bs[0]; if (b) b.classList.add('cta');
+    if (bs.length > 1) d.insertAdjacentHTML('beforeend', '<div class="dmore">Minden művelet: jobb klikk a tárgyon, vagy a lenti billentyűsor</div>');
+  });
+  const iv = root.querySelector('.invd'), t = root.querySelector('.invd > [style*="--rc"]'); if (iv && t) iv.style.setProperty('--rc', t.style.getPropertyValue('--rc'));
+}
+// the UI is laid out for 1920×1080 and scaled to the window
+function setUiZ() { const z = clamp(Math.min(innerWidth / 1920, innerHeight / 1080), .72, 1.5); document.documentElement.style.setProperty('--uiz', z); }
+addEventListener('resize', setUiZ); setUiZ();
 const noDetail = t => `<div class="dnone">${t}</div>`;
 
 // ---------- detail: weapon ----------
@@ -146,46 +161,48 @@ function optimize(w, k) {
   return true;
 }
 const rbarP = p => p == null ? '' : `<i class="rbar roll" title="Véletlen dobás: ${Math.round(p * 100)}% a lehetséges tartományban" style="--p:${Math.round(p * 100)}%"></i>`;
+// one stat row: name · roll bar (null: none) · value · change against the compared item
+const srw = (label, val, cmpHTML = '', bar = null, tip = '', cls = '') => `<div class="srw${cls ? ' ' + cls : ''}"${tip ? ` data-tip="${String(tip).replace(/"/g, '&quot;')}"` : ''}><span>${label}</span>${bar == null ? (cls.includes('minor') ? '' : '<span></span>') : `<i class="sb"><i style="width:${Math.round(clamp(bar, 0, 1) * 100)}%"></i></i>`}<b>${val}</b>${cmpHTML || '<em></em>'}</div>`;
+const dlt = (v, c, lowBetter, dg = 0) => { if (c == null) return ''; const d = v - c; if (Math.abs(d) < 1e-6) return '<em class="eq">=</em>'; return `<em class="${(lowBetter ? d < 0 : d > 0) ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${Math.abs(+d.toFixed(dg))}</em>`; };
+const dbox = (kind, name, text, col) => `<div class="dbox"${col ? ` style="--tc:${col}"` : ''}><small>${kind}</small>${name ? `<b>${name}</b>` : ''}${text ? `<span>${text}</span>` : ''}</div>`;
+const expPips = n => `<span class="pips">${Array.from({ length: 10 }, (_, k) => `<i class="${k < n ? 'on' : ''}"></i>`).join('')}</span>`;
 function weaponDetail(w, cmp, actions) {
-  const b = w.base, A = wCalc(w), C = cmp && cmp !== w ? wCalc(cmp) : null, c = C && cmp, el = w.element && ELEMENTS[w.element];
-  const x = (k, low, dg) => C ? arrow(A[k], C[k], low, dg) : '', RL = rollsOf(w);
-  return `<div class="dhead" style="--rc:${rarColor(w)}"><div class="dband"><span class="rar">${RARITIES[w.q].name}</span> ${b.name}<i class="dlv">Lv ${w.level}</i></div>
-      <div class="dname">${w.name}</div><img src="${wPic(w)}" alt=""><div class="dammo" data-tip="${CAT_NAMES[CAT[b.id]] || ''} lőszert használ"><img src="${ammoURL(CAT[b.id])}" alt=""><small>${CAT_NAMES[CAT[b.id]] || ''}</small></div>
-      <div class="dsub">${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''}</div></div>
-    <div class="dmaker">${makerLogo(w.mk)}<div><small>Gyártó</small><b>${w.maker}</b></div><div class="mperk"><small>Gyártó bónusz</small><span>${mkOf(w).perk || '—'}</span></div></div>
-    ${!canUse(w) ? `<div class="dlock">Csak ${w.level}. szinttől használható. Addig viheted a táskában.</div>` : ''}
-    ${cmp && cmp !== w ? `<div class="dcmp">Összevetve: <span style="color:${rarColor(cmp)}">${cmp.name}</span></div>` : ''}
-    <div class="dtals">
-      ${w.unique && UNIQUES[w.unique] ? dtal('Egzotikus tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff3b3b') : ''}
-      ${w.tal && TALENTS[w.tal] ? dtal('Tehetség', TALENTS[w.tal].name, TALENTS[w.tal].desc, '#ffd23f') : ''}
-      ${w.anoint && ANOINTS[w.anoint] ? dtal('Felkenés', anoName(w.anoint), ANOINTS[w.anoint], '#6ff0c8') : ''}
-      ${w.oc && OVERCLOCKS[w.oc] ? dtal('Túlhajtás', OVERCLOCKS[w.oc].name, OVERCLOCKS[w.oc].desc, '#b48cff') : ''}
-      ${el ? dtal('Elem', el.name, el.desc, el.color) : dtal('Elem', KINETIC.name, KINETIC.desc, KINETIC.color)}
-    </div>
-    <h4 class="dsec">Fő értékek <small>a csík: hol áll a véletlen dobás (bal: legrosszabb, jobb: legjobb)</small></h4>
-    <table class="dtab">
-      ${drow('DPS', A.dps, x('dps'))}
-      ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · dobás ${pctS(A.roll)}`, '', rbarP(RL.dmg))}
-      ${drow('Szakértelem', `${w.exp || 0}/10`, c ? arrow(w.exp || 0, c.exp || 0) : '', `+${2 * (w.exp || 0)}% sebzés ezzel a fegyverrel${(w.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, w.exp ? 'core' : '', `<i class="rbar" style="--p:${(w.exp || 0) * 10}%"></i>`)}
-      ${drow('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), 'kaszt, képességek, páncél, gyártó, szakértelem')}
-      ${drow('Tűzgyorsaság', `${w.rpm}/perc`, c ? arrow(w.rpm, c.rpm) : '', '', '', rbarP(RL.rate))}
-      ${drow('Tár', w.mag, c ? arrow(w.mag, c.mag) : '', '', '', rbarP(RL.mag))}
-      ${drow(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? arrow(w.reload, c.reload, true, 2) : '', `gyorsaság ${pctS(reloadMul() - 1)}`, '', rbarP(RL.reload))}
-      ${drow('Hatótáv', `${b.range} m`, c ? arrow(b.range, c.base.range) : '')}
-    </table>
-    <h4 class="dsec">Pontosság és kritikus</h4>
-    <table class="dtab">
-      ${drow('Pontosság', `${A.acc}%`, x('acc'), '', '', rbarP(RL.acc))}
-      ${drow('Kritikus esély', `${Math.round(A.crit * 100)}%`, x('crit', false, 2), `fegyver ${Math.round(wCrit(w) * 1000) / 10}% · a többi: felszerelés, képességek, gyártó`, '', rbarOf(wCrit(w), critRange(w)[0], critRange(w)[1] + .016))}
-      ${drow('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2), `fegyver ×${wCdmg(w).toFixed(2)}`, '', rbarOf(wCdmg(w), critRange(w)[2], critRange(w)[3]))}
-      ${drow('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2))}
-    </table>
-    <h4 class="dsec">Egyéb</h4>
-    <table class="dtab">
-      ${drow('Tartalék lőszer', A.res, x('res'))}
-      ${w.roll != null ? drow('Dobás minősége', `${w.roll}%`, c && c.roll != null ? arrow(w.roll, c.roll) : '', w.roll >= 90 ? 'szinte tökéletes' : w.roll >= 70 ? 'jó dobás' : 'kalibrálható a kovácsnál', w.roll >= 90 ? 'core' : '') : ''}
-    </table>
-    ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
+  const b = w.base, A = wCalc(w), C = cmp && cmp !== w ? wCalc(cmp) : null, c = C && cmp, el = w.element && ELEMENTS[w.element], RL = rollsOf(w), R = critRange(w);
+  const x = (k, low, dg) => C ? dlt(A[k], C[k], low, dg) : '';
+  return `<div class="dscroll" style="--rc:${rarColor(w)}">
+    <div class="dvimg"><img src="${wPic(w)}" alt=""><div class="dammo" data-tip="${CAT_NAMES[CAT[b.id]] || ''} lőszert használ"><img src="${ammoURL(CAT[b.id])}" alt=""><small>${CAT_NAMES[CAT[b.id]] || ''}</small></div></div>
+    <div class="dvhead"><div class="dk">${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · Lv ${w.level}</div><div class="dname">${w.name}</div>
+      <div class="dsub">${b.name} · ${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''} · ${w.maker}</div>${mkOf(w).perk ? `<div class="dperk">${w.maker}: ${mkOf(w).perk}</div>` : ''}</div>
+    <div class="dvbody">
+      ${!canUse(w) ? `<div class="dlock">Csak ${w.level}. szinttől használható. Addig viheted a táskában.</div>` : ''}
+      ${c ? `<div class="dcmp">összevetve: <span style="color:${rarColor(c)}">${c.name}</span></div>` : ''}
+      <div class="srows">
+        ${srw('DPS', A.dps, x('dps'), w.roll != null ? w.roll / 100 : null, 'Másodpercenkénti sebzés egy teljes tárral és újratöltéssel. A csík: a véletlen értékek összesített minősége.')}
+        ${srw('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), RL.dmg, `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · dobás ${pctS(A.roll)}`)}
+        ${srw('Tűzgyorsaság', `${w.rpm}/p`, c ? dlt(w.rpm, c.rpm) : '', RL.rate)}
+        ${srw('Tár', w.mag, c ? dlt(w.mag, c.mag) : '', RL.mag)}
+        ${srw(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? dlt(w.reload, c.reload, true, 2) : '', RL.reload, `gyorsaság ${pctS(reloadMul() - 1)}`)}
+        ${srw('Pontosság', `${A.acc}%`, x('acc'), RL.acc)}
+        ${srw('Kritikus esély', `${Math.round(A.crit * 100)}%`, C ? dlt(Math.round(A.crit * 100), Math.round(C.crit * 100)) : '', clamp((wCrit(w) - R[0]) / (R[1] + .016 - R[0]), 0, 1), `fegyver ${Math.round(wCrit(w) * 1000) / 10}% · a többi: felszerelés, képességek, gyártó`)}
+      </div>
+      <div class="srows">
+        ${srw('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2), null, `fegyver ×${wCdmg(w).toFixed(2)}`, 'minor')}
+        ${srw('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2), null, '', 'minor')}
+        ${srw('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), null, 'kaszt, képességek, páncél, gyártó, szakértelem', 'minor')}
+        ${srw('Hatótáv', `${b.range} m`, c ? dlt(b.range, c.base.range) : '', null, '', 'minor')}
+        ${srw('Tartalék lőszer', A.res, x('res'), null, '', 'minor')}
+        ${w.roll != null ? srw('Dobás minősége', `${w.roll}%`, c && c.roll != null ? dlt(w.roll, c.roll) : '', null, w.roll >= 90 ? 'szinte tökéletes' : w.roll >= 70 ? 'jó dobás' : 'kalibrálható a kovácsnál', 'minor') : ''}
+      </div>
+      <div class="dboxes">
+        ${w.unique && UNIQUES[w.unique] ? dbox('Egzotikus tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff5a4a') : ''}
+        ${w.tal && TALENTS[w.tal] ? dbox('Tehetség', TALENTS[w.tal].name, TALENTS[w.tal].desc, '#ffd23f') : ''}
+        ${w.anoint && ANOINTS[w.anoint] ? dbox('Felkenés', anoName(w.anoint), ANOINTS[w.anoint], '#6ff0c8') : ''}
+        ${w.oc && OVERCLOCKS[w.oc] ? dbox('Túlhajtás', OVERCLOCKS[w.oc].name, OVERCLOCKS[w.oc].desc, '#b48cff') : ''}
+        ${el ? dbox('Elem', el.name, el.desc, el.color) : dbox('Elem', KINETIC.name, KINETIC.desc, KINETIC.color)}
+        ${dbox('Szakértelem', `${w.exp || 0}/10 · +${2 * (w.exp || 0)}% sebzés`, expPips(w.exp || 0) + ((w.exp || 0) < 10 ? '<span>A kovácsnál fejleszthető.</span>' : ''), '#f0a024')}
+      </div>
+      ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
+    </div></div>
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }
 
@@ -199,42 +216,46 @@ function gearDetail(it, cmp, actions) {
     const v = val(it, k), parts = [];
     if (k === 'armor') parts.push(`alap +${it.armor}`); else if (it.stats[k]) parts.push(`tulajdonság ${fmtG(k, it.stats[k])}`);
     if (B.core[0] === k) parts.push(`márka ${fmtG(k, coreVal(it))}`);
-    const d = c ? v - val(c, k) : 0;
-    const cmpH = c ? (Math.abs(d) < 1e-6 ? '<span class="eq">=</span>' : `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${fmtG(k, Math.abs(d)).slice(1)}</span>`) : '';
-    const bar = it.stats[k] ? `<i class="rbar" title="A dobás minősége" style="--p:${Math.min(100, Math.round(it.stats[k] / rollMax(k) * 100))}%"></i>` : '';
-    return drow(GSTATS[k].name, v ? fmtG(k, v) : '—', cmpH, parts.join(' · '), B.core[0] === k ? 'core' : '', bar);
+    const d = c ? v - val(c, k) : 0, p = it.stats[k] ? Math.min(1, it.stats[k] / rollMax(k)) : null;
+    const cmpH = c ? (Math.abs(d) < 1e-6 ? '<em class="eq">=</em>' : `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmtG(k, Math.abs(d)).slice(1)}</em>`) : p != null ? `<em class="eq">${Math.round(p * 100)}% dobás</em>` : '';
+    return srw(k === 'armor' ? 'Páncél' : GSTATS[k].name, v ? (k === 'armor' ? Math.round(v) : fmtG(k, v)) : '—', cmpH, k === 'armor' ? null : p, parts.join(' · '), B.core[0] === k ? 'core' : '');
   }).join('');
-  const pipsB = `<span class="bpips">${[1, 2, 3, 4].map(n => `<i class="${n <= cnt ? 'on' : ''}"></i>`).join('')}</span>`;
-  const next = B.sets.find(([n]) => n > cnt);
-  const sets = B.sets.map(([n, k, v]) => `<li class="${cnt >= n ? 'on' : ''}"><span>${n} db</span>${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('');
-  return `<div class="dhead" style="--rc:${gCol(it)}"><div class="dband"><span class="rar">${it.exo ? 'Egzotikus' : RARITIES[it.q].name}</span> ${GEAR_SLOTS[it.slot]}<i class="dlv">Lv ${it.level}</i></div>
-      <div class="dname">${it.name}</div><img src="${gPic(it)}" alt="">
-      <div class="dsub"><span style="color:${B.color}">${B.name}</span> · ${B.tag}</div></div>
-    ${!canUse(it) ? `<div class="dlock">Csak ${it.level}. szinttől viselhető. Addig a raktárban tarthatod.</div>` : ''}
-    ${c ? `<div class="dcmp">Összevetve a viselt darabbal: <span style="color:${RARITIES[c.q].color}">${c.name}</span></div>` : ''}
-    ${it.exo && EXOTICS[it.exo] ? `<div class="duniq" style="border-color:${EXO_COL}"><b>Egzotikus tehetség:</b> ${EXOTICS[it.exo].talent}</div>` : ''}
-    <table class="dtab" style="--bc:${B.color}">${drow('Szakértelem', `${it.exp || 0}/10`, c ? arrow(it.exp || 0, c.exp || 0) : '', `+${3 * (it.exp || 0)}% minden értékre${(it.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, it.exp ? 'core' : '', `<i class="rbar" style="--p:${(it.exp || 0) * 10}%"></i>`)}${rows}</table>
-    <div class="dsets" style="--bc:${B.color}"><b>${B.name}</b> ${pipsB} <small>${cnt}/4 viselve</small><ul>${sets}</ul>
-      ${B.t4 ? `<p class="dt4${cnt >= 4 ? ' on' : ''}"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</p>` : ''}
-      ${next ? `<p class="dnext">Még ${next[0] - cnt} darab: ${GSTATS[next[1]].name} ${fmtG(next[1], next[2])}</p>` : ''}</div>
+  const next = B.sets.find(([n]) => n > cnt), sets = B.sets.map(([n, k, v]) => `${n} db: ${GSTATS[k].name} ${fmtG(k, v)}`).join(' · ');
+  const setLine = (on, t) => `<span style="color:${on ? 'var(--tx)' : 'var(--tx4)'}">${on ? '✓' : '·'} ${t}</span>`;
+  return `<div class="dscroll" style="--rc:${gCol(it)};--bc:${B.color}">
+    <div class="dvimg"><img src="${gPic(it)}" alt=""></div>
+    <div class="dvhead"><div class="dk">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level}</div><div class="dname">${it.name}</div>
+      <div class="dsub">${GEAR_SLOTS[it.slot]} · ${it.exo ? 'bármely márka' : B.name} · ${B.tag}</div><div class="dperk">${B.name} szett · ${sets}</div></div>
+    <div class="dvbody">
+      ${!canUse(it) ? `<div class="dlock">Csak ${it.level}. szinttől viselhető. Addig a raktárban tarthatod.</div>` : ''}
+      ${c ? `<div class="dcmp">összevetve a viselt darabbal: <span style="color:${gCol(c)}">${c.name}</span></div>` : ''}
+      <div class="srows">${rows}</div>
+      <div class="dboxes">
+        ${it.exo && EXOTICS[it.exo] ? dbox('Egzotikus tehetség', '', EXOTICS[it.exo].talent, EXO_COL) : ''}
+        ${dbox(`${B.name} szett · ${cnt}/4 viselve`, '', B.sets.map(([n, k, v]) => setLine(cnt >= n, `${n} db: ${GSTATS[k].name} ${fmtG(k, v)}`)).join('') + (B.t4 ? setLine(cnt >= 4, `4 db · ${B.t4[0]}: ${B.t4[1]}`) : '') + (next ? `<span style="color:var(--amb)">Még ${next[0] - cnt} darab a következő bónuszig</span>` : ''), B.color)}
+        ${dbox('Szakértelem', `${it.exp || 0}/10 · +${3 * (it.exp || 0)}% minden értékre`, expPips(it.exp || 0) + ((it.exp || 0) < 10 ? '<span>A kovácsnál fejleszthető.</span>' : ''), '#f0a024')}
+      </div>
+    </div></div>
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }
 // consumables in the shop
 function itemDetail(k, actions) {
   const I = ITEMS[k];
-  return `<div class="dhead" style="--rc:${I.color}"><div class="dband"><span class="rar">Felszerelés</span> [${I.key}] gomb</div>
-      <div class="dname">${itemName(k)}</div><img class="dico" src="${ICONS[k]}" alt=""><div class="dsub">${itemDesc(k)}</div></div>
-    <table class="dtab">${drow('Nálad', `${profile.inv[k]} / ${itemMax(k)}`)}${drow('Egyszerre', k === 'knife' ? '3 db' : '1 db')}</table>
+  return `<div class="dscroll" style="--rc:${I.color}">
+    <div class="dvimg"><img class="dico" src="${ICONS[k]}" alt=""></div>
+    <div class="dvhead"><div class="dk">Felszerelés · [${I.key}] gomb</div><div class="dname">${itemName(k)}</div><div class="dsub">${itemDesc(k)}</div></div>
+    <div class="dvbody"><div class="srows">${srw('Nálad', `${profile.inv[k]} / ${itemMax(k)}`, '', profile.inv[k] / itemMax(k))}${srw('Egyszerre', k === 'knife' ? '3 db' : '1 db')}</div></div></div>
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }
 
 // ---------- keyboard: shortcuts from the selected item's buttons, arrows move the selection ----------
 function updateKeybar(root) {
-  const bar = $('keybar'), inv = root.querySelector('.inv');
-  if (!inv) { bar.innerHTML = ''; return; }
-  const btns = [...inv.querySelectorAll('.invd [data-key]')]; bar.btns = btns;
-  const acts = btns.map((b, i) => `<span data-i="${i}"${b.dataset.tip ? ` data-tip="${b.dataset.tip.replace(/"/g, '&quot;')}"` : ''}${b.disabled ? ' class="off"' : ''}><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '')}</span>`);
-  bar.innerHTML = `<span><kbd>←↑↓→</kbd>Választás</span>${acts.join('')}`;
+  const bar = $('keybar'), inv = root.querySelector('.inv'), hub = root.id === 'hubBody';
+  const btns = inv ? [...inv.querySelectorAll('[data-key]')].filter(b => !b.closest('.tile')) : []; bar.btns = btns;
+  const acts = btns.map((b, i) => `<span data-i="${i}"${b.dataset.tip ? ` data-tip="${b.dataset.tip.replace(/"/g, '&quot;')}"` : ''} class="${b.disabled ? 'off' : ''}${b.classList.contains('hold') ? ' hold' : ''}"><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '').trim()}</span>`);
+  const hint = hub && { jobs: '<span><kbd>Kattintás</kbd>helyszín kiválasztása</span><span><kbd>Enter</kbd>elvállalom</span>', skills: '<span><kbd>Kattintás</kbd>képesség kiválasztása</span><span><kbd>Enter</kbd>tanul</span>', swheel: '<span><kbd>Space</kbd>pörgetés</span>' }[hubTab] || '';
+  bar.innerHTML = (hub ? '<span><kbd>Q</kbd><kbd>E</kbd>fül</span>' : '') + hint + (inv ? '<span><kbd>↑↓←→</kbd>választás</span>' : '') + acts.join('') +
+    (hub ? '<span><kbd>Esc</kbd>főmenü</span>' : '<span><kbd>Tab</kbd>vissza</span>') + `<span class="kver">${GAME_VER}${hub ? ' · automatikusan mentve' : ''}</span>`;
 }
 function invKey(e, root) {
   if (!root.querySelector('.inv')) return false;
@@ -254,7 +275,7 @@ function invKey(e, root) {
     if (best) { best.click(); const n = root.querySelector('.tile.on'); if (n) n.scrollIntoView({ block: 'nearest' }); }
     return true;
   }
-  const b = root.querySelector(`.invd [data-key="${e.code}"]`);
+  const b = [...root.querySelectorAll(`.inv [data-key="${e.code}"]`)].find(x => !x.closest('.tile'));
   if (!b) return false;
   if (b.dataset.hact) { if (!e.repeat) b.disabled ? SND.deny() : startHold(b, root); return true; }
   if (!b.disabled) b.click(); else SND.deny();

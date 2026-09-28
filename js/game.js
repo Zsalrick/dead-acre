@@ -441,6 +441,8 @@ addEventListener('keydown', e => {
   const c = keyCode(e.code) || ''; if (c) keys[c] = true;
   if (state === 'hub' && (e.code === 'KeyQ' || e.code === 'KeyE') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { hubCycle(e.code === 'KeyE' ? 1 : -1); return; }
   if (state === 'hub' && invKey(e, $('hubBody'))) return;
+  if (state === 'hub' && e.code === 'Enter' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { const b = document.querySelector(hubTab === 'jobs' ? '#hubBody .jc-foot .sbtn' : hubTab === 'skills' ? '#hubBody .ksfoot .sbtn' : null); if (b) { if (!b.disabled) b.click(); else SND.deny(); return; } }
+  if (state === 'hub' && hubTab === 'swheel' && e.code === 'Space') { e.preventDefault(); const b = document.querySelector('#hubBody [data-act="slot"]'); if (b && !b.disabled) b.click(); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'menu' && e.code === 'Escape' && performance.now() - pausedAt > 400) { resume(); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && e.code === 'Escape') { pauseMode('menu'); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && invKey(e, $('loadout'))) return;
