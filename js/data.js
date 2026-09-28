@@ -114,6 +114,24 @@ function rollRarity(luck = 0) {
   return 0;
 }
 
+// every gun rolls its own crit chance and crit multiplier from its type's range; gear, skills and upgrades add on top
+const CRIT_RANGE = { marks: [.08, .14, 1.7, 2.0], pistol: [.06, .11, 1.5, 1.8], rifle: [.04, .09, 1.4, 1.7], smg: [.03, .07, 1.3, 1.6], shotgun: [.02, .05, 1.3, 1.5],
+  heavy: [.02, .06, 1.3, 1.5], energy: [.04, .08, 1.4, 1.6], explosive: [.01, .03, 1.3, 1.4] };
+const critRange = w => CRIT_RANGE[CAT[w.base.id]] || [.04, .08, 1.4, 1.6];
+function rollCrit(w) { const R = critRange(w); w.crit = +(rand(R[0], R[1]) + Math.min(4, w.q) * .004).toFixed(3); w.cdmg = +rand(R[2], R[3]).toFixed(2); }
+// weapon talents (The Division): one per rare-or-better gun, fixed for good; uniques have their own trick instead
+const TALENTS = {
+  optimist: { name: 'Optimista',   desc: 'Minél üresebb a tár, annál nagyobb a sebzés: az utolsó lövésnél +30%.' },
+  frenzy:   { name: 'Vérszomj',    desc: 'Ölés után 5 mp-ig +20% sebzés.' },
+  feast:    { name: 'Lakoma',      desc: 'A fejlövéses ölés 4% életerőt ad vissza.' },
+  bread:    { name: 'Kenyérkosár', desc: 'Testlövés után a következő fejlövés +40% sebzést okoz.' },
+  close:    { name: 'Közelharc',   desc: '10 méteren belül +25% sebzés.' },
+  ranger:   { name: 'Távcső',      desc: '25 méteren túl +25% sebzés.' },
+  scav:     { name: 'Guberáló',    desc: 'Minden ölés a tár 15%-át visszatölti.' },
+  frost:    { name: 'Dermesztő',   desc: 'Minden 5. találat 2 mp-re lelassítja a zombit.' },
+};
+const TAL_KEYS = Object.keys(TALENTS);
+function talentFor(w) { let h = 0; for (const ch of w.base.id + w.mk + w.name) h = (h * 31 + ch.charCodeAt(0)) | 0; return TAL_KEYS[Math.abs(h) % TAL_KEYS.length]; } // older guns: a fixed pick, the same every load
 function makeWeapon(base, q, level, mk) {
   if (q >= 5) return makeUnique(null, level);
   mk = mk || pick(makersFor(base));
@@ -137,6 +155,8 @@ function makeWeapon(base, q, level, mk) {
   if (q === 4) { const L = pick(LEGENDS); w.name = L[0]; w.flavor = L[1]; }
   else w.name = [q > 0 ? pick(PREFIX[top]) : null, w.element ? ELEMENTS[w.element].word : null, base.name].filter(Boolean).join(' ');
   if (q >= 2 && Math.random() < [0, 0, .25, .5, 1][q]) w.anoint = pick(Object.keys(ANOINTS));
+  if (q >= 2) w.tal = pick(TAL_KEYS);
+  rollCrit(w);
   return w;
 }
 // ---------- unique (red) weapons: very rare, each with its own trick and a red line, Borderlands style ----------
@@ -160,7 +180,7 @@ const UNIQUES = {
 function makeUnique(key, level) {
   key = UNIQUES[key] ? key : pick(Object.keys(UNIQUES));
   const U = UNIQUES[key], w = makeWeapon(BASES.find(b => b.id === U.base), 4, level);
-  Object.assign(w, { q: 5, unique: key, name: U.name, flavor: U.text, dmg: Math.round(w.dmg * 1.12), anoint: pick(Object.keys(ANOINTS)) });
+  Object.assign(w, { q: 5, unique: key, name: U.name, flavor: U.text, dmg: Math.round(w.dmg * 1.12), anoint: pick(Object.keys(ANOINTS)), tal: null });
   if (U.element) w.element = U.element;
   if (U.baseMod) w.base = Object.assign({}, w.base, U.baseMod);
   return w;
@@ -221,7 +241,7 @@ ITEM_KEYS.forEach(k => { ICON_CANVAS[k] = drawIcon(k); ICONS[k] = ICON_CANVAS[k]
 // the forge's calibration: every stat roll again; rarity, level, maker, element, anointment and unique trick stay
 function recalWeapon(w) {
   const b = BASES.find(x => x.id === w.base.id) || w.base, n = makeWeapon(b, Math.min(4, w.q), w.level, w.mk), k = w.unique ? 1.12 : 1;
-  ocStrip(w); Object.assign(w, { dmg: Math.round(n.dmg * k), rpm: n.rpm, mag: n.mag, reload: n.reload, spread: n.spread, roll: n.roll }); ocApply(w);
+  ocStrip(w); Object.assign(w, { dmg: Math.round(n.dmg * k), rpm: n.rpm, mag: n.mag, reload: n.reload, spread: n.spread, roll: n.roll, crit: n.crit, cdmg: n.cdmg }); ocApply(w);
   return w;
 }
 

@@ -22,7 +22,9 @@ function unpackW(o) {
   if (w.base.single && w.reload > 1.2) w.reload = +(w.reload / 2.8 * w.base.reload).toFixed(2); // saves from before round-by-round loading
   if (w.unique && UNIQUES[w.unique] && UNIQUES[w.unique].baseMod) w.base = Object.assign({}, w.base, UNIQUES[w.unique].baseMod);
   if (!w.sv) { w.dmg = Math.round(w.dmg * Math.pow(1.08, w.level - 1) / (1 + .075 * (w.level - 1))); w.sv = 2; } // saves from before exponential levels
+  if (w.crit == null) { const R = critRange(w); w.crit = +((R[0] + R[1]) / 2).toFixed(3); w.cdmg = +((R[2] + R[3]) / 2).toFixed(2); } // guns from before per-gun crit
   if (!w.mk) { w.mk = Object.keys(MAKERS).find(k => MAKERS[k].name === w.maker) || 'kessler'; w.maker = MAKERS[w.mk].name; } // saves from before maker perks
+  if (w.tal === undefined && w.q >= 2 && w.q < 5 && !w.unique) w.tal = talentFor(w);
   return w;
 }
 function newProfile(n) {

@@ -481,6 +481,7 @@ function cardHTML(w, action, c) {
     <table>${statRows(w, c)}</table>
     ${el ? `<div class="elem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
     ${w.unique && UNIQUES[w.unique] ? `<div class="duniq"><b>Egyedi:</b> ${UNIQUES[w.unique].trick}</div>` : ''}
+    ${w.tal && TALENTS[w.tal] ? `<div class="danoint" style="color:#ffd23f"><b>${TALENTS[w.tal].name}:</b> ${TALENTS[w.tal].desc}</div>` : ''}
     ${w.anoint && ANOINTS[w.anoint] ? `<div class="danoint"><b>Felkenés:</b> ${ANOINTS[w.anoint]}</div>` : ''}
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
     <div class="act">${action}</div>`;

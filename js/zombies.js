@@ -737,8 +737,17 @@ function weaponOnHit(z, amt, o) {
   if (w.oc === 'exploder' && w.ammo === 0 && w.mag >= 6 && !o.chain) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * 2, pr: .01, pdmg: .001, color: 0xffb04a });
   if (w.oc === 'leech') player.hp = Math.min(maxHp(), player.hp + Math.min(amt * .01, maxHp() * .015));
   if (w.oc === 'ricochet' && !o.chain && Math.random() < .25) { const q = zombies.filter(q => !q.dead && q !== z && q.pos.distanceTo(z.pos) < 8).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0]; if (q) { tracer(new V3(z.pos.x, 1.5, z.pos.z), new V3(q.pos.x, 1.5, q.pos.z), 0xffe0a0, .012); hurtZombie(q, amt * .5, { w, chain: true }); } }
+  if (w.tal && !o.chain) talentHit(z, amt, o, w);
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
+}
+function talentHit(z, amt, o, w) { // the extra damage lands as a chained hit, so it can't set the talents off again
+  const extra = k => { if (!z.dead && z.hp > 0) hurtZombie(z, amt * k, { w, chain: true, color: '#ffd23f' }); };
+  if (w.tal === 'bread') { if (!o.head) player.bread = true; else if (player.bread) { player.bread = false; extra(.4); } }
+  const d = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z);
+  if (w.tal === 'close' && d < 10) extra(.25);
+  if (w.tal === 'ranger' && d > 25) extra(.25);
+  if (w.tal === 'frost' && (player.frostN = (player.frostN || 0) + 1) % 5 === 0) z.slowT = Math.max(z.slowT || 0, 2);
 }
 function weaponOnKill(z, o) {
   const w = o.w;
@@ -749,6 +758,9 @@ function weaponOnKill(z, o) {
   if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }
   if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
   if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
+  if (w.tal === 'frenzy') player.frenzyT = now + 5;
+  if (w.tal === 'feast' && o.head) player.hp = Math.min(maxHp(), player.hp + maxHp() * .04);
+  if (w.tal === 'scav') w.ammo = Math.min(w.mag, w.ammo + Math.ceil(w.mag * .15));
   if (w.anoint === 'killheal') player.hp = Math.min(maxHp(), player.hp + maxHp() * .06);
   if (w.anoint === 'boom' && Math.random() < .2) explode(new V3(z.pos.x, 1, z.pos.z), { r: 4, zdmg: zombieHp() * .8, pr: .01, pdmg: .001 });
 }

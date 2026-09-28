@@ -71,27 +71,39 @@ function arrow(v, c, lowBetter, digits = 0) {
   return `<span class="${good ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(+d.toFixed(digits))}</span>`;
 }
 const drow = (label, shown, cmpHTML = '', note = '', cls = '', bar = '') => `<tr class="${cls}"><td>${label}${bar}${note ? `<small>${note}</small>` : ''}</td><td>${shown}</td><td>${cmpHTML}</td></tr>`;
+const rbarOf = (v, a, b) => `<i class="rbar" title="A dobás a tartományon belül" style="--p:${Math.round(clamp((v - a) / Math.max(1e-6, b - a), 0, 1) * 100)}%"></i>`;
 const pctS = v => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
 function wCalc(w) { // everything this gun does with your current upgrades, skills and gear
   const b = w.base, M = mkOf(w), lv = Math.pow(1.08, w.level - 1), rq = 1 + w.q * .14;
   return {
     dps: dps(w), dmg: w.dmg * w.pellets, bonus: SK.dmg(w) - 1,
     roll: w.dmg / (b.dmg * lv * rq) - 1, lv: lv - 1, rq: rq - 1,
-    crit: .05 + .04 * U('crit') + SK.crit(w) + G('crit') + (M.crit || 0),
-    critDmg: 1.5 + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (M.critDmg || 0),
+    crit: wCrit(w) + .04 * U('crit') + SK.crit(w) + G('crit') + (M.crit || 0),
+    critDmg: wCdmg(w) + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (M.critDmg || 0),
     head: (b.headMult || 2) * (1 + .15 * U('head') + SK.head() + G('head') + (M.head || 0)),
     res: resMax(w), acc: accuracy(w),
   };
 }
+const MAKER_COL = { xfcv: '#6fb4ff', kessler: '#e0a040', voss: '#9fd36a', harrow: '#e05a5a', ironmark: '#a8b0b8', novak: '#c77dff', crane: '#f2d27a', bellwether: '#5ad0c0', ostrava: '#ff8c5a' };
+const makerLogo = mk => { const M = MAKERS[mk] || {}, n = (M.name || '?').split(/[\s&]+/).filter(Boolean); return `<span class="mlogo" style="--mc:${MAKER_COL[mk] || '#aaa'}">${(n.length > 1 ? n[0][0] + n[1][0] : n[0].slice(0, 2)).toUpperCase()}</span>`; };
+const dtal = (kind, name, text, col) => `<div class="dtal"${col ? ` style="--tc:${col}"` : ''}><small>${kind}</small>${name ? `<b>${name}</b>` : ''}<span>${text}</span></div>`;
 function weaponDetail(w, cmp, actions) {
   const b = w.base, A = wCalc(w), C = cmp && cmp !== w ? wCalc(cmp) : null, c = C && cmp, el = w.element && ELEMENTS[w.element];
   const x = (k, low, dg) => C ? arrow(A[k], C[k], low, dg) : '';
   return `<div class="dhead" style="--rc:${rarColor(w)}"><div class="dband"><span class="rar">${RARITIES[w.q].name}</span> ${b.name}<i class="dlv">Lv ${w.level}</i></div>
       <div class="dname">${w.name}</div><img src="${wPic(w)}" alt="">
       <div class="dsub">${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''}</div></div>
-    <div class="dperk"><b>${w.maker}</b> ${mkOf(w).perk || ''}</div>
+    <div class="dmaker">${makerLogo(w.mk)}<div><small>Gyártó</small><b>${w.maker}</b></div><div class="mperk"><small>Gyártó bónusz</small><span>${mkOf(w).perk || '—'}</span></div></div>
     ${!canUse(w) ? `<div class="dlock">Csak ${w.level}. szinttől használható. Addig viheted a táskában.</div>` : ''}
     ${cmp && cmp !== w ? `<div class="dcmp">Összevetve: <span style="color:${rarColor(cmp)}">${cmp.name}</span></div>` : ''}
+    <div class="dtals">
+      ${w.unique && UNIQUES[w.unique] ? dtal('Egyedi tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff3b3b') : ''}
+      ${w.tal && TALENTS[w.tal] ? dtal('Tehetség', TALENTS[w.tal].name, TALENTS[w.tal].desc, '#ffd23f') : ''}
+      ${w.anoint && ANOINTS[w.anoint] ? dtal('Felkenés', '', ANOINTS[w.anoint], '#6ff0c8') : ''}
+      ${w.oc && OVERCLOCKS[w.oc] ? dtal('Túlhajtás', OVERCLOCKS[w.oc].name, OVERCLOCKS[w.oc].desc, '#b48cff') : ''}
+      ${el ? dtal('Elem', el.name, el.desc, el.color) : ''}
+    </div>
+    <h4 class="dsec">Fő értékek</h4>
     <table class="dtab">
       ${drow('DPS', A.dps, x('dps'))}
       ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · egyedi ${pctS(A.roll)}`)}
@@ -99,19 +111,21 @@ function weaponDetail(w, cmp, actions) {
       ${drow('Tűzgyorsaság', `${w.rpm}/p`, c ? arrow(w.rpm, c.rpm) : '')}
       ${drow('Tár', w.mag, c ? arrow(w.mag, c.mag) : '')}
       ${drow(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? arrow(w.reload, c.reload, true, 2) : '', `gyorsaság ${pctS(reloadMul() - 1)}`)}
-      ${drow('Pontosság', `${A.acc}%`, x('acc'))}
-      ${drow('Tartalék lőszer', A.res, x('res'))}
-      ${drow('Kritikus esély', `${Math.round(A.crit * 100)}%`, x('crit', false, 2))}
-      ${drow('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2))}
-      ${drow('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2))}
       ${drow('Hatótáv', `${b.range} m`, c ? arrow(b.range, c.base.range) : '')}
+    </table>
+    <h4 class="dsec">Pontosság és kritikus</h4>
+    <table class="dtab">
+      ${drow('Pontosság', `${A.acc}%`, x('acc'))}
+      ${drow('Kritikus esély', `${Math.round(A.crit * 100)}%`, x('crit', false, 2), `fegyver ${Math.round(wCrit(w) * 1000) / 10}% · a többi: felszerelés, képességek, gyártó`, '', rbarOf(wCrit(w), critRange(w)[0], critRange(w)[1] + .016))}
+      ${drow('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2), `fegyver ×${wCdmg(w).toFixed(2)}`, '', rbarOf(wCdmg(w), critRange(w)[2], critRange(w)[3]))}
+      ${drow('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2))}
+    </table>
+    <h4 class="dsec">Egyéb</h4>
+    <table class="dtab">
+      ${drow('Tartalék lőszer', A.res, x('res'))}
       ${w.exp ? drow('Szakértelem', `${w.exp}/10`, '', `+${2 * w.exp}% sebzés`, 'core') : ''}
       ${w.roll != null ? drow('Dobás minősége', `${w.roll}%`, c && c.roll != null ? arrow(w.roll, c.roll) : '', w.roll >= 90 ? 'szinte tökéletes' : w.roll >= 70 ? 'jó dobás' : 'kalibrálható a kovácsnál', w.roll >= 90 ? 'core' : '') : ''}
     </table>
-    ${el ? `<div class="delem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
-    ${w.unique && UNIQUES[w.unique] ? `<div class="duniq"><b>Egyedi:</b> ${UNIQUES[w.unique].trick}</div>` : ''}
-    ${w.oc && OVERCLOCKS[w.oc] ? `<div class="doc"><b>Túlhajtás · ${OVERCLOCKS[w.oc].name}:</b> ${OVERCLOCKS[w.oc].desc}</div>` : ''}
-    ${w.anoint && ANOINTS[w.anoint] ? `<div class="danoint"><b>Felkenés:</b> ${ANOINTS[w.anoint]}</div>` : ''}
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }

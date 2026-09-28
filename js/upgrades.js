@@ -6,7 +6,7 @@ const UPGRADES = {
   shield:      { name: 'Pajzs',              desc: '+25 pajzs, ami előbb nyeli el a sebzést',  max: 8,  base: 900,  val: l => `${25 * l}` },
   shieldRegen: { name: 'Pajzs-regeneráció',  desc: 'Hamarabb indul és gyorsabban tölt',        max: 6,  base: 800,  val: l => `${Math.round(12 * (1 + .35 * l))}/mp · ${(4 - .35 * l).toFixed(1)} mp után` },
   crit:        { name: 'Kritikus esély',     desc: '+4% esély kritikus találatra',             max: 8,  base: 700,  val: l => `${5 + 4 * l}%` },
-  critDmg:     { name: 'Kritikus sebzés',    desc: '+25% a kritikus szorzóhoz',                max: 8,  base: 700,  val: l => `×${(1.5 + .25 * l).toFixed(2)}` },
+  critDmg:     { name: 'Kritikus sebzés',    desc: '+25% a kritikus szorzóhoz',                max: 8,  base: 700,  val: l => `+${(.25 * l).toFixed(2)} szorzó` },
   head:        { name: 'Fejlövés-sebzés',    desc: '+15% sebzés fejlövésnél',                  max: 8,  base: 650,  val: l => `+${15 * l}%` },
   stamina:     { name: 'Állóképesség',       desc: '+20 max állóképesség, gyorsabb töltődés',  max: 6,  base: 500,  val: l => `${100 + 20 * l}` },
   speed:       { name: 'Mozgási sebesség',   desc: '+4% futás- és sétasebesség',               max: 5,  base: 800,  val: l => `+${4 * l}%` },
@@ -24,8 +24,9 @@ const perk = k => !!(player.perks && player.perks[k]);
 const maxHp = () => Math.round((100 + 20 * U('maxHp') + SK.hp() + G('hp')) * (perk('jug') ? 1.5 : 1) * (exoOn('glass') ? .75 : 1));
 const maxShield = () => 25 * U('shield') + SK.shield() + G('armor');
 const maxStam = () => 100 + 20 * U('stamina') + G('stam');
-const critChance = () => Math.min(.75, .05 + .04 * U('crit') + SK.crit(curW()) + G('crit') + (mkOf(curW()).crit || 0) + (curW() && curW().anoint === 'ads' && player.ads > .6 ? .15 : 0));
-const critMult = () => 1.5 + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (mkOf(curW()).critDmg || 0);
+const wCrit = w => w && w.crit != null ? w.crit : .05, wCdmg = w => w && w.cdmg ? w.cdmg : 1.5;
+const critChance = () => Math.min(.75, wCrit(curW()) + .04 * U('crit') + SK.crit(curW()) + G('crit') + (mkOf(curW()).crit || 0) + (curW() && curW().anoint === 'ads' && player.ads > .6 ? .15 : 0));
+const critMult = () => wCdmg(curW()) + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (mkOf(curW()).critDmg || 0);
 const headBonus = () => 1 + .15 * U('head') + SK.head() + G('head') + (mkOf(curW()).head || 0);
 const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed') + (perk('runner') ? .15 : 0) + (exoOn('league') ? .2 : 0);
 const reloadMul = () => 1 + .06 * U('reload') + SK.reload() + G('reload') + (perk('speed') ? .3 : 0);
@@ -126,5 +127,6 @@ function rarityUp(w) {
   w.q = q + 1;
   if (w.q === 4) { const L = pick(LEGENDS); w.name = L[0]; w.flavor = L[1]; if (!w.element) w.element = pick(Object.keys(ELEMENTS)); }
   else if (q === 0) w.name = 'Forged ' + w.name;
+  if (w.q >= 2 && !w.tal && !w.unique) w.tal = pick(TAL_KEYS);
   ocApply(w);
 }
