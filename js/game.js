@@ -81,8 +81,12 @@ function updateIntro(dt) {
   $('intro').style.opacity = clamp(Math.min(t / .8, (INTRO_T - t) / .6), 0, 1);
   if (t >= INTRO_T) endIntro();
 }
+function markCarry(ext) { // what you carry right now, saved with the in-job marker: a quit is settled from this, so nothing exists twice
+  const IM = profile.inMission; if (!IM || !mission) return;
+  IM.live = 1; if (ext) IM.ext = 1; IM.hands = player.slots.filter(Boolean).map(packW); IM.bag = player.bag.map(packW); IM.mg = mission.gear.filter(it => !it.found); saveProfile();
+}
 function endIntro() {
-  const M = mission;
+  const M = mission; markCarry();
   M.intro = -1; M.departT = 0; state = 'playing';
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
   equipView(); player.switchT = SWITCH_T * .5;
@@ -173,7 +177,7 @@ function extract() {
     if (!(mission.boardT > 0)) { mission.boardT = BOARD_T; banner('BESZÁLLÁS', `Tarts ki ${BOARD_T} mp-ig a furgon mellett!`); SND.buy(); }
     if (mission.boardT > 0) return;
   }
-  mission.leaving = .001;
+  mission.leaving = .001; markCarry(true); // closing during the drive-off still counts as extracted
   player.vel.set(0, 0, 0);
   SND.roar(); nz(2.2, 300, .4, 'lowpass', .6);
   banner('INDULÁS', 'Munka kész.');
@@ -559,7 +563,7 @@ function buffIcons(w) {
 function updateHUDFx(dt) { if (typeof updateRemoteAuras === 'function') updateRemoteAuras(dt); }
 function updateHUD() {
   if ((updateHUD.cw = (updateHUD.cw || 0) + 1) % 60 === 0) contractWatch();
-  if (updateHUD.cw % 300 === 0 && profile.inMission && mission) { profile.inMission.alone = !NET.mode || NET.avatars.size === 0; saveProfile(); } // were you the last one there?
+  if (updateHUD.cw % 300 === 0 && profile.inMission && mission) { profile.inMission.alone = !NET.mode || NET.avatars.size === 0; markCarry(); } // were you the last one there?
   const w = curW();
   focus = findFocus();
   let card = '', prompt = '';

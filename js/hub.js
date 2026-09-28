@@ -120,7 +120,7 @@ function renderHub() {
   document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.classList.toggle('on', !!(b.dataset.hub === hubTab || (b.dataset.group && HUB_GROUPS[b.dataset.group].some(([k]) => k === hubTab)))));
   const grp = Object.values(HUB_GROUPS).find(g => g.some(([k]) => k === hubTab)), sub = grp ? `<nav class="subnav">${grp.map(([k, t]) => `<button class="sbtab${k === hubTab ? ' on' : ''}" data-sub="${k}">${t}</button>`).join('')}</nav>` : '';
   if (P.abandonNote) { const n = P.abandonNote; delete P.abandonNote; saveProfile();
-    if (n === 'lost') toast('A MUNKÁT FÉLBEHAGYTAD', ['Kiléptél munka közben: a nálad lévő fegyverek és páncél elvesztek.', 'A Boltban (Elveszett felszerelés) drágán visszavásárolhatod őket.'], '#ff5a4a', 9000);
+    if (n === 'lost') toast('A MUNKÁT FÉLBEHAGYTAD', ['Kiléptél munka közben: a kézben és a táskában lévő fegyvereid és a páncélod elveszett.', 'A Boltban (Elveszett felszerelés) drágán visszavásárolhatod őket.'], '#ff5a4a', 9000);
     else { toast('KIESTÉL A CSAPATBÓL', ['A hátizsákod tartalma a csapatnál maradt, a pályán.', P.rejoin ? 'Visszacsatlakozhatsz: Csapat fül.' : ''], '#ff8a70', 9000); if (P.rejoin) hubTab = 'party'; } }
   const hb = $('hubBody'), same = renderHub.tab === hubTab, keep = same ? [hb.scrollTop, ...[...hb.querySelectorAll('.invl,.invd')].map(e => e.scrollTop)] : null; renderHub.tab = hubTab; hb.innerHTML = sub + HUB[hubTab](); // in a party the strip is on every tab
   if (keep) { hb.scrollTop = keep[0]; [...hb.querySelectorAll('.invl,.invd')].forEach((e, k) => { if (keep[k + 1] != null) e.scrollTop = keep[k + 1]; }); } // a click re-renders the tab: stay where you were
@@ -402,7 +402,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'prejoin' && P.rejoin) { const c = P.rejoin.code; P.rejoin = null; saveProfile(); partyJoin(c, false); return renderHub(); }
   if (kind === 'lostbuy') { const L = P.lost, list = L && (a === 'w' ? L.w : L.g), x = list && list[+c]; if (!x) return;
     const it = a === 'w' ? unpackW(x) : x, price = lostPrice(it, a); if (P.cash < price || (a === 'w' ? P.stash.length >= stashMax() : P.gearStash.length >= gearMax())) return SND.deny();
-    P.cash -= price; list.splice(+c, 1); if (a === 'w') P.stash.push(x); else P.gearStash.push(x); if (!L.w.length && !L.g.length) P.lost = null;
+    P.cash -= price; list.splice(+c, 1); delete x.found; if (a === 'w') P.stash.push(x); else P.gearStash.push(x); if (!L.w.length && !L.g.length) P.lost = null;
     toast('VISSZAVÁSÁROLVA', [`<i style="color:${a === 'w' ? rarColor(it) : gCol(it)}">${it.name}</i> · −$${price}`, a === 'w' ? 'A raktárba került.' : 'A páncélraktárba került.'], '#9dff6a'); saveProfile(); return renderHub(); }
   if (kind === 'goforge') { hubTab = 'forge'; return renderHub(); }
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); const [l, k] = invSel.split(':'), L = { L: P.loadout, B: P.bag, S: P.stash }[l]; if (L && L[+k] && L[+k].isNew) delete L[+k].isNew; const g = l === 'G' ? P.gearStash[+k] : l === 'W' ? P.gear[k] : null; if (g && g.isNew) delete g.isNew; return renderHub(); } // seen: no longer new

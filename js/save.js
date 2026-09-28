@@ -52,13 +52,24 @@ function openProfile(n) {
   if (typeof syncTokens === 'function') syncTokens(); // merit tokens: level - 1 per class
   if (profile.inMission) { // the game was closed during a job
     const IM = profile.inMission; delete profile.inMission;
-    if (IM.coop && !IM.alone) { profile.bag = []; profile.rejoin = IM.code ? { code: IM.code, until: Date.now() + 15 * 60e3 } : null; profile.abandonNote = 'coop'; } // the backpack stayed with the party
-    else { // solo, or the last one out: everything you carried goes to the lost-and-found, to buy back dearly (a newer loss replaces an older one)
-      const w = [...profile.loadout.filter(Boolean), ...profile.bag], g = GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean);
-      profile.lost = w.length || g.length ? { w, g, at: Date.now() } : null;
-      profile.loadout = [packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level))), null]; profile.bag = []; for (const k of GEAR_KEYS) profile.gear[k] = null; gearChanged();
+    const starter = () => packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level))), own = o => o && o.owned !== false;
+    const hands = IM.hands ? IM.hands.filter(own) : profile.loadout.filter(Boolean), bag = IM.bag ? IM.bag.filter(own) : profile.bag, mg = IM.mg || [];
+    const unfound = () => { for (const k of GEAR_KEYS) { const it = profile.gear[k]; if (it && it.found) profile.gear[k] = null; } }; // armor found on the job isn't yours until you extract
+    if (!IM.live && !(IM.coop && !IM.alone)) { } // closed during the intro: nothing happened yet
+    else if (IM.ext) { // closed while the van drove off: you made it (the job's pay is lost, the kit isn't)
+      profile.loadout = [...(IM.hands || profile.loadout), null, null].slice(0, 2).map(o => o ? Object.assign(o, { owned: true }) : null); profile.bag = (IM.bag || profile.bag).map(o => Object.assign(o, { owned: true }));
+      for (const k of GEAR_KEYS) if (profile.gear[k]) delete profile.gear[k].found; profile.gearStash.push(...mg);
+    } else if (IM.coop && !IM.alone) { // the backpack (bag and armor bag) stayed with the party; your hands and worn armor come home
+      profile.loadout = [...hands, null, null].slice(0, 2); if (!profile.loadout[0] && !profile.loadout[1]) profile.loadout[0] = starter();
+      profile.bag = []; unfound(); profile.rejoin = IM.code ? { code: IM.code, until: Date.now() + 15 * 60e3 } : null; profile.abandonNote = 'coop';
+    } else { // solo, or the last one out: everything you carried goes to the lost-and-found, to buy back dearly (a newer loss replaces an older one)
+      unfound();
+      const w = [...hands, ...bag].filter(o => !(o.base === BASES[0].id && !o.q)), g = [...GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean), ...mg]; // the free starter pistol isn't worth a slot
+      if (w.length || g.length) profile.lost = { w, g, at: Date.now() };
+      profile.loadout = [starter(), null]; profile.bag = []; for (const k of GEAR_KEYS) profile.gear[k] = null;
       profile.abandonNote = 'lost';
     }
+    gearChanged();
   }
   if (!profile.jobs.length) rollBoard();
   if (!profile.shop.length || !profile.gshop.length || profile.shop.filter(o => o && o.level > profile.level).length + profile.gshop.filter(it => it && it.level > profile.level).length > 1) rollShop(); // at most one item above your level

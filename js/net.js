@@ -187,7 +187,7 @@ function playFx(e, a) {
 function updateRemoteAuras(dt) { for (let i = remoteAuras.length - 1; i >= 0; i--) { const A = remoteAuras[i]; A.t -= dt; A.m.material.opacity = .3 + Math.sin(now * 6) * .12; if (A.t <= 0) { scene.remove(A.m); A.m.geometry.dispose(); A.m.material.dispose(); remoteAuras.splice(i, 1); } } }
 function remoteShot(b, d) { // their shots: the gun's own sound, quieter with distance
   const f = clamp(1 - d / 70, 0, 1) * .7; if (f < .03) return;
-  if (b && b.flame) return SND.flame(f);
+  if (b && b.flame) return SND.flame(f, 'r');
   const snd = b && SND[b.snd]; if (snd) withVol(f, () => snd()); else { nz(.16, 1800, .55 * f); tn(160, .08, .2 * f, 'square', 50); }
 }
 function updateAvatars(dt, peers) {
@@ -419,7 +419,7 @@ function netTick(dt) {
   updateAvatars(dt, peers);
   if (NET.avatars.size) { mission.partyMax = Math.max(mission.partyMax || 1, partySize()); { const B = new Map((mission.board || []).map(b => [b.n, b])); for (const a of NET.avatars.values()) B.set(a.name, { n: a.name, k: a.kc || 0, r: a.rvc || 0, d: a.dd || 0 }); mission.board = [...B.values()]; } } // kept for the results, even if the host leaves first
   { const bk = mission.job.test ? null : { w: player.bag.map(packW), g: mission.gear, pa: mission.parts || 0, fa: mission.fabric || 0 }, key = JSON.stringify(bk); // the backpack, sent when it changes
-    if (key !== NET.bkKey) { NET.bkKey = key; NET.pr.presence({ bk }).catch(() => {}); } }
+    if (key !== NET.bkKey) { NET.bkKey = key; markCarry(); NET.pr.presence({ bk }).catch(() => {}); } }
   NET.lastPeers = peers.filter(p => p.presence && p.presence.m).map(p => ({ peer: p.peer, me: p.sameTab, h: !!p.presence.m.h, st: p.presence.m.st }));
   const out = { p: myPresence() };
   if (NET.host) {
