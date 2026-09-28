@@ -41,7 +41,7 @@ function rollG(k, q, level) {
   return S.flat ? Math.round(v * (1 + .06 * (level - 1))) : Math.round(v * (1 + .03 * (level - 1)) * 100) / 100;
 }
 // fabric: what armor gives when taken apart; armor optimization is paid in it
-const FAB = '🧵';
+const FAB = '▦';
 const gearBase = it => ({ head: 12, chest: 20, legs: 14, boots: 10 }[it.slot] || 12) * (1 + .08 * (it.level - 1)) * (1 + Math.min(4, it.q) * .15);
 const gStatF = (it, k) => { const S = GSTATS[k], q = Math.min(4, it.q); return (1 + q * .12) * (S.flat ? 1 + .06 * (it.level - 1) : 1 + .03 * (it.level - 1)); };
 function gRolls(it) { // [key, name, 0..1 where the roll landed]

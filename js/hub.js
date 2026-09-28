@@ -180,7 +180,7 @@ const MV_TIP = { L: 'Kézbe veszed: ezzel harcolsz a munkán.', B: 'A táskába 
 const TIPS = {
   sell: 'Eladod pénzért.', gsell: 'Eladod pénzért.', fav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.', gfav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.',
   trash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.', gtrash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.',
-  trashsell: 'Eladja az összes kukába jelölt tárgyat (kézben lévőt nem).', trashsalv: 'Szétszedi az összes kukába jelölt tárgyat (kézben lévőt nem).', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded anyagra (🧵): ezzel optimalizálhatod a páncélt a kovácsnál. A szakértelemre költött alkatrész fele visszajár.',
+  trashsell: 'Eladja az összes kukába jelölt tárgyat (kézben lévőt nem).', trashsalv: 'Szétszedi az összes kukába jelölt tárgyat (kézben lévőt nem).', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded anyagra (▦): ezzel optimalizálhatod a páncélt a kovácsnál. A szakértelemre költött alkatrész fele visszajár.',
   'hforge:anoint': 'Dob egy új, véletlen felkenést: utána elfogadod, vagy megtartod a régit. Minden újradobás drágább ezen a fegyveren.',
   'hforge:recal': 'Újradobja a fegyver véletlen értékeit (sebzés, tűzgyorsaság, tár, újratöltés, pontosság, kritikus esély és szorzó). Egy ablakban látod a régit és az újat: OK-ra az új marad, X-re a régi.',
   goforge: 'A Kovácshoz: felkenés, kalibrálás, szakértelem és túlhajtás.',
