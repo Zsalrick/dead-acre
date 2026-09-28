@@ -19,7 +19,7 @@ const RARITIES = [
   { name: 'Ritka',          color: '#3a8dff', w: 10, elem: .35 },
   { name: 'Epikus',         color: '#b05cff', w: 3.5, elem: .6 },
   { name: 'Legendás',       color: '#ff8c1a', w: .5, elem: 1 },
-  { name: 'Egyedi',         color: '#ff3b3b', w: .06, elem: 1 }, // one-of-a-kind guns with their own trick (UNIQUES)
+  { name: 'Egzotikus',         color: '#ff3b3b', w: .06, elem: 1 }, // one-of-a-kind guns with their own trick (UNIQUES)
 ];
 const ELEMENTS = {
   fire:  { name: 'Tűz',   word: 'Hellfire',  color: '#ff6a2a', hex: 0xff6a2a, desc: 'Felgyújtja a célt (3 mp)' },

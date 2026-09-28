@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 // ================= HANDBOOK (hub tab): every gun, talent, armor set, zombie, bounty, job and map, with pictures =================
 const bcard = (pic, title, sub, body, col) => `<article class="bcard"${col ? ` style="--bc:${col}"` : ''}>${pic ? `<img src="${pic}" alt="">` : ''}<div><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}${body}</div></article>`;
 const bkv = rows => `<dl class="bkv">${rows.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
@@ -8,18 +8,19 @@ const pctR = (a, b) => `${Math.round(a * 100)}–${Math.round(b * 100)}%`;
 function bookWeapons() {
   const cats = [...new Set(BASES.map(b => CAT[b.id]))];
   return bhead('Fegyverek', 'Minden fegyvertípus alapértékei. A ritkaság, a szint és a véletlen dobás ezekből indul; a kritikus esélyt és szorzót minden fegyver a típusa tartományából dobja.') +
+    `<h3>Ritkaságok</h3><div class="bgrid">${['Az alap, egy fő értékkel sem jobb.', 'Kicsit jobb értékek, néha elem.', 'Jobb értékek, gyakran elem, tehetség, 25% eséllyel felkenés.', 'Erős értékek, tehetség, 50% eséllyel felkenés.', 'Saját név, mindig elem, tehetség és felkenés.', 'Egyedi név és saját, fix egzotikus tehetség. Főleg fejvadászoktól, nagyon ritkán máshonnan.'].map((t, q) => bcard('', RARITIES[q].name, q === 5 ? 'fegyver' : '', `<p>${t}</p>`, RARITIES[q].color)).join('')}${bcard('', 'Egzotikus páncél', 'páncél', '<p>Saját tehetség, bármely márkának számít a szettekben.</p>', EXO_COL)}</div>` +
     cats.map(c => `<h3>${(CAT_NAMES[c] || c).replace(/^./, x => x.toUpperCase())}</h3><div class="bgrid wg">${BASES.filter(b => CAT[b.id] === c).map(b => { const R = critRange({ base: b });
       return bcard(gunShot(b, 2), b.name, `${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''}`, bkv([['Sebzés', b.pellets > 1 ? `${b.dmg}×${b.pellets}` : b.dmg], ['Tűzgyorsaság', `${b.rpm}/p`], ['Tár', b.mag],
         ['Újratöltés', `${b.reload} mp`], ['Hatótáv', `${b.range} m`], ['Kritikus esély', pctR(R[0], R[1])], ['Kritikus szorzó', `×${R[2]}–${R[3]}`]]) + `<div class="bmk">${makersFor(b).map(k => `<span data-tip="${MAKERS[k].name}: ${MAKERS[k].perk}">${makerLogo(k)}</span>`).join('')}</div>`); }).join('')}</div>`).join('') +
     `<h3>Gyártók</h3><div class="bgrid">${Object.entries(MAKERS).map(([k, m]) => `<article class="bcard maker">${makerLogo(k)}<div><h4>${m.name}</h4><small>${m.cats.map(c => CAT_NAMES[c]).join(', ')}</small><p>${m.perk}</p></div></article>`).join('')}</div>`;
 }
 function bookTalents() {
-  return bhead('Tehetségek és felkenések', 'Ritka vagy jobb fegyveren egy tehetség van, ez végleges. A felkenés a kovácsnál újradobható. Az egyedi fegyvereknek saját, fix tehetségük van.') +
+  return bhead('Tehetségek és felkenések', 'Ritka vagy jobb fegyveren egy tehetség van, ez végleges. A felkenés a kovácsnál újradobható. Az egzotikus fegyvereknek saját, fix tehetségük van.') +
     `<h3>Fegyvertehetségek</h3><div class="bgrid">${Object.values(TALENTS).map(t => bcard('', t.name, 'tehetség · ritka, epikus, legendás', `<p>${t.desc}</p>`, '#ffd23f')).join('')}</div>
     <h3>Felkenések</h3><div class="bgrid">${Object.values(ANOINTS).map(t => bcard('', 'Felkenés', '25% ritkán, 50% epikuson, mindig legendáson', `<p>${t}</p>`, '#6ff0c8')).join('')}</div>
     <h3>Túlhajtások <small>maggal szerelhető be a kovácsnál</small></h3><div class="bgrid">${Object.values(OVERCLOCKS).map(o => bcard('', o.name, 'túlhajtás', `<p>${o.desc}</p>`, '#b48cff')).join('')}</div>
     <h3>Elemek</h3><div class="bgrid">${Object.values(ELEMENTS).map(e => bcard('', e.name, `„${e.word}” a fegyver nevében`, `<p>${e.desc}</p>`, e.color)).join('')}</div>
-    <h3>Egyedi fegyverek</h3><div class="bgrid">${Object.values(UNIQUES).map(u => { const b = BASES.find(x => x.id === u.base); return bcard(b ? gunShot(b, 5) : '', u.name, `${b ? b.name : ''} · „${u.text}”`, `<p>${u.trick}</p>`, '#ff3b3b'); }).join('')}</div>`;
+    <h3>Egzotikus fegyverek</h3><div class="bgrid">${Object.values(UNIQUES).map(u => { const b = BASES.find(x => x.id === u.base); return bcard(b ? gunShot(b, 5) : '', u.name, `${b ? b.name : ''} · „${u.text}”`, `<p>${u.trick}</p>`, '#ff3b3b'); }).join('')}</div>`;
 }
 function bookGear() {
   return bhead('Páncél', 'Négy hely: sisak, mellvért, nadrág, csizma. Minden darab ad páncélt és a márkája alapbónuszát; 2, 3 és 4 azonos márkájú darab szettbónuszt ad. Tehetsége csak az egzotikus darabnak van.') +
@@ -36,8 +37,8 @@ function bookZombies() {
     <h3>Fajták</h3><div class="bgrid zk">${kinds.map(([k, K]) => bcard(zombieThumb(k), K.name, `${K.min}. hullámtól`, `<p>${K.desc || 'Lassú, de sokan vannak.'}</p>` + bkv([['Életerő', `×${K.hp}`], ['Sebzés', K.dmg || '—'], K.armor ? ['Páncél', 'igen, fejre lőj'] : null]))).join('')}</div>`;
 }
 function bookBounties() {
-  return bhead('Fejvadászok', 'Fejvadászat munkán egy nagyon erős főellenség vár, fázisokkal és saját trükkökkel. Garantáltan legendás zsákmányt ejt, és az egyedi fegyverek csak tőlük esnek. Az első legyőzés egy túlhajtás-magot is ad.') +
-    `<div class="bgrid zk">${Object.values(BOUNTIES).map(B => bcard(zombieThumb('butcher', B.tint), B.name, `${B.minLvl ? `${B.minLvl}. szinttől · ` : ''}×${B.hp} életerő`, `<p>${B.desc}</p>` + bkv([['Hív', KINDS[B.summon[0]].name], ['Egyedi zsákmány', B.loot.map(u => UNIQUES[u] ? UNIQUES[u].name : u).join(', ')]]))).join('')}
+  return bhead('Fejvadászok', 'Fejvadászat munkán egy nagyon erős főellenség vár, fázisokkal és saját trükkökkel. Legalább epikus fegyvert és páncélt ejt, 30% eséllyel legendásat. Az egzotikus fegyverek leginkább tőlük esnek (8%), egzotikus páncél 6% eséllyel. Az első legyőzés egy túlhajtás-magot is ad.') +
+    `<div class="bgrid zk">${Object.values(BOUNTIES).map(B => bcard(zombieThumb('butcher', B.tint), B.name, `${B.minLvl ? `${B.minLvl}. szinttől · ` : ''}×${B.hp} életerő`, `<p>${B.desc}</p>` + bkv([['Hív', KINDS[B.summon[0]].name], ['Egzotikus zsákmány', B.loot.map(u => UNIQUES[u] ? UNIQUES[u].name : u).join(', ')]]))).join('')}
     ${bcard(zombieThumb('butcher'), 'A Mészáros', 'nehéz munkák utolsó perceiben', `<p>${KINDS.butcher.desc}</p>`)}</div>`;
 }
 function bookJobs() {

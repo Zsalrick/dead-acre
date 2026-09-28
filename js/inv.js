@@ -132,7 +132,7 @@ function weaponDetail(w, cmp, actions) {
     ${!canUse(w) ? `<div class="dlock">Csak ${w.level}. szinttől használható. Addig viheted a táskában.</div>` : ''}
     ${cmp && cmp !== w ? `<div class="dcmp">Összevetve: <span style="color:${rarColor(cmp)}">${cmp.name}</span></div>` : ''}
     <div class="dtals">
-      ${w.unique && UNIQUES[w.unique] ? dtal('Egyedi tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff3b3b') : ''}
+      ${w.unique && UNIQUES[w.unique] ? dtal('Egzotikus tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff3b3b') : ''}
       ${w.tal && TALENTS[w.tal] ? dtal('Tehetség', TALENTS[w.tal].name, TALENTS[w.tal].desc, '#ffd23f') : ''}
       ${w.anoint && ANOINTS[w.anoint] ? dtal('Felkenés', '', ANOINTS[w.anoint], '#6ff0c8') : ''}
       ${w.oc && OVERCLOCKS[w.oc] ? dtal('Túlhajtás', OVERCLOCKS[w.oc].name, OVERCLOCKS[w.oc].desc, '#b48cff') : ''}
@@ -141,7 +141,7 @@ function weaponDetail(w, cmp, actions) {
     <h4 class="dsec">Fő értékek <small>a csík: hol áll a véletlen dobás (bal: legrosszabb, jobb: legjobb)</small></h4>
     <table class="dtab">
       ${drow('DPS', A.dps, x('dps'))}
-      ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · egyedi ${pctS(A.roll)}`, '', rbarP(RL.dmg))}
+      ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · dobás ${pctS(A.roll)}`, '', rbarP(RL.dmg))}
       ${drow('Szakértelem', `${w.exp || 0}/10`, c ? arrow(w.exp || 0, c.exp || 0) : '', `+${2 * (w.exp || 0)}% sebzés ezzel a fegyverrel${(w.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, w.exp ? 'core' : '', `<i class="rbar" style="--p:${(w.exp || 0) * 10}%"></i>`)}
       ${drow('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), 'kaszt, képességek, páncél, gyártó, szakértelem')}
       ${drow('Tűzgyorsaság', `${w.rpm}/p`, c ? arrow(w.rpm, c.rpm) : '', '', '', rbarP(RL.rate))}

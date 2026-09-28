@@ -256,7 +256,7 @@ function dropLoot(z, p) {
   if (z.K.boss) {
     spawnDrop(makeWeapon(pick(BASES), Math.max(3, rollRarity(.3)), lootLvl(2)), p);
     spawnItem('med', p.clone().add(new V3(-1, 0, 1))); spawnItem('gren', p.clone().add(new V3(1, 0, -1)));
-    if (!z.bounty && Math.random() < .05) spawnGearDrop(makeExotic(null, lootLvl(2)), p.clone().add(new V3(0, 0, 1.4)));
+    if (!z.bounty && Math.random() < .03) spawnGearDrop(makeExotic(null, lootLvl(2)), p.clone().add(new V3(0, 0, 1.4)));
     if (!z.bounty) banner('A MÉSZÁROS ELESETT', 'Epikus vagy jobb fegyvert hagyott maga után.'); SND.roar();
   } else if (z.tier === 3) { // a named zombie: always a gun, rare or better, and a fair chance of armor
     if (mission && (mission.job.diff >= 4 || jobTier() > 0) && Math.random() < .02) spawnGearDrop(makeExotic(null, lootLvl(1)), p.clone().add(new V3(0, 0, 1.2)));
@@ -738,9 +738,10 @@ function bountyKilled(z) {
 }
 function bountyLoot(pos, key) {
   const p = new V3(pos.x, 0, pos.z), B = BOUNTIES[key];
-  spawnDrop(B && Math.random() < .25 ? makeUnique(pick(B.loot), lootLvl(3)) : makeWeapon(pick(BASES), 4, lootLvl(3)), p.clone().add(new V3(-1, 0, 0))); // a quarter of the time: one of this boss's uniques
-  spawnGearDrop(Math.random() < .15 ? makeExotic(null, lootLvl(3)) : makeGear(null, 4, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
-  for (let k = 0; k < 4; k++) { const a = k / 4 * 6.28 + .4; setTimeout(() => spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.5)), lootLvl(2)), p.clone().add(new V3(Math.cos(a) * 2.6, 0, Math.sin(a) * 2.6))), 250 + k * 180); } // the loot fountain
+  const rw = Math.random(), rg = Math.random(); // a gun: 8% one of this boss's exotics, 30% legendary, else epic · armor: 6% exotic, 30% legendary, else epic
+  spawnDrop(B && rw < .08 ? makeUnique(pick(B.loot), lootLvl(3)) : makeWeapon(pick(BASES), rw < .38 ? 4 : 3, lootLvl(3)), p.clone().add(new V3(-1, 0, 0)));
+  spawnGearDrop(rg < .06 ? makeExotic(null, lootLvl(3)) : makeGear(null, rg < .36 ? 4 : 3, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
+  for (let k = 0; k < 2; k++) { const a = k / 2 * 6.28 + .4; setTimeout(() => spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.35)), lootLvl(2)), p.clone().add(new V3(Math.cos(a) * 2.6, 0, Math.sin(a) * 2.6))), 250 + k * 180); } // the loot fountain
   slowmo = 1.4; for (let k = 0; k < 5; k++) tn(660 * Math.pow(1.19, k), .25, .06, 'triangle', 0, .15 + k * .12);
 }
 

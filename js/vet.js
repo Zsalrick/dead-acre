@@ -97,7 +97,7 @@ function collectionLog() {
   const B = Object.keys(BOUNTIES).map(k => chip(S.bk && S.bk[k], BOUNTIES[k].name, `${BOUNTIES[k].minLvl || 3}. szinttől`, '#ff8c1a'));
   const n = (o, all) => `${Object.keys(o || {}).length} / ${all}`;
   return `<section class="collog"><h3>Gyűjtemény</h3>
-    <h4>Egyedi fegyverek <small>${n(S.uniq, U.length)}</small></h4><div class="cgrid">${U.join('')}</div>
+    <h4>Egzotikus fegyverek <small>${n(S.uniq, U.length)}</small></h4><div class="cgrid">${U.join('')}</div>
     <h4>Egzotikus páncélok <small>${n(S.exo, E.length)}</small></h4><div class="cgrid">${E.join('')}</div>
     <h4>Felkenések <small>${n(S.ano, A.length)}</small></h4><div class="cgrid">${A.join('')}</div>
     <h4>Fejvadász-célpontok <small>${n(S.bk, B.length)}</small></h4><div class="cgrid">${B.join('')}</div></section>`;

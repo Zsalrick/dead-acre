@@ -88,7 +88,7 @@ function jobCard(j, i, notReady) {
   return `<article class="job${B ? ' bounty' : ''}" style="--dc:${B ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1]}">
     <div class="jhead"><span class="jmap">${M.name}${j.map === featuredMap() ? ' <b class="featb">★ HETI KIEMELT</b>' : ''}</span><span class="jstars" title="${DIFF_NAMES[j.diff - 1]}">${stars(j.diff)}</span></div>
     <h3>${j.title}</h3><p class="jclient">Megbízó: ${j.client} · <b>${DIFF_NAMES[j.diff - 1]}</b></p>${j.tier ? `<p class="jtier">RÉMÁLOM +${j.tier} · zóna Lv ${j.lvl} · +${10 + 5 * j.tier} ⚙ és garantált legendás a teljesítésért</p>${j.base ? `<div class="tiersel">${hbtn('−', `tier:${i}:-1`, j.tier <= 1)}<b>+${j.tier}</b>${hbtn('+', `tier:${i}:1`, j.tier >= (profile.tier || 0) + 1)}<small>Feloldva: +${(profile.tier || 0) + 1}-ig</small></div>` : ''}` : ''}
-    <ul class="jfacts">${B ? `<li class="jboss"><b>${B.name}</b>: ${B.desc}</li><li class="jleg">Garantált legendás fegyver és páncél</li><li class="jleg">Lehetséges egyedi: ${(B.loot || []).map(k => UNIQUES[k].name).join(', ')}</li><li>Nincs időkorlát · ${lv}. szintű zombik</li>`
+    <ul class="jfacts">${B ? `<li class="jboss"><b>${B.name}</b>: ${B.desc}</li><li class="jleg">Legalább epikus fegyver és páncél, 30% eséllyel legendás</li><li class="jleg">8% eséllyel egzotikus fegyver: ${(B.loot || []).map(k => UNIQUES[k].name).join(', ')}</li><li>Nincs időkorlát · ${lv}. szintű zombik</li>`
       : `${j.type && j.type !== 'survive' ? `<li class="jtype">${JOB_TYPES[j.type].desc(j)}</li>` : ''}<li>${noClock(j) ? 'Nincs időkorlát' : `<b>${fmtTime(j.dur)}</b> ${j.type === 'defense' ? 'védelem' : 'túlélés'}`} · <b>${lv}.</b> szintű zóna</li><li>Kezdő veszélyszint: ${START_THREAT[j.diff - 1]} (hullámonként nő)</li>`}
       ${weak ? `<li class="jwarn">Vigyázz: a legjobb fegyvered Lv ${gl}, a zóna ${lv}. szintű. Itt nagyon kevés leszel.</li>` : ''}${j.mod ? `<li class="jmod">${MODS[j.mod].label}: ${MODS[j.mod].sub}</li>` : ''}${j.boss && !B ? '<li class="jboss">A Mészáros is eljön</li>' : ''}</ul>
     <div class="jfoot"><span class="jreward">$${j.reward}<small>+${j.xp} XP</small></span>${hbtn(btn, `job:${i}`, (NET.code && !NET.host) || notReady > 0)}</div>
@@ -434,7 +434,7 @@ function showResults(r) {
     ${r.levelUps ? `<p class="lvlup">Szintet léptél: ${profile.level}. szint! ${MAP_IDS.filter(id => MAPS[id].minLevel === profile.level).map(id => `Új pálya: ${MAPS[id].name}.`).join(' ')}</p>` : ''}
     ${r.deep ? `<p class="deepres">${r.deep.fail ? 'A mélyfúrás megszakadt: legközelebb elölről kezded.' : r.deep.next ? `Mélyfúrás: ${r.deep.next}/3 szakasz kész. ${NET.code && !NET.host ? hbtn('A vezető indítja a következőt', 'deepnext', true) : hbtn('Következő szakasz', 'deepnext')}` : `A HETI MÉLYFÚRÁS KÉSZ! ${r.deep.reward.name} (egzotikus${r.deep.sold ? ', a teli raktár miatt eladva' : ''}), 2 túlhajtás-mag, 60 ⚙.`}</p>` : ''}
     ${r.tierBonus ? `<h3>${r.job.tier ? 'Rémálom-jutalom' : 'Az első munkád jutalma'}</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
-    ${(() => { const best = [...r.kept].sort((a, b) => (b.unique ? 9 : b.q) - (a.unique ? 9 : a.q) || dps(b) - dps(a))[0]; return best && best.q >= 2 ? `<div class="bestdrop" style="--rc:${rarColor(best)}"><small>A MUNKA LEGJOBB ZSÁKMÁNYA</small><img src="${wPic(best)}" alt=""><b>${best.name}</b><span>${best.unique ? 'Egyedi' : RARITIES[best.q].name} · Lv ${best.level} ${best.base.name} · ${dps(best)} DPS</span></div>` : ''; })()}
+    ${(() => { const best = [...r.kept].sort((a, b) => (b.unique ? 9 : b.q) - (a.unique ? 9 : a.q) || dps(b) - dps(a))[0]; return best && best.q >= 2 ? `<div class="bestdrop" style="--rc:${rarColor(best)}"><small>A MUNKA LEGJOBB ZSÁKMÁNYA</small><img src="${wPic(best)}" alt=""><b>${best.name}</b><span>${best.unique ? 'Egzotikus' : RARITIES[best.q].name} · Lv ${best.level} ${best.base.name} · ${dps(best)} DPS</span></div>` : ''; })()}
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}
     ${r.junkN ? `<p class="note">Automatikus szétszedés: ${r.junkN} fegyver → +${r.junkParts} ⚙</p>` : ''}
     ${r.lost.length ? `<h3>Elveszett fegyverek</h3><ul class="wlist">${wl(r.lost, 'lost')}</ul>` : ''}
@@ -462,14 +462,14 @@ function throwRows() {
 }
 
 // ---------- the slot machine: a cash sink with a jackpot ----------
-const slotLvl = () => profile.level >= LEVEL_CAP ? LEVEL_CAP + 2 * (profile.tier || 0) : profile.level, slotCost = () => 400 + 120 * slotLvl(), SLOT_TXT = '55% semmi vagy pénz vissza · 25% ⚙ · 15% fegyver · 4% legendás · 1% egyedi';
+const slotLvl = () => profile.level >= LEVEL_CAP ? LEVEL_CAP + 2 * (profile.tier || 0) : profile.level, slotCost = () => 400 + 120 * slotLvl(), SLOT_TXT = '55% semmi vagy pénz vissza · 25% ⚙ · 15% fegyver · 4% legendás · 1% egzotikus';
 function spinSlot() {
   const P = profile, r = Math.random(), lv = slotLvl();
   let msg;
   if (r < .35) msg = 'Semmi. A gép nyert.';
   else if (r < .55) { const c = Math.round(slotCost() * rand(.5, 2)); P.cash += c; msg = `$${c} vissza`; }
   else if (r < .80) { const n = 4 + Math.floor(Math.random() * 10); P.parts = (P.parts || 0) + n; msg = `+${n} ⚙`; }
-  else { const q = r < .95 ? Math.max(1, rollRarity(.4)) : r < .99 ? 4 : 5, w = makeWeapon(pick(BASES), q, lv); P.stash.push(packW(w)); noteFound(w); msg = `${w.name} (${w.unique ? 'egyedi' : RARITIES[w.q].name}) a raktárba`; if (q >= 4) { banner('JACKPOT!', w.name); SND.legend(w.unique); } }
+  else { const q = r < .95 ? Math.max(1, rollRarity(.4)) : r < .99 ? 4 : 5, w = makeWeapon(pick(BASES), q, lv); P.stash.push(packW(w)); noteFound(w); msg = `${w.name} (${w.unique ? 'egzotikus' : RARITIES[w.q].name}) a raktárba`; if (q >= 4) { banner('JACKPOT!', w.name); SND.legend(w.unique); } }
   P.lastSlot = msg; SND.sell();
 }
 
