@@ -185,6 +185,7 @@ function markCarry(ext) { // what you carry right now, saved with the in-job mar
   IM.live = 1; if (ext) IM.ext = 1; IM.hands = player.slots.filter(Boolean).map(packW); IM.bag = player.bag.map(packW); IM.mg = mission.gear.filter(it => IM.ext || !it.found); saveProfile();
 }
 function endIntro() {
+  $('loadscr').hidden = true;
   const M = mission; markCarry(); vmRoot.visible = true; $('hud').classList.remove('outro');
   if (!M.landed) { setVanAt(0); truck.g.rotation.y = truck.dir > 0 ? 0 : Math.PI; truck.g.visible = true; if (M.goT >= 0) { player.pos.set(truck.pos.x - truck.dir * 3.6, 0, truck.pos.z); collide(player.pos, .4); } } // skipped the ride: stand behind the van
   M.intro = -1; M.departT = 0; state = 'playing';
@@ -304,6 +305,7 @@ function settleWeapons(success, M) {
   return { junkN: junk.length, junkParts, kept: newOnes, lost, overflow, gear: success ? home : lostGear };
 }
 function finishJob(success, abandoned) {
+  $('loadscr').hidden = true;
   const M = mission, J = M.job, P = profile, party = Math.max(M.partyMax || 1, NET.mode ? partySize() : 1);
   if (J.test) return leaveTest(M);
   const others = new Map((M.board || []).map(b => [b.n, b])); for (const a of NET.avatars.values()) others.set(a.name, { n: a.name, k: a.kc || 0, r: a.rvc || 0, d: a.dd || 0 }); // everyone seen during the job, even if they left first
@@ -775,7 +777,7 @@ function updateEvacMark(on) {
   const k = Math.max(Math.abs(x) / .9, Math.abs(y) / .8), off = behind || k > 1;
   if (off) { x /= k; y /= k; }
   el.style.transform = `translate(${(x + 1) / 2 * innerWidth}px,${(1 - y) / 2 * innerHeight}px) translate(-50%,-50%)`;
-  const b = el.firstChild; b.textContent = off ? '➤' : '▼'; b.style.transform = off ? `rotate(${Math.atan2(-y, x)}rad)` : '';
+  const b = el.firstChild, want = off ? 'arrow' : 'down'; if (b.dataset.ic !== want) { b.dataset.ic = want; b.innerHTML = ic(want); } b.style.transform = off ? `rotate(${Math.atan2(-y, x)}rad)` : '';
   const dist = Math.round(Math.hypot(truck.pos.x - player.pos.x, truck.pos.z - player.pos.z));
   el.lastChild.textContent = truck.parked && dist < 5 ? '[E] Beszállás' : `Furgon · ${dist} m`;
 }

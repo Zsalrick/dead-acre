@@ -149,6 +149,7 @@ function jobCard(j, i, notReady) {
 const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const stars = d => '★'.repeat(d) + '<i>★</i>'.repeat(5 - d);
 function showHub() {
+  $('loadscr').hidden = true;
   state = 'hub';
   if (profile && !profile.cls) hubTab = 'skills';
   if (document.pointerLockElement) document.exitPointerLock();
@@ -324,7 +325,7 @@ const HUB = {
     const MH = jobMap.h, sy = MH / 440, loc = id => { const p = MAP_LOC[id] || [450, 220]; return [p[0], p[1] * sy]; }, jobAt = id => J.filter(o => o.map === id); // the county stretches to the box; text keeps its size
     const locs = MAP_IDS.map(id => { const [x, y] = loc(id), open = MAPS[id].minLevel <= P.level, feat = id === featuredMap(), has = jobAt(id).length;
       const sub = !open ? `${MAPS[id].minLevel}. szinttől` : feat ? 'heti kiemelt · +25% XP' : has ? '' : 'nincs munka';
-      return `<g class="loc${open ? '' : ' locked'}${feat ? ' feat' : ''}${has ? ' has' : ''}" transform="translate(${x} ${y}) scale(${jobMap.k})">${feat ? '<circle r="21" class="fring"/>' : ''}${has ? '' : '<rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/>'}<text class="ln" y="${has ? 34 : 30}">${feat ? '★ ' : ''}${MAPS[id].name}</text>${sub ? `<text class="ls" y="${has ? 48 : 44}">${sub}</text>` : ''}</g>`; }).join('');
+      return `<g class="loc${open ? '' : ' locked'}${feat ? ' feat' : ''}${has ? ' has' : ''}" transform="translate(${x} ${y}) scale(${jobMap.k})">${feat ? '<circle r="21" class="fring"/>' : ''}${has ? '' : '<rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/>'}<text class="ln" y="${has ? 34 : 30}">${MAPS[id].name}</text>${sub ? `<text class="ls" y="${has ? 48 : 44}">${sub}</text>` : ''}</g>`; }).join('');
     const marks = J.map((j, i) => {
       const [lx, ly] = loc(j.map), k = J.slice(0, i).filter(o => o.map === j.map).length, [dx, dy] = [[0, 0], [60, -34], [-60, -34], [60, 34], [-60, 34]][k % 5].map(v => v * jobMap.k);
       const col = j.bounty ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1], tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase(), tw = tag.length * 8 + 16;
@@ -658,7 +659,7 @@ let wheelBusy = false;
 function wheelSvg() {
   const R = 150, pt = (a, r) => { const t = (a - 90) * Math.PI / 180; return `${(160 + r * Math.cos(t)).toFixed(1)} ${(160 + r * Math.sin(t)).toFixed(1)}`; };
   return `<svg viewBox="0 0 320 320" class="wheel" style="transform:rotate(${wheelRot}deg)"><circle cx="160" cy="160" r="156" fill="#111" stroke="#c9a24a" stroke-width="4"/>${WHEEL.map((s, k) => { const [a0, a1] = WHEEL_ARC[k], m = (a0 + a1) / 2;
-    return `<path d="M160 160 L${pt(a0, R)} A${R} ${R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${pt(a1, R)} Z" fill="${s.c}" stroke="#0c0c0c" stroke-width="2"/><text transform="translate(${pt(m, R * .72)}) rotate(${m})" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="${a1 - a0 < 20 ? 15 : 20}" font-weight="700">${s.ic}</text>`; }).join('')}
+    return `<path d="M160 160 L${pt(a0, R)} A${R} ${R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${pt(a1, R)} Z" fill="${s.c}" stroke="#0c0c0c" stroke-width="2"/><g transform="translate(${pt(m, R * .72)})" fill="#fff" color="#fff">${(z => `<svg x="${-z / 2}" y="${-z / 2}" width="${z}" height="${z}" viewBox="0 0 16 16">${icPaths(IC_CHAR[s.ic])}</svg>`)(a1 - a0 < 20 ? 15 : 22)}</g>`; }).join('')}
     ${Array.from({ length: 24 }, (_, k) => `<circle cx="${pt(k * 15, 150).split(' ')[0]}" cy="${pt(k * 15, 150).split(' ')[1]}" r="3" fill="#ffe7a0"/>`).join('')}<circle cx="160" cy="160" r="26" fill="#1a1a1a" stroke="#c9a24a" stroke-width="4"/><text x="160" y="161" text-anchor="middle" dominant-baseline="middle" fill="#c9a24a" font-size="18" font-weight="700">DA</text></svg>`;
 }
 

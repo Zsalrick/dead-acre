@@ -272,7 +272,7 @@ function itemDetail(k, actions) {
 function updateKeybar(root) {
   const bar = $('keybar'), inv = root.querySelector('.inv'), hub = root.id === 'hubBody';
   const btns = inv ? [...inv.querySelectorAll('[data-key]')].filter(b => !b.closest('.tile')) : []; bar.btns = btns;
-  const acts = btns.map((b, i) => `<span data-i="${i}"${b.dataset.tip ? ` data-tip="${b.dataset.tip.replace(/"/g, '&quot;')}"` : ''} class="${b.disabled ? 'off' : ''}${b.classList.contains('hold') ? ' hold' : ''}"><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '').trim()}</span>`);
+  const acts = btns.map((b, i) => `<span data-i="${i}"${b.dataset.tip ? ` data-tip="${b.dataset.tip.replace(/"/g, '&quot;')}"` : ''} class="${b.disabled ? 'off' : ''}${b.classList.contains('hold') ? ' hold' : ''}"><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${(c => { c.querySelector('kbd')?.remove(); return c.innerHTML.trim(); })(b.cloneNode(true))}</span>`);
   const hint = hub && { jobs: '<span><kbd>Enter</kbd>elvállalom</span>', skills: '<span><kbd>Enter</kbd>tanul</span>', swheel: '<span><kbd>Space</kbd>pörgetés</span>' }[hubTab] || '';
   bar.innerHTML = hint + acts.join('') + `<span class="kver">${GAME_VER}${hub ? ' · automatikusan mentve' : ''}</span>`; // only what this screen's selection can do; the rest is on screen
   requestAnimationFrame(() => { const z = bar.currentCSSZoom || 1; document.documentElement.style.setProperty('--kbh', (bar.hidden ? 0 : bar.getBoundingClientRect().height / z) + 'px'); }); // the lists stay clear of it, one line or two

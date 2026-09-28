@@ -11,7 +11,7 @@ function spawnDrop(w, pos) {
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   halo.scale.set(1.6, 1.6, 1); halo.position.y = .7; g.add(halo);
   const better = canUse(w) && typeof curW === 'function' && player.slots && player.slots.some(Boolean) && dps(w) > Math.max(...player.slots.filter(Boolean).map(dps));
-  const lv = textSprite([`${better ? '▲ ' : ''}${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · ${w.name} · Lv ${w.level}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; lv.material.sizeAttenuation = false; lv.scale.multiplyScalar(.045); g.add(lv); // the same size at any distance
+  const lv = textSprite([`${better ? 'JOBB · ' : ''}${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · ${w.name} · Lv ${w.level}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; lv.material.sizeAttenuation = false; lv.scale.multiplyScalar(.045); g.add(lv); // the same size at any distance
   if (w.q >= 4) { // legendary and unique: a fat beam, a ring on the ground and a sound you learn to love
     const ring = new THREE.Mesh(new THREE.RingGeometry(.7, .95, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .03; g.add(ring);
@@ -312,7 +312,7 @@ function knifeHit(p, z, head, point) {
 // ---------- parts / fabric on the ground: picked up with F like any loot (a disconnected player's backpack) ----------
 const resDrops = [];
 function spawnResDrop(k, n, pos) {
-  const s = textSprite([`${n} ${k === 'fabric' ? FAB : '⚙'}`, k === 'fabric' ? 'anyag' : 'alkatrész'], '#e8e2d0', .7, 'rgba(0,0,0,.55)'); s.position.set(pos.x, .9, pos.z); scene.add(s);
+  const s = textSprite([`+${n}`, k === 'fabric' ? 'anyag' : 'alkatrész'], '#e8e2d0', .7, 'rgba(0,0,0,.55)'); s.position.set(pos.x, .9, pos.z); scene.add(s);
   const d = { k, n, s, pos: s.position, t: 180 }; resDrops.push(d); return d;
 }
 function removeResDrop(d) { scene.remove(d.s); if (d.s.material.map) d.s.material.map.dispose(); d.s.material.dispose(); const i = resDrops.indexOf(d); if (i >= 0) resDrops.splice(i, 1); }
