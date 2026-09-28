@@ -49,6 +49,7 @@ function startJob(job, opts = {}) {
   mission.pickup = b; placeVan(a, false);
   setupObjective(mission);
   player.pos.set(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 2.8); player.vel.set(0, 0, 0);
+  player.carry = null;
   if (job.test) { player.points = 0; if (!opts.client) setupTestGround(mission); }
   player.yaw = Math.atan2(player.pos.x, player.pos.z); player.pitch = 0;
   powers.insta = powers.double = 0;
@@ -296,7 +297,7 @@ function renderPauseMenu() {
   $('pmission').innerHTML = `<div class="eyebrow">${J.test ? 'Lőtér' : `${MAPS[J.map] ? MAPS[J.map].name : ''} · ${J.bounty ? 'Fejvadászat' : T ? T.name : ''}${J.tier ? ` · Rémálom +${J.tier}` : ` · ${'★'.repeat(J.diff)}`}`}</div>
     <div class="pmt">${J.title}</div><div class="pmobj"><small>Feladat</small>${obj}</div>
     <div class="pmfacts"><span>Veszélyszint <b>${round}</b></span><span>Pont <b>${player.points}</b></span><span>Ölés <b>${player.kills}</b></span>${M.parts ? `<span>Kijutáskor <b>${M.parts} ⚙</b></span>` : ''}${M.fabric ? `<span>Kijutáskor <b>${M.fabric} ${FAB}</b></span>` : ''}</div>
-    ${modHudText() ? `<div class="pmmods">${modHudText()}</div>` : ''}`;
+    ${modHudText() ? `<div class="pmmods">${modHudText()}</div>` : ''}<div class="pmver">Dead Acre ${GAME_VER}</div>`;
   $('quitBtn2').textContent = J.test ? 'Vissza a bázisra' : 'Munka feladása';
 }
 $('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
@@ -402,6 +403,7 @@ addEventListener('keydown', e => {
   if (player.ffyl > 0 && !['KeyR', 'Digit1', 'Digit2', 'Escape', 'KeyP', 'KeyZ'].includes(c)) return; // on the ground: shoot, reload, swap
   if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
   if (e.repeat && c !== 'Space') return; // a held key fires once
+  if (player.carry != null && ['KeyR', 'Digit1', 'Digit2', 'KeyH', 'KeyG', 'KeyQ', 'KeyT', 'KeyV', 'KeyC'].includes(c)) { SND.deny(); return popText('Mindkét kezed a ládán · E: letétel', '#ff8a70'); }
   if (c === 'KeyR') startReload();
   else if (c === 'KeyE') interact();
   else if (c === 'Digit1') switchTo(0);
@@ -506,7 +508,7 @@ function cardHTML(w, action, c) {
     ${el ? `<div class="elem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
     ${w.unique && UNIQUES[w.unique] ? `<div class="duniq"><b>Egzotikus:</b> ${UNIQUES[w.unique].trick}</div>` : ''}
     ${w.tal && TALENTS[w.tal] ? `<div class="danoint" style="color:#ffd23f"><b>${TALENTS[w.tal].name}:</b> ${TALENTS[w.tal].desc}</div>` : ''}
-    ${w.anoint && ANOINTS[w.anoint] ? `<div class="danoint"><b>Felkenés:</b> ${ANOINTS[w.anoint]}</div>` : ''}
+    ${w.anoint && ANOINTS[w.anoint] ? `<div class="danoint"><b>${anoName(w.anoint)}:</b> ${ANOINTS[w.anoint]}</div>` : ''}
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
     <div class="act">${action}</div>`;
 }
@@ -529,10 +531,11 @@ function updateHUD() {
       card = cardHTML(focus.w, (ok ? `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : bagTxt}</span><span><kbd>F</kbd>tartsd: Csere</span>` : `<span class="lvlock"><kbd>F</kbd>${bagTxt} · ${focus.w.level}. szinttől használhatod</span>`) + scrapHint(focus.w.q), curW()); }
     else if (focus.type === 'cache') prompt = '<b>[E]</b> Utánpótlás-láda kinyitása';
     else if (focus.type === 'revive') prompt = `<b>[E]</b> nyomva: ${esc(focus.name)} felélesztése`;
-    else if (focus.type === 'crate') prompt = '<b>[E]</b> Utánpótlás-láda felvétele';
+    else if (focus.type === 'crate') prompt = '<b>[E]</b> Láda felvétele (két kézzel)';
+    else if (focus.type === 'carry') prompt = mission.drop && Math.hypot(mission.drop.pos.x - player.pos.x, mission.drop.pos.z - player.pos.z) < 5 ? '<b>[E]</b> Láda leadása' : '<b>[E]</b> Láda letétele';
     else if (focus.type === 'desk') prompt = NET.client ? 'Lőtér-vezérlő · csak a vezető állíthatja' : '<b>[E]</b> Lőtér-vezérlő: a célbábuk rangja, fajtája, tulajdonsága';
     else if (focus.type === 'repair') prompt = `<b>[E]</b> ${mission && mission.esc ? 'Túlélő ellátása' : 'Generátor javítása'} (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
-    else if (!['box', 'ammo', 'drop', 'gear', 'desk'].includes(focus.type)) prompt = areaPrompt(focus);
+    else if (!['box', 'ammo', 'drop', 'gear', 'desk', 'carry'].includes(focus.type)) prompt = areaPrompt(focus);
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;
   }

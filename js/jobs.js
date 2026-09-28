@@ -46,9 +46,10 @@ function buildGenerator(M) {
   const max = 6000 * (1 + .3 * (M.job.diff - 1));
   M.gen = { pos: new V3(x, 0, z), hp: max, max, lampM, light, hitT: -9, target: { pos: new V3(x, 0, z), vel: new V3(), alive: true, gen: true } };
 }
-// ---------- supply: crates in seeded spots, the same for everyone in a party ----------
+// ---------- supply: crates in seeded spots; carry them one at a time, in both hands, to a drop-off van that turns up later ----------
+const DROP_AT = 40; // seconds before the drop-off van arrives
 function buildCrates(M) {
-  const R = MAIN_RECT, rng = mulberry(mapSeed + 991), n = M.job.goal || 6, pts = [];
+  const R = MAIN_RECT, rng = mulberry(mapSeed + 991), n = Math.min(M.job.goal || 6, 3 + (M.job.diff || 1)), pts = [];
   for (let tries = 0; pts.length < n && tries < 600; tries++) {
     const x = R.minX + 4 + rng() * (R.maxX - R.minX - 8), z = R.minZ + 4 + rng() * (R.maxZ - R.minZ - 8);
     if (blockedAt(x, z, 1.4) || pts.some(p => Math.hypot(p[0] - x, p[1] - z) < 10)) continue;
@@ -61,9 +62,57 @@ function buildCrates(M) {
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 14, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xf2c12a, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     beam.position.y = 7; g.add(beam);
     g.position.set(x, 0, z); put(g);
-    return { pos: new V3(x, 0, z), got: false, g };
+    return { pos: new V3(x, 0, z), st: 0, by: '', g, beam }; // st: 0 on the ground, 1 carried, 2 delivered
   });
   M.job.goal = M.crates.length;
+}
+const myCarryId = () => NET.mode ? (NET.host ? 'H' : NET.me) : 'me';
+function buildDropVan(M, x, z) { // the drop-off: a parked van with its doors open, a light bar and a beam
+  const g = new THREE.Group(), paint = new THREE.MeshLambertMaterial({ color: 0x5a6a3a }), dark = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+  const bx = (m, sx, sy, sz, px, py, pz) => { const e = new THREE.Mesh(unitBox, m); e.scale.set(sx, sy, sz); e.position.set(px, py, pz); e.castShadow = true; g.add(e); };
+  bx(paint, 2.2, 2.2, 4.6, 0, 1.4, 0); bx(paint, 2, 1.2, 1.4, 0, .9, 2.9); bx(dark, 2.1, .5, .1, 0, 2.1, -2.32); bx(new THREE.MeshBasicMaterial({ color: 0xf2c12a }), 2.24, .2, 4.64, 0, 1.9, 0);
+  bx(new THREE.MeshBasicMaterial({ color: 0xffa020 }), .5, .15, .3, -.5, 2.6, 1); bx(new THREE.MeshBasicMaterial({ color: 0xffa020 }), .5, .15, .3, .5, 2.6, 1);
+  for (const [a, b] of [[-1, -1.5], [1, -1.5], [-1, 2.9], [1, 2.9]]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .3, 12), dark); t.rotation.z = Math.PI / 2; t.position.set(a * 1.1, .45, b); g.add(t); }
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, 30, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x9dff6a, transparent: true, opacity: .12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); beam.position.y = 15; g.add(beam);
+  g.position.set(x, 0, z); g.rotation.y = Math.atan2(-x, -z); put(g); label(['LERAKÓ'], '#9dff6a', 1.1, x, 3.6, z);
+  obstacles.push({ minX: x - 1.6, maxX: x + 1.6, minZ: z - 1.6, maxZ: z + 1.6, h: 2.4 });
+  burst(new V3(x, .4, z), 0x8a7a5a, 30, 5, .8); SND.roar();
+  M.drop = { pos: new V3(x, 0, z), g };
+  banner('MEGÉRKEZETT A LERAKÓ FURGON', 'Vidd oda a ládákat: E-vel veszed fel, a furgonnál E-vel adod le.');
+}
+function pickDropSpot(M) { // somewhere clear, not on top of the start
+  const R = MAIN_RECT, rng = mulberry(mapSeed + 4242);
+  for (let k = 0; k < 400; k++) { const x = R.minX + 8 + rng() * (R.maxX - R.minX - 16), z = R.minZ + 8 + rng() * (R.maxZ - R.minZ - 16);
+    if (!blockedAt(x, z, 3.2) && Math.hypot(x - truck.pos.x, z - truck.pos.z) > 22) return [x, z]; }
+  return [0, 0];
+}
+// the actions, on the host (or solo); a party member asks for them with netAct('crate', [i, act, x, z])
+function crateTake(i, by) { const c = mission.crates[i]; if (!c || c.st !== 0 || mission.crates.some(o => o.st === 1 && o.by === by)) return; c.st = 1; c.by = by; }
+function crateDrop(i, x, z) { const c = mission.crates[i]; if (!c || c.st !== 1) return; c.st = 0; c.by = ''; c.pos.set(x, 0, z); }
+function crateDeliver(i) { const c = mission.crates[i], M = mission; if (!c || c.st !== 1 || !M.drop) return; c.st = 2; c.by = ''; burst(M.drop.pos.clone().setY(1.2), 0xf2c12a, 18, 3, .6); SND.buy();
+  popText(`Láda leadva · ${M.crates.filter(o => o.st === 2).length}/${M.crates.length}`, '#f2c12a'); }
+function crateAct(i, act, x, z) { if (!NET.client) { if (act === 't') crateTake(i, myCarryId()); else if (act === 'd') crateDrop(i, x, z); else if (act === 'v') crateDeliver(i); } else netAct('crate', [i, act, Math.round(x * 10), Math.round(z * 10)]); }
+function carryAct() { // E while carrying: hand it in at the van, or set it down just in front of you
+  const M = mission, i = player.carry; if (i == null || !M.crates[i]) return;
+  if (M.drop && Math.hypot(M.drop.pos.x - player.pos.x, M.drop.pos.z - player.pos.z) < 5) { crateAct(i, 'v'); if (!NET.client) player.carry = null; return; }
+  const f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), p = player.pos.clone().addScaledVector(f, 1.3); clampBounds(p, .6);
+  crateAct(i, 'd', p.x, p.z); if (!NET.client) player.carry = null; SND.pickup(0);
+}
+function updateCrates(M, dt) { // every player, every frame: where each crate is and who holds it
+  if (!M.crates) return;
+  const me = myCarryId(), f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  if (!NET.client) { player.carry = null; M.crates.forEach((c, i) => { if (c.st === 1 && c.by === me) player.carry = i; }); }
+  if (player.carry != null && player.down) { const c = M.crates[player.carry]; crateAct(player.carry, 'd', player.pos.x, player.pos.z); if (!NET.client) player.carry = null; } // going down drops it
+  for (const [i, c] of M.crates.entries()) {
+    c.g.visible = c.st !== 2; c.beam.visible = c.st === 0;
+    if (c.st === 1) {
+      if (c.by === me) { c.pos.copy(player.pos).addScaledVector(f, .75); c.g.position.set(c.pos.x, .55, c.pos.z); c.g.rotation.y = player.yaw; }
+      else if (!NET.client) { const a = NET.avatars.get(c.by); if (a) { c.pos.set(a.pos.x, 0, a.pos.z); c.g.position.set(a.pos.x, .9, a.pos.z); } }
+      else c.g.position.set(c.pos.x, .9, c.pos.z);
+    } else if (c.st === 0) c.g.position.set(c.pos.x, 0, c.pos.z);
+  }
+  if (vm.gun) vm.gun.visible = player.carry == null; // both hands on the crate
+  if (!NET.client && !M.drop && M.t >= DROP_AT) { const [x, z] = pickDropSpot(M); buildDropVan(M, x, z); }
 }
 const GEN_REPAIR = 600;
 function crateFocus() { // also the generator's repair spot
@@ -71,7 +120,8 @@ function crateFocus() { // also the generator's repair spot
   if (M.gen && M.gen.hp > 0 && M.gen.hp < M.gen.max && Math.hypot(M.gen.pos.x - player.pos.x, M.gen.pos.z - player.pos.z) < 2.6) return { type: 'repair' };
   if (M.esc && M.esc.hp > 0 && M.esc.hp < M.esc.max && Math.hypot(M.esc.pos.x - player.pos.x, M.esc.pos.z - player.pos.z) < 2.2) return { type: 'repair' };
   if (!M.crates) return null;
-  const i = M.crates.findIndex(c => !c.got && Math.hypot(c.pos.x - player.pos.x, c.pos.z - player.pos.z) < 2.2);
+  if (player.carry != null) return { type: 'carry' };
+  const i = M.crates.findIndex(c => c.st === 0 && Math.hypot(c.pos.x - player.pos.x, c.pos.z - player.pos.z) < 2.2);
   return i >= 0 ? { type: 'crate', i } : null;
 }
 function repairGen() { // points for a quarter of the generator back
@@ -79,15 +129,15 @@ function repairGen() { // points for a quarter of the generator back
   player.points -= GEN_REPAIR; SND.buy(); burst(T.pos.clone().setY(1.2), 0x9aff7a, 20, 3, .6);
   if (NET.client) netAct('repair'); else T.hp = Math.min(T.max, T.hp + T.max * .25);
 }
-function takeCrate(i, remote) {
-  const c = mission && mission.crates && mission.crates[i]; if (!c || c.got) return;
-  c.got = true; c.g.visible = false;
-  if (!remote) { SND.pickup(2); popText(`Utánpótlás-láda · ${mission.crates.filter(c => c.got).length}/${mission.crates.length}`, '#f2c12a'); if (NET.client) netAct('crate', i); }
+function takeCrate(i) { // E on a crate: both hands on it (no shooting, sprinting or jumping)
+  const c = mission && mission.crates && mission.crates[i]; if (!c || c.st !== 0) return;
+  crateAct(i, 't', c.pos.x, c.pos.z); if (!NET.client) player.carry = i;
+  SND.pickup(2); popText(mission.drop ? 'Vidd a lerakó furgonhoz · E: letétel' : 'A lerakó furgon még nem jött meg · E: letétel', '#f2c12a');
 }
 
 // ---------- every frame (solo or host) ----------
 function updateObjective(M, dt) {
-  const J = M.job;
+  const J = M.job; updateCrates(M, dt);
   if (M.gen) {
     const hurt = now - M.gen.hitT < .3;
     M.gen.lampM.color.setHex(M.gen.hp <= 0 ? 0x333333 : hurt ? 0xff4a3a : M.gen.hp < M.gen.max * .3 ? 0xffa03a : 0x6aff6a);
@@ -99,7 +149,7 @@ function updateObjective(M, dt) {
   if (objDone(M) || NET.client) return;
   if (M.esc) updateEscort(M, dt);
   if (J.type === 'exterminate' && M.kc >= J.goal) objectiveDone(M, 'TISZTA A TEREP');
-  if (J.type === 'supply' && M.crates && M.crates.length && M.crates.every(c => c.got)) objectiveDone(M, 'MINDEN LÁDA MEGVAN');
+  if (J.type === 'supply' && M.crates && M.crates.length && M.crates.every(c => c.st === 2)) objectiveDone(M, 'MINDEN LÁDA LEADVA');
 }
 function objectiveDone(M, title) {
   M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1;
@@ -119,7 +169,7 @@ function objectiveLine(M) {
     return `Fejvadászat 1/3 · tarts ki · ${B.name} ${fmtTime(Math.max(0, bountyPre(J) - M.t))} múlva érkezik`; }
   if (J.type === 'escort' && M.esc && !objDone(M)) return `Kíséret · túlélő ${Math.max(0, Math.round(M.esc.hp / M.esc.max * 100))}% · ${M.esc.leg === 1 ? 'a holmijáért' : 'a furgonig'} ${Math.round(NET.client ? M.esc.netDist || 0 : M.esc.pos.distanceTo(M.esc.end))} m${M.esc.waiting ? ' · VÁR RÁD' : ''}`;
   if (J.type === 'exterminate' && !objDone(M)) return `Irtás · ${Math.min(M.kc || 0, J.goal)} / ${J.goal} zombi`;
-  if (J.type === 'supply' && !objDone(M)) return `Utánpótlás · ${M.crates ? M.crates.filter(c => c.got).length : 0} / ${J.goal} láda · kövesd a sárga fényt`;
+  if (J.type === 'supply' && !objDone(M)) return `Utánpótlás · ${M.crates ? M.crates.filter(c => c.st === 2).length : 0} / ${J.goal} leadva · ${player.carry != null ? (M.drop ? 'vidd a zöld fényű furgonhoz' : 'a lerakó még nem jött meg') : M.drop ? 'hozd a ládákat (sárga fény) a lerakóhoz' : `a lerakó furgon ${Math.max(0, Math.ceil(DROP_AT - M.t))} mp múlva jön · gyűjtsd a ládákat`}`;
   if (J.type === 'defense' && M.gen && M.phase !== 'evac') return `Generátor ${Math.max(0, Math.round(M.gen.hp / M.gen.max * 100))}% · ${M.wave}. hullám`;
   return null;
 }

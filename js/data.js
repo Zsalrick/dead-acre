@@ -11,6 +11,7 @@ const smooth = t => t * t * (3 - 2 * t);
 // small seeded PRNG so a saved map seed rebuilds the same layout
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const B = 38; // arena half-size
+const GAME_VER = (() => { const s = document.querySelector('script[src*="js/data.js"]'), m = s && s.src.match(/v=(\d+)/); return m ? 'v' + m[1] : 'dev'; })(); // the build shown in the hub and the pause menu
 
 // ================= DATA =================
 const RARITIES = [
@@ -223,6 +224,8 @@ function makeUnique(key, level) {
   return w;
 }
 // anointments: an extra rule on rare and better guns (25% rare, 50% epic, always on legendary and unique)
+const ANOINT_NAMES = { reload: 'Töltőláz', ability: 'Képességpörgetés', killheal: 'Vérvétel', lowhp: 'Utolsó lehelet', ads: 'Nyugodt cél', first: 'Nyitólövés', swap: 'Villámváltás', boom: 'Detonátor' };
+const anoName = k => ANOINT_NAMES[k] || 'Felkenés';
 const ANOINTS = {
   reload:   'Újratöltés után 5 mp-ig +50% sebzés',
   ability:  'Képesség használata után 8 mp-ig +50% tűzgyorsaság',

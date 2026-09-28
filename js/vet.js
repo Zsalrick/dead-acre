@@ -102,7 +102,7 @@ function collectionLog() {
   const chip = (got, name, sub, col) => `<div class="cchip${got ? ' got' : ''}" style="--cc:${col}"><b>${got ? name : '???'}</b><small>${sub}</small></div>`;
   const U = Object.keys(UNIQUES).map(k => chip(S.uniq && S.uniq[k], UNIQUES[k].name, from(k) ? `Forrás: ${from(k)}` : 'Bárhol eshet', RARITIES[5].color));
   const E = Object.keys(EXOTICS).map(k => chip(S.exo && S.exo[k], EXOTICS[k].name, GEAR_SLOTS[EXOTICS[k].slot], EXO_COL));
-  const A = Object.keys(ANOINTS).map(k => chip(S.ano && S.ano[k], ANOINTS[k], 'Felkenés', '#b46cff'));
+  const A = Object.keys(ANOINTS).map(k => chip(S.ano && S.ano[k], anoName(k), ANOINTS[k], '#b46cff'));
   const B = Object.keys(BOUNTIES).map(k => chip(S.bk && S.bk[k], BOUNTIES[k].name, `${BOUNTIES[k].minLvl || 3}. szinttől`, '#ff8c1a'));
   const n = (o, all) => `${Object.keys(o || {}).length} / ${all}`;
   return `<section class="collog"><h3>Gyűjtemény</h3>

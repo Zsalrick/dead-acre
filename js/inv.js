@@ -134,7 +134,7 @@ function weaponDetail(w, cmp, actions) {
     <div class="dtals">
       ${w.unique && UNIQUES[w.unique] ? dtal('Egzotikus tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff3b3b') : ''}
       ${w.tal && TALENTS[w.tal] ? dtal('Tehetség', TALENTS[w.tal].name, TALENTS[w.tal].desc, '#ffd23f') : ''}
-      ${w.anoint && ANOINTS[w.anoint] ? dtal('Felkenés', '', ANOINTS[w.anoint], '#6ff0c8') : ''}
+      ${w.anoint && ANOINTS[w.anoint] ? dtal('Felkenés', anoName(w.anoint), ANOINTS[w.anoint], '#6ff0c8') : ''}
       ${w.oc && OVERCLOCKS[w.oc] ? dtal('Túlhajtás', OVERCLOCKS[w.oc].name, OVERCLOCKS[w.oc].desc, '#b48cff') : ''}
       ${el ? dtal('Elem', el.name, el.desc, el.color) : dtal('Elem', KINETIC.name, KINETIC.desc, KINETIC.color)}
     </div>
@@ -199,7 +199,7 @@ function gearDetail(it, cmp, actions) {
 function itemDetail(k, actions) {
   const I = ITEMS[k];
   return `<div class="dhead" style="--rc:${I.color}"><div class="dband"><span class="rar">Felszerelés</span> [${I.key}] gomb</div>
-      <div class="dname">${I.name}</div><img class="dico" src="${ICONS[k]}" alt=""><div class="dsub">${I.desc}</div></div>
+      <div class="dname">${itemName(k)}</div><img class="dico" src="${ICONS[k]}" alt=""><div class="dsub">${I.desc}</div></div>
     <table class="dtab">${drow('Nálad', `${profile.inv[k]} / ${itemMax(k)}`)}${drow('Egyszerre', k === 'knife' ? '3 db' : '1 db')}</table>
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }

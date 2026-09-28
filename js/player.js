@@ -237,6 +237,7 @@ function shotMul(w) {
 // fire-rate multiplier: anointment, the Haystack's spin-up, the Double Tap perk
 const rateMul = w => (w.anoint === 'ability' && player.buf && player.buf.ability > 0 ? 1.5 : 1) * (now < (player.overT || 0) ? 1.4 : 1) * (w.unique === 'haystack' ? 1 + (player.uHeat || 0) : 1) * (player.perks && player.perks.tap ? 1.25 : 1);
 function shoot() {
+  if (player.carry != null) return; // both hands on a crate
   const w = curW(), b = w.base; player.shotsN += w.pellets || 1;
   if (!(player.stormT > 0) && !(w.unique === 'hydra' && now < (player.hydraUntil || 0))) w.ammo--; // Tűzvihar: the mag does not drain
   const sm = shotMul(w), forceCrit = w.unique === 'thirteen' && w.ammo === 0; w.fired = (w.fired || 0) + 1;
@@ -386,16 +387,16 @@ function updatePlayer(dt) {
   const mv = new V3(-sy * f + cy * s, 0, -cy * f - sy * s);
   if (mv.lengthSq() > 0) mv.normalize();
   const adren = player.adrenT > 0;
-  player.sprint = !ff && keys.ShiftLeft && f > 0 && !rmb && !mouseDown && player.knifeT <= 0 && !player.reloading && (adren || player.stam > (player.sprint ? 0 : 15));
+  player.sprint = !ff && player.carry == null && keys.ShiftLeft && f > 0 && !rmb && !mouseDown && player.knifeT <= 0 && !player.reloading && (adren || player.stam > (player.sprint ? 0 : 15));
   if (player.sprint && !adren && !perk('runner') && !exoOn('league')) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
   else if ((player.stamT -= dt) <= 0) player.stam = Math.min(maxStam(), player.stam + 28 * (1 + .15 * U('stamina')) * dt);
   player.adrenT = Math.max(0, player.adrenT - dt); player.itemCd -= dt;
-  const speed = (ff ? .9 : 1) * (ff ? 1 : player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (player.chillT > 0 ? .55 : 1) * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
+  const speed = (ff ? .9 : 1) * (ff ? 1 : player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (player.chillT > 0 ? .55 : 1) * (player.carry != null ? .72 : 1) * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
   const k = 1 - Math.exp(-(player.onGround ? 12 : 3) * dt);
   player.vel.x = lerp(player.vel.x, mv.x * speed, k); player.vel.z = lerp(player.vel.z, mv.z * speed, k);
   player.pos.x += player.vel.x * dt; player.pos.z += player.vel.z * dt;
   if (player.onGround && Math.hypot(player.vel.x, player.vel.z) > 1 && (player.stepD += Math.hypot(player.vel.x, player.vel.z) * dt) > 2) { player.stepD = 0; SND.step(player.sprint); }
-  if (keys.Space && player.onGround && !ff) { player.vy = 6.2; player.onGround = false; }
+  if (keys.Space && player.onGround && !ff && player.carry == null) { player.vy = 6.2; player.onGround = false; } // no jumping with a crate
   player.vy -= 18 * dt; player.pos.y += player.vy * dt;
   if (player.pos.y <= 0) { player.pos.y = 0; player.vy = 0; player.onGround = true; }
   collide(player.pos, .42);
@@ -410,7 +411,7 @@ function updatePlayer(dt) {
   if (!ff && rk('e_drone') && turrets.some(t => Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 6)) player.hp = Math.min(maxHp(), player.hp + 6 * rk('e_drone') * dt); // Javítódrón
   // ads
   const w = curW();
-  const adsTarget = rmb && !player.sprint && player.knifeT <= 0 && !player.reloading ? 1 : 0; // no scope while reloading; holding the button brings it back after
+  const adsTarget = rmb && !player.sprint && player.knifeT <= 0 && !player.reloading && player.carry == null ? 1 : 0; // no scope while reloading; holding the button brings it back after
   player.ads += (adsTarget - player.ads) * Math.min(1, dt * 13);
   camera.fov = lerp(SET.fov, SET.fov / w.base.zoom, player.ads); camera.updateProjectionMatrix();
   // recoil recovery

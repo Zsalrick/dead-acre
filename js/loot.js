@@ -100,6 +100,7 @@ function interact() {
   if (!focus) return;
   if (focus.type === 'drop' || focus.type === 'gear') return; // loot on the ground: F / hold F (game.js)
   else if (focus.type === 'crate') { takeCrate(focus.i); focus = null; }
+  else if (focus.type === 'carry') { carryAct(); focus = null; }
   else if (focus.type === 'cache') { openCache(); focus = null; }
   else if (focus.type === 'repair') repairGen();
   else if (focus.type === 'desk') { if (NET.client) { popText('A lőteret a vezető állítja.', '#ff8a70'); return SND.deny(); } openStation('desk'); }
@@ -144,7 +145,9 @@ function updateBox(dt) {
 // ================= ITEMS =================
 function renderInv() {
   $('inv').innerHTML = ITEM_KEYS.map(k => `<div class="it${player.inv[k] ? '' : ' empty'}" style="--ic:${ITEMS[k].color}" title="${ITEMS[k].name}">` +
-    `<b>${ITEMS[k].key}</b><img src="${ICONS[k]}" alt=""><strong>${player.inv[k] || 0}</strong><span>${ITEMS[k].name}</span></div>`).join('');
+    `<b>${ITEMS[k].key}</b><img src="${ICONS[k]}" alt=""><strong>${player.inv[k] || 0}</strong><span>${itemName(k)}</span></div>`).join('');
+}
+function itemName(k) { return k === 'gren' ? GREN_TYPES[throwKind('gren')].name : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].name : ITEMS[k].name; // the grenade / knife type you picked
 }
 function sell() {
   if (!focus) return;

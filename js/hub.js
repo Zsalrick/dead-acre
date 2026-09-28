@@ -17,7 +17,7 @@ const reroll = () => 50 + 40 * profile.level;
 // the base's own gunsmith: dollars instead of points, so old favourites can keep up
 const PARTS = [1, 2, 5, 15, 40, 80]; // salvage yield by rarity
 const HFORGE = { recal: w => 10 + Math.floor(w.level / 3), level: w => 2 + Math.floor(w.level / 5), anoint: w => 12 + 10 * ((w && w.anoN) || 0), cap: () => profile.level >= LEVEL_CAP ? LEVEL_CAP + 2 * (profile.tier || 0) : profile.level };
-const ITEM_PRICE = { med: 120, gren: 100, knife: 90, adren: 180 };
+const ITEM_PRICE = { med: 300, gren: 250, knife: 220, adren: 450 };
 const shopPrice = w => Math.round(sellValue(w) * 4 / 10) * 10;
 
 function makeJob() {
@@ -107,7 +107,7 @@ function showHub() {
 }
 function renderHub() {
   const P = profile;
-  $('hubSlot').textContent = `${P.name} · ${stats.jobs} kész munka${NET.code ? ` · csapat: ${partyMembers().length} fő` : ''}`;
+  $('hubSlot').textContent = `${P.name} · ${stats.jobs} kész munka${NET.code ? ` · csapat: ${partyMembers().length} fő` : ''} · ${GAME_VER}`;
   $('hubLvl').textContent = P.level;
   $('hubXp').style.width = P.xp / xpNeed(P.level) * 100 + '%';
   $('hubXpTxt').textContent = `${P.xp} / ${xpNeed(P.level)} XP${vetOpen() ? ` · veterán ${vetEarned()}${vetAvail() ? ` (+${vetAvail()})` : ''}` : ''}`;
@@ -277,7 +277,7 @@ const HUB = {
     const wActs = w && (() => {
       const pp = P.parts || 0;
       return (w.q >= 2 && !w.anoPend ? hbtn(`Felkenés újradobása · ${HFORGE.anoint(w)} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(w), 'KeyN') : '') +
-      (w.anoPend ? `<div class="anopend"><small>Új felkenés dobva</small><b>${ANOINTS[w.anoPend]}</b><span>Most: ${ANOINTS[w.anoint] || 'nincs'}</span>${hbtn('Elfogadom', `anoacc:${sl}:${i}`, false, null, 'Az új felkenés kerül a fegyverre.')}${hbtn('Elutasítom', `anorej:${sl}:${i}`, false, null, 'Marad a régi felkenés. Az alkatrész nem jár vissza.')}</div>` : '') +
+      (w.anoPend ? `<div class="anopend"><small>Új felkenés dobva</small><b>${anoName(w.anoPend)}: ${ANOINTS[w.anoPend]}</b><span>Most: ${w.anoint ? `${anoName(w.anoint)}: ${ANOINTS[w.anoint]}` : 'nincs'}</span>${hbtn('Elfogadom', `anoacc:${sl}:${i}`, false, null, 'Az új felkenés kerül a fegyverre.')}${hbtn('Elutasítom', `anorej:${sl}:${i}`, false, null, 'Marad a régi felkenés. Az alkatrész nem jár vissza.')}</div>` : '') +
       hbtn(optOpen === `${sl}:${i}` ? 'Optimalizálás ▲' : 'Optimalizálás ▼', 'optshow', false, 'KeyO', 'Megnyitja / bezárja: egy véletlen érték feljebb vihető a tartományában, a tökéletesig.') +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
       hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w)) +
@@ -320,7 +320,7 @@ const HUB = {
     const L0 = unpackW(P.loadout[0]) || unpackW(P.loadout[1]);
     const guns = P.shop.map((o, k) => { if (!o) return ''; const w = unpackW(o), c = shopPrice(w); return wTile(`P:${k}`, w, { cmp: L0, price: `$${c}`, cant: P.cash < c }); }).join('');
     const gear = P.gshop.map((it, k) => it ? gTile(`Q:${k}`, it, { cmp: P.gear[it.slot] || null, price: `$${gearPrice(it)}`, cant: P.cash < gearPrice(it) }) : '').join('');
-    const cons = Object.entries(ITEM_PRICE).map(([k, c]) => tile(`I:${k}`, ICONS[k], ITEMS[k].name, `${ITEMS[k].desc}`, ITEMS[k].color, { val: `${P.inv[k]}/${itemMax(k)}`, valLbl: 'nálad', price: `$${c}`, cant: P.cash < c || P.inv[k] >= itemMax(k) })).join('');
+    const cons = Object.entries(ITEM_PRICE).map(([k, c]) => tile(`I:${k}`, ICONS[k], itemName(k), `${ITEMS[k].desc}`, ITEMS[k].color, { val: `${P.inv[k]}/${itemMax(k)}`, valLbl: 'nálad', price: `$${c}`, cant: P.cash < c || P.inv[k] >= itemMax(k) })).join('');
     const left = `<h3>Fegyverek</h3><div class="tiles">${guns || emptyTile('Elfogyott', 'Munka után megújul')}</div>
       <h3>Páncél</h3><div class="tiles">${gear || emptyTile('Elfogyott', 'Munka után megújul')}</div>
       <h3>Felszerelés</h3><div class="tiles">${cons}</div>

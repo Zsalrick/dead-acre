@@ -17,7 +17,7 @@ function bookWeapons() {
 function bookTalents() {
   return bhead('Tehetségek és felkenések', 'Ritka vagy jobb fegyveren egy tehetség van, ez végleges. A felkenés a kovácsnál újradobható. Az egzotikus fegyvereknek saját, fix tehetségük van.') +
     `<h3>Fegyvertehetségek</h3><div class="bgrid">${Object.values(TALENTS).map(t => bcard('', t.name, 'tehetség · ritka, epikus, legendás', `<p>${t.desc}</p>`, '#ffd23f')).join('')}</div>
-    <h3>Felkenések</h3><div class="bgrid">${Object.values(ANOINTS).map(t => bcard('', 'Felkenés', '25% ritkán, 50% epikuson, mindig legendáson', `<p>${t}</p>`, '#6ff0c8')).join('')}</div>
+    <h3>Felkenések</h3><div class="bgrid">${Object.entries(ANOINTS).map(([k, t]) => bcard('', anoName(k), 'felkenés · 25% ritkán, 50% epikuson, mindig legendáson', `<p>${t}</p>`, '#6ff0c8')).join('')}</div>
     <h3>Túlhajtások <small>maggal szerelhető be a kovácsnál</small></h3><div class="bgrid">${Object.values(OVERCLOCKS).map(o => bcard('', o.name, 'túlhajtás', `<p>${o.desc}</p>`, '#b48cff')).join('')}</div>
     <h3>Elemek</h3><div class="bgrid">${Object.values(ELEMENTS).map(e => bcard('', e.name, `„${e.word}” a fegyver nevében`, `<p>${e.desc}</p>`, e.color)).join('')}</div>
     <h3>Egzotikus fegyverek</h3><div class="bgrid">${Object.values(UNIQUES).map(u => { const b = BASES.find(x => x.id === u.base); return bcard(b ? gunShot(b, 5) : '', u.name, `${b ? b.name : ''} · „${u.text}”`, `<p>${u.trick}</p>`, '#ff3b3b'); }).join('')}</div>`;
