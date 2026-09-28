@@ -127,6 +127,7 @@ function sell() {
 function useItem(k) {
   if (!k || player.itemCd > 0 || armAnim || player.reloading) return;
   if (!player.inv[k] || (k === 'med' && player.hp >= maxHp())) return SND.deny();
+  if (k === 'gren' && rk('e_overclock')) player.overT = Math.max(player.overT || 0, now + 4); // Túlhajtás
   const heal = SK.med();
   player.inv[k]--; player.itemCd = .45; renderInv();
   startArm(k === 'gren' || k === 'knife' ? 'throw' : 'use', k, () => {
