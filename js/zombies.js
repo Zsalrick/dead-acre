@@ -600,7 +600,7 @@ function updateHealthBars() {
   let n = 0;
   for (const z of dirOn('blind') ? [] : zombies) {
     if (z.dead || z.rise > .5 || z.K.boss || (z.K.ghost && z.op < .4)) continue;
-    if (z !== looked && !(now - (z.hitT || -99) < 2.5) && Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z) > (z.tier ? 45 : 28)) continue;
+    if (z !== looked && !z.dummy && !(now - (z.hitT || -99) < 2.5) && Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z) > (z.tier ? 45 : 28)) continue;
     v.set(z.pos.x, (z.K.crawl ? 1.1 : 2.25) * z.scale + z.g.position.y, z.pos.z).project(camera);
     if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) continue;
     const e = hbEl(n++);
@@ -827,8 +827,9 @@ function rollTier(z, kind) {
   const tier = r < pN ? 3 : r < pN + pE ? 2 : r < pN + pE + pV ? 1 : 0;
   if (tier) setZTier(z, tier);
 }
-const zName = z => { if (z.dummy) return 'Célbábu'; const T = ZTIERS[z.tier || 0], tr = (z.traits || []).map(k => AFFIX[k].name);
-  return (z.tier === 3 ? `„${NAMED[z.id % NAMED.length]}” · ${z.K.name}` : (T.name ? T.name + ' ' : '') + z.K.name) + (tr.length ? ` (${tr.join(', ')})` : ''); };
+const zName = z => { const T = ZTIERS[z.tier || 0], tr = (z.traits || []).map(k => AFFIX[k].name);
+  const kn = z.dummy ? `Célbábu · ${z.K.name}` : z.K.name;
+  return (z.tier === 3 ? `„${NAMED[z.id % NAMED.length]}” · ${kn}` : (T.name ? T.name + ' ' : '') + kn) + (tr.length ? ` (${tr.join(', ')})` : ''); };
 function zBit(z) { if (z.traits && z.traits.includes('vamp') && !z.dead) { z.hp = Math.min(z.maxHp, z.hp + z.maxHp * .12); burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xb3141b, 8, 2, .4); } }
 const AFFIX_KEYS = Object.keys(AFFIX);
 const affixMul = () => (1 + .03 * (round - 1)) * (1 + .08 * jobTier());

@@ -83,6 +83,13 @@ function renderStation() {
       (w.element ? srow('Elem beégetése', `Már van eleme: ${ELEMENTS[w.element].name}.`, '—', 'none', true, 'Kész')
         : srow('Elem beégetése', 'Véletlen elem: tűz, villám vagy fagy.', `${FORGE.elem()} pont`, 'forge:elem', pts < FORGE.elem(), 'Kovácsolás')) +
       `<div class="wcard" style="--rc:${rarColor(w)};margin-top:18px;max-width:320px">${cardHTML(w, '', null)}</div>`;
+  } else if (stationKind === 'desk') {
+    const S = mission.range, chip = (act, on, txt) => `<button class="chip${on ? ' on' : ''}" data-act="${act}">${txt}</button>`;
+    title = 'Lőtér-vezérlő'; lede = 'Állítsd be a célbábukat: öt sáv, 10, 20, 30, 40 és 55 méteren. Minden változtatás után újra felállnak.';
+    body = `<div class="srow desk"><div><b>Rang</b><small>több életerő és színes csík</small></div><span>${ZTIERS.map((T, k) => chip(`desk:rank:${k}`, S.rank === k, T.name || 'Sima')).join('')}</span></div>
+      <div class="srow desk"><div><b>Fajta</b><small>a páncélost fejre kell lőni</small></div><span>${RANGE_KINDS.map(k => chip(`desk:kind:${k}`, S.kind === k, KINDS[k].name)).join('')}</span></div>
+      <div class="srow desk"><div><b>Tulajdonság</b><small>elit és nevesített bábun</small></div><span>${chip('desk:trait:', !S.trait, 'Nincs')}${RANGE_TRAITS.map(k => chip(`desk:trait:${k}`, S.trait === k, AFFIX[k].name)).join('')}</span></div>` +
+      srow('Újraállítás', 'Mind az öt bábu teljes életerővel áll fel.', '', 'desk:reset:', false, 'Újraállít');
   } else {
     title = 'Szent kút'; lede = 'A kút vize gyógyít, ha a közelében állsz. A kútnál felszerelést is vehetsz.';
     body = Object.entries(VEND).map(([k, c]) => {
@@ -91,11 +98,12 @@ function renderStation() {
     }).join('') + (maxShield() ? srow('Pajzs feltöltése', `Most: ${Math.round(P.shield)}/${maxShield()}`, '200 pont', 'vend:shield', P.shield >= maxShield() || pts < 200, 'Feltöltés') : '');
   }
   $('stationBody').innerHTML = `<div class="shop-top"><div><div class="eyebrow">Állomás</div><div class="title st-title">${title}</div><p class="lede">${lede}</p></div>
-    <div class="purse"><small>Pontjaid</small><strong>${pts}</strong></div></div><div class="slist">${body}</div>`;
+    ${stationKind === 'desk' ? '' : `<div class="purse"><small>Pontjaid</small><strong>${pts}</strong></div>`}</div><div class="slist">${body}</div>`;
 }
 $('stationBody').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
-  const [kind, key] = b.dataset.act.split(':'), P = player, w = curW();
+  const [kind, key, val] = b.dataset.act.split(':'), P = player, w = curW();
+  if (kind === 'desk') { const S = mission.range; if (key === 'rank') S.rank = +val; if (key === 'kind' && KINDS[val]) S.kind = val; if (key === 'trait') S.trait = val || null; resetDummies(mission); SND.buy(); return renderStation(); }
   const pay = c => { if (P.points < c) return false; P.points -= c; return true; };
   if (kind === 'up') { if (U(key) < UPGRADES[key].max && pay(upCost(key))) { P.up[key] = U(key) + 1; if (key === 'maxHp') P.hp += 20; if (key === 'shield') P.shield += 25; } }
   else if (kind === 'forge') {

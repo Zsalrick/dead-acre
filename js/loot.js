@@ -61,7 +61,7 @@ function findFocus() {
   const ch = cacheFocus(); if (ch) return ch;
   const cf = crateFocus(); if (cf) return cf;
   const af = areaFocus(); if (af) return af;
-  if (MAP.range) return null;
+  if (MAP.range) return Math.hypot(RANGE_DESK[0] - player.pos.x, RANGE_DESK[1] - player.pos.z) < 2.6 ? { type: 'desk' } : null;
   if (Math.hypot(box.pos.x - player.pos.x, box.pos.z - player.pos.z) < 2.6) return { type: 'box', w: box.state === 'ready' ? box.weapon : null };
   if (Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z) < 2.4) return { type: 'ammo' };
   return null;
@@ -72,6 +72,7 @@ function interact() {
   else if (focus.type === 'crate') { takeCrate(focus.i); focus = null; }
   else if (focus.type === 'cache') { openCache(); focus = null; }
   else if (focus.type === 'repair') repairGen();
+  else if (focus.type === 'desk') { if (NET.client) { popText('A lőteret a vezető állítja.', '#ff8a70'); return SND.deny(); } openStation('desk'); }
   else if (!['box', 'ammo'].includes(focus.type)) areaInteract(focus);
   else if (focus.type === 'box') {
     if (box.state === 'idle') {

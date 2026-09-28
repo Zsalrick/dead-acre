@@ -496,8 +496,9 @@ function updateHUD() {
     else if (focus.type === 'cache') prompt = '<b>[E]</b> Utánpótlás-láda kinyitása';
     else if (focus.type === 'revive') prompt = `<b>[E]</b> nyomva: ${esc(focus.name)} felélesztése`;
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Utánpótlás-láda felvétele';
+    else if (focus.type === 'desk') prompt = NET.client ? 'Lőtér-vezérlő · csak a vezető állíthatja' : '<b>[E]</b> Lőtér-vezérlő: a célbábuk rangja, fajtája, tulajdonsága';
     else if (focus.type === 'repair') prompt = `<b>[E]</b> ${mission && mission.esc ? 'Túlélő ellátása' : 'Generátor javítása'} (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
-    else if (!['box', 'ammo', 'drop', 'gear'].includes(focus.type)) prompt = areaPrompt(focus);
+    else if (!['box', 'ammo', 'drop', 'gear', 'desk'].includes(focus.type)) prompt = areaPrompt(focus);
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;
   }

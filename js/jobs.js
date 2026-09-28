@@ -122,17 +122,20 @@ function objectiveLine(M) {
 
 // ---------- the testing ground: dummies that stand still and get back up, no waves, no clock, endless ammo ----------
 function spawnDummy(x, z) {
-  const d = spawnZombieAt('walker', x, z, 0);
-  Object.assign(d, { dummy: true, speed: 0, dmg: 0, spot: [x, z], hp: zombieHp() * 40 }); d.maxHp = d.hp; d.g.position.set(x, 0, z);
+  const S = (mission && mission.range) || {}, d = spawnZombieAt(S.kind || 'walker', x, z, 0);
+  Object.assign(d, { dummy: true, speed: 0, dmg: 0, spot: [x, z], hp: zombieHp() * 40 * (d.K.hp || 1), heading: Math.PI }); d.maxHp = d.hp;
+  if (S.rank) setZTier(d, S.rank, S.rank >= 2 && S.trait ? [S.trait] : []);
+  d.maxHp = d.hp; d.g.position.set(x, 0, z);
   return d;
 }
+const RANGE_KINDS = ['walker', 'crawler', 'runner', 'brute', 'armored'], RANGE_TRAITS = ['rage', 'regen', 'tough', 'fast', 'vamp'];
+function resetDummies(M) { // clear the lanes and stand five new targets up with the desk's settings
+  for (const z of zombies) if (z.dummy && !z.dead) { z.dead = true; z.deathT = 2.9; z.g.visible = false; }
+  M.dummyQ = []; for (const [x, d] of RANGE_LANES) spawnDummy(x, RANGE_LINE - d);
+}
 function setupTestGround(M) {
-  M.dummyQ = [];
-  const c = new V3(-truck.pos.x, 0, -truck.pos.z).normalize(), side = new V3(-c.z, 0, c.x);
-  for (const [d, o] of [[9, -4], [13, 3], [18, -2], [24, 4], [30, 0], [38, -5]]) {
-    const x = truck.pos.x + c.x * d + side.x * o, z = truck.pos.z + c.z * d + side.z * o;
-    if (!blockedAt(x, z, 1)) spawnDummy(x, z);
-  }
+  M.range = { rank: 0, kind: 'walker', trait: null };
+  resetDummies(M);
 }
 function testRefill() { [...player.slots, ...player.bag].forEach(w => { if (w && w.reserve < resMax(w)) w.reserve = resMax(w); }); }
 function updateTestGround(M, dt) {

@@ -540,39 +540,49 @@ const MAPS = {
     },
   },
   range: {
-    name: 'Lőtér · Elhagyatott ház', desc: 'Egy elhagyott ház a kertjével, körben erdő. Csak célbábuk vannak.', minLevel: 1, range: true,
-    main: { minX: -34, maxX: 34, minZ: -28, maxZ: 28 }, look: { tex: 'grass', ground: 0x7d8c5c, fog: 0x0c1410, fogD: [.016, .022], fence: 0x8a7a60 },
+    name: 'Lőtér · Elhagyatott ház', desc: 'Egy elhagyott ház a kertjével, körben erdő. Lőállás öt sávval és egy vezérlőasztal.', minLevel: 1, range: true,
+    main: { minX: -34, maxX: 34, minZ: -28, maxZ: 28 }, look: { tex: 'grass', ground: 0x7d8c5c, fog: 0x0c1410, fogD: [.012, .016], fence: 0x8a7a60 },
     vans: [[-20, 23], [20, 24]], ammo: [0, 0], boxSpots: [[0, 0]], spawns: [[-31, -25], [31, -25]],
-    lamps: [[-8, -2], [10, 4], [0, 14]],
-    clear: [[0, -16, 10], [-22, -16, 5], [0, 4, 16]],
-    props: [['crate', 1], ['barrel', 1], ['logs', 2], ['hay', 1]], propN: [6, 10],
+    lamps: [[-18, 24], [18, 24], [-18, -8], [18, -8]],
+    clear: [[0, 12, 17], [0, -12, 17], [0, -28, 12], [-32, -20, 8], [-34, 4, 5]],
+    props: [['crate', 1], ['barrel', 1], ['logs', 2], ['hay', 1]], propN: [6, 9],
     build() {
-      const wall = matStd({ color: 0x9a8f7a }), dark = matStd({ color: 0x1a1c1e }), plank = matStd({ color: 0x6a5238 }), green = matStd({ color: 0x3f6a2e }), soil = matStd({ color: 0x3a2a1c });
-      // the house: boarded windows, a sagging porch
-      house(0, -18, 16, 10, 6, wall, 0x3a2a24, 's');
-      for (const x of [-5, 5]) { addBox(x, -12.94, 2, .06, 1.4, dark, 2.4, false); for (const dy of [2.6, 3.3]) addBox(x, -12.9, 2.3, .08, .25, plank, dy, false).rotation.z = (dy > 3 ? -.12 : .1); }
-      addBox(0, -11.4, 16, 3, .2, plank, 3, false); [[-7.5, -10.1], [7.5, -10.1], [-2.5, -10.1]].forEach(([x, z]) => addBox(x, z, .2, .2, 3, plank));
-      addBox(2.5, -10.1, .2, .2, 2.4, plank).rotation.z = .25; // a broken porch post
-      // the shed and the garden: beds, a scarecrow, a swing, a table
-      house(-24, -18, 7, 6, 3.6, plank, 0x2a2420, 'e');
-      for (let i = 0; i < 4; i++) { addBox(-20 + i * 4.2, 6, 3, 1.4, .3, soil); for (let k = 0; k < 4; k++) { const b = put(new THREE.Mesh(new THREE.SphereGeometry(.35 + (k % 2) * .12, 7, 5), green)); b.position.set(-21.1 + i * 4.2 + k * .7, .45, 6 + (k % 2 ? .3 : -.3)); } }
-      const sc = put(new THREE.Group()); sc.position.set(-14, 0, 12); [[.12, 2.2, .12, 0, 1.1, 0], [1.6, .12, .12, 0, 1.7, 0], [.6, .7, .4, 0, 1.55, 0], [.4, .4, .4, 0, 2.2, 0]].forEach(([w, h, d, x, y, z], i) => { const m = new THREE.Mesh(unitBox, i === 2 ? matStd({ color: 0x7a3a2a }) : i === 3 ? matStd({ color: 0xc8a860 }) : plank); m.scale.set(w, h, d); m.position.set(x, y, z); sc.add(m); });
-      obstacles.push({ minX: -14.4, maxX: -13.6, minZ: 11.6, maxZ: 12.4, h: 2.4 });
-      [[-2, 0], [2, 0]].forEach(([dx]) => addBox(16 + dx, 12, .2, .2, 3, plank)); addBox(16, 12, 4.4, .2, .2, plank, 3); addBox(16, 12, 1, .5, .08, plank, .8, false);
-      addBox(20, 2, 2, 1.2, .1, plank, .9); [[-.8, -.4], [.8, -.4], [-.8, .4], [.8, .4]].forEach(([a, b]) => addBox(20 + a, 2 + b, .1, .1, .9, plank, 0, false));
-      // a picket fence round the garden, with a gap
-      const pk = matStd({ color: 0xb8b0a0 }); for (let x = -24; x <= 24; x += 1.2) if (Math.abs(x) > 3) addBox(x, 16, .12, .08, 1, pk, 0, false);
-      for (const s of [-1, 1]) for (const y of [.35, .75]) addBox(s * 13.5, 16.05, 21, .05, .08, pk, y, false);
-      // targets to shoot at on the far side
-      const tTex = panelTex('target', 128, 128, (g, w, h) => { g.fillStyle = '#e8e2d0'; g.fillRect(0, 0, w, h); ['#b3141b', '#e8e2d0', '#b3141b', '#e8e2d0', '#b3141b'].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(64, 64, 58 - i * 12, 0, 7); g.fill(); }); });
-      for (const [x, z] of [[-12, -4], [-4, -6], [6, -5], [14, -3]]) { addBox(x, z, 1.4, .1, 1.4, matStd({ map: tTex }), 1); addBox(x - .5, z, .1, .1, 1, plank, 0, false); addBox(x + .5, z, .1, .1, 1, plank, 0, false); }
-      // woods: pines in the yard's corners and along the edges
-      for (let i = 0; i < 40; i++) { const a = mulberry(mapSeed + i * 13)(), b = mulberry(mapSeed + i * 29 + 5)(), x = -32 + a * 64, z = -26 + b * 52;
-        if (Math.abs(x) < 26 && z > -24 && z < 20) continue; if (inVanLane(x, z, 3)) continue; pine(x, z); }
+      const wall = matStd({ color: 0x9a8f7a }), dark = matStd({ color: 0x1a1c1e }), plank = matStd({ color: 0x6a5238 }), green = matStd({ color: 0x3f6a2e }), soil = matStd({ color: 0x3a2a1c }), pk = matStd({ color: 0xb8b0a0 });
+      // the firing line, the control desk behind it, five lanes with a distance board over each target
+      addBox(0, RANGE_LINE, 36, .18, .02, basic(0xe8e2d0), .005, false);
+      const [dx, dz] = RANGE_DESK; addBox(dx, dz, 3.2, 1, .12, plank, .92); [[-1.4, -.4], [1.4, -.4], [-1.4, .4], [1.4, .4]].forEach(([a, b]) => addBox(dx + a, dz + b, .12, .12, .92, plank, 0, false));
+      addBox(dx, dz + .3, 2.6, .12, .5, dark, 1.04, false).rotation.x = -.5;
+      [[-.9, 0xff4a3a], [-.45, 0xffd23f], [0, 0x7dff7a], [.45, 0x6fb4ff], [.9, 0xb48cff]].forEach(([a, c]) => addBox(dx + a, dz + .15, .22, .12, .06, basic(c), 1.2, false));
+      label(['LŐTÉR-VEZÉRLŐ'], '#ffd23f', 1.1, dx, 2.2, dz);
+      for (const [x, d] of RANGE_LANES) {
+        const z = RANGE_LINE - d;
+        addBox(x, (z + RANGE_LINE) / 2, .06, d, .015, basic(0x5a5a50), .004, false);
+        [-1.3, 1.3].forEach(o => addBox(x + o, z - .6, .15, .15, 3.6, plank, 0, false));
+        addBox(x, z - .6, 2.9, .12, .9, plank, 3.2, false);
+        label([`${d} m`], '#ffd23f', 1.3, x, 3.65, z - .5);
+      }
+      // the house to the west: boarded windows, a sagging porch
+      house(-32, -20, 12, 10, 6, wall, 0x3a2a24, 'e');
+      for (const z of [-23, -17]) { addBox(-25.94, z, .06, 2, 1.4, dark, 2.4, false); addBox(-25.9, z, .08, 2.3, .25, plank, 3, false).rotation.x = .12; }
+      addBox(-24.6, -20, 3, 12, .2, plank, 3, false); [[-23.2, -25.5], [-23.2, -14.5]].forEach(([x, z]) => addBox(x, z, .2, .2, 3, plank));
+      addBox(-23.2, -20, .2, .2, 2.4, plank).rotation.x = .25;
+      house(-34, 6, 6, 7, 3.6, plank, 0x2a2420, 'e');
+      // the garden to the east: beds, a scarecrow, a swing, a table, a picket fence
+      for (let i = 0; i < 3; i++) { addBox(24 + i * 4, -8, 3, 1.4, .3, soil); for (let k = 0; k < 4; k++) { const b = put(new THREE.Mesh(new THREE.SphereGeometry(.35 + (k % 2) * .12, 7, 5), green)); b.position.set(22.9 + i * 4 + k * .7, .45, -8 + (k % 2 ? .3 : -.3)); } }
+      const sc = put(new THREE.Group()); sc.position.set(30, 0, -2); [[.12, 2.2, .12, 0, 1.1, 0], [1.6, .12, .12, 0, 1.7, 0], [.6, .7, .4, 0, 1.55, 0], [.4, .4, .4, 0, 2.2, 0]].forEach(([w, h, d, x, y, z], i) => { const m = new THREE.Mesh(unitBox, i === 2 ? matStd({ color: 0x7a3a2a }) : i === 3 ? matStd({ color: 0xc8a860 }) : plank); m.scale.set(w, h, d); m.position.set(x, y, z); sc.add(m); });
+      obstacles.push({ minX: 29.6, maxX: 30.4, minZ: -2.4, maxZ: -1.6, h: 2.4 });
+      [-2, 2].forEach(o => addBox(30 + o, 10, .2, .2, 3, plank)); addBox(30, 10, 4.4, .2, .2, plank, 3); addBox(30, 10, 1, .5, .08, plank, .8, false);
+      addBox(24, 4, 2, 1.2, .1, plank, .9); [[-.8, -.4], [.8, -.4], [-.8, .4], [.8, .4]].forEach(([a, b]) => addBox(24 + a, 4 + b, .1, .1, .9, plank, 0, false));
+      for (let z = -14; z <= 14; z += 1.2) addBox(20, z, .08, .12, 1, pk, 0, false);
+      for (const y of [.35, .75]) addBox(20.05, 0, .05, 28, .08, pk, y, false);
+      // woods: pines round the edges
+      for (let i = 0; i < 70; i++) { const x = -43 + mulberry(mapSeed + i * 13)() * 86, z = -35 + mulberry(mapSeed + i * 29 + 5)() * 70;
+        if (Math.abs(x) < 38 && Math.abs(z) < 30) continue; if (inVanLane(x, z, 3)) continue; pine(x, z); }
     },
     areas: {},
   },
 };
+const RANGE_LINE = 24, RANGE_DESK = [0, 26.6], RANGE_LANES = [[-12, 10], [-6, 20], [0, 30], [6, 40], [12, 55]]; // the testing ground: firing line z, desk, [lane x, distance]
 const MAP_IDS = Object.keys(MAPS).filter(k => !MAPS[k].range); // the testing ground is not a job map
 
 // ---------- bounds & routing ----------
