@@ -1,13 +1,14 @@
 ﻿// ================= GEAR (helmet · chest · legs · boots) =================
 // every piece has armor (adds to the shield bar), 1–3 rolled attributes by rarity, and a brand.
-// Each worn piece gives its brand's core bonus; wearing 2/3/4 pieces of one brand unlocks its set bonuses.
-const GEAR_SLOTS = { head: 'Sisak', chest: 'Mellvért', legs: 'Nadrág', boots: 'Csizma' };
+// Six slots (helmet, chest, legs, boots, gloves, an accessory). Each worn piece gives its brand's core bonus; wearing 2/3/4 pieces of one brand unlocks its set bonuses.
+const GEAR_SLOTS = { head: 'Sisak', chest: 'Mellvért', legs: 'Nadrág', boots: 'Csizma', gloves: 'Kesztyű', acc: 'Kiegészítő' };
 const GEAR_KEYS = Object.keys(GEAR_SLOTS);
 const GEAR_NAMES = {
   head: ['Rohamsisak', 'Terepsapka', 'Bányászsisak', 'Gázálarc'], chest: ['Golyóálló mellény', 'Taktikai mellény', 'Bőrkabát', 'Lemezpáncél'],
   legs: ['Terepnadrág', 'Térdvédős nadrág', 'Munkásnadrág', 'Páncélozott nadrág'], boots: ['Bakancs', 'Gumicsizma', 'Rohambakancs', 'Futócipő'],
+  gloves: ['Taktikai kesztyű', 'Munkáskesztyű', 'Bőrkesztyű', 'Ujjatlan kesztyű'], acc: ['Nyaklánc', 'Dögcédula', 'Rózsafüzér', 'Karóra'],
 };
-const GEAR_LEGENDS = { head: 'A Sírásó kalapja', chest: 'Az Utolsó Szentmise', legs: 'Hajnalig', boots: 'Hét mérföld' };
+const GEAR_LEGENDS = { head: 'A Sírásó kalapja', chest: 'Az Utolsó Szentmise', legs: 'Hajnalig', boots: 'Hét mérföld', gloves: 'A Hóhér keze', acc: 'Az Utolsó Érme' };
 // flat: a plain number that grows with level · otherwise a fraction shown as %
 const GSTATS = {
   hp:      { name: 'Max életerő',      roll: [6, 14], flat: true },
@@ -42,7 +43,8 @@ function rollG(k, q, level) {
 }
 // fabric: what armor gives when taken apart; armor optimization is paid in it
 const FAB = '▦';
-const gearBase = it => ({ head: 12, chest: 20, legs: 14, boots: 10 }[it.slot] || 12) * (1 + .08 * (it.level - 1)) * (1 + Math.min(4, it.q) * .15);
+const GEAR_ARMOR = { head: 12, chest: 20, legs: 14, boots: 10, gloves: 8, acc: 5 };
+const gearBase = it => (GEAR_ARMOR[it.slot] || 12) * (1 + .08 * (it.level - 1)) * (1 + Math.min(4, it.q) * .15);
 const gStatF = (it, k) => { const S = GSTATS[k], q = Math.min(4, it.q); return (1 + q * .12) * (S.flat ? 1 + .06 * (it.level - 1) : 1 + .03 * (it.level - 1)); };
 function gRolls(it) { // [key, name, 0..1 where the roll landed]
   const rows = [['armor', 'Páncél', clamp((it.armor / gearBase(it) - .9) / .2, 0, 1)]];
@@ -61,7 +63,7 @@ function makeGear(slot, q, level, brand) {
   slot = slot || pick(GEAR_KEYS); brand = brand || pick(Object.keys(BRANDS)); q = Math.min(q, 4); // armor tops out at legendary
   const keys = Object.keys(GSTATS).filter(k => k !== 'armor'), stats = {}, n = [1, 1, 2, 2, 3][q];
   while (Object.keys(stats).length < n) { const k = pick(keys); if (!(k in stats)) stats[k] = rollG(k, q, level); }
-  const armor = Math.round({ head: 12, chest: 20, legs: 14, boots: 10 }[slot] * (1 + .08 * (level - 1)) * (1 + q * .15) * rand(.9, 1.1));
+  const armor = Math.round(GEAR_ARMOR[slot] * (1 + .08 * (level - 1)) * (1 + q * .15) * rand(.9, 1.1));
   return { slot, brand, q, level, armor, stats, name: q === 4 ? GEAR_LEGENDS[slot] : `${BRANDS[brand].name.split(' ')[0]} ${pick(GEAR_NAMES[slot])}` };
 }
 // ---------- exotic armor (The Division): one talent that changes how you play; bosses drop them ----------
@@ -76,6 +78,8 @@ const EXOTICS = {
   cryo:    { slot: 'legs',  name: 'Kriosztát nadrág',   talent: 'A lelassított és fagyott zombik 30%-kal több sebzést kapnak tőled.' },
   bomber:  { slot: 'chest', name: 'Robbanómellény',     talent: 'Robbanással ölt zombi után visszakapsz egy gránátot.' },
   priest:  { slot: 'head',  name: 'Tábori lelkész sisakja', talent: 'Háromszor gyorsabban éleszted fel a társad, és felálláskor teli az élete.' },
+  grip:    { slot: 'gloves', name: 'Acélmarok',           talent: '+25% újratöltési sebesség, és a fegyverváltás azonnali.' },
+  charm:   { slot: 'acc',   name: 'Szerencsekrajcár',     talent: '+20% pénz és XP minden teljesített munkáért.' },
 };
 function makeExotic(key, level) {
   key = EXOTICS[key] ? key : pick(Object.keys(EXOTICS));

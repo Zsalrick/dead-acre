@@ -95,7 +95,7 @@ const TABS = {
           <li><b>Zsákmány</b><span>amit a munkán találsz, csak akkor a tiéd, ha elhajtasz vele; ha elesel, elveszik (a saját fegyvered megmarad)</span></li>
           <li><b>Kéz és táska</b><span>2 fegyver a kézben, 5 a táskában; F: új fegyver a táskába, F nyomva: csere (a kézben lévő a táskába, ha tele, a földre); [I] vagy [Tab]: leltár</span></li>
           <li><b>Gyártók</b><span>minden gyártónak saját bónusza van (pl. XFCV: +10% fejlövés), és egy fegyvertípust több gyártó is gyárt</span></li>
-          <li><b>Páncél</b><span>sisak, mellvért, nadrág, csizma: páncél a pajzshoz, véletlen bónuszok, márkabónusz, és 2/3/4 darabos szettbónuszok</span></li>
+          <li><b>Páncél</b><span>sisak, mellvért, nadrág, csizma, kesztyű és egy kiegészítő: páncél a pajzshoz, véletlen bónuszok, márkabónusz, és 2/3/4 darabos szettbónuszok</span></li>
           <li><b>Kaszt és képességfa</b><span>4 kaszt, mindegyik passzív bónusszal, aktív képességgel (C) és 12 képességgel; érdemérmet a munka csillagai, a Mészáros és a szintlépés ad</span></li>
           <li><b>Pénz és XP</b><span>a munka díja és a pontjaid 10%-a; a szint új pályákat és nehezebb munkákat nyit</span></li></ul>
           <h3>Tárgyak</h3><ul class="mlist">${items}</ul>

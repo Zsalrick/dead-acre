@@ -50,7 +50,7 @@ function trackBest(w) { if (!player.best || w.q > player.best.q || (w.q === play
 function reloaded(w) { w.fired = 0; (player.buf || (player.buf = {})).reload = 5; }
 function beginSwitch() {
   (player.buf || (player.buf = {})).swap = 4;
-  stopReload(); player.burstLeft = 0; player.spin = 0; player.switchT = SWITCH_T;
+  stopReload(); player.burstLeft = 0; player.spin = 0; player.switchT = exoOn('grip') ? 0 : SWITCH_T; // Acélmarok: an instant swap
   if (vm.gun) vm.pending = true; else equipView();
   renderSlots();
 }

@@ -339,7 +339,7 @@ const HUB = {
     const worn = GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(`${GEAR_SLOTS[k]} · üres`, 'Húzz ide páncélt', null, 'W')).join('');
     const fit = x => gFilter === 'all' || x.slot === gFilter;
     const sorted = st.map((x, k) => [x, k]).filter(([x]) => fit(x)).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
-    const left = `<h3>Viselt <small>${GEAR_KEYS.filter(k => P.gear[k]).length} / 4</small></h3><div class="tiles worn" data-drop="W">${worn}</div>`;
+    const left = `<h3>Viselt <small>${GEAR_KEYS.filter(k => P.gear[k]).length} / ${GEAR_KEYS.length}</small></h3><div class="tiles worn" data-drop="W">${worn}</div>`;
     const mid = `<div class="itools"><button class="chip${gFilter === 'all' ? ' on' : ''}" data-act="gfilt:all">Mind</button>${GEAR_KEYS.map(k => `<button class="chip${gFilter === k ? ' on' : ''}" data-act="gfilt:${k}">${GEAR_SLOTS[k]}</button>`).join('')}<span class="sp"></span>${trashBar('g')}</div>
       <h3>Páncélraktár <small>${st.length} / ${gearMax()}</small></h3><div class="tiles" data-drop="G">${sorted.map(([x, k]) => gTile(`G:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'A munkán talált páncél ide kerül')}</div>
       <h3>Karakterek közti láda <small>${SH.g.length} / ${SHARED_MAX}</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => fit(x) ? gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null }) : '').join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>

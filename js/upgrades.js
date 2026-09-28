@@ -29,7 +29,7 @@ const critChance = () => Math.min(.75, wCrit(curW()) + .04 * U('crit') + SK.crit
 const critMult = () => wCdmg(curW()) + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (mkOf(curW()).critDmg || 0);
 const headBonus = () => 1 + .15 * U('head') + SK.head() + G('head') + (mkOf(curW()).head || 0);
 const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed') + (perk('runner') ? .15 : 0) + (exoOn('league') ? .2 : 0);
-const reloadMul = () => 1 + .06 * U('reload') + SK.reload() + G('reload') + (perk('speed') ? .3 : 0);
+const reloadMul = () => 1 + .06 * U('reload') + SK.reload() + G('reload') + (perk('speed') ? .3 : 0) + (exoOn('grip') ? .25 : 0);
 const resMax = w => Math.round(w.maxRes * (1 + .15 * U('ammo') + SK.ammo() + G('ammo')) * (dirOn('ammo') ? .5 : 1));
 
 function updateVitals(dt) {

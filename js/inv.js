@@ -6,7 +6,7 @@ let invSel = 'L:0';
 // ---------- armor pictures (drawn once per shape + brand color) ----------
 const gearIcons = {};
 function gearIcon(slot, color, name = '') {
-  const kind = /sapka/i.test(name) ? 'cap' : /álarc/i.test(name) ? 'mask' : /bányász/i.test(name) ? 'miner' : /kabát/i.test(name) ? 'coat' : slot;
+  const kind = /sapka/i.test(name) ? 'cap' : /álarc/i.test(name) ? 'mask' : /bányász/i.test(name) ? 'miner' : /kabát/i.test(name) ? 'coat' : /óra/i.test(name) ? 'watch' : /cédula/i.test(name) ? 'tags' : /rózsa/i.test(name) ? 'beads' : slot;
   const key = kind + color; if (gearIcons[key]) return gearIcons[key];
   const c = document.createElement('canvas'); c.width = 320; c.height = 180;
   const g = c.getContext('2d'), grad = g.createLinearGradient(0, 20, 0, 170);
@@ -34,6 +34,16 @@ function gearIcon(slot, color, name = '') {
     if (kind === 'coat') { poly([[138, 22], [160, 50], [148, 110], [120, 40]]); poly([[182, 22], [160, 50], [172, 110], [200, 40]]); }
     else { dark(96, 100, 128, 6); dark(102, 116, 36, 28); dark(182, 116, 36, 28); dark(98, 146, 124, 8); }
     stitch(160, 54, 160, 158); shine(92, 62, 12, 60);
+  } else if (slot === 'gloves') { // a pair of gloves
+    const glove = (ox, sh) => { g.globalAlpha = sh; poly([[ox, 150], [ox, 80], [ox + 6, 40], [ox + 18, 40], [ox + 20, 70], [ox + 26, 30], [ox + 38, 30], [ox + 40, 70], [ox + 46, 34], [ox + 58, 34], [ox + 60, 76], [ox + 66, 50], [ox + 78, 54], [ox + 74, 110], [ox + 70, 150]]); dark(ox, 128, 70, 10); stitch(ox + 10, 100, ox + 60, 100); g.globalAlpha = 1; };
+    glove(150, .55); glove(96, 1);
+  } else if (slot === 'acc') { // a necklace, dog tags, a rosary or a watch
+    g.lineWidth = 5; g.strokeStyle = 'rgba(0,0,0,.6)';
+    if (kind === 'watch') { ink(); g.fillRect(146, 20, 28, 140); g.strokeRect(146, 20, 28, 140); g.beginPath(); g.arc(160, 90, 34, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#e8e2d0'; g.beginPath(); g.arc(160, 90, 24, 0, 7); g.fill(); g.strokeStyle = '#222'; g.lineWidth = 3; g.beginPath(); g.moveTo(160, 90); g.lineTo(160, 74); g.moveTo(160, 90); g.lineTo(172, 94); g.stroke(); }
+    else { g.strokeStyle = color; g.lineWidth = 4; g.setLineDash(kind === 'beads' ? [2, 6] : [7, 4]); g.beginPath(); g.ellipse(160, 60, 70, 60, 0, .15, Math.PI - .15); g.stroke(); g.setLineDash([]);
+      if (kind === 'tags') { poly([[132, 112], [162, 112], [162, 160], [132, 160]]); poly([[150, 106], [180, 106], [180, 154], [150, 154]]); dark(156, 120, 18, 4); dark(156, 130, 18, 4); }
+      else if (kind === 'beads') { ink(); g.fillRect(155, 116, 10, 46); g.fillRect(142, 128, 36, 10); }
+      else { ink(); g.beginPath(); g.moveTo(160, 112); g.lineTo(182, 138); g.lineTo(160, 164); g.lineTo(138, 138); g.closePath(); g.fill(); g.stroke(); shine(152, 128, 8, 8); } }
   } else if (slot === 'legs') {
     poly([[110, 22], [210, 22], [222, 164], [180, 164], [160, 78], [140, 164], [98, 164]]);
     dark(110, 22, 100, 14); dark(114, 96, 28, 24); dark(178, 96, 28, 24); stitch(120, 40, 112, 160); stitch(200, 40, 208, 160);
