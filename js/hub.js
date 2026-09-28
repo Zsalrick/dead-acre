@@ -256,7 +256,7 @@ const testJob = () => ({ map: 'range', diff: 1, dur: 1e6, mod: null, boss: false
 const HUB = {
   skills: () => skillsTab(),
   vet: () => vetTab(),
-  party: () => `<div class="hubhead"><h2>Csapat</h2></div>${profile.rejoin && profile.rejoin.until > Date.now() && !NET.code ? `<div class="rejoin"><b>Visszacsatlakozás</b><span>Munka közben estél ki. Ha a csapat még játszik, visszaállhatsz közéjük.</span>${hbtn(`Vissza a csapatba (${String(profile.rejoin.code || '').split('~')[0].toUpperCase()})`, 'prejoin')}</div>` : ''}<p class="lede">Hozz létre csapatot, vagy csatlakozz egy kóddal. A vezető választja a munkát, a tagok jelzik, hogy készen állnak.</p>${partyPanel()}`,
+  party: () => `<div class="hubhead"><h2>Csapat</h2></div>${profile.rejoin && profile.rejoin.until > Date.now() && !NET.code ? `<div class="rejoin"><b>Visszacsatlakozás</b><span>Munka közben estél ki. Ha a csapat még játszik, visszaállhatsz közéjük.</span>${hbtn(`Vissza a csapatba (${String(profile.rejoin.code || '').split('-')[0].toUpperCase()})`, 'prejoin')}</div>` : ''}<p class="lede">Hozz létre csapatot, vagy csatlakozz egy kóddal. A vezető választja a munkát, a tagok jelzik, hogy készen állnak.</p>${partyPanel()}`,
   bweap: () => bookWeapons(), btal: () => bookTalents(), bgear: () => bookGear(), bzomb: () => bookZombies(), bboss: () => bookBounties(), bjobs: () => bookJobs(),
   coll: () => collTab(),
   jobs() { // a county map with the jobs on it (Deep Rock style); the picked one's card on the side
@@ -389,7 +389,7 @@ $('hubBody').addEventListener('click', e => {
   if (CONFIRM_ACTS.includes(kind) && !confirmOk) return askConfirm(b);
   const before = hubSnap();
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
-  if (kind === 'prejoin' && P.rejoin) { const c = P.rejoin.code; P.rejoin = null; saveProfile(); partyJoin(c, false); return renderHub(); }
+  if (kind === 'prejoin' && P.rejoin) { const c = P.rejoin.code; P.rejoin = null; saveProfile(); partyJoin(c, false); NET.rejoinT = performance.now(); return renderHub(); }
   if (kind === 'lostbuy') { const L = P.lost, list = L && (a === 'w' ? L.w : L.g), x = list && list[+c]; if (!x) return;
     const it = a === 'w' ? unpackW(x) : x, price = lostPrice(it, a); if (P.cash < price || (a === 'w' ? P.stash.length >= stashMax() : P.gearStash.length >= gearMax())) return SND.deny();
     P.cash -= price; list.splice(+c, 1); delete x.found; if (a === 'w') P.stash.push(x); else P.gearStash.push(x); if (!L.w.length && !L.g.length) P.lost = null;

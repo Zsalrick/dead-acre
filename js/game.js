@@ -83,7 +83,7 @@ function updateIntro(dt) {
 }
 function markCarry(ext) { // what you carry right now, saved with the in-job marker: a quit is settled from this, so nothing exists twice
   const IM = profile.inMission; if (!IM || !mission) return;
-  IM.live = 1; if (ext) IM.ext = 1; IM.hands = player.slots.filter(Boolean).map(packW); IM.bag = player.bag.map(packW); IM.mg = mission.gear.filter(it => !it.found); saveProfile();
+  IM.live = 1; if (ext) IM.ext = 1; IM.hands = player.slots.filter(Boolean).map(packW); IM.bag = player.bag.map(packW); IM.mg = mission.gear.filter(it => IM.ext || !it.found); saveProfile();
 }
 function endIntro() {
   const M = mission; markCarry();

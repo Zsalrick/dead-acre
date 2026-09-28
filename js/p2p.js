@@ -11,7 +11,7 @@ const P2P = {
   join(code, host) {
     return new Promise((resolve, reject) => {
       const hostId = 'deadacre-' + code, peer = host ? new Peer(hostId) : new Peer();
-      const conns = new Map(), others = new Map(), subs = [];
+      const conns = new Map(), others = new Map(), subs = [], heard = new Map(); // heard: when each connection last said anything
       let me = null, mine = {}, snap = Object.freeze([]), last = 0, timer = null, done = false, lost = null;
       const view = (peerId, presence, self) => ({ peer: peerId, sameTab: self, isMe: self, kind: 'viewer', guest: false, by: null, presence, updatedAt: Date.now() });
       const build = () => {
@@ -22,6 +22,7 @@ const P2P = {
       const flush = () => { timer = null; last = performance.now(); sendAll({ t: 'p', peer: me, p: mine }); };
       const wire = c => {
         c.on('data', d => {
+          heard.set(c.peer, performance.now());
           if (!d || typeof d !== 'object') return;
           if (d.t === 'p') {
             const from = host ? c.peer : d.peer; // the hub knows who sent it; members trust the hub's label
@@ -31,12 +32,18 @@ const P2P = {
             build();
           } else if (d.t === 'bye' && d.peer) { others.delete(d.peer); build(); }
         });
-        c.on('close', () => {
-          conns.delete(c.peer);
+        c.on('close', () => gone(c));
+      };
+      const gone = c => { // closed, or silent too long (a killed tab never says goodbye)
+          if (!conns.has(c.peer)) return; conns.delete(c.peer); heard.delete(c.peer); try { c.close(); } catch (e) {}
           if (host) { others.delete(c.peer); sendAll({ t: 'bye', peer: c.peer }); build(); }
           else { others.clear(); build(); if (lost && !done) lost({ code: 'upstream_error', message: 'A kapcsolat megszakadt.' }); }
-        });
       };
+      const beat = setInterval(() => { // a heartbeat both ways; 10 s of silence counts as gone
+        if (done) return clearInterval(beat);
+        sendAll({ t: 'hb' }); const t = performance.now();
+        for (const c of [...conns.values()]) if (c.open && t - (heard.get(c.peer) || t) > 10000) gone(c);
+      }, 1500);
       const api = {
         name: code, p2p: true,
         peers: () => snap,
@@ -47,7 +54,7 @@ const P2P = {
           if (!timer) timer = setTimeout(flush, Math.max(0, 33 - (performance.now() - last))); // about 30 sends a second
         },
         emit: async () => {}, on: () => () => {}, connected: () => host || conns.size > 0,
-        async leave() { done = true; sendAll({ t: 'bye', peer: me }); setTimeout(() => peer.destroy(), 100); },
+        async leave() { done = true; clearInterval(beat); sendAll({ t: 'bye', peer: me }); setTimeout(() => peer.destroy(), 100); },
       };
       const fail = e => { if (!done) { done = true; try { peer.destroy(); } catch (x) {} reject(e); } };
       const to = setTimeout(() => fail(new Error('timeout')), 12000);
@@ -55,12 +62,12 @@ const P2P = {
         me = id; build();
         if (host) {
           peer.on('connection', c => {
-            conns.set(c.peer, c); wire(c);
+            conns.set(c.peer, c); heard.set(c.peer, performance.now()); wire(c);
             c.on('open', () => { c.send({ t: 'p', peer: me, p: mine }); for (const [p, pr] of others) c.send({ t: 'p', peer: p, p: pr }); });
           });
           clearTimeout(to); resolve(api);
         } else {
-          const c = peer.connect(hostId, { reliable: true }); conns.set(hostId, c); wire(c);
+          const c = peer.connect(hostId, { reliable: true }); conns.set(hostId, c); heard.set(hostId, performance.now()); wire(c);
           c.on('open', () => { clearTimeout(to); flush(); resolve(api); });
         }
       });

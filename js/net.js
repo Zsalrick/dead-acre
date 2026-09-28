@@ -53,7 +53,8 @@ async function partyJoin(code, host) {
 function fallbackCopy(t) { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e) {} a.remove(); }
 async function p2pMigrate() { // P2P: the hub (the leader) is gone. The member with the lowest id opens the next hub; the rest dial in.
   if (NET.migrating) return; NET.migrating = true;
-  const old = NET.pr, gen = (NET.gen || 0) + 1, base = NET.code.split('~')[0], code = `${base}~${gen}`;
+  const old = NET.pr, gen = (NET.gen || 0) + 1, base = NET.code.split('-')[0], code = `${base}-${gen}`; // PeerJS ids allow letters, digits and '-'
+  NET.grace = performance.now() + 20000; // everyone is reconnecting: nobody's backpack drops meanwhile
   const was = (NET.lastPeers || []).filter(p => !p.h && p.st === 'job').map(p => (p.me ? NET.me : p.peer)).sort(), leadMe = was[0] === NET.me || !was.length;
   try { old.leave(); } catch (e) {}
   banner('A CSAPATVEZETŐ KIESETT', leadMe ? 'Te veszed át a vezetést…' : 'Újracsatlakozás az új vezetőhöz…');
@@ -136,7 +137,7 @@ function netJobEnded() {
   NET.mode = null; NET.client = false; NET.targets = null; player.down = false; NET.ready = false;
   NET.zById.clear(); if (NET.host) NET.job = null;
   NET.avatars.forEach(a => { scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); }); NET.avatars.clear();
-  if (NET.pr) NET.pr.presence({ p: null, g: null }).catch(() => {});
+  if (NET.pr) NET.pr.presence({ p: null, g: null, bk: null }).catch(() => {}); // bk too: they kept their things, nothing to drop
   publishMember(); setLobby();
 }
 
@@ -193,9 +194,11 @@ function remoteShot(b, d) { // their shots: the gun's own sound, quieter with di
 function updateAvatars(dt, peers) {
   const seen = new Set();
   for (const p of peers) {
-    if (p.sameTab || !p.presence || !p.presence.p) continue;
+    if (p.sameTab || !p.presence) continue;
+    if (!p.presence.p) { const a0 = NET.avatars.get(p.peer); if (a0) a0.bk = p.presence.bk; continue; } // left the job, not the party: no backpack to drop
     const P = p.presence.p; seen.add(p.peer); const bkNow = p.presence.bk;
-    let a = NET.avatars.get(p.peer); if (a) a.bk = bkNow; if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
+    let a = NET.avatars.get(p.peer); if (a) a.bk = bkNow; if (!a && NET.host) for (const L of [drops, gearDrops, resDrops]) for (const d of L.filter(d => d.bkOf === p.peer)) { netTookDrop(d); (L === drops ? removeDrop : L === gearDrops ? removeGearDrop : removeResDrop)(d); } // they're back: their backpack goes back to them
+    if (!a) { a = makeAvatar(p.presence.m); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
     if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
     { const T = Array.isArray(P.tu) ? P.tu : [], key = T.map(t => `${t[0]},${t[1]},${t[2]}`).join('|'); // a teammate's turrets: stand-ins where theirs stand
@@ -248,7 +251,11 @@ function updateAvatars(dt, peers) {
     for (const e of fresh('rv' + p.peer, P.rv)) if (e[1] === NET.me && (player.down || player.ffyl > 0)) { netRevive(e[2] ? 1 : .5); banner('FELÉLESZTETTEK', e[2] ? `${a.name} (tábori pap) teljesen rendbe hozott.` : `${a.name} felállított.`); }
     netRemoteDrops(p.peer, P);
   }
-  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) { if (NET.host) dropBackpack(a); scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
+  if (performance.now() < (NET.grace || 0)) return; // reconnecting after the leader left: absent is not gone yet
+  for (const [peer, a] of NET.avatars) if (!seen.has(peer)) {
+    if (NET.host) { dropBackpack(a, peer); if (mission && mission.crates) mission.crates.forEach((c, i) => { if (c.st === 1 && c.by === peer) crateDrop(i, a.pos.x, a.pos.z); }); } // their crate falls where they stood
+    if (profile && profile.inMission) { profile.inMission.alone = NET.avatars.size <= 1; markCarry(); } // closing now: were you the last one?
+    scene.remove(a.g); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
 }
 const partySize = () => 1 + [...NET.avatars.values()].length;
 
@@ -373,6 +380,7 @@ function buildSnapshot() {
     tr: trapState.map(T => T.active > 0 ? Math.round(T.active * 10) / 10 : -Math.round((T.cd || 0) * 10) / 10), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
+    du: M.job.dur, dn: NET.deny || [],
   };
 }
 function myPresence() {
@@ -392,13 +400,17 @@ function fresh(key, list) {
 
 // ---------- every frame ----------
 function netTick(dt) {
-  if (!NET.pr) return;
+  if (!NET.pr || NET.migrating) return;
   const peers = NET.pr.peers(), me = peers.find(p => p.sameTab); NET.me = me ? me.peer : null;
   for (const p of peers) if (!p.sameTab && p.presence && p.presence.m) for (const [, t] of fresh('ch' + p.peer, p.presence.m.ch)) chatAdd(p.presence.m.n, t);
   const host = peers.find(p => !p.sameTab && p.presence && p.presence.m && p.presence.m.h);
+  if (NET.host && host && mission && host.presence.m.st === 'job' && NET.me && host.peer < NET.me && host.presence.g) return stepDown(); // two leaders after a split: the lower id keeps the job
+  if (!NET.host && !host && !NET.hadHost && NET.rejoinT && performance.now() - NET.rejoinT > 6000) { NET.rejoinT = 0; toast('A CSAPAT MÁR NEM ÉL', ['Nincs kihez visszacsatlakozni.'], '#ff8a70'); return partyLeave(); }
+  if (host) NET.rejoinT = 0;
   if (!NET.host) {
     if (host) NET.hadHost = true;
     else if (NET.hadHost) { // the leader left
+      if (NET.p2p && mission && !mission.job.test) return; // P2P: p2pMigrate handles it (or gives up)
       if (mission && NET.client && !mission.job.test && !mission.leaving) { // mid-job: the member with the lowest id takes over; the others wait for them
         const next = successorPeer(peers);
         if (next === NET.me) { promoteToHost(); return; }
@@ -440,22 +452,33 @@ function netTick(dt) {
     }
     out.g = buildSnapshot();
   } else if (host && host.presence.g) {
-    if (host.presence.g !== NET.lastG) { NET.lastG = host.presence.g; applySnapshot(host.presence.g, host.peer); } // only new snapshots
-  } else if (mission && !mission.leaving && NET.hadHost) { // the host's job is over
+    if (host.presence.g !== NET.lastG) { NET.lastG = host.presence.g; NET.gFrom = host.peer; applySnapshot(host.presence.g, host.peer); } // only new snapshots
+  } else if (mission && !mission.leaving && NET.hadHost && (!host || NET.gFrom === host.peer)) { // the host's job is over (a brand-new host hasn't sent its first snapshot yet)
     if (mission.job.test) { banner('A LŐTÉR BEZÁRT', 'A vezető visszament a bázisra; ami nálad van, hazajött.'); finishJob(true, true); return; }
     banner('A MUNKA VÉGET ÉRT', 'A csapatvezető befejezte.'); mission.hostEnd = true; finishJob(false, false); return;
   }
   NET.pr.presence(out).catch(() => {});
 }
 const successorPeer = peers => peers.filter(p => p.presence && p.presence.m && !p.presence.m.h && p.presence.m.st === 'job').map(p => p.peer).sort()[0];
+function stepDown() { // back to member: our copy of the world goes, the other leader's snapshots take over
+  clearZombieStuff(); NET.zById.clear(); NET.host = false; NET.mode = 'client'; NET.client = true; NET.hadHost = true; NET.lastG = null; NET.job = null;
+  for (const L of [drops, gearDrops, resDrops]) for (const d of L.filter(d => d.bkOf)) (L === drops ? removeDrop : L === gearDrops ? removeGearDrop : removeResDrop)(d); // backpacks we dropped for players who were only cut off
+  banner('ÚJRA EGY CSAPAT', 'A kapcsolat helyreállt, a másik vezető viszi tovább.'); publishMember();
+}
 function promoteToHost() { // this member becomes the leader: the proxies become the real zombies, the clock and the spawns carry on here
   const M = mission; NET.host = true; NET.mode = 'host'; NET.client = false; NET.hadHost = false; NET.waitHost = 0;
   let maxId = 0; for (const z of zombies) { maxId = Math.max(maxId, z.id || 0); z.net = null; z.predDead = 0; if (!z.dead) NET.zById.set(z.id, z); }
   zidSeq = Math.max(zidSeq, maxId + 1);
   if (M.job.bounty) M.bountyBoss = zombies.find(z => z.bounty && !z.dead) || (M.bountyDone || M.t > bountyPre(M.job) + 3 ? true : null);
   NET.job = { job: M.job, seed: mapSeed, a: 0, b: M.pickup || 0, js: Date.now() };
-  NET.tel = []; NET.bev = []; NET.kills = []; NET.dmgs = []; NET.lastG = null;
+  NET.tel = []; NET.bev = []; NET.kills = []; NET.dmgs = []; NET.lastG = null; NET.deny = []; NET.takenBy = new Map();
+  M.evented = M.evented || M.t > M.job.dur * .45; M.bossDone = !M.job.boss || M.evacWarn || M.phase === 'evac'; // what the old host already did
+  for (const z of zombies) if (z.bounty && !z.dead && !z.bInit) { z.bInit = 1; for (const [k, v] of [['sumT', 6], ['novaT', 8], ['blinkT', 10], ['throwT', 4], ['slamT', 6]]) if (!(z[k] >= 0)) z[k] = v; z.phase = z.phase || 1; z.dmg *= 1.2; } // the bounty's tricks
+  if (M.crates) M.crates.forEach((c, i) => { if (c.st === 1 && c.by === 'H') crateDrop(i, c.pos.x, c.pos.z); else if (c.st === 1 && c.by === NET.me) c.by = 'H'; }); // the old leader's crate falls, mine is now the leader's
+  if (M.phase === 'evac' && M.arriveT < 0 && !M.leaving) { const vo = Math.max(0, (truck.g.position.x - truck.pos.x) * truck.dir); if (vo > .05) M.arriveT = ARRIVE_T * (1 - Math.sqrt(clamp(vo / vanRun(), 0, 1))); } // the van was still backing in
+  if (M.esc) { const E = M.esc; if (E.net) E.pos.copy(E.net); if (E.leg !== 1) E.end = E.path2.length ? E.path2[E.path2.length - 1] : E.end; E.path = gridPath(E.pos, E.end); E.goal = E.path.shift() || E.end.clone(); if (E.leg !== 1) E.path2 = []; } // the survivor walks on from where they are
   banner('TE LETTÉL A VEZETŐ', 'A csapatvezető kiesett, a munka folytatódik.'); SND.power();
+  try { NET.pr.presence({ g: buildSnapshot() }).catch(() => {}); } catch (e) {} // the first snapshot goes out with (before) the leader flag
   publishMember(); setLobby();
 }
 function netHostAct(type, arg, peer) {
@@ -488,6 +511,8 @@ function applySnapshot(g, hostPeer) {
   const was = { ph: M.phase, w: M.wave, ew: M.evacWarn, cl: M.cleared };
   if (Array.isArray(g.bk) && !M.bountyDone) { if (M.job.bounty) firstBounty(M.job.bounty); M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }, M.job.bounty); banner(BOUNTIES[M.job.bounty] ? `${BOUNTIES[M.job.bounty].name.toUpperCase()} ELESETT` : 'A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
   Object.assign(M, { t: +g.t || 0, phase: g.ph, phaseT: +g.pt || 0, wave: +g.w || 1, cleared: !!g.cl, evacWarn: !!g.ew, pickup: g.pk | 0, boardT: +g.bt || 0, parkT: +g.pa || 0 });
+  if (+g.du > 0) M.job.dur = +g.du; // the host's clock is the clock (bounty and objective end times)
+  for (const [, peer, nid] of fresh('dn' + hostPeer, g.dn)) if (peer === NET.me) revokeTake(nid);
   if (round !== g.r) { round = +g.r || 1; $('round').textContent = round; }
   if (M.wave > was.w) { banner(`${M.wave}. HULLÁM`, `A veszély ${round}. szintre nőtt.`); SND.roundStart(); if (player.down || player.ffyl > 0) netRevive(); }
   else if (M.phase === 'lull' && was.ph === 'wave') { banner('A HULLÁM VÉGE', 'Öljétek meg a maradékot.'); SND.roundEnd(); }
@@ -497,7 +522,7 @@ function applySnapshot(g, hostPeer) {
   // the van
   if ((M.evacWarn || M.phase === 'evac') && M.pickPlaced !== M.pickup) { M.pickPlaced = M.pickup; M.departT = -1; placeVan(M.pickup, false); truck.beacon.visible = truck.beam.visible = true; }
   if (M.pickPlaced != null && !M.leaving) setVanAt(Math.max(0, +g.vo || 0));
-  if (g.lv && !M.leaving) { M.leaving = .001; M.extractOk = netExtractOk(); banner(M.extractOk ? 'INDULÁS' : 'LEMARADTÁL', M.extractOk ? 'Munka kész.' : 'A furgon nélküled ment el.'); }
+  if (g.lv && !M.leaving) { M.leaving = .001; M.extractOk = netExtractOk(); if (M.extractOk) markCarry(true); banner(M.extractOk ? 'INDULÁS' : 'LEMARADTÁL', M.extractOk ? 'Munka kész.' : 'A furgon nélküled ment el.'); }
   // areas and traps
   const keys = Object.keys(AREAS);
   keys.forEach((k, i) => { if ((g.ar & (1 << i)) && !AREAS[k].unlocked) openArea(k); });
@@ -692,13 +717,24 @@ function netShareDrop(kind, obj, d) {
   const s = ++NET.seq; d.nid = NET.me + ':' + s;
   NET.drops.push([s, kind, kind === 'w' ? packW(obj) : obj, Math.round(d.pos.x * 10) / 10, Math.round(d.pos.z * 10) / 10, performance.now()]);
 }
-function netTookDrop(d) { if (NET.mode && d && d.nid && NET.pks) pushRoll(NET.pks, [++NET.seq, d.nid], 8); }
-function dropBackpack(a) { // a teammate dropped out: their bag, found armor, parts and fabric stay where they stood, for anyone to pick up
+function netTookDrop(d) {
+  if (!NET.mode || !d || !d.nid || !NET.pks) return; pushRoll(NET.pks, [++NET.seq, d.nid], 8);
+  if (NET.host) (NET.takenBy || (NET.takenBy = new Map())).set(d.nid, 'H'); else (NET.mine || (NET.mine = new Map())).set(d.nid, d); // a member's pickup stands unless the host saw someone else first
+}
+function revokeTake(nid) { // someone got there first: what we picked up goes
+  const d = NET.mine && NET.mine.get(nid); if (!d || !mission) return; NET.mine.delete(nid);
+  if (d.it) { const i = mission.gear.indexOf(d.it); if (i >= 0) mission.gear.splice(i, 1); for (const k of GEAR_KEYS) if (profile.gear[k] === d.it) { profile.gear[k] = null; gearChanged(); } }
+  else if (d.k) mission[d.k] = Math.max(0, (mission[d.k] || 0) - d.n);
+  else if (d.w) { const i = player.bag.indexOf(d.w); if (i >= 0) player.bag.splice(i, 1); else { const s = player.slots.indexOf(d.w); if (s >= 0 && player.slots.filter(Boolean).length > 1) { player.slots[s] = null; if (player.cur === s) player.cur = 1 - s; equipView(); renderSlots(); } } }
+  popText('Egy társad előbb vette fel', '#ff8a70'); SND.deny();
+}
+const tagBk = (d, peer) => { d.bkOf = peer || '?'; return d; };
+function dropBackpack(a, peer) { // a teammate dropped out: their bag, found armor, parts and fabric stay where they stood, for anyone to pick up
   const M = mission, b = a.bk; if (!M || M.job.test || M.leaving || !b || typeof b !== 'object') return;
   const spot = () => new V3(a.pos.x + rand(-1.2, 1.2), 0, a.pos.z + rand(-1.2, 1.2)); let n = 0;
-  for (const o of (Array.isArray(b.w) ? b.w : []).slice(0, 20)) { if (!o || !BASES.some(x => x.id === o.base)) continue; const w = unpackW(cleanStrs(Object.assign({}, o))); w.owned = false; w.ammo = w.mag; w.reserve = resMax(w); netShareDrop('w', w, spawnDrop(w, spot())); n++; }
-  for (const o of (Array.isArray(b.g) ? b.g : []).slice(0, 12)) { if (!o || !GEAR_SLOTS[o.slot] || !BRANDS[o.brand] || typeof o.stats !== 'object') continue; const it = cleanStrs(Object.assign({}, o, { stats: Object.assign({}, o.stats) })); delete it.found; netShareDrop('g', it, spawnGearDrop(it, spot())); n++; }
-  for (const [k, v] of [['parts', b.pa], ['fabric', b.fa]]) if (+v > 0) { const c = Math.min(9999, +v | 0); netShareDrop('r', { q: 0, k, n: c }, spawnResDrop(k, c, spot())); n++; }
+  for (const o of (Array.isArray(b.w) ? b.w : []).slice(0, 20)) { if (!o || !BASES.some(x => x.id === o.base)) continue; const w = unpackW(cleanStrs(Object.assign({}, o))); w.owned = false; w.ammo = w.mag; w.reserve = resMax(w); netShareDrop('w', w, tagBk(spawnDrop(w, spot()), peer)); n++; }
+  for (const o of (Array.isArray(b.g) ? b.g : []).slice(0, 12)) { if (!o || !GEAR_SLOTS[o.slot] || !BRANDS[o.brand] || typeof o.stats !== 'object') continue; const it = cleanStrs(Object.assign({}, o, { stats: Object.assign({}, o.stats) })); delete it.found; netShareDrop('g', it, tagBk(spawnGearDrop(it, spot()), peer)); n++; }
+  for (const [k, v] of [['parts', b.pa], ['fabric', b.fa]]) if (+v > 0) { const c = Math.min(9999, +v | 0); netShareDrop('r', { q: 0, k, n: c }, tagBk(spawnResDrop(k, c, spot()), peer)); n++; }
   if (n) toast(`${a.name.toUpperCase()} KIESETT`, ['A hátizsákja tartalma ott maradt, ahol állt: bárki felveheti.'], '#ff8a70', 6000);
 }
 const cleanStrs = o => { for (const k in o) if (typeof o[k] === 'string') o[k] = o[k].replace(/[<>&"]/g, ''); return o; }; // peers are untrusted: names end up in innerHTML
@@ -716,6 +752,7 @@ function netRemoteDrops(peer, P) {
     }
   }
   for (const [, nid] of fresh('pk' + peer, P.pk)) {
+    if (NET.host) { const T = NET.takenBy || (NET.takenBy = new Map()), by = T.get(nid); if (by && by !== peer) { pushRoll(NET.deny || (NET.deny = []), [++NET.seq, peer, nid], 8); continue; } T.set(nid, peer); }
     const d = drops.find(q => q.nid === nid); if (d) removeDrop(d);
     const g = gearDrops.find(q => q.nid === nid); if (g) removeGearDrop(g);
     const r = resDrops.find(q => q.nid === nid); if (r) removeResDrop(r);

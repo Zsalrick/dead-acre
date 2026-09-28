@@ -52,13 +52,13 @@ function openProfile(n) {
   if (typeof syncTokens === 'function') syncTokens(); // merit tokens: level - 1 per class
   if (profile.inMission) { // the game was closed during a job
     const IM = profile.inMission; delete profile.inMission;
-    const starter = () => packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level))), own = o => o && o.owned !== false;
+    const starter = () => packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level))), own = o => o && o.owned === true; // found guns (owned unset) only come home by extracting
     const hands = IM.hands ? IM.hands.filter(own) : profile.loadout.filter(Boolean), bag = IM.bag ? IM.bag.filter(own) : profile.bag, mg = IM.mg || [];
     const unfound = () => { for (const k of GEAR_KEYS) { const it = profile.gear[k]; if (it && it.found) profile.gear[k] = null; } }; // armor found on the job isn't yours until you extract
     if (!IM.live && !(IM.coop && !IM.alone)) { } // closed during the intro: nothing happened yet
     else if (IM.ext) { // closed while the van drove off: you made it (the job's pay is lost, the kit isn't)
       profile.loadout = [...(IM.hands || profile.loadout), null, null].slice(0, 2).map(o => o ? Object.assign(o, { owned: true }) : null); profile.bag = (IM.bag || profile.bag).map(o => Object.assign(o, { owned: true }));
-      for (const k of GEAR_KEYS) if (profile.gear[k]) delete profile.gear[k].found; profile.gearStash.push(...mg);
+      for (const k of GEAR_KEYS) if (profile.gear[k]) delete profile.gear[k].found; mg.forEach(it => delete it.found); profile.gearStash.push(...mg);
     } else if (IM.coop && !IM.alone) { // the backpack (bag and armor bag) stayed with the party; your hands and worn armor come home
       profile.loadout = [...hands, null, null].slice(0, 2); if (!profile.loadout[0] && !profile.loadout[1]) profile.loadout[0] = starter();
       profile.bag = []; unfound(); profile.rejoin = IM.code ? { code: IM.code, until: Date.now() + 15 * 60e3 } : null; profile.abandonNote = 'coop';
