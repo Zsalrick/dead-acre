@@ -812,3 +812,16 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 /* pictures in tiles: guns and armor fill the box, small item icons stay their own size */
 .tile .tpic img{position:absolute;inset:0;margin:auto;width:auto;height:auto;max-width:86%;max-height:86%;object-fit:contain}
 .kith{align-items:center!important}.kith .sico{width:22px;height:22px;margin:0}
+
+/* the jobs map: fills its box (hub.js fitJobMap); its text and markers keep their on-screen size at any zoom */
+.jsvg{padding:110px 0 70px;box-sizing:border-box}
+.jsvg .ln{font-size:calc(17px * var(--k,1))}.jsvg .ls{font-size:calc(11.5px * var(--k,1))}.jsvg .lpay{font-size:calc(12.5px * var(--k,1))}
+.jsvg .jm .tag{font-size:calc(11px * var(--k,1))}
+.jsvg .jm>*:not(line),.jsvg .loc>*{transform-box:fill-box}
+.jsvg .jmk .jm,.jsvg .jmk .loc{--s:var(--k,1)}
+@container (max-width:1700px){.jobs3{grid-template-columns:300px minmax(0,1fr) 390px}}
+@container (max-width:1400px){.jobs3{grid-template-columns:260px minmax(0,1fr) 350px}}
+.jsvg g text.ln{font:800 19px var(--fd);letter-spacing:.02em}
+.jsvg g text.ls{font:500 12px var(--fb)}
+.jsvg g text.lpay{font:600 13px var(--fb)}
+.jsvg g text.tag{font:700 11.5px var(--fc);letter-spacing:.14em}

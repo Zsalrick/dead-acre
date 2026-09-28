@@ -67,9 +67,10 @@ function rollShop() {
 }
 
 // ---------- rendering ----------
+const jobMap = { h: 440, k: 1 }; // the jobs map's height in map units and its text scale, fitted to the box on screen
 let hubTab = 'jobs', jobSel = 0, wFilter = 'all', gFilter = 'all'; // the arsenal / armor list filters
 // the county: where each map lies, and a hand-drawn backdrop
-const MAP_LOC = { range: [95, 150], farm: [170, 300], chapel: [300, 105], gas: [560, 335], mill: [735, 110], town: [450, 215], quarry: [790, 320], fair: [615, 205], hospital: [330, 330] };
+const MAP_LOC = { range: [110, 150], farm: [170, 300], chapel: [300, 105], gas: [560, 335], mill: [735, 110], town: [450, 215], quarry: [790, 320], fair: [615, 205], hospital: [330, 330] };
 const MAP_ART = (() => {
   const L = MAP_LOC, road = (a, b) => `<path class="road" d="M${L[a][0]} ${L[a][1]} Q ${(L[a][0] + L[b][0]) / 2 + 30} ${(L[a][1] + L[b][1]) / 2 - 20} ${L[b][0]} ${L[b][1]}"/>`;
   const r = mulberry(7), trees = Array.from({ length: 140 }, () => { const x = r() * 900, y = r() * 440; return Math.hypot(x - 450, y - 215) < 70 ? '' : `<circle class="tree" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${(3 + r() * 6).toFixed(1)}"/>`; }).join('');
@@ -141,7 +142,14 @@ function renderHub() {
   const hb = $('hubBody'), same = renderHub.tab === hubTab; renderHub.tab = hubTab;
   if (same) keepScroll(hb, () => { hb.innerHTML = HUB[hubTab](); markCta(hb); }); else { hb.innerHTML = HUB[hubTab](); markCta(hb); hb.scrollTop = 0; } // a click re-renders the tab: stay where you were
   updateKeybar($('hubBody'));
+  fitJobMap();
 }
+function fitJobMap() { // after a render: size the map to its box; one more render if it changed
+  const b = hubTab === 'jobs' && document.querySelector('#hubBody .jmapbox'); if (!b || !b.clientWidth) return;
+  const h = Math.round(clamp(900 * (b.clientHeight - 150) / b.clientWidth, 380, 1400)), k = +clamp(900 / b.clientWidth, .8, 2).toFixed(2);
+  if (Math.abs(h - jobMap.h) > 12 || Math.abs(k - jobMap.k) > .05) { jobMap.h = h; jobMap.k = k; keepScroll($('hubBody'), () => { $('hubBody').innerHTML = HUB.jobs(); markCta($('hubBody')); }); }
+}
+addEventListener('resize', () => { if (state === 'hub' && hubTab === 'jobs') fitJobMap(); });
 const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)}"><div class="head"><div class="lvl">Lv ${w.level}</div><div class="rar">${RARITIES[w.q].name}</div>
   <div class="name">${w.name}</div><div class="sub">${w.base.name} · DPS ${dps(w)}${w.element ? ` · <span style="color:${ELEMENTS[w.element].color}">${ELEMENTS[w.element].name}</span>` : ''}</div>
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
@@ -276,22 +284,22 @@ const HUB = {
   jobs() { // contracts on the left, the county map in the middle (Deep Rock style), the picked job on the right
     const P = profile, lead = NET.code && !NET.host ? partyMembers().find(m => m.h) : null, J = lead && lead.bd && lead.bd.length ? lead.bd : P.jobs; if (jobSel !== 'range' && !J[jobSel]) jobSel = 0; // a member sees the leader's board
     const notReady = NET.code && NET.host ? partyMembers().filter(m => !m.me && !m.rdy).length : 0, off = NET.code && !NET.host;
-    const loc = id => MAP_LOC[id] || [450, 220], jobAt = id => J.filter(o => o.map === id);
+    const MH = jobMap.h, sy = MH / 440, loc = id => { const p = MAP_LOC[id] || [450, 220]; return [p[0], p[1] * sy]; }, jobAt = id => J.filter(o => o.map === id); // the county stretches to the box; text keeps its size
     const locs = MAP_IDS.map(id => { const [x, y] = loc(id), open = MAPS[id].minLevel <= P.level, feat = id === featuredMap(), has = jobAt(id).length;
       const sub = !open ? `${MAPS[id].minLevel}. szinttől` : feat ? 'heti kiemelt · +25% XP' : has ? '' : 'nincs munka';
-      return `<g class="loc${open ? '' : ' locked'}${feat ? ' feat' : ''}${has ? ' has' : ''}" transform="translate(${x} ${y})">${feat ? '<circle r="21" class="fring"/>' : ''}${has ? '' : '<rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/>'}<text class="ln" y="${has ? 34 : 30}">${feat ? '★ ' : ''}${MAPS[id].name}</text>${sub ? `<text class="ls" y="${has ? 48 : 44}">${sub}</text>` : ''}</g>`; }).join('');
+      return `<g class="loc${open ? '' : ' locked'}${feat ? ' feat' : ''}${has ? ' has' : ''}" transform="translate(${x} ${y}) scale(${jobMap.k})">${feat ? '<circle r="21" class="fring"/>' : ''}${has ? '' : '<rect x="-7" y="-7" width="14" height="14" transform="rotate(45)"/>'}<text class="ln" y="${has ? 34 : 30}">${feat ? '★ ' : ''}${MAPS[id].name}</text>${sub ? `<text class="ls" y="${has ? 48 : 44}">${sub}</text>` : ''}</g>`; }).join('');
     const marks = J.map((j, i) => {
-      const [lx, ly] = loc(j.map), k = J.slice(0, i).filter(o => o.map === j.map).length, [dx, dy] = [[0, 0], [60, -34], [-60, -34], [60, 34], [-60, 34]][k % 5];
-      const col = j.bounty ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1], tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase(), tw = tag.length * 7.2 + 14;
-      return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy})" style="--jc:${col}">${k ? `<line x1="0" y1="0" x2="${-dx}" y2="${-dy}"/>` : ''}<circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 14 : 12}"/><circle class="core" r="${j.bounty || j.tier ? 6 : 5}"/><rect class="tagb" x="${-tw / 2}" y="-44" width="${tw}" height="17"/><text class="tag" y="-32">${tag}</text>${k ? `<text class="ls" y="30">$${j.reward}</text>` : `<text class="lpay" y="62">$${j.reward}</text>`}</g>`;
+      const [lx, ly] = loc(j.map), k = J.slice(0, i).filter(o => o.map === j.map).length, [dx, dy] = [[0, 0], [60, -34], [-60, -34], [60, 34], [-60, 34]][k % 5].map(v => v * jobMap.k);
+      const col = j.bounty ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1], tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase(), tw = tag.length * 8 + 16;
+      return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy}) scale(${jobMap.k})" style="--jc:${col}">${k ? `<line x1="0" y1="0" x2="${-dx / jobMap.k}" y2="${-dy / jobMap.k}"/>` : ''}<circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 14 : 12}"/><circle class="core" r="${j.bounty || j.tier ? 6 : 5}"/><rect class="tagb" x="${-tw / 2}" y="-44" width="${tw}" height="17"/><text class="tag" y="-32">${tag}</text>${k ? `<text class="ls" y="30">$${j.reward}</text>` : `<text class="lpay" y="62">$${j.reward}</text>`}</g>`;
     }).join('');
-    const [rx, ry] = MAP_LOC.range, range = `<g class="jm range${jobSel === 'range' ? ' on' : ''}" data-act="jsel:range" transform="translate(${rx} ${ry})" style="--jc:#5fb4e8"><circle class="ring" r="16"/><rect class="sq" x="-9" y="-9" width="18" height="18"/><rect class="tagb" x="-40" y="-40" width="80" height="17"/><text class="tag" y="-28">GYAKORLÁS</text><text class="ln" y="30">Lőtér</text><text class="ls" y="44">fegyverteszt, nincs veszély</text></g>`;
+    const [rx, ry] = loc('range'), range = `<g class="jm range${jobSel === 'range' ? ' on' : ''}" data-act="jsel:range" transform="translate(${rx} ${ry}) scale(${jobMap.k})" style="--jc:#5fb4e8"><circle class="ring" r="16"/><rect class="sq" x="-9" y="-9" width="18" height="18"/><rect class="tagb" x="-40" y="-40" width="80" height="17"/><text class="tag" y="-28">GYAKORLÁS</text><text class="ln" y="30">Lőtér</text><text class="ls" y="44">fegyverteszt, nincs veszély</text></g>`;
     const claim = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
     const legend = `<div class="jlegend">${DIFF_NAMES.slice(0, 3).map((n, k) => `<span><i style="background:${DIFF_COL[k]}"></i>${n}</span>`).join('')}<span><i style="background:#ff8c1a"></i>Fejvadászat</span><span><i class="sq" style="background:#5fb4e8"></i>Lőtér</span><span><i class="dm"></i>Zárolt</span></div>`;
     return `<div class="jobs3">
       <div class="jleft"><div class="jlh"><h3>Kontraktok</h3><small>${claim ? `${claim} begyűjthető` : ''}</small></div>${contractsStrip()}${deepCard()}</div>
       <div class="jmapbox"><div class="jmaphead"><div><div class="jmt">Dead Acre megye</div><small>Válassz helyszínt a térképen</small></div>${hbtn(off ? 'Új munkák: csak a vezető' : `↻ Új munkák · $${reroll()}`, 'reroll', P.cash < reroll() || !!off)}</div>
-        <svg viewBox="0 0 900 440" class="jsvg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Munkatérkép">${MAP_ART}${locs}${range}${marks}</svg>${legend}</div>
+        <svg viewBox="-40 -10 980 ${MH + 20}" class="jsvg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Munkatérkép" style="--k:${jobMap.k}"><g transform="scale(1 ${sy})">${MAP_ART}</g><g class="jmk">${locs}${range}${marks}</g></svg>${legend}</div>
       <div class="jside">${jobCard(jobSel === 'range' ? 'range' : J[jobSel], jobSel, notReady)}</div></div>`;
   },
   arsenal() {
