@@ -162,10 +162,9 @@ const TIPS = {
   sell: 'Eladod pénzért.', gsell: 'Eladod pénzért.', fav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.', gfav: 'Kedvenc: nem adható el és nem szedhető szét, amíg ez be van kapcsolva.',
   trash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.', gtrash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.',
   trashsell: 'Eladja az összes kukába jelölt tárgyat (kézben lévőt nem).', trashsalv: 'Szétszedi az összes kukába jelölt tárgyat (kézben lévőt nem).', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.',
-  'hforge:level': 'A fegyver szintje +1: a sebzés szintenként kb. 8%-kal nő. A saját szinted fölé nem vihetedik.',
   'hforge:anoint': 'Dob egy új, véletlen felkenést: utána elfogadod, vagy megtartod a régit. Minden újradobás drágább ezen a fegyveren.',
   'hforge:recal': 'Újradobja a fegyver véletlen értékeit (sebzés, tűzgyorsaság, tár, újratöltés, pontosság), és a dobás minőségét (%).',
-  goforge: 'A Kovácshoz: szintemelés, felkenés, kalibrálás, szakértelem és túlhajtás.',
+  goforge: 'A Kovácshoz: felkenés, kalibrálás, szakértelem és túlhajtás.',
   wear: 'Felveszed ezt a páncélt.', unwear: 'Leveszed: a páncélraktárba kerül.', gshare: 'A karakterek közti ládába teszed.', gunshare: 'A páncélraktáradba teszed.',
   gun: 'Megveszed: a raktárba kerül.', gbuy: 'Megveszed: a páncélraktárba kerül.', item: 'Megveszed a munkákra.', drop: 'Eldobod a földre: a csapattársad felveheti.',
   tier: 'Rémálom-fokozat: erősebb zombik, cserébe több XP, pénz és jobb zsákmány.', job: 'Elindítod ezt a munkát.', reroll: 'Új munkaajánlatok a térképre.',
@@ -253,8 +252,7 @@ const HUB = {
     const i = +si, w = lists[sl] && lists[sl][i], it = !w && (sl === 'W' ? P.gear[si] : st[i]);
     const wActs = w && (() => {
       const pp = P.parts || 0;
-      return hbtn(w.level + 1 > HFORGE.cap() ? `Szintkorlát (${HFORGE.cap()})` : `+1 szint · ${HFORGE.level(w)} ⚙`, `hforge:level:${sl}:${i}`, pp < HFORGE.level(w) || w.level + 2 > HFORGE.cap(), 'KeyG') +
-      (w.q >= 2 && !w.anoPend ? hbtn(`Felkenés újradobása · ${HFORGE.anoint(w)} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(w), 'KeyN') : '') +
+      return (w.q >= 2 && !w.anoPend ? hbtn(`Felkenés újradobása · ${HFORGE.anoint(w)} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(w), 'KeyN') : '') +
       (w.anoPend ? `<div class="anopend"><small>Új felkenés dobva</small><b>${ANOINTS[w.anoPend]}</b><span>Most: ${ANOINTS[w.anoint] || 'nincs'}</span>${hbtn('Elfogadom', `anoacc:${sl}:${i}`, false, null, 'Az új felkenés kerül a fegyverre.')}${hbtn('Elutasítom', `anorej:${sl}:${i}`, false, null, 'Marad a régi felkenés. Az alkatrész nem jár vissza.')}</div>` : '') +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
       hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w)) +
@@ -264,7 +262,7 @@ const HUB = {
     const sec = (t, x) => x ? `<h3>${t}</h3><div class="tiles">${x}</div>` : '';
     const left = sec('Kézben', lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : '').join('')) + sec('Táska', lists.B.map((x, k) => wTile(`B:${k}`, x)).join('')) + sec('Raktár', lists.S.map((x, k) => wTile(`S:${k}`, x)).join('')) +
       sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
-    return `<p class="lede">Kovács: szintemelés, felkenés, kalibrálás, szakértelem és túlhajtás alkatrészért (⚙ ${P.parts || 0} · mag: ${P.oc || 0}). Válassz egy fegyvert vagy páncélt.</p>
+    return `<p class="lede">Kovács: felkenés, kalibrálás, szakértelem és túlhajtás alkatrészért (⚙ ${P.parts || 0} · mag: ${P.oc || 0}). Válassz egy fegyvert vagy páncélt.</p>
       ${invLayout(left, w ? weaponDetail(w, null, wActs) : it ? gearDetail(it, null, gActs) : noDetail('Nincs mit fejleszteni.'))}`;
   },
   stats() {
@@ -355,8 +353,8 @@ $('hubBody').addEventListener('click', e => {
   }
   if (kind === 'hforge') { // hforge:level|rarity:L|B|S:i
     const [, what, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]);
-    const ok = what === 'level' ? w && w.level + 1 <= HFORGE.cap() : what === 'recal' ? !!w : what === 'exp' ? w && (w.exp || 0) < 10 : w && w.q >= 2 && !w.anoPend, cost = w && what === 'exp' ? expCost(w) : w && HFORGE[what] ? HFORGE[what](w) : 1e9;
-    if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'level') levelUpWeapon(w, 1); else if (what === 'recal') recalWeapon(w); else if (what === 'exp') w.exp = (w.exp || 0) + 1; else { w.anoPend = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); w.anoN = (w.anoN || 0) + 1; } list[+i] = packW(w); SND.explode(); }
+    const ok = what === 'recal' ? !!w : what === 'exp' ? w && (w.exp || 0) < 10 : w && w.q >= 2 && !w.anoPend, cost = w && what === 'exp' ? expCost(w) : w && HFORGE[what] ? HFORGE[what](w) : 1e9;
+    if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'recal') recalWeapon(w); else if (what === 'exp') w.exp = (w.exp || 0) + 1; else { w.anoPend = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); w.anoN = (w.anoN || 0) + 1; } list[+i] = packW(w); SND.explode(); }
   }
   if (kind === 'up' && U(a) < UPGRADES[a].max && pay(upCost(a))) P.up[a] = U(a) + 1;
   if (kind === 'item') { const n = a === 'knife' ? 3 : 1; if (P.inv[a] < itemMax(a) && pay(ITEM_PRICE[a])) P.inv[a] = Math.min(itemMax(a), P.inv[a] + n); }

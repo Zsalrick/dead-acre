@@ -78,9 +78,7 @@ function renderStation() {
   } else if (stationKind === 'forge') {
     const w = curW();
     title = 'Kovácsműhely'; lede = `A kézben lévő fegyveren dolgozik: <b style="color:${rarColor(w)}">${w.name}</b> · Lv ${w.level} · ${RARITIES[w.q].name}`;
-    const lvDone = forgedOn(w, 'level'), capped = w.level + 1 > HFORGE.cap();
-    body = srow('Szintemelés (+1 szint)', lvDone ? 'Ezen a fegyveren ebben a munkában már megcsináltad.' : capped ? `A saját szinted (${HFORGE.cap()}) fölé nem viheted.` : `A sebzés a szinttel együtt nő. Lv ${w.level} → ${w.level + 1} · munkánként egyszer`,
-      lvDone || capped ? '—' : `${FORGE.level(w)} pont`, 'forge:level', lvDone || capped || pts < FORGE.level(w), lvDone ? 'Kész' : 'Kovácsolás') +
+    body =
       (w.element ? srow('Elem beégetése', `Már van eleme: ${ELEMENTS[w.element].name}.`, '—', 'none', true, 'Kész')
         : srow('Elem beégetése', 'Véletlen elem: tűz, villám vagy fagy. Munkánként egyszer.', `${FORGE.elem()} pont`, 'forge:elem', forgedOn(w, 'elem') || pts < FORGE.elem(), 'Kovácsolás')) +
       `<div class="wcard" style="--rc:${rarColor(w)};margin-top:18px;max-width:320px">${cardHTML(w, '', null)}</div>`;
@@ -109,7 +107,6 @@ $('stationBody').addEventListener('click', e => {
   const pay = c => { if (P.points < c) return false; P.points -= c; return true; };
   if (kind === 'up') { if (U(key) < UPGRADES[key].max && pay(upCost(key))) { P.up[key] = U(key) + 1; if (key === 'maxHp') P.hp += 20; if (key === 'shield') P.shield += 25; } }
   else if (kind === 'forge') {
-    if (key === 'level' && !forgedOn(w, 'level') && w.level + 1 <= HFORGE.cap() && pay(FORGE.level(w))) { levelUpWeapon(w, 1); markForged(w, 'level'); }
     if (key === 'elem' && !w.element && !forgedOn(w, 'elem') && pay(FORGE.elem())) { w.element = pick(Object.keys(ELEMENTS)); markForged(w, 'elem'); }
     trackBest(w); equipView(); renderSlots(); SND.explode();
   } else if (kind === 'vend') {

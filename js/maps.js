@@ -209,7 +209,7 @@ const PERKS = {
   second: { name: 'Második esély', desc: 'egyszer elesés helyett 50% élettel felállsz', cost: 1500, color: 0xff8aff },
 };
 const STATION_INFO = {
-  forge: 'Fegyverkovács: szintemelés, ritkaság-emelés, elem.',
+  forge: 'Fegyverkovács: elem beégetése a kézben lévő fegyverbe.',
   trap:  'Tűzcsapda: 20 mp-ig lángba borítja a kaput, minden átkelő zombi elég.',
   well:  'A víz gyógyít, és felszerelést vehetsz pontokért.',
   tower: 'Automata lövegtorony telepíthető.',
