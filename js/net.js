@@ -220,6 +220,7 @@ function updateAvatars(dt, peers) {
     a.g.position.set(a.pos.x, a.down ? .15 : q.y + Math.abs(Math.sin(a.walkT)) * Math.min(.05, speed * .01), a.pos.z);
     a.g.rotation.set(0, a.yaw, a.down ? 1.45 : 0);
     a.legL.rotation.x = sw; a.legR.rotation.x = -sw;
+    if (+P.si && truck.g) { const s = SEATS[(P.si - 1) & 3], w = new V3(s[0], BED_Y + .1 - .92, s[1]).applyMatrix4(truck.g.matrixWorld); a.pos.set(w.x, 0, w.z); a.g.position.copy(w); a.g.rotation.set(0, a.yaw, 0); a.legL.rotation.x = a.legR.rotation.x = Math.PI / 2; } // riding in the back: in our own van, not lagging behind it
     a.torso.rotation.x = a.pitch * .45; a.head.rotation.x = a.pitch * .55;
     const rl = P.rl ? Math.sin(now * 9) * .35 - .5 : 0;
     a.armR.rotation.x = a.pitch * .55; a.armL.rotation.x = a.pitch * .55 + rl;
@@ -382,13 +383,13 @@ function buildSnapshot() {
     tr: trapState.map(T => T.active > 0 ? Math.round(T.active * 10) / 10 : -Math.round((T.cd || 0) * 10) / 10), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
-    du: M.job.dur, dn: NET.deny || [],
+    du: M.job.dur, dn: NET.deny || [], iv: M.intro >= 0 ? Math.round(M.goT * 100) / 100 : 99,
   };
 }
 function myPresence() {
   const w = curW();
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
-    pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
+    pt: Math.round(player.pitch * 100) / 100, si: mission && mission.intro >= 0 && mission.goT < rideLen() ? (mission.seat | 0) + 1 : 0, sh: NET.shots || 0, kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
     wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, fx: NET.fx, we: w ? w.element || '' : '', tu: turrets.filter(t => !t.station).map(t => [Math.round(t.g.position.x * 10), Math.round(t.g.position.z * 10), (t.rocket ? 1 : 0) | (t.shield ? 2 : 0) | (t.small ? 4 : 0), Math.round(t.head.rotation.y * 100) / 100]), h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
@@ -513,6 +514,7 @@ function applySnapshot(g, hostPeer) {
   const was = { ph: M.phase, w: M.wave, ew: M.evacWarn, cl: M.cleared };
   if (Array.isArray(g.bk) && !M.bountyDone) { if (M.job.bounty) firstBounty(M.job.bounty); M.bountyDone = true; M.job.dur = (+g.t || 0) + EVAC_WARN + 1; bountyLoot({ x: +g.bk[0] || 0, z: +g.bk[1] || 0 }, M.job.bounty); banner(BOUNTIES[M.job.bounty] ? `${BOUNTIES[M.job.bounty].name.toUpperCase()} ELESETT` : 'A CÉLPONT ELESETT', 'Legendás zsákmány! Szedd fel, aztán irány a furgon.'); }
   Object.assign(M, { t: +g.t || 0, phase: g.ph, phaseT: +g.pt || 0, wave: +g.w || 1, cleared: !!g.cl, evacWarn: !!g.ew, pickup: g.pk | 0, boardT: +g.bt || 0, parkT: +g.pa || 0 });
+  if (M.intro >= 0 && g.iv != null) { const v = +g.iv; if (v < 0) M.goT = -1; else if (M.goT < 0 || Math.abs(M.goT - v) > .3) M.goT = Math.min(v, rideLen() + (M.goT > rideLen() ? M.goT - rideLen() : 0)); } // the ride follows the leader
   if (+g.du > 0) M.job.dur = +g.du; // the host's clock is the clock (bounty and objective end times)
   for (const [, peer, nid] of fresh('dn' + hostPeer, g.dn)) if (peer === NET.me) revokeTake(nid);
   if (round !== g.r) { round = +g.r || 1; $('round').textContent = round; }

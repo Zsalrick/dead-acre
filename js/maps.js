@@ -832,6 +832,7 @@ function buildTruck() {
   bx(paint, 4.8, .9, 2.1, 0, .85, 0); bx(paint, 1.9, .9, 2, .7, 1.75, 0);
   bx(new THREE.MeshLambertMaterial({ color: 0x9ab8d0, emissive: 0x0a141c }), 1.92, .6, 1.8, .7, 1.8, 0);
   bx(dark, .1, .5, 2.1, -2.35, 1.4, 0);
+  [-1.01, 1.01].forEach(z => bx(paint, 2.15, .4, .08, -1.33, 1.5, z)); // the bed's side rails: the ride in is back here
   for (const [a, b] of [[-1.5, -1], [1.5, -1], [-1.5, 1], [1.5, 1]]) {
     const t = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .3, 12), dark); t.rotation.x = Math.PI / 2; t.position.set(a, .45, b * 1.05); g.add(t);
   }

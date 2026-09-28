@@ -61,25 +61,66 @@ function startJob(job, opts = {}) {
   ['hub', 'menu', 'results'].forEach(id => $(id).hidden = true);
   $('introT').textContent = job.title.toUpperCase(); $('introS').textContent = job.test ? 'Célbábuk, végtelen lőszer · cserélj fegyvert a társaiddal · Esc: vissza' : `${MAPS[job.map].name} · ${fmtTime(job.dur)} túlélés`;
   $('introS2').innerHTML = `${'★'.repeat(job.diff)}${'☆'.repeat(5 - job.diff)} · ${DIFF_NAMES[job.diff - 1]}${job.mod ? ` · ${MODS[job.mod].label}` : ''}${job.boss ? ' · A Mészáros is eljön' : ''}`;
-  $('intro').hidden = false; $('hud').hidden = true;
+  $('intro').hidden = false; $('hud').hidden = true; mission.introS = $('introS').textContent; mission.goT = -1;
   state = 'intro'; initAudio(); lockPointer();
-  nz(3.2, 180, .35, 'lowpass', .6);
   netJobStarted({ seed, a, b, client: !!opts.client });
 }
-// cinematic: the van backs in, then the camera drops to your eyes beside it
+// the ride in: everyone sits in the back of the van (look around freely), it drives round to the gate and backs in,
+// then you climb down off the tailgate and draw. The leader starts the van once everyone is seated; members follow its clock.
+const SEATS = [[-.8, .62], [-.8, -.62], [-1.7, .62], [-1.7, -.62]], BED_Y = 1.3; // van space: +x is the bonnet, the tailgate at -2.4
+const RIDE = { wait: 1.2, road: 4.4, stop: .5, back: 3.4, exit: 1.9 };
+const rideLen = () => RIDE.road + RIDE.stop + RIDE.back;
+function mySeat() { if (!NET.mode) return 0; const ids = partyMembers().filter(m => m.st === 'job').map(m => m.peer).sort(); return clamp(ids.indexOf(NET.me), 0, 3); }
+function ridePose(t) { // t seconds into the drive: along the road outside the fence, a turn out, then reversing in through the gate
+  const Dd = vanRun(), side = truck.pos.z >= 0 ? 1 : -1, Ls = 24, R = 6, La = R * Math.PI / 2;
+  let f, l, hf, hl;
+  if (t < RIDE.road) { const s = smooth(clamp(t / RIDE.road, 0, 1)) * (Ls + La);
+    if (s < Ls) { f = Dd; l = -30 + s; hf = 0; hl = 1; } else { const a = Math.PI - (s - Ls) / R; f = Dd + R + R * Math.cos(a); l = -R + R * Math.sin(a); hf = Math.sin(a); hl = -Math.cos(a); } }
+  else if (t < RIDE.road + RIDE.stop) { f = Dd + R; l = 0; hf = 1; hl = 0; }
+  else { const v = clamp((t - RIDE.road - RIDE.stop) / RIDE.back, 0, 1); f = (Dd + R) * Math.pow(1 - v, 2); l = 0; hf = 1; hl = 0; }
+  const moving = t < rideLen() && Math.abs(t - RIDE.road - RIDE.stop / 2) > RIDE.stop / 2;
+  truck.g.position.set(truck.pos.x + truck.dir * f, moving ? .025 * Math.sin(now * 11) : 0, truck.pos.z + side * l);
+  truck.g.rotation.y = Math.atan2(-side * hl, truck.dir * hf); truck.g.visible = true;
+}
 function updateIntro(dt) {
-  const M = mission, t = M.intro += dt, d = truck.dir, sd = -Math.sign(truck.pos.z || 1);
-  setVanAt(vanRun() * Math.pow(1 - clamp(t / 3, 0, 1), 2));
-  const cine = new V3(truck.pos.x - d * 9, 3.2, truck.pos.z + sd * 4.5), eye = new V3(player.pos.x, 1.65, player.pos.z);
-  const u = smooth(clamp((t - 3.3) / 1.4, 0, 1));
-  camera.position.lerpVectors(cine, eye, u);
-  const q0 = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(cine, truck.g.position.clone().setY(1.2), new V3(0, 1, 0)));
-  const q1 = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, player.yaw, 0, 'YXZ'));
-  camera.quaternion.copy(q0).slerp(q1, u);
+  const M = mission; M.intro += dt;
+  if (M.goT < 0) { // everyone takes a seat; the leader (or you alone) starts the engine
+    M.seat = mySeat();
+    const want = NET.mode ? partyMembers().filter(m => !m.me).length : 0;
+    if (NET.mode && want) $('introS').textContent = `A többiekre vár… ${NET.avatars.size + 1} / ${want + 1}`;
+    if (!NET.client && M.intro > RIDE.wait && (NET.avatars.size >= want || M.intro > 15)) M.goT = 0;
+    if (M.goT >= 0) { $('introS').textContent = M.introS; }
+  } else {
+    if (!M.engine) { M.engine = 1; if (M.goT < rideLen()) nz(rideLen() - M.goT, 150, .28, 'lowpass', .6); $('introS').textContent = M.introS; }
+    M.goT += dt;
+    const bt = M.goT - RIDE.road - RIDE.stop; if (bt > 0 && bt < RIDE.back && Math.floor(bt / .55) !== M.beep) { M.beep = Math.floor(bt / .55); tn(1050, .12, .045, 'square'); } // reversing
+  }
+  const drive = clamp(M.goT, 0, rideLen()), ex = M.goT - rideLen();
+  ridePose(drive); truck.g.updateMatrixWorld();
+  if (ex >= 0 && !M.parked0) { M.parked0 = 1; setVanAt(0); truck.g.visible = true; nz(.25, 900, .22, 'bandpass', 2); } // the tailgate drops
+  const seat = SEATS[M.seat || 0], rot = truck.g.rotation.y, W = (x, y, z) => new V3(x, y, z).applyMatrix4(truck.g.matrixWorld);
+  if (M.iry == null || (M.goT < 0 && M.iSeat !== M.seat)) { M.iSeat = M.seat; M.iry = seat[1] > 0 ? 0 : Math.PI; M.lastYaw = null; } // facing the others across the bed (the seat can change while the party sits down)
+  let lx = seat[0], lz = seat[1], eye = BED_Y + .85, feet = BED_Y;
+  if (ex < 0) { // seated: mouse look relative to the van, so a turn turns you too
+    if (M.lastYaw != null) M.iry += player.yaw - M.lastYaw;
+    player.pitch = clamp(player.pitch, -1.1, 1.1);
+  } else { // stand, step to the tailgate, jump down
+    if (M.iryEx == null) { M.iryEx = M.iry; M.pitchEx = player.pitch; }
+    const k1 = smooth(clamp(ex / .45, 0, 1)), k2 = smooth(clamp((ex - .45) / .45, 0, 1)), k3 = clamp((ex - .9) / .5, 0, 1), k4 = clamp((ex - 1.4) / .5, 0, 1);
+    const landX = -3.4 - (M.seat >> 1) * .8;
+    M.iry = M.iryEx + angDiff(Math.PI / 2 - M.iryEx) * smooth(clamp(ex / .8, 0, 1)); // turn to face the gate
+    player.pitch = lerp(M.pitchEx, -.12, smooth(clamp(ex / .9, 0, 1))) - .25 * Math.sin(k3 * Math.PI);
+    lx = k3 > 0 ? lerp(-2.25, landX, k3) : lerp(seat[0], -2.25, k2); lz = lerp(seat[1], seat[1] * 1.3, k3);
+    const top = BED_Y + 1.55; eye = k3 > 0 ? lerp(top, 1.65, k3) + Math.sin(k3 * Math.PI) * .35 - .25 * Math.sin(k4 * Math.PI) : lerp(BED_Y + .85, top, k1);
+    feet = k3 > 0 ? eye - 1.65 : BED_Y; if (k3 >= 1 && !M.landed) { M.landed = 1; const p = W(lx, 0, lz); burst(new V3(p.x, .1, p.z), 0x8a7a5a, 10, 2, .5); nz(.18, 160, .45, 'lowpass', 1); tn(70, .15, .2, 'sine', 40); }
+    if (ex >= RIDE.exit) { const p = W(landX, 0, lz); player.pos.set(p.x, 0, p.z); collide(player.pos, .4); clampBounds(player.pos, .4); player.yaw = rot + M.iry; player.pitch = -.12; return endIntro(); }
+  }
+  player.yaw = rot + M.iry; M.lastYaw = player.yaw;
+  const cam = W(lx, eye, lz), fp = W(lx, Math.max(0, feet), lz); player.pos.copy(fp); // teammates see you where you are
+  camera.position.copy(cam); camera.quaternion.setFromEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
   camera.fov = SET.fov; camera.updateProjectionMatrix();
-  $('flash').style.background = '#000'; $('flash').style.opacity = clamp(1 - t / 1.2, 0, 1);
-  $('intro').style.opacity = clamp(Math.min(t / .8, (INTRO_T - t) / .6), 0, 1);
-  if (t >= INTRO_T) endIntro();
+  $('flash').style.background = '#000'; $('flash').style.opacity = clamp(1 - M.intro / 1.2, 0, 1);
+  $('intro').style.opacity = clamp(Math.min(M.intro / .8, M.goT < 0 ? 1 : (rideLen() - .8 - M.goT) / .6), 0, 1);
 }
 function markCarry(ext) { // what you carry right now, saved with the in-job marker: a quit is settled from this, so nothing exists twice
   const IM = profile.inMission; if (!IM || !mission) return;
@@ -87,9 +128,10 @@ function markCarry(ext) { // what you carry right now, saved with the in-job mar
 }
 function endIntro() {
   const M = mission; markCarry();
+  if (!M.landed) { setVanAt(0); truck.g.rotation.y = truck.dir > 0 ? 0 : Math.PI; truck.g.visible = true; if (M.goT >= 0) { player.pos.set(truck.pos.x - truck.dir * 3.6, 0, truck.pos.z); collide(player.pos, .4); } } // skipped the ride: stand behind the van
   M.intro = -1; M.departT = 0; state = 'playing';
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
-  equipView(); player.switchT = SWITCH_T * .5;
+  equipView(); player.switchT = SWITCH_T; SND.pickup(1); // off the tailgate, weapon up
   if (!stats.jobs || M.job.test) showHelp(12); // the first job (and the testing ground): the controls on screen
   if (M.job.test) banner('LŐTÉR', 'Célbábuk előtted. Esc: leltár és vissza a bázisra.'); else { banner('1. HULLÁM', noClock(M.job) ? 'Jönnek. A furgon akkor jön, ha kész a feladat.' : 'Jönnek. A furgon az idő lejártakor jön vissza érted.'); SND.roundStart(); }
   if (!locked && !noLock) { needClick = true; $('clickHint').hidden = false; } // one click grabs the mouse
@@ -441,7 +483,7 @@ addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('wheel', e => { if (state === 'playing') switchTo(1 - player.cur); }, { passive: true });
 addEventListener('mousemove', e => {
-  if (state !== 'playing' || !(locked || noLock)) return;
+  if ((state !== 'playing' && state !== 'intro') || !(locked || noLock)) return; // in the van you can look around
   const s = .0022 * SET.sens * (camera.fov / SET.fov) * (player.ads > .5 ? SET.adsSens : 1);
   player.yaw -= e.movementX * s; player.pitch -= e.movementY * s * (SET.invertY ? -1 : 1);
   player.pitch = clamp(player.pitch, -1.5, 1.5);
