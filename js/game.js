@@ -225,7 +225,7 @@ function finishJob(success, abandoned) {
   if (success && J.tier) P.parts = (P.parts || 0) + 10 + 5 * J.tier; // Rémálom pays parts too
   if (success && J.tier) { tierBonus = Math.random() < .12 ? makeUnique(null, J.lvl) : makeWeapon(pick(BASES), 4, J.lvl); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   const xpFrom = P.xp / xpNeed(P.level); const levelUps = addXp(xp);
-  const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
+  const tokens = levelUps; // one merit token per level, nothing else
   if (success && J.bounty) stats.bounties = (stats.bounties || 0) + 1;
   if (success && J.tier > (P.tier || 0)) P.tier = J.tier; // next nightmare tier unlocked
   giveTokens(tokens);

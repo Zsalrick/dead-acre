@@ -49,6 +49,7 @@ function openProfile(n) {
   gearChanged();
   profile.name = profile.name || `Zsoldos ${n}`;
   profile.skills = profile.skills || {}; profile.tokens = profile.tokens || 0; if (profile.cls === undefined) profile.cls = null;
+  if (typeof syncTokens === 'function') syncTokens(); // merit tokens: level - 1 per class
   if (!profile.jobs.length) rollBoard();
   if (!profile.shop.length || !profile.gshop.length || profile.shop.filter(o => o && o.level > profile.level).length + profile.gshop.filter(it => it && it.level > profile.level).length > 1) rollShop(); // at most one item above your level
   saveProfile();

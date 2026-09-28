@@ -213,7 +213,7 @@ function skillsTab() {
   const P = profile;
   if (!P.cls) {
     return `<div class="hubhead"><h2>Válassz kasztot</h2></div>
-      <p class="lede">A kaszt ad egy passzív bónuszt, egy aktív képességet (C gomb) és egy saját képességfát. Az érdemérmeket munkák után kapod. Később bármikor ingyen válthatsz, a pontjaid kasztonként megmaradnak.</p>
+      <p class="lede">A kaszt ad egy passzív bónuszt, egy aktív képességet (C gomb) és egy saját képességfát. Minden szintlépés egy érdemérmet ad (a 30. szinten összesen 29-et). Később bármikor ingyen válthatsz, a pontjaid kasztonként megmaradnak.</p>
       <div class="classes">${Object.entries(CLASSES).map(([k, C]) => `<article class="cls" style="--cc:${C.color}">
         <div class="ctag">${C.tag}</div><h3>${C.name}</h3><p>${C.desc}</p>
         <dl><dt>Passzív</dt><dd>${C.passive}</dd><dt>Képesség · ${C.ability.name}</dt><dd>${C.ability.desc} (${C.ability.cd} mp)</dd></dl>
@@ -245,14 +245,25 @@ function skillsTab() {
 }
 // every class keeps its own tree and its own tokens: switching is free and nothing is re-bought
 let skView = null;
-function tokEarned() { const P = profile; if (P.tokEarned == null) P.tokEarned = (P.tokens || 0) + treeSpent() + (P.cls ? (AUGMENTS[P.cls] || []).filter(x => (P.augOwn || []).includes(x[0])).length * AUG_COST : 0); return P.tokEarned; }
+// merit tokens: exactly (level - 1) per class, 29 at the cap; each class keeps its own tree
+const tokEarned = () => Math.max(0, profile.level - 1);
+const clsSpent = (k, S) => CLASSES[k].tree.reduce((a, [id]) => a + ((S || {})[id] || 0), 0) + (AUGMENTS[k] || []).filter(x => (profile.augOwn || []).includes(x[0])).length * AUG_COST;
+function syncTokens() { // recount every class from its tree; a class that spent more than its level allows gets its points back to re-spend
+  const P = profile, cap = tokEarned(); P.clsSkills = P.clsSkills || {}; P.clsTok = P.clsTok || {};
+  for (const k in CLASSES) {
+    let S = k === P.cls ? P.skills : P.clsSkills[k] || {};
+    if (clsSpent(k, S) > cap) { S = {}; P.augOwn = (P.augOwn || []).filter(id => !(AUGMENTS[k] || []).some(x => x[0] === id)); if (P.aug) P.aug[k] = null; if (k === P.cls) P.skills = S; else P.clsSkills[k] = S; }
+    if (k === P.cls) P.tokens = cap - clsSpent(k, S); else P.clsTok[k] = cap - clsSpent(k, S);
+  }
+  if (!P.cls) P.tokens = cap; P.tokEarned = cap;
+}
 function clsTokens(k) { const P = profile, t = (P.clsTok || {})[k]; return t == null ? tokEarned() : t; }
 function switchClass(k) {
   const P = profile; tokEarned(); P.clsSkills = P.clsSkills || {}; P.clsTok = P.clsTok || {};
   if (P.cls) { P.clsSkills[P.cls] = P.skills; P.clsTok[P.cls] = P.tokens; }
   P.skills = P.clsSkills[k] || {}; P.tokens = clsTokens(k); P.cls = k;
 }
-function giveTokens(n) { const P = profile; tokEarned(); P.tokEarned += n; P.tokens = (P.tokens || 0) + n; for (const k in P.clsTok || {}) if (k !== P.cls) P.clsTok[k] += n; }
+function giveTokens() { syncTokens(); } // a level-up: the count follows the level
 function skillAction(kind, a) {
   const P = profile;
   if (kind === 'skview') { skView = a; return true; }
