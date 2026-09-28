@@ -553,7 +553,7 @@ const MAPS = {
       const [dx, dz] = RANGE_DESK; addBox(dx, dz, 3.2, 1, .12, plank, .92); [[-1.4, -.4], [1.4, -.4], [-1.4, .4], [1.4, .4]].forEach(([a, b]) => addBox(dx + a, dz + b, .12, .12, .92, plank, 0, false));
       addBox(dx, dz + .3, 2.6, .12, .5, dark, 1.04, false).rotation.x = -.5;
       [[-.9, 0xff4a3a], [-.45, 0xffd23f], [0, 0x7dff7a], [.45, 0x6fb4ff], [.9, 0xb48cff]].forEach(([a, c]) => addBox(dx + a, dz + .15, .22, .12, .06, basic(c), 1.2, false));
-      label(['LŐTÉR-VEZÉRLŐ'], '#ffd23f', 1.1, dx, 2.2, dz);
+      label(['VEZÉRLŐ · E'], '#ffd23f', .45, dx, 1.9, dz);
       for (const [x, d] of RANGE_LANES) {
         const z = RANGE_LINE - d;
         addBox(x, (z + RANGE_LINE) / 2, .06, d, .015, basic(0x5a5a50), .004, false);
