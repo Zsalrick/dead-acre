@@ -406,9 +406,8 @@ function renderPauseInv() {
   const mid = `<h3>Lőszer <small>tartalék a fegyvereid szerint</small></h3><div class="amrs">${ammoRows()}</div>
     <h3>Tárgyak</h3><div class="itrs">${ITEM_KEYS.map(k => `<div class="itr" style="--ic:${ITEMS[k].color}" data-tip="${itemDesc(k).replace(/"/g, '&quot;')}"><kbd>${ITEMS[k].key}</kbd><span>${itemName(k)}</span><b>${player.inv[k]}</b></div>`).join('')}</div>
     ${test ? '' : `<div class="pout"><small>Kijutáskor a tiéd</small><span>+${mission.parts || 0} ⚙ alkatrész · +${mission.fabric || 0} ${FAB} anyag${foundG ? ` · ${foundG} talált páncél` : ''}${player.bag.filter(w => !w.owned).length ? ` · ${player.bag.filter(w => !w.owned).length} új fegyver` : ''}</span><p>Ha elesel, a talált zsákmány elveszik.</p></div>`}`;
-  const lo = $('loadout'), keep = [...lo.querySelectorAll('.invl,.invm,.invd')].map(e => e.scrollTop);
-  lo.innerHTML = invLayout(left, detail, mid); markCta(lo);
-  [...lo.querySelectorAll('.invl,.invm,.invd')].forEach((e, k) => { if (keep[k] != null) e.scrollTop = keep[k]; }); // a click re-renders it: stay where you were
+  const lo = $('loadout');
+  keepScroll(lo, () => { lo.innerHTML = invLayout(left, detail, mid); markCta(lo); });
   updateKeybar($('loadout'));
 }
 enableDrag($('pause'), $('loadout'), true);

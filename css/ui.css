@@ -797,3 +797,18 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 .fcard{container-type:inline-size}
 .optrow .sbtn{white-space:nowrap}
 @container (max-width:560px){.optrow{grid-template-columns:minmax(0,120px) minmax(60px,1fr) 46px;row-gap:6px;padding:4px 0 10px;border-bottom:1px solid var(--ln)}.optrow .sbtn{grid-column:1/-1;justify-content:center;width:100%}}
+
+/* the key bar wraps to a second line when it must; the hub body keeps clear of it */
+#keybar{height:auto;min-height:40px;flex-wrap:wrap;row-gap:4px;column-gap:22px;padding-block:8px}
+#hub .hubbody,#hub .hubbody:has(.inv),#hub .hubbody:has(.jobs3){padding-bottom:calc(var(--kbh,40px) + 22px)}
+#pause .pinv{padding-bottom:calc(var(--kbh,52px) + 12px)}
+/* the header: tighter when the window (or the menu size) leaves less room, two rows as a last resort */
+#hub .hub{grid-template-rows:auto auto minmax(0,1fr)}
+.htop{min-height:76px;container-type:inline-size}
+#hub .hub{container-type:inline-size}
+@container (max-width:1780px){.htop{gap:18px}.hubnav .mbtn{padding:0 9px;letter-spacing:.07em;font-size:16px}.hlvl{width:96px}.hlvl small{display:none}#hubParts{gap:10px!important}.hres{gap:12px}.hcash{font-size:26px}}
+@container (max-width:1560px){.htop{flex-wrap:wrap;row-gap:0;padding-top:8px}.htop .hubnav{order:5;flex-basis:100%;height:44px;margin-left:-13px}.hres{margin-left:auto}}
+
+/* pictures in tiles: guns and armor fill the box, small item icons stay their own size */
+.tile .tpic img{position:absolute;inset:0;margin:auto;width:auto;height:auto;max-width:86%;max-height:86%;object-fit:contain}
+.kith{align-items:center!important}.kith .sico{width:22px;height:22px;margin:0}

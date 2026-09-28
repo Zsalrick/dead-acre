@@ -138,8 +138,8 @@ function renderHub() {
   if (P.abandonNote) { const n = P.abandonNote; delete P.abandonNote; saveProfile();
     if (n === 'lost') toast('A MUNKÁT FÉLBEHAGYTAD', ['Kiléptél munka közben: a kézben és a táskában lévő fegyvereid és a páncélod elveszett.', 'Bolt → Elveszett bolt: drágán visszavásárolhatod őket.'], '#ff5a4a', 9000);
     else { toast('KIESTÉL A CSAPATBÓL', ['A hátizsákod tartalma a csapatnál maradt, a pályán.', P.rejoin ? 'Visszacsatlakozhatsz: Csapat fül.' : ''], '#ff8a70', 9000); if (P.rejoin) hubTab = 'party'; } }
-  const hb = $('hubBody'), same = renderHub.tab === hubTab, keep = same ? [hb.scrollTop, ...[...hb.querySelectorAll('.invl,.invd')].map(e => e.scrollTop)] : null; renderHub.tab = hubTab; hb.innerHTML = HUB[hubTab](); markCta(hb); // in a party the strip is on every tab
-  if (keep) { hb.scrollTop = keep[0]; [...hb.querySelectorAll('.invl,.invd')].forEach((e, k) => { if (keep[k + 1] != null) e.scrollTop = keep[k + 1]; }); } // a click re-renders the tab: stay where you were
+  const hb = $('hubBody'), same = renderHub.tab === hubTab; renderHub.tab = hubTab;
+  if (same) keepScroll(hb, () => { hb.innerHTML = HUB[hubTab](); markCta(hb); }); else { hb.innerHTML = HUB[hubTab](); markCta(hb); hb.scrollTop = 0; } // a click re-renders the tab: stay where you were
   updateKeybar($('hubBody'));
 }
 const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)}"><div class="head"><div class="lvl">Lv ${w.level}</div><div class="rar">${RARITIES[w.q].name}</div>

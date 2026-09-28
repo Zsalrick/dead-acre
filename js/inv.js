@@ -104,6 +104,13 @@ function setUiZ() { // the player's own sizes on top (Beállítások → Felüle
   r.setProperty('--uiz', z * (SET.uiScale || 1)); r.setProperty('--huz', z * (SET.hudScale || 1));
 }
 addEventListener('resize', setUiZ); setUiZ();
+// a re-render keeps every scrolled list where it was (matched by tag, class and order), whatever the layout
+function keepScroll(root, render) {
+  const key = e => e.tagName + '.' + e.className, saved = {};
+  for (const e of root.querySelectorAll('*')) if (e.scrollTop > 0) { const k = key(e); (saved[k] || (saved[k] = [])).push([[...root.querySelectorAll(e.tagName)].filter(x => key(x) === k).indexOf(e), e.scrollTop]); }
+  const top = root.scrollTop; render(); root.scrollTop = top;
+  for (const k in saved) { const all = [...root.querySelectorAll(k.split('.')[0])].filter(x => key(x) === k); for (const [i, t] of saved[k]) if (all[i]) all[i].scrollTop = t; }
+}
 const noDetail = t => `<div class="dnone">${t}</div>`;
 
 // ---------- detail: weapon ----------
@@ -256,9 +263,9 @@ function updateKeybar(root) {
   const bar = $('keybar'), inv = root.querySelector('.inv'), hub = root.id === 'hubBody';
   const btns = inv ? [...inv.querySelectorAll('[data-key]')].filter(b => !b.closest('.tile')) : []; bar.btns = btns;
   const acts = btns.map((b, i) => `<span data-i="${i}"${b.dataset.tip ? ` data-tip="${b.dataset.tip.replace(/"/g, '&quot;')}"` : ''} class="${b.disabled ? 'off' : ''}${b.classList.contains('hold') ? ' hold' : ''}"><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '').trim()}</span>`);
-  const hint = hub && { jobs: '<span><kbd>Kattintás</kbd>helyszín kiválasztása</span><span><kbd>Enter</kbd>elvállalom</span>', skills: '<span><kbd>Kattintás</kbd>képesség kiválasztása</span><span><kbd>Enter</kbd>tanul</span>', swheel: '<span><kbd>Space</kbd>pörgetés</span>' }[hubTab] || '';
-  bar.innerHTML = (hub ? '<span><kbd>Q</kbd><kbd>E</kbd>fül</span>' : '') + hint + (inv ? '<span><kbd>↑↓←→</kbd>választás</span>' : '') + acts.join('') +
-    (hub ? '<span><kbd>Esc</kbd>főmenü</span>' : '<span><kbd>Tab</kbd>vissza</span>') + `<span class="kver">${GAME_VER}${hub ? ' · automatikusan mentve' : ''}</span>`;
+  const hint = hub && { jobs: '<span><kbd>Enter</kbd>elvállalom</span>', skills: '<span><kbd>Enter</kbd>tanul</span>', swheel: '<span><kbd>Space</kbd>pörgetés</span>' }[hubTab] || '';
+  bar.innerHTML = hint + acts.join('') + `<span class="kver">${GAME_VER}${hub ? ' · automatikusan mentve' : ''}</span>`; // only what this screen's selection can do; the rest is on screen
+  requestAnimationFrame(() => { const z = bar.currentCSSZoom || 1; document.documentElement.style.setProperty('--kbh', (bar.hidden ? 0 : bar.getBoundingClientRect().height / z) + 'px'); }); // the lists stay clear of it, one line or two
 }
 function invKey(e, root) {
   if (!root.querySelector('.inv')) return false;
