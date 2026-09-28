@@ -181,7 +181,7 @@ const FPS_CAPS = [0, 30, 60, 90, 120, 144];
 // key bindings: SET.binds maps an action's default key to the key the player chose; the game reads the default codes
 const BINDS = [['KeyW', 'Előre'], ['KeyS', 'Hátra'], ['KeyA', 'Balra'], ['KeyD', 'Jobbra'], ['ShiftLeft', 'Sprint'], ['Space', 'Ugrás'], ['KeyR', 'Újratöltés'], ['KeyE', 'Használat, felélesztés'],
   ['KeyF', 'Felvétel a földről'], ['Digit1', '1. fegyver'], ['Digit2', '2. fegyver'], ['KeyV', 'Kés'], ['KeyH', 'Gyógyítás'], ['KeyG', 'Gránát'], ['KeyQ', 'Dobókés'], ['KeyT', 'Stimuláns'],
-  ['KeyC', 'Kasztképesség'], ['KeyZ', 'Pingelés'], ['KeyI', 'Leltár']];
+  ['KeyC', 'Kasztképesség'], ['Digit3', 'Kereszt (Nekromanta)'], ['KeyZ', 'Pingelés'], ['KeyI', 'Leltár']];
 const keyName = c => c ? c.replace(/^Key|^Digit/, '').replace(/^Shift(Left|Right)$/, 'Shift').replace(/^Control(Left|Right)$/, 'Ctrl').replace(/^Alt(Left|Right)$/, 'Alt').replace('Space', 'Szóköz').replace(/^Numpad/, 'Num ') : '–';
 const boundKey = d => (SET.binds || {})[d] || d;
 function keyCode(p) { // physical key -> the default code of the action bound to it; a default key moved elsewhere does nothing

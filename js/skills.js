@@ -90,6 +90,28 @@ const CLASSES = {
       ['m_sanct', 'Menedék', 1, () => 'a Szentelt körben feleannyi sebzést kapsz'],
     ],
   },
+  necro: {
+    name: 'Nekromanta', tag: 'Holtak ura', color: '#9d7cff', desc: 'Akit megöl, az neki harcol tovább. Egyedül sem egyedül.',
+    passive: '+10% sebzés maró fegyverrel, és minden ölés +1 életerőt ad.',
+    ability: { name: 'Feltámasztás', cd: 45, desc: 'Az utoljára megölt zombid feltámad, és 60 mp-ig melletted harcol: teli élettel, erősebben és gyorsabban, mint életében. Az ütései a te öléseid. Utána végleg összeesik.' },
+    tree: [
+      ['n_bond', 'Erős kötelék', 3, r => `a szolgád +${20 * r}% életerőt kap`],
+      ['n_rage', 'Vérszomj', 3, r => `a szolgád +${15 * r}% sebzést okoz`],
+      ['n_toxic', 'Méregkeverő', 3, r => `+${6 * r}% sebzés maró fegyverrel`],
+      ['n_time', 'Hosszú szolgálat', 2, r => `a szolgád +${15 * r} mp-ig marad`],
+      ['n_quick', 'Gyors rítus', 2, r => `a Feltámasztás ${6 * r} mp-cel hamarabb töltődik`],
+      ['n_leech', 'Lélekszívás', 3, r => `minden ölés további +${2 * r} életerő`],
+      ['n_speed', 'Halotti lépés', 2, r => `+${4 * r}% mozgási sebesség`],
+      ['n_shield', 'Csontpajzs', 2, r => `+${12 * r} pajzs`],
+      ['n_taunt', 'Csali', 1, () => 'a zombik inkább a szolgádat támadják, mint téged'],
+      ['n_twin', 'Kettős rítus', 1, () => 'egyszerre 2 szolgád lehet: a Feltámasztás az utolsó két áldozatodat hozza vissza'],
+      ['n_soul', 'Lélekvédő', 2, r => `amíg él szolgád, -${8 * r}% elszenvedett sebzés`],
+      ['n_blast', 'Hullarobbanás', 1, () => 'a szolgád a halálakor felrobban'],
+      ['n_elite', 'Sötét áldás', 1, () => 'a szolgád +50% életet és sebzést kap, és minden ölésed gyógyítja'],
+      ['n_pact', 'Vérszerződés', 2, r => `amíg él szolgád, +${10 * r}% sebzés`],
+      ['n_plague', 'Dögvész', 1, () => 'a szolgád ütése a cél 4 m-es körében mindenkit sebez'],
+    ],
+  },
 };
 const RESPEC = 0, RECLASS = 800; // re-spending the tree is free
 // augments change how the class ability works; unlock with merit tokens, one active per class, switch freely
@@ -97,6 +119,7 @@ const AUGMENTS = {
   soldier: [['ignite', 'Gyújtólövedék', 'A Tűzvihar alatt minden találat felgyújtja a célt.'], ['bulwark', 'Rohampáncél', 'A Tűzvihar alatt 40%-kal kevesebb sebzést kapsz.'], ['resupply', 'Utánpótlás-láda', 'A Tűzvihar +2 gránátot ad, és minden tárat megtölt.']],
   hunter: [['plague', 'Járvány', 'Ha egy megjelölt zombi meghal, a 8 m-en belüli társai is megjelölődnek.'], ['execute', 'Kivégző', 'A megjelölt zombi 30% élet alatt egy találattól meghal.'], ['wide', 'Sasszem', 'Halálszem alatt a találat a cél 4 m-es körében mindenkit megjelöl.']],
   engineer: [['shieldtower', 'Pajzstorony', 'A torony 5 m-es pajzskupolát húz: benne 50%-kal kevesebb sebzést kapsz.'], ['twin', 'Ikertorony', 'Két kisebb tornyot telepít (60% sebzés darabonként).'], ['rocket', 'Rakétatorony', 'A torony lassabban lő, de robbanó rakétával.']],
+  necro: [['cross', 'Megtérítés', 'Kapsz egy keresztet (3-as gomb, legfeljebb 1): egy élő zombit a szolgáddá térít. Főellenségre nem hat. Minden Feltámasztás ad egy új keresztet.'], ['legion', 'Légió', 'Az utolsó 3 áldozatod kel fel egyszerre, 60%-os erővel.'], ['soulswap', 'Lélekcsere', 'Ha egy szolgád meghal, 25% életet kapsz vissza, és a Feltámasztás 15 mp-cel hamarabb töltődik.']],
   medic: [['revive', 'Feltámasztó kör', 'A körben dupla a gyógyítás, és az elesett társak felállnak benne.'], ['smite', 'Ítélet', 'A kör égeti és erősen lassítja a benne álló zombikat.'], ['bigcircle', 'Nagy szentély', 'A kör sugara 6 helyett 9 méter, és 5 mp-cel tovább tart.']],
 };
 const AUG_COST = 2;
@@ -123,20 +146,22 @@ const SK = {
     m += .02 * masteryTier(w.base.id) + .02 * (w.exp || 0); // weapon mastery, expertise
     if (stimOn('berserk')) m += .3; // Berzerker-szérum
     if (inHolyAura()) m += .15; // Szentelt kör
+    if (w.element === 'corrosive') m += (isCls('necro') ? .1 : 0) + .06 * rk('n_toxic');
+    if (rk('n_pact') && minions.some(q => !q.dead)) m += .1 * rk('n_pact'); // Vérszerződés
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
   crit: w => (stimOn('focus') ? .2 : 0) + .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
   critDmg: () => .2 * rk('h_deadly') + (exoOn('glass') ? .5 : 0),
   head: () => (isCls('hunter') ? .1 : 0) + .12 * rk('h_head') + (player.eyeT > 0 ? .5 : 0), // Halálszem: +50% on the head
   hp: () => 8 * rk('s_hide'),
-  shield: () => 15 * rk('m_shield'),
+  shield: () => 15 * rk('m_shield') + 12 * rk('n_shield'),
   regen: () => 1 + (isCls('medic') ? .2 : 0) + .1 * rk('m_regen'),
   regenDelay: () => .3 * rk('m_rest'),
-  speed: () => .04 * rk('h_light'),
+  speed: () => .04 * rk('h_light') + .04 * rk('n_speed'),
   reload: () => .08 * rk('s_hands') + (inHolyAura() ? .25 : 0),
   ammo: () => .15 * rk('s_ammo'),
   taken: () => (stimOn('iron') ? .6 : 1) * (now < (player.guardT || 0) ? .5 : 1) * (dirOn('fragile') ? 1.3 : 1) * (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < aura.r ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .04 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
-    * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1),
+    * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1) * (rk('n_soul') && minions.some(q => !q.dead) ? 1 - .08 * rk('n_soul') : 1),
   med: () => Math.round((70 + 20 * rk('m_bless')) * (isCls('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),
   explMul: () => 1 + (isCls('engineer') ? .2 : 0) + .08 * rk('e_boom') + G('expl'),
@@ -154,7 +179,7 @@ const SK = {
 const abilityCd = () => {
   if (!profile || !profile.cls) return 0;
   const base = CLASSES[profile.cls].ability.cd;
-  return (base - (profile.cls === 'hunter' ? 8 * rk('h_mark') : 0)) * (1 - .1 * rk('e_quick'));
+  return (base - (profile.cls === 'hunter' ? 8 * rk('h_mark') : 0) - (profile.cls === 'necro' ? 6 * rk('n_quick') : 0)) * (1 - .1 * rk('e_quick'));
 };
 let aura = null;
 // in a priest's circle (yours or a teammate's): +15% damage, twice the shield regen, +25% reload, healing
@@ -186,7 +211,7 @@ function useAbility() {
     auraMesh.scale.setScalar(aura.r / 6);
     auraMesh.position.set(aura.pos.x, .04, aura.pos.z); auraMesh.visible = true;
     banner('SZENTELT KÖR', `${Math.round(aura.t)} mp · aki melletted áll, erősebb`);
-  }
+  } else if (c === 'necro') { if (!useRaise()) return SND.deny(); renderInv(); }
   player.abilCd = abilityCd(); SND.power(); pushFx(['ab', c]); if (c === 'medic' && aura) pushFx(['au', Math.round(aura.pos.x * 10), Math.round(aura.pos.z * 10), Math.round(aura.t)]);
   (player.buf || (player.buf = {})).ability = 8;
 }
@@ -195,6 +220,7 @@ function updateSkills(dt) {
   if (player.twinWait > 0 && (player.twinWait -= dt) <= 0) { player.twinWait = 0; player.abilCd = abilityCd(); } // the second twin turret never came
   player.abilCd = Math.max(0, (player.abilCd || 0) - dt);
   player.stormT = Math.max(0, (player.stormT || 0) - dt);
+  updateMinions(dt); updateRemoteMinions(dt);
   if (!aura) return;
   aura.t -= dt;
   auraMesh.material.opacity = .35 + Math.sin(now * 6) * .15;
@@ -210,7 +236,7 @@ function updateSkills(dt) {
   if (aura.t <= 0) { aura = null; auraMesh.visible = false; }
 }
 function resetSkillsRun() {
-  player.abilCd = 0; player.stormT = 0; aura = null; auraMesh.visible = false;
+  player.abilCd = 0; player.stormT = 0; aura = null; auraMesh.visible = false; resetMinions();
 }
 
 // ---------- hub tab ----------

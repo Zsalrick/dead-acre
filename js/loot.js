@@ -147,7 +147,8 @@ function updateBox(dt) {
 // ================= ITEMS =================
 function renderInv() {
   $('inv').innerHTML = ITEM_KEYS.map(k => `<div class="it${player.inv[k] ? '' : ' empty'}" style="--ic:${ITEMS[k].color}" title="${ITEMS[k].name}">` +
-    `<kbd>${ITEMS[k].key}</kbd><strong>${player.inv[k] || 0}</strong><span>${itemName(k)}</span></div>`).join('');
+    `<kbd>${ITEMS[k].key}</kbd><strong>${player.inv[k] || 0}</strong><span>${itemName(k)}</span></div>`).join('') +
+    (isCls('necro') && augOn('cross') ? `<div class="it${player.cross > 0 ? '' : ' empty'}" style="--ic:#9d7cff" title="Kereszt: egy zombit a szolgáddá térít"><kbd>${keyName(boundKey('Digit3'))}</kbd><strong>${player.cross || 0}</strong><span>Kereszt</span></div>` : ''); // the necromancer's cross
 }
 function itemDesc(k) { return itemType(k).desc; }
 function itemName(k) { return itemType(k).name; // the grenade / knife type you picked

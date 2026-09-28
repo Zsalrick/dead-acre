@@ -201,13 +201,14 @@ function updateAvatars(dt, peers) {
     if (!p.presence.p) { const a0 = NET.avatars.get(p.peer); if (a0) a0.bk = p.presence.bk; continue; } // left the job, not the party: no backpack to drop
     const P = p.presence.p; seen.add(p.peer); const bkNow = p.presence.bk;
     let a = NET.avatars.get(p.peer); if (a) { a.bk = bkNow; a.seenAt = performance.now(); } if (!a && NET.host) for (const L of [drops, gearDrops, resDrops]) for (const d of L.filter(d => d.bkOf === p.peer)) { netTookDrop(d); (L === drops ? removeDrop : L === gearDrops ? removeGearDrop : removeResDrop)(d); } // they're back: their backpack goes back to them
-    if (!a) { const u = p.presence.m && p.presence.m.u; if (u) for (const [pid, o] of NET.avatars) if (o.uid === u) { scene.remove(o.g); if (o.ring) scene.remove(o.ring); if (o.tag) o.tag.remove(); (o.tus || []).forEach(t => scene.remove(t.g)); NET.avatars.delete(pid); } } // the same player under a new id (P2P reconnect): the old figure goes, nothing is dropped
+    if (!a) { const u = p.presence.m && p.presence.m.u; if (u) for (const [pid, o] of NET.avatars) if (o.uid === u) { scene.remove(o.g); if (o.ring) scene.remove(o.ring); if (o.tag) o.tag.remove(); (o.tus || []).forEach(t => scene.remove(t.g)); dropRemoteMinions(o); NET.avatars.delete(pid); } } // the same player under a new id (P2P reconnect): the old figure goes, nothing is dropped
     if (!a) { a = makeAvatar(p.presence.m); a.uid = p.presence.m && p.presence.m.u; a.seenAt = performance.now(); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
     if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
     { const T = Array.isArray(P.tu) ? P.tu : [], key = T.map(t => `${t[0]},${t[1]},${t[2]}`).join('|'); // a teammate's turrets: stand-ins where theirs stand
       if (a.tuKey !== key) { (a.tus || []).forEach(o => scene.remove(o.g)); a.tus = T.map(t => { const m = turretMesh({ rocket: t[2] & 1, shield: t[2] & 2 }, !!(t[2] & 4)); m.g.position.set(t[0] / 10, 0, t[1] / 10); scene.add(m.g); return m; }); a.tuKey = key; }
       (a.tus || []).forEach((m, k) => { if (T[k]) m.head.rotation.y = +T[k][3] || 0; }); }
+    syncRemoteMinions(a, p.peer, P.mn);
     const q = sampleAt(a.buf, tr - 110);
     a.pos.x = q.x; a.pos.z = q.z;
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
@@ -263,7 +264,7 @@ function updateAvatars(dt, peers) {
   for (const [peer, a] of NET.avatars) if (!seen.has(peer)) {
     if (NET.host) { dropBackpack(a, peer); if (mission && mission.crates) mission.crates.forEach((c, i) => { if (c.st === 1 && c.by === peer) crateDrop(i, a.pos.x, a.pos.z); }); } // their crate falls where they stood
     if (profile && profile.inMission) { profile.inMission.alone = NET.avatars.size <= 1; markCarry(); } // closing now: were you the last one?
-    scene.remove(a.g); if (a.ring) scene.remove(a.ring); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); NET.avatars.delete(peer); }
+    scene.remove(a.g); if (a.ring) scene.remove(a.ring); if (a.tag) a.tag.remove(); (a.tus || []).forEach(o => scene.remove(o.g)); dropRemoteMinions(a); NET.avatars.delete(peer); }
 }
 const partySize = () => 1 + [...NET.avatars.values()].length;
 
@@ -274,13 +275,14 @@ function aimSetup() {
   AIM = NET.targets ? NET.targets.slice() : null;
   if (mission && mission.gens) for (const G of mission.gens) if (G.hp > 0) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(G.target);
   if (mission && mission.esc && mission.esc.target.alive) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(mission.esc.target);
+  for (const T of minionTargets()) (AIM || (AIM = [{ pos: player.pos, vel: player.vel, alive: !player.down, remote: false }])).push(T); // the necromancers' minions
   if (AIM) { NET.selfPos = player.pos; NET.selfVel = player.vel; }
 }
 function netAim(z) {
   if (!AIM) return;
   if (!z.tgt || !AIM.includes(z.tgt) || (z.tgtT = (z.tgtT || 0) - 1 / 60) <= 0) {
     z.tgtT = .4; let best = AIM[0], bd = Infinity;
-    for (const T of AIM) { if (!T.alive) continue; const d = Math.hypot(T.pos.x - z.pos.x, T.pos.z - z.pos.z) * (T.gen ? .6 : 1); if (d < bd) { bd = d; best = T; } }
+    for (const T of AIM) { if (!T.alive) continue; const d = Math.hypot(T.pos.x - z.pos.x, T.pos.z - z.pos.z) * (T.gen ? .6 : T.taunt ? .5 : 1); if (d < bd) { bd = d; best = T; } }
     z.tgt = best;
     const gens = AIM.filter(T => T.gen && T.alive); if (gens.length && z.id % 5 < 3 && !z.K.boss) z.tgt = gens.reduce((a, b) => Math.hypot(b.pos.x - z.pos.x, b.pos.z - z.pos.z) < Math.hypot(a.pos.x - z.pos.x, a.pos.z - z.pos.z) ? b : a); // on a defense job 3 in 5 zombies go for the nearest generator
   }
@@ -290,6 +292,8 @@ function netAim(z) {
 function netAimEnd() { sndVol = 1; if (!AIM) return; player.pos = NET.selfPos; player.vel = NET.selfVel; zTarget = null; }
 // a zombie aimed at a remote player: the damage goes to them instead of the host
 function netRedirectHurt(d) {
+  if (zTarget && zTarget.minion) { hurtMinion(zTarget.minion, d); return true; }
+  if (zTarget && zTarget.mi != null) { pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10, '#m' + zTarget.mi], 16); return true; } // a teammate's minion
   if (zTarget && zTarget.gen) { const M = mission; if (M && zTarget.esc && M.esc) { M.esc.hp -= d; M.esc.hitT = now; } else if (M && M.gens && M.gens[zTarget.gi]) { const G = M.gens[zTarget.gi]; G.hp -= d; G.hitT = now; } return true; } // the generator is sturdier than a person
   if (!zTarget || !zTarget.remote) return false;
   pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10, hurtSrc], 16);
@@ -363,6 +367,7 @@ function netOwnKill(e) {
   player.kills++; stats.kills++; stats.killsBy[kind] = (stats.killsBy[kind] || 0) + 1; myKill(curW(), KINDS[kind].name, head); noteBaseKill(curW());
   if (head) { player.heads++; stats.heads++; }
   if (rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
+  necroOnKill(kind, x / 10, zz / 10, elite);
   addPoints(+pts || 60); hitmarker(true); SND.kill();
   const zid = e[8], lh = NET.lastHit.get(zid) || {}, pz = zombies.find(q => q.id === zid) || { pos: new V3(x / 10, 0, zz / 10), burnT: 0 };
   weaponOnKill(pz, { w: lh.w, head: !!head }); killPerks(pz.K ? pz : Object.assign(pz, { K: KINDS[kind] }), { w: lh.w, head: !!head }); NET.lastHit.delete(zid);
@@ -395,7 +400,7 @@ function myPresence() {
   const w = curW();
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, si: mission && mission.intro >= 0 && mission.goT < rideLen() ? (mission.seat | 0) + 1 : 0, sh: NET.shots || 0, kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
-    au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0, aura.r] : null, rv: NET.rv,
+    mn: minionPresence(), au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0, aura.r] : null, rv: NET.rv,
     wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, fx: NET.fx, we: w ? w.element || '' : '', tu: turrets.filter(t => !t.station).map(t => [Math.round(t.g.position.x * 10), Math.round(t.g.position.z * 10), (t.rocket ? 1 : 0) | (t.shield ? 2 : 0) | (t.small ? 4 : 0), Math.round(t.head.rotation.y * 100) / 100]), h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
@@ -495,6 +500,7 @@ function netHostAct(type, arg, peer) {
   if (type === 'gate' && keys[arg] && !AREAS[keys[arg]].unlocked) { openArea(keys[arg]); banner(`${AREAS[keys[arg]].name.toUpperCase()} MEGNYÍLT`, 'Egy társad nyitotta meg.'); }
   if (type === 'trap' && trapState[arg] && trapState[arg].active <= 0 && trapState[arg].cd <= 0) trapState[arg].active = 20;
   if (type === 'crate' && Array.isArray(arg)) { const [i, act, x, z] = arg; if (act === 't') crateTake(i | 0, peer); else if (act === 'd') crateDrop(i | 0, x / 10, z / 10); else if (act === 'v') crateDeliver(i | 0); }
+  if (type === 'conv') { const z = NET.zById.get(arg); if (z && !z.dead && !z.K.boss && !z.bounty) convertZombie(z); } // a necromancer's cross
   if (type === 'mark' && Array.isArray(arg)) for (const id of arg.slice(0, 40)) { const z = NET.zById.get(id); if (z && !z.dead) z.markT = 10; }
   if (type === 'repair') { if (Array.isArray(arg) && M.gens) { const G = M.gens[arg[0] | 0]; if (G && G.hp > 0) G.hp = Math.min(G.max, G.hp + Math.min(+arg[1] || 0, G.max * .2)); } else { const T = M.esc; if (T && T.hp > 0) T.hp = Math.min(T.max, T.hp + T.max * .25); } }
   if (type === 'board' && M.phase === 'evac' && truck.parked && !(M.boardT > 0) && !M.leaving) { M.boardT = BOARD_T; banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); }
@@ -579,7 +585,8 @@ function applySnapshot(g, hostPeer) {
   if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
   // kills credited to me, and damage the host's zombies did to me
   for (const e of fresh('k' + hostPeer, g.k)) if (e[1] === NET.me) netOwnKill(e); else teamLoot(KIND_IDS[e[2]], { x: e[5] / 10, z: e[6] / 10 }, e[7], e[9]);
-  for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && !player.down) { hurtSrc = typeof e[3] === 'string' ? e[3].slice(0, 30) : null; hurtPlayer(+e[2] || 0); hurtSrc = null; }
+  for (const e of fresh('d' + hostPeer, g.d)) if (e[1] === NET.me && typeof e[3] === 'string' && e[3].startsWith('#m')) hurtMinion(minions.find(m => m.id === +e[3].slice(2)), +e[2] || 0);
+  else if (e[1] === NET.me && !player.down) { hurtSrc = typeof e[3] === 'string' ? e[3].slice(0, 30) : null; hurtPlayer(+e[2] || 0); hurtSrc = null; }
 }
 function resurrect(z) { z.dead = false; z.predDead = 0; z.deathT = 0; z.g.rotation.z = 0; z.g.visible = true; z.upper.children.forEach(c => c.visible = true); }
 function proxyDie(z) {
@@ -693,8 +700,8 @@ function reviveMate(peer) { NET.revs = (NET.revs || 0) + 1; pushRoll(NET.rv, [++
 // ---------- teammates on screen: name + HP over their head, and a party list ----------
 function updateMatesHud() {
   const box = $('mates'), W = innerWidth, H = innerHeight; if (!box) return;
-  const list = NET.mode ? [...NET.avatars.entries()] : [];
-  box.hidden = !list.length;
+  const list = NET.mode ? [...NET.avatars.entries()] : [], mh = minionHud();
+  box.hidden = !list.length && !mh; updateMinionTags();
   let html = '';
   for (const [peer, a] of list) {
     const pct = a.mh ? clamp(a.hp / a.mh, 0, 1) : 0;
@@ -710,6 +717,7 @@ function updateMatesHud() {
     el.innerHTML = a.down ? `<span>ELESETT · [E] felélesztés · ${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</span>` : `<b>${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small></b><i><em style="width:${pct * 100}%"></em></i>`;
     el.classList.toggle('down', a.down); el.dataset.edge = edge;
   }
+  html += mh;
   if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; }
   // the escort's survivor: tagged like a teammate, always on screen (blind directive or not)
   const E = mission && mission.esc, show = E && E.target && E.target.alive && E.hp > 0 && state !== 'intro';

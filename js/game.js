@@ -501,6 +501,7 @@ addEventListener('keydown', e => {
   else if (c === 'KeyT') useItem('adren'); // X is for taking loot apart
   else if (c === 'KeyV') knife();
   else if (c === 'KeyC') useAbility();
+  else if (c === 'Digit3') useCross();
   else if (c === 'KeyZ') doPing();
   else if (e.code === 'F1') { e.preventDefault(); showHelp(10); }
   else if ((e.code === 'Escape' || e.code === 'KeyP') && !locked) pause();

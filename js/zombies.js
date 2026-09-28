@@ -239,7 +239,8 @@ function killZombie(z, o) {
     return netKill(z, o);
   }
   player.kills++; stats.kills++; stats.killsBy[z.kind] = (stats.killsBy[z.kind] || 0) + 1; multiKill();
-  myKill(o.w || (o.melee ? { name: 'Kés', q: 0 } : o.dot ? { name: 'Égés', q: 0 } : { name: 'Robbanás', q: 0 }), z.K.name, o.head);
+  necroOnKill(z.kind, z.pos.x, z.pos.z, z.elite);
+  myKill(o.w || (o.minion ? { name: 'Szolga', q: 0 } : o.melee ? { name: 'Kés', q: 0 } : o.dot ? { name: 'Égés', q: 0 } : { name: 'Robbanás', q: 0 }), z.K.name, o.head);
   weaponOnKill(z, o);
   killPerks(z, o);
   noteBaseKill(o.w);
