@@ -342,28 +342,46 @@ document.addEventListener('pointerlockchange', () => {
 let quitArmed = false, pausedAt = 0;
 let pauseWant = null; // Tab / I asks for the inventory; Esc (or losing the mouse) opens the menu
 function pauseMode(m) { $('pause').dataset.mode = m; if (m === 'inv') renderPauseInv(); else renderPauseMenu(); $('keybar').hidden = m !== 'inv'; }
-function renderPauseMenu() {
-  const M = mission, J = M.job, T = JOB_TYPES[J.type], obj = objectiveLine(M) || (J.bounty ? `Győzd le: ${BOUNTIES[J.bounty] ? BOUNTIES[J.bounty].name : 'a fejvadász'}` : J.test ? 'Lőtér' : M.phase === 'evac' ? 'A furgon itt van: szállj be!' : `Éld túl, amíg a furgon visszajön · ${fmtTime(Math.max(0, (J.dur || 0) - (M.t || 0)))}`);
-  $('pmission').innerHTML = `<div class="eyebrow">${J.test ? 'Lőtér' : `${MAPS[J.map] ? MAPS[J.map].name : ''} · ${J.bounty ? 'Fejvadászat' : T ? T.name : ''}${J.tier ? ` · Rémálom +${J.tier}` : ` · ${'★'.repeat(J.diff)}`}`}</div>
-    <div class="pmt">${J.title}</div><div class="pmobj"><small>Feladat</small>${obj}</div>
-    <div class="pmfacts"><span>Veszélyszint <b>${round}</b></span><span>Pont <b>${player.points}</b></span><span>Ölés <b>${player.kills}</b></span>${M.parts ? `<span>Kijutáskor <b>${M.parts} ⚙</b></span>` : ''}${M.fabric ? `<span>Kijutáskor <b>${M.fabric} ${FAB}</b></span>` : ''}</div>
-    ${modHudText() ? `<div class="pmmods">${modHudText()}</div>` : ''}<div class="pmver">Dead Acre ${GAME_VER}</div>`;
-  $('quitBtn2').textContent = J.test ? 'Vissza a bázisra' : 'Munka feladása';
+function renderPauseMenu(help) {
+  const M = mission, J = M.job, T = JOB_TYPES[J.type], left = Math.max(0, (J.dur || 0) - (M.t || 0));
+  if (help) { $('pmission').innerHTML = `<div class="eyebrow">Szünet</div><div class="pmt">Irányítás</div><div class="pmhelp">${TABS.controls().replace(/<h2>.*?<\/h2>/, '')}</div>`; return; }
+  const objL = objectiveLine(M), main = M.phase === 'evac' ? ['Szállj be a furgonba', ''] : objL ? [objL, ''] : J.test ? ['Lőtér: célbábuk, nincs veszély', ''] : ['Éld túl, amíg a furgon visszajön', fmtTime(left)];
+  const P = profile, ct = !J.test && P.daily ? P.daily.list.map(c => [c, cProg(c, false)]).filter(([c, p]) => !c.got && p < c.n).sort((a, b) => b[1] / b[0].n - a[1] / a[0].n)[0] : null;
+  const cards = [...(J.dir || []).filter(k => DIRECTIVES[k]).map(k => `<div class="pmc dir"><small>Direktíva · ${DIRECTIVES[k].name}</small><span>${DIRECTIVES[k].desc}</span></div>`),
+    J.mod && MODS[J.mod] ? `<div class="pmc mod"><small>Módosító · ${MODS[J.mod].label}</small><span>${MODS[J.mod].sub}</span></div>` : '', J.tier ? `<div class="pmc nm"><small>Rémálom +${J.tier}</small><span>Erősebb zombik, jobb zsákmány.</span></div>` : '',
+    J.map === featuredMap() ? '<div class="pmc ft"><small>Heti kiemelt pálya</small><span>+25% XP</span></div>' : ''].join('');
+  const team = NET.mode ? `<div class="pmteam"><h4>Csapat${NET.code ? ` · ${String(NET.code).split('-')[0].toUpperCase()}` : ''}<small>A csapatban a világ nem áll meg: a zombik közben is jönnek.</small></h4><div class="pmmem">
+      <div class="pm" style="--cc:${P.cls ? CLASSES[P.cls].color : '#8a867c'}"><em class="amb">Szünetel</em><b>${esc(P.name)}</b><small>${P.cls ? CLASSES[P.cls].name : ''} · te</small></div>
+      ${[...NET.avatars.values()].map(a => `<div class="pm" style="--cc:${a.col}"><em class="${a.down ? 'red' : 'pos'}">${a.down ? 'Leesett' : 'Harcol'}</em><b>${esc(a.name)}</b><small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small></div>`).join('')}</div></div>` : '';
+  const out = [M.parts ? `+${M.parts} ⚙` : '', M.fabric ? `+${M.fabric} ${FAB}` : ''].filter(Boolean).join(' · ') || '—';
+  $('pmission').innerHTML = `<div class="eyebrow">Szünet · ${J.test ? 'Lőtér' : `${MAPS[J.map] ? MAPS[J.map].name : ''} · ${J.bounty ? 'Fejvadászat' : T ? T.name : 'Túlélés'} · ${'★'.repeat(J.diff)}`}</div>
+    <div class="pmt">${J.title}</div>
+    <div class="pmobj"><small>Feladat</small><ul><li><span>${main[0]}</span><b>${main[1]}</b></li>${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}</ul></div>
+    <div class="pmstats"><div><small>Veszélyszint</small><b class="red">${round}</b></div><div><small>Pont</small><b class="amb">${player.points.toLocaleString('hu-HU')}</b></div><div><small>Ölés</small><b>${player.kills}</b></div><div><small>Idő</small><b>${fmtTime(M.t || 0)}</b></div><div><small>Kijutáskor</small><b>${out}</b></div></div>
+    ${cards ? `<div class="pmcards">${cards}</div>` : ''}${team}<div class="pmver">Dead Acre ${GAME_VER}</div>`;
+  const q = $('quitBtn2'); q.textContent = J.test ? 'Vissza a bázisra' : quitArmed ? 'Biztos? Feladom' : 'Munka feladása'; q.classList.toggle('armed', quitArmed && !J.test);
+  let w = document.querySelector('#pause .pmwarn'); if (!w) { w = document.createElement('div'); w.className = 'pmwarn'; q.after(w); }
+  w.hidden = !(quitArmed && !J.test); w.innerHTML = '<b>A munka elbukik</b><span>Nincs fizetség. A munkán talált fegyverek és páncél, valamint a terepen szedett alkatrész elveszik; a sajátjaid megmaradnak.</span>';
+}
+function doQuit() { // giving up needs a second click; it counts as a failed job. The testing ground: leave any time
+  if (mission && mission.job.test) { $('pause').hidden = true; return finishJob(true, true); }
+  if (!quitArmed) { quitArmed = true; return renderPauseMenu(); }
+  $('pause').hidden = true; finishJob(false, true);
 }
 $('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
-  if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'quit') $('quitBtn').click(); });
+  if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'help') renderPauseMenu(true); else if (a === 'quit') doQuit(); });
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
-  state = 'paused'; mouseDown = rmb = false; pausedAt = performance.now(); quitArmed = false; $('quitBtn').textContent = mission && mission.job.test ? 'Vissza a bázisra' : 'Munka feladása';
+  state = 'paused'; mouseDown = rmb = false; pausedAt = performance.now(); quitArmed = false;
   $('pauseNote').textContent = note || (noLock ? 'Az egér itt nem zárolható: mozgasd az egeret az ablakon belül, vagy fordulj a nyilakkal.' : '');
-  $('pauseInfo').textContent = mission.job.test ? 'Lőtér · a fegyvereidet és a páncélt eldobhatod a társaidnak' : `Szünet · ${mission.job.title} · ${round}. szintű veszély · ${player.points} pont${mission.parts ? ` · ${mission.parts} ⚙ evakuáláskor` : ''}`;
+  $('pauseInfo').textContent = mission.job.test ? 'Lőtér · a fegyvereidet és a páncélt eldobhatod a társaidnak' : `Munka közben${NET.mode ? ' · a játék nem áll meg a csapatban' : ''}`;
   pauseMode(pauseWant || 'menu'); pauseWant = null;
   $('pause').hidden = false;
 }
 // the inventory: move guns between hands and bag, drop them, see the gear you found
 function ammoRows() { // reserve rounds by family, over the guns in hand and in the bag
   const by = {}; for (const w of [...player.slots, ...player.bag]) if (w) { const k = CAT[w.base.id], e = by[k] || (by[k] = { n: 0, max: 0, guns: [] }); e.n += w.reserve; e.max += resMax(w); e.guns.push(w.base.name); }
-  return Object.entries(by).map(([k, e]) => `<div><img src="${ammoURL(k)}" alt=""><span style="color:${AMMO_COL[k]}">${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}<small>${e.guns.join(', ')}</small></span><b>${e.n} / ${e.max}</b></div>`).join('') || '<div><span>Nincs fegyvered.</span></div>';
+  return Object.entries(by).map(([k, e]) => `<div class="amr" style="--ac:${AMMO_COL[k]}"><div><b>${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}</b><span>${e.n} / ${e.max}</span></div><i><em style="width:${e.max ? e.n / e.max * 100 : 0}%"></em></i><small>${e.guns.join(', ')}</small></div>`).join('') || '<p class="note">Nincs fegyvered.</p>';
 }
 function renderPauseInv() {
   const L = player.slots, B = player.bag, bagFull = B.length >= bagMax(), lone = L.filter(Boolean).length < 2, MG = mission.gear;
@@ -380,15 +398,17 @@ function renderPauseInv() {
       : hbtn(`Kézbe → ${bestHand(L, x) + 1}. kéz`, `mv:B:${i}:L:${bestHand(L, x)}`, !canUse(x), 'KeyF') + hbtn('1. kézbe', `mv:B:${i}:L:0`, !canUse(x), 'Digit1') + hbtn('2. kézbe', `mv:B:${i}:L:1`, !canUse(x), 'Digit2') + hbtn('Eldob', `drop:B:${i}`, false, 'KeyG') + destroyBtn(`destroy:B:${i}`, x, false);
     detail = weaponDetail(x, sl === 'L' ? L[1 - i] : L[player.cur], `<small class="note">${x.owned ? 'Saját' : 'Új: csak evakuálással a tiéd'} · lőszer ${x.ammo}/${x.reserve}</small>${acts}`);
   }
-  const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${L.map((w, k) => w ? wTile(`L:${k}`, w, { n: `${k + 1}`, tag: w.owned ? '' : 'új' }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('')}</div>
-    <h3>Táska <small>${B.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új' })).join('') || emptyTile('Üres', 'Ha új fegyvert veszel fel, a kézben lévő ide kerül')}</div>
-    <h3>Viselt páncél</h3><div class="tiles worn" data-drop="W">${GEAR_KEYS.map(k => profile.gear[k] ? gTile(`W:${k}`, profile.gear[k], { tag: profile.gear[k].found ? 'új' : '' }) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('')}</div>
-    <h3>Páncél a zsákban <small>a talált darab csak evakuálással a tiéd</small></h3><div class="tiles" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: profile.gear[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Még semmi', 'A zombik dobják, rálépve felveszed')}</div>
-    <h3>Lőszer <small>tartalék, a fegyvereid szerint</small></h3><div class="invlist ammo">${ammoRows()}</div>
-    <h3>Tárgyak</h3><div class="invlist">${ITEM_KEYS.map(k => `<div><img src="${ICONS[k]}" alt=""><span>[${ITEMS[k].key}] ${itemName(k)}<small>${itemDesc(k)}</small></span><strong>${player.inv[k]}/${itemMax(k)}</strong></div>`).join('')}</div>`;
-  const lo = $('loadout'), keep = [...lo.querySelectorAll('.invl,.invd')].map(e => e.scrollTop);
-  lo.innerHTML = invLayout(left, detail);
-  [...lo.querySelectorAll('.invl,.invd')].forEach((e, k) => { if (keep[k] != null) e.scrollTop = keep[k]; }); // a click re-renders it: stay where you were
+  const bagFree = Math.max(0, bagMax() - B.length), foundG = MG.filter(it => it.found).length;
+  const left = `<h3>Kézben <small>${L.filter(Boolean).length} / 2 · görgő vagy 1 / 2</small></h3><div class="tiles hands" data-drop="L">${L.map((w, k) => w ? wTile(`L:${k}`, w, { n: `${k + 1}`, tag: w.owned ? '' : 'új' }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('')}</div>
+    <h3>Táska <small>${B.length} / ${bagMax()} · a munkán felvett fegyverek</small></h3><div class="tiles bag" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új', sub: w.base.name })).join('')}${Array.from({ length: bagFree }, () => emptyTile('Üres', 'F: felvétel a földről', null, 'B')).join('')}</div>
+    <h3>Viselt páncél <small>${GEAR_KEYS.filter(k => profile.gear[k]).length} / 4${maxShield() ? ` · pajzs ${Math.round(maxShield())}` : ''}</small></h3><div class="tiles bag" data-drop="W">${GEAR_KEYS.map(k => profile.gear[k] ? gTile(`W:${k}`, profile.gear[k], { tag: profile.gear[k].found ? 'új' : '' }) : emptyTile(`${GEAR_SLOTS[k]} · üres`, 'Húzz ide páncélt', null, 'W')).join('')}</div>
+    <h3>Páncél a zsákban <small>a talált darab csak evakuálással a tiéd</small></h3><div class="tiles bag" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: profile.gear[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Még semmi', 'A zombik dobják, rálépve felveszed')}</div>`;
+  const mid = `<h3>Lőszer <small>tartalék a fegyvereid szerint</small></h3><div class="amrs">${ammoRows()}</div>
+    <h3>Tárgyak</h3><div class="itrs">${ITEM_KEYS.map(k => `<div class="itr" style="--ic:${ITEMS[k].color}" data-tip="${itemDesc(k).replace(/"/g, '&quot;')}"><kbd>${ITEMS[k].key}</kbd><span>${itemName(k)}</span><b>${player.inv[k]}</b></div>`).join('')}</div>
+    ${test ? '' : `<div class="pout"><small>Kijutáskor a tiéd</small><span>+${mission.parts || 0} ⚙ alkatrész · +${mission.fabric || 0} ${FAB} anyag${foundG ? ` · ${foundG} talált páncél` : ''}${player.bag.filter(w => !w.owned).length ? ` · ${player.bag.filter(w => !w.owned).length} új fegyver` : ''}</span><p>Ha elesel, a talált zsákmány elveszik.</p></div>`}`;
+  const lo = $('loadout'), keep = [...lo.querySelectorAll('.invl,.invm,.invd')].map(e => e.scrollTop);
+  lo.innerHTML = invLayout(left, detail, mid); markCta(lo);
+  [...lo.querySelectorAll('.invl,.invm,.invd')].forEach((e, k) => { if (keep[k] != null) e.scrollTop = keep[k]; }); // a click re-renders it: stay where you were
   updateKeybar($('loadout'));
 }
 enableDrag($('pause'), $('loadout'), true);
@@ -426,13 +446,6 @@ $('loadout').addEventListener('click', e => {
 function resume() { $('pause').hidden = true; $('clickHint').hidden = true; state = 'playing'; initAudio(); if (!noLock) lockPointer(); }
 // Esc cannot grab the mouse again (browsers refuse pointer lock from Esc): close the inventory and resume on the next click
 function closePauseForClick() { $('pause').hidden = true; $('clickHint').hidden = false; }
-$('resumeBtn').onclick = resume;
-// giving up needs a second click; it counts as a failed job
-$('quitBtn').onclick = () => {
-  if (mission && mission.job.test) { $('pause').hidden = true; return finishJob(true, true); } // the testing ground: leave any time
-  if (!quitArmed) { quitArmed = true; $('quitBtn').textContent = 'Biztos? Nincs fizetség'; return; }
-  $('pause').hidden = true; finishJob(false, true);
-};
 addEventListener('blur', () => pause());
 
 addEventListener('keydown', e => {
@@ -533,6 +546,14 @@ function renderSlots() {
     ? `<div class="slot${i === player.cur ? ' on' : ''}" style="--sc:${rarColor(w)}"><b>${i + 1}</b>${w.base.name} <em>Lv ${w.level}</em></div>`
     : `<div class="slot"><b>${i + 1}</b>üres</div>`).join('');
 }
+function gearGroundCard(it, act) { // armor on the ground: the same card as a gun, with its armor against what you wear
+  const B = BRANDS[it.brand], worn = profile.gear[it.slot], d = worn ? it.armor - worn.armor : 0;
+  return `<div class="gck" style="color:${gCol(it)}">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level} · a földön</div><div class="gcn">${it.name}</div>
+    <div class="gcs">${GEAR_SLOTS[it.slot]} · <span style="color:${B.color}">${B.name}</span> · ${B.tag}</div>
+    <div class="gcst"><div><small>Páncél</small><b>${it.armor}${d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</b></div><div><small>${GSTATS[B.core[0]].name}</small><b>${fmtG(B.core[0], coreVal(it))}</b></div>${Object.entries(it.stats).slice(0, 1).map(([k, v]) => `<div><small>${GSTATS[k].name}</small><b>${fmtG(k, v)}</b></div>`).join('')}</div>
+    ${it.exo && EXOTICS[it.exo] ? `<div class="gcx" style="color:${EXO_COL}">${EXOTICS[it.exo].talent}</div>` : ''}
+    <div class="act">${act}</div>`;
+}
 function statRows(w, c) {
   const row = (label, val, shown, cmp, lowBetter, big) => {
     let d = '';
@@ -553,16 +574,12 @@ function statRows(w, c) {
     row('Tár', w.mag, w.mag, c && c.mag);
 }
 function cardHTML(w, action, c) {
-  const el = w.element ? ELEMENTS[w.element] : null;
-  return `<div class="head"><div class="lvl">Lv ${w.level}</div><div class="rar">${RARITIES[w.q].name}</div><div class="name">${w.name}</div>
-    <div class="sub"><img class="cammo" src="${ammoURL(CAT[w.base.id])}" alt="">${w.maker} · ${w.base.name} · ${CAT_NAMES[CAT[w.base.id]] || ''}</div>${c && c !== w ? `<span class="verdict ${dps(w) >= dps(c) ? 'up">JOBB' : 'down">GYENGÉBB'}</span>` : ''}</div>
-    <div class="wperk">${w.maker}: ${mkOf(w).perk || ''}</div>
-    <table>${statRows(w, c)}</table>
-    ${el ? `<div class="elem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
-    ${w.unique && UNIQUES[w.unique] ? `<div class="duniq"><b>Egzotikus:</b> ${UNIQUES[w.unique].trick}</div>` : ''}
-    ${w.tal && TALENTS[w.tal] ? `<div class="danoint" style="color:#ffd23f"><b>${TALENTS[w.tal].name}:</b> ${TALENTS[w.tal].desc}</div>` : ''}
-    ${w.anoint && ANOINTS[w.anoint] ? `<div class="danoint"><b>${anoName(w.anoint)}:</b> ${ANOINTS[w.anoint]}</div>` : ''}
-    ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
+  const el = w.element ? ELEMENTS[w.element] : null, cc = c && c !== w ? c : null;
+  const st = (lbl, v, shown, cv, low) => { const d = cc == null ? 0 : v - cv, good = low ? d < 0 : d > 0; return `<div><small>${lbl}</small><b>${shown}${cc && Math.abs(d) > 1e-6 ? `<em class="${good ? 'up' : 'down'}">${good ? '▲' : '▼'}${Math.abs(+d.toFixed(1))}</em>` : ''}</b></div>`; };
+  return `<div class="gck">${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · Lv ${w.level} · a földön</div><div class="gcn">${w.name}</div>
+    <div class="gcs">${w.base.name} · ${w.maker}${el ? ` · <span style="color:${el.color}">${el.name}</span>` : ''}</div>
+    <div class="gcst">${st('DPS', dps(w), dps(w), cc && dps(cc))}${st('Tár', w.mag, w.mag, cc && cc.mag)}${st('Pontosság', accuracy(w), accuracy(w) + '%', cc && accuracy(cc))}</div>
+    ${w.unique && UNIQUES[w.unique] ? `<div class="gcx" style="color:#ff5a4a">${UNIQUES[w.unique].name}: ${UNIQUES[w.unique].trick}</div>` : w.tal && TALENTS[w.tal] ? `<div class="gcx" style="color:#ffd23f">${TALENTS[w.tal].name}: ${TALENTS[w.tal].desc}</div>` : ''}
     <div class="act">${action}</div>`;
 }
 let contractSeen = null;
@@ -615,7 +632,7 @@ function updateHUD() {
   let card = '', prompt = '';
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot], full = mission.gear.length >= gearBagMax(), out = full && gearSwapOut(focus.it);
-      card = gearCard(focus.it, (full ? `<span class="bagfull"><b>TELE A PÁNCÉLZSÁK ${mission.gear.length}/${gearBagMax()}</b><span><kbd>F</kbd>Csere: <i style="color:${RARITIES[out.q].color}">${out.name}</i> a földre kerül</span></span>`
+      card = gearGroundCard(focus.it, (full ? `<span class="bagfull"><b>TELE A PÁNCÉLZSÁK ${mission.gear.length}/${gearBagMax()}</b><span><kbd>F</kbd>Csere: <i style="color:${RARITIES[out.q].color}">${out.name}</i> a földre kerül</span></span>`
         : `<span><kbd>F</kbd>A zsákba ${mission.gear.length}/${gearBagMax()}</span>`) + `<span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>` + scrapHint(focus.it.q, true), true); }
     else if (focus.w) { const ok = canUse(focus.w), bagTxt = player.bag.length < bagMax() ? `Táskába ${player.bag.length}/${bagMax()}` : 'Tele a táska';
       card = cardHTML(focus.w, (ok ? `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : bagTxt}</span><span><kbd>F</kbd>tartsd: Csere</span>` : `<span class="lvlock"><kbd>F</kbd>${bagTxt} · ${focus.w.level}. szinttől használhatod</span>`) + scrapHint(focus.w.q), curW()); }
@@ -630,41 +647,50 @@ function updateHUD() {
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;
   }
-  setHTML('card', card); $('card').hidden = !card; $('card').classList.toggle('plain', !!(focus && focus.type === 'gear'));
-  if (focus && focus.w) $('card').style.setProperty('--rc', rarColor(focus.w));
-  setHTML('prompt', prompt); $('prompt').hidden = !prompt;
+  setHTML('card', card); $('card').hidden = !card;
+  if (focus && (focus.w || focus.it)) $('card').style.setProperty('--rc', focus.w ? rarColor(focus.w) : gCol(focus.it));
+  setHTML('prompt', prompt.replace(/<b>\[(\w+)\]<\/b>/g, '<kbd class="pk">$1</kbd>')); $('prompt').hidden = !prompt; // [E] as a key cap
 
-  setHTML('points', `${player.points}<small>PONT</small>`);
+  setHTML('points', `${player.points.toLocaleString('hu-HU')}<small>PONT</small>`);
   if (profile && profile.cls) {
     const C = CLASSES[profile.cls], cd = player.abilCd, active = player.stormT > 0 || aura;
-    setHTML('ability', `<kbd>C</kbd>${C.ability.name} · ${active ? 'aktív' : cd > 0 ? Math.ceil(cd) + ' mp' : 'KÉSZ'}<i style="width:${active ? 100 : clamp(1 - cd / (abilityCd() || 1), 0, 1) * 100}%"></i>`);
+    setHTML('ability', `<span class="abtx"><b>${C.ability.name}</b><small>${active ? 'aktív' : cd > 0 ? Math.ceil(cd) + ' mp' : 'kész'}</small></span><span class="abring" style="--p:${Math.round((active ? 1 : clamp(1 - cd / (abilityCd() || 1), 0, 1)) * 100)}%"><kbd>C</kbd></span>`);
     $('ability').className = cd > 0 && !active ? 'cd' : 'ready'; $('ability').style.setProperty('--cc', C.color);
   } else setHTML('ability', '');
-  $('hpfill').style.width = player.hp / maxHp() * 100 + '%';
+  $('hpfill').style.width = player.hp / maxHp() * 100 + '%'; $('hplag').style.width = player.hp / maxHp() * 100 + '%'; // the red lag bar catches up late (CSS)
   $('stamfill').style.width = (stimOn('adren') ? 100 : player.stam / maxStam() * 100) + '%';
   $('stam').classList.toggle('full', !stimOn('adren') && player.stam >= maxStam() - .5);
   $('hp').classList.toggle('low', player.hp / maxHp() < .3);
   $('hud').classList.toggle('ads', player.ads > .6);
   $('shield').hidden = !maxShield(); $('shieldfill').style.width = (maxShield() ? player.shield / maxShield() * 100 : 0) + '%';
-  setHTML('hplbl', `<span>ÉLETERŐ</span><span><b>${Math.ceil(player.hp)}</b>${maxShield() ? `<b class="sh">${Math.ceil(player.shield)}</b>` : ''}</span>`);
+  setHTML('hpn', Math.ceil(player.hp)); setHTML('shn', maxShield() ? Math.ceil(player.shield) : '');
   if (!locked && !noLock && !lockPending && !needClick) { needClick = true; $('clickHint').hidden = false; } // lost the mouse somehow: say so
   $('adsDot').style.opacity = player.ads > .6 && !w.base.scopeView ? 1 : 0;
   $('vig').style.opacity = clamp((1 - player.hp / maxHp()) * 1.1, 0, .7);
   if (mission) {
     const M = mission, left = Math.max(0, M.job.dur - M.t);
-    setHTML('timer', M.phase === 'evac' ? 'EVAKUÁCIÓ' : objectiveTimer(M) || fmtTime(left));
-    $('timer').classList.toggle('evac', M.phase === 'evac');
-    setHTML('left', M.job.bounty && M.phase !== 'evac' ? objectiveLine(M) : !M.evacWarn && M.phase !== 'evac' && objectiveLine(M) ? objectiveLine(M) : M.phase === 'lull' ? `Pihenő · ${Math.ceil(M.phaseT)} mp` :
-      M.phase === 'evac' ? (M.boardT > 0 ? `Beszállás · ${Math.ceil(M.boardT)} mp${M.boardWarn ? ' · MEGÁLLT: vissza a furgonhoz!' : ' · maradj a furgonnál'}` : truck.parked ? `A furgon vár még ${Math.max(0, Math.ceil(45 - (M.parkT || 0)))} mp · [E] beszállás` : 'Jön a furgon · menj a zöld jelzéshez') :
-      M.evacWarn ? `A furgon ${Math.ceil(left)} mp múlva ér ide · indulj a zöld jelzéshez` : `${M.wave}. hullám · ${alive()} zombi a pályán`);
+    const noc = noClock(M.job) && !objDone(M);
+    setHTML('timer', M.phase === 'evac' ? (M.boardT > 0 ? fmtTime(M.boardT) : truck.parked ? fmtTime(Math.max(0, 45 - (M.parkT || 0))) : '0:00') : noc ? fmtTime(M.t) : fmtTime(left));
+    setHTML('timerLbl', M.job.test ? 'LŐTÉR' : M.phase === 'evac' ? (M.boardT > 0 ? 'BESZÁLLÁS' : truck.parked ? 'A FURGON INDUL' : 'JÖN A FURGON') : noc ? (objectiveTimer(M) || 'ELTELT IDŐ') : M.evacWarn ? 'A FURGON ÚTON' : 'A FURGONIG');
+    $('timer').classList.toggle('evac', M.phase === 'evac'); $('timerLbl').classList.toggle('evac', M.phase === 'evac' || !!M.evacWarn);
+    setHTML('left', M.phase === 'lull' ? `Pihenő · ${Math.ceil(M.phaseT)} mp` : M.phase === 'evac' ? (M.boardWarn ? 'MEGÁLLT: vissza a furgonhoz!' : truck.parked ? '[E] beszállás · maradj a furgonnál' : 'menj a zöld jelzéshez') : `${M.wave}. hullám · ${alive()} zombi a pályán`);
+    { // the objective tracker: the job, what to do, and a contract that is close
+      const J = M.job, T = J.test ? 'Lőtér' : J.bounty ? 'Fejvadászat' : JOB_TYPES[J.type] ? JOB_TYPES[J.type].name : 'Túlélés';
+      setHTML('objK', `${J.test ? 'Lőtér' : MAPS[J.map].name} · ${T}${J.test ? '' : ` · ${'★'.repeat(J.diff)}`}`); setHTML('objN', J.title);
+      const main = M.phase === 'evac' ? ['Szállj be a furgonba', M.boardT > 0 ? `${Math.ceil(M.boardT)} mp` : ''] : objectiveLine(M) ? (L => { const m = L.match(/^(.*?) · (\d+ \/ \d+[^·]*)(.*)$/); return m ? [m[1] + m[3], m[2]] : [L, '']; })(objectiveLine(M)) : ['Éld túl, amíg a furgon visszajön', fmtTime(left)];
+      const P = profile, ct = !J.test && P.daily ? P.daily.list.map(c => [c, cProg(c, false)]).filter(([c, p]) => !c.got && p < c.n).sort((a, b) => b[1] / b[0].n - a[1] / a[0].n)[0] : null;
+      setHTML('objL', `<li><span>${main[0]}</span><b>${main[1]}</b></li>${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}`);
+      setHTML('objD', [...(J.dir || []).filter(k => DIRECTIVES[k]).map(k => `<i data-tip="${DIRECTIVES[k].desc}">${DIRECTIVES[k].name}</i>`), J.mod && MODS[J.mod] ? `<i class="mod" data-tip="${MODS[J.mod].sub}">${MODS[J.mod].label}</i>` : '', J.tier ? `<i class="nm">Rémálom +${J.tier}</i>` : ''].join(''));
+    }
     updateEvacMark(M.phase === 'evac' || !!M.evacWarn);
   }
-  setHTML('wname', `<span class="lvtag" style="--rc:${rarColor(w)}">Lv ${w.level}</span> <span style="color:${rarColor(w)}">${w.name}</span>`);
-  setHTML('wsub', `${RARITIES[w.q].name} · ${w.base.name}${w.element ? ` · <span style="color:${ELEMENTS[w.element].color}">${ELEMENTS[w.element].name}</span>` : ''}`);
+  setHTML('wname', `<span class="lvtag" style="--rc:${rarColor(w)}">Lv ${w.level}</span><span style="color:${rarColor(w)}">${w.name}</span>`);
+  setHTML('wsub', `${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · ${w.base.name}${w.element ? ` · <span style="color:${ELEMENTS[w.element].color}">${ELEMENTS[w.element].name}</span>` : ''}`);
   const lowAmmo = w.ammo === 0 || (w.mag > 3 && w.ammo <= Math.ceil(w.mag * .25)); // a one-bolt crossbow is never 'low'
   setHTML('mag', w.ammo); $('mag').classList.toggle('low', lowAmmo);
   setHTML('res', '/ ' + w.reserve); $('res').classList.toggle('none', w.reserve === 0);
-  const hint = player.reloading ? 'Újratöltés…' : w.ammo === 0 && w.reserve === 0 ? 'Nincs lőszer' : lowAmmo && w.reserve > 0 ? '[R] Újratöltés' : '';
+  $('magfill').style.width = clamp(w.ammo / Math.max(1, w.mag), 0, 1) * 100 + '%'; $('magbar').classList.toggle('low', lowAmmo);
+  const hint = player.reloading ? 'Újratöltés…' : w.ammo === 0 && w.reserve === 0 ? 'Nincs lőszer' : lowAmmo && w.reserve > 0 ? 'R · Újratöltés' : '';
   setHTML('hint', hint);
   $('rlhint').hidden = !hint || player.ads > .6; $('rlhint').firstChild.textContent = hint;
   $('rlfill').style.width = player.reloading ? reloadProgress() * 100 + '%' : '0';
@@ -740,7 +766,7 @@ function frame(t) {
     if (state === 'playing') { updateHUD(); tickStats(dt); }
   }
   playMusic(['menu', 'hub', 'results'].includes(state) ? 'hub' : MUSIC[MAP_ID] ? MAP_ID : 'farm');
-  const kb = (state === 'hub' || (state === 'paused' && !$('pause').hidden)) && $('settings').hidden && $('keybar').innerHTML !== '';
+  const kb = (state === 'hub' || (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv')) && $('settings').hidden && $('keybar').innerHTML !== '';
   if ($('keybar').hidden === kb) $('keybar').hidden = !kb;
   const cur = state === 'playing' ? 'none' : 'default';
   if (renderer.domElement.style.cursor !== cur) renderer.domElement.style.cursor = cur;

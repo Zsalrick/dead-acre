@@ -3,8 +3,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=82">
-<link rel="stylesheet" href="css/ui.css?v=82">
+<link rel="stylesheet" href="css/legacy.css?v=83">
+<link rel="stylesheet" href="css/ui.css?v=83">
 
 <div id="game">
   <div class="hud" id="hud" hidden>
@@ -12,7 +12,9 @@
     <div id="scope" hidden><i class="v1"></i><i class="v2"></i><i class="h1"></i><i class="h2"></i><i class="fine"></i><i class="fine v"></i><i class="dot"></i></div>
     <div id="hbars"></div>
     <div id="dmg"></div>
-    <div id="roundBox"><small class="rlbl">Veszélyszint</small><div id="round" class="num">1</div><div id="left"></div></div>
+    <div id="obj"><div class="okick" id="objK"></div><div class="otitle" id="objN"></div><ul class="olist" id="objL"></ul>
+      <div class="othreat"><div id="round" class="num">1</div><div class="otx"><b>Veszélyszint</b><div id="left"></div></div><div class="odirs" id="objD"></div></div>
+      <div id="mates" hidden></div></div>
     <div id="banner"></div>
     <div id="cross"><i class="c t"></i><i class="c b"></i><i class="c l"></i><i class="c r"></i><i class="c dot"></i>
       <div id="hitm"><i></i><i></i><i></i><i></i></div></div>
@@ -20,20 +22,19 @@
     <div id="ffyl" hidden><b>HARCOLJ AZ ÉLETEDÉRT</b><small>Ölj meg egy zombit!</small><i><em id="ffylBar"></em></i><span id="ffylT"></span></div>
     <div id="hold" hidden><i id="holdfill"></i><span id="holdLbl">Eladás…</span></div>
     <div id="clickHint" hidden>Kattints a folytatáshoz</div>
-    <div id="topc"><div id="timer" class="num"></div><div id="bossbar" hidden><span id="bossname">MÉSZÁROS</span><div><i id="bosslag"></i><i id="bossfill"></i></div></div><div id="powers"></div></div>
+    <div id="topc"><div id="timer" class="num"></div><div id="timerLbl"></div><div id="bossbar" hidden><span id="bossname">MÉSZÁROS</span><div><i id="bosslag"></i><i id="bossfill"></i></div></div><div id="powers"></div></div>
     <div id="rlhint" hidden><span></span><i><b id="rlfill"></b></i></div>
     <div id="card" class="wcard" hidden></div>
     <div id="adsDot"></div>
-    <div id="buffs"></div>
     <div id="inv"></div>
-    <div id="bl"><div id="pops"></div><div id="points" class="num">500</div><div id="ability"></div>
-      <div id="shield" hidden><i id="shieldfill"></i></div><div id="hp"><i id="hpfill"></i></div><div id="stam"><i id="stamfill"></i></div><div id="hplbl"></div></div>
-    <div id="br"><div id="hint"></div><div id="wname"></div><div id="wsub"></div>
-      <div id="ammo" class="num"><span id="mag">0</span><span id="res">/ 0</span></div><div id="slots"></div></div>
+    <div id="bl"><div id="pops"></div><div class="blrow"><div id="points" class="num">500</div><div id="ability"></div></div><div id="buffs"></div>
+      <div class="bars"><div id="shield" hidden><i id="shieldfill"></i></div><b id="shn"></b><div id="hp"><i id="hplag"></i><i id="hpfill"></i></div><b id="hpn"></b><div id="stam"><i id="stamfill"></i></div></div></div>
+    <div id="br"><div id="wname"></div><div id="wsub"></div>
+      <div id="ammo" class="num"><span id="mag">0</span><span id="res">/ 0</span></div><div id="magbar"><i id="magfill"></i></div><div id="hint"></div><div id="slots"></div></div>
     <div id="kfeed" aria-live="off"></div>
     <div id="helpcard" hidden><b>Irányítás</b>
       <ul><li><kbd data-k="KeyW">W</kbd><kbd data-k="KeyA">A</kbd><kbd data-k="KeyS">S</kbd><kbd data-k="KeyD">D</kbd> mozgás · <kbd data-k="ShiftLeft">Shift</kbd> sprint · <kbd data-k="Space">Space</kbd> ugrás</li><li><kbd>Bal egér</kbd> lövés · <kbd>Jobb egér</kbd> célzás · <kbd data-k="KeyR">R</kbd> újratöltés · <kbd data-k="Digit1">1</kbd><kbd data-k="Digit2">2</kbd> fegyverváltás</li>
-      <li><kbd data-k="KeyE">E</kbd> használat (láda, kapu, doboz, furgon) · <kbd data-k="KeyF">F</kbd> felvétel · <kbd data-k="KeyF">F</kbd> nyomva: csere</li><li><kbd data-k="KeyG">G</kbd> gránát · <kbd data-k="KeyQ">Q</kbd> dobókés · <kbd data-k="KeyV">V</kbd> kés · <kbd data-k="KeyH">H</kbd> gyógycsomag · <kbd data-k="KeyT">T</kbd> adrenalin · <kbd>X</kbd> nyomva: szétszedés</li>
+      <li><kbd data-k="KeyE">E</kbd> használat (láda, kapu, doboz, furgon) · <kbd data-k="KeyF">F</kbd> felvétel · <kbd data-k="KeyF">F</kbd> nyomva: csere</li><li><kbd data-k="KeyG">G</kbd> gránát · <kbd data-k="KeyQ">Q</kbd> dobókés · <kbd data-k="KeyV">V</kbd> kés · <kbd data-k="KeyH">H</kbd> gyógyítás · <kbd data-k="KeyT">T</kbd> stimuláns · <kbd>X</kbd> nyomva: szétszedés</li>
       <li><kbd data-k="KeyC">C</kbd> kaszt-képesség · <kbd data-k="KeyZ">Z</kbd> vagy <kbd>középső egér</kbd> ping · <kbd>Tab</kbd> leltár · <kbd>Enter</kbd> csapatchat</li></ul>
       <small>Élj túl, szedd fel a zsákmányt, és szállj be a furgonba, amikor visszajön. <kbd>F1</kbd>: ez a lap újra.</small></div>
     <div id="compass" aria-hidden="true"><div id="compassIn"></div></div>
@@ -68,14 +69,18 @@
   </div>
 
   <div id="pause" class="screen" hidden>
-    <div class="panel wide">
+    <div class="pzoom">
       <div id="pmenu"><div id="pmission"></div>
-        <div class="pmbtns"><button class="btn" data-pm="resume">Folytatás</button><button class="btn ghost" data-pm="inv"><kbd>Tab</kbd> Leltár</button><button class="btn ghost" data-pm="settings">Beállítások</button><button class="btn ghost" data-pm="quit" id="quitBtn2">Munka feladása</button></div></div>
-      <div class="pinv"><div class="eyebrow" id="pauseInfo">Szünet</div>
-      <div class="title" style="font-size:44px;margin:4px 0 8px">LELTÁR</div>
-      <div id="loadout"></div>
-      <div class="pbtns"><button class="btn" id="resumeBtn">Folytatás</button><button class="btn ghost" data-pm="menu">‹ Menü</button><button class="btn ghost" data-settings>Beállítások</button><button class="btn ghost" id="quitBtn">Munka feladása</button></div></div>
-      <p class="note" id="pauseNote"></p>
+        <div class="pmbtns">
+          <button class="pmb main" data-pm="resume">Folytatás<kbd>Esc</kbd></button>
+          <button class="pmb" data-pm="inv">Leltár<kbd>Tab</kbd></button>
+          <button class="pmb" data-pm="settings">Beállítások</button>
+          <button class="pmb" data-pm="help">Irányítás<kbd>F1</kbd></button>
+          <button class="pmb quit" data-pm="quit" id="quitBtn2">Munka feladása</button>
+          <p class="note" id="pauseNote"></p>
+        </div></div>
+      <div class="pinv"><div class="pinvh"><div><div class="eyebrow" id="pauseInfo">Szünet</div><div class="pinvt">Leltár</div></div><button class="pmback" data-pm="resume"><kbd>Tab</kbd>Vissza</button></div>
+        <div id="loadout"></div></div>
     </div>
   </div>
 
@@ -118,12 +123,12 @@
 <div id="chat" hidden><div id="chatLog"></div><input id="chatIn" maxlength="120" placeholder="Üzenet a csapatnak… (Enter: küldés, Esc: mégse)" autocomplete="off" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="js/data.js?v=82" charset="utf-8"></script>
-<script src="js/audio.js?v=82" charset="utf-8"></script>
-<script src="js/music.js?v=82" charset="utf-8"></script>
-<script src="js/world.js?v=82" charset="utf-8"></script>
-<script src="js/maps.js?v=82" charset="utf-8"></script>
-<script src="js/fx.js?v=82" charset="utf-8"></script>
+<script src="js/data.js?v=83" charset="utf-8"></script>
+<script src="js/audio.js?v=83" charset="utf-8"></script>
+<script src="js/music.js?v=83" charset="utf-8"></script>
+<script src="js/world.js?v=83" charset="utf-8"></script>
+<script src="js/maps.js?v=83" charset="utf-8"></script>
+<script src="js/fx.js?v=83" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -131,21 +136,21 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=82" charset="utf-8"></script>
-<script src="js/player.js?v=82" charset="utf-8"></script>
-<script src="js/zombies.js?v=82" charset="utf-8"></script>
-<script src="js/loot.js?v=82" charset="utf-8"></script>
-<script src="js/upgrades.js?v=82" charset="utf-8"></script>
-<script src="js/gear.js?v=82" charset="utf-8"></script>
-<script src="js/vet.js?v=82" charset="utf-8"></script>
-<script src="js/inv.js?v=82" charset="utf-8"></script>
-<script src="js/save.js?v=82" charset="utf-8"></script>
-<script src="js/menu.js?v=82" charset="utf-8"></script>
-<script src="js/skills.js?v=82" charset="utf-8"></script>
-<script src="js/hub.js?v=82" charset="utf-8"></script>
-<script src="js/book.js?v=82" charset="utf-8"></script>
-<script src="js/game.js?v=82" charset="utf-8"></script>
-<script src="js/jobs.js?v=82" charset="utf-8"></script>
+<script src="js/gfx.js?v=83" charset="utf-8"></script>
+<script src="js/player.js?v=83" charset="utf-8"></script>
+<script src="js/zombies.js?v=83" charset="utf-8"></script>
+<script src="js/loot.js?v=83" charset="utf-8"></script>
+<script src="js/upgrades.js?v=83" charset="utf-8"></script>
+<script src="js/gear.js?v=83" charset="utf-8"></script>
+<script src="js/vet.js?v=83" charset="utf-8"></script>
+<script src="js/inv.js?v=83" charset="utf-8"></script>
+<script src="js/save.js?v=83" charset="utf-8"></script>
+<script src="js/menu.js?v=83" charset="utf-8"></script>
+<script src="js/skills.js?v=83" charset="utf-8"></script>
+<script src="js/hub.js?v=83" charset="utf-8"></script>
+<script src="js/book.js?v=83" charset="utf-8"></script>
+<script src="js/game.js?v=83" charset="utf-8"></script>
+<script src="js/jobs.js?v=83" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=82" charset="utf-8"></script>
-<script src="js/net.js?v=82" charset="utf-8"></script>
+<script src="js/p2p.js?v=83" charset="utf-8"></script>
+<script src="js/net.js?v=83" charset="utf-8"></script>

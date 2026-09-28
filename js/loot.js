@@ -147,7 +147,7 @@ function updateBox(dt) {
 // ================= ITEMS =================
 function renderInv() {
   $('inv').innerHTML = ITEM_KEYS.map(k => `<div class="it${player.inv[k] ? '' : ' empty'}" style="--ic:${ITEMS[k].color}" title="${ITEMS[k].name}">` +
-    `<b>${ITEMS[k].key}</b><img src="${ICONS[k]}" alt=""><strong>${player.inv[k] || 0}</strong><span>${itemName(k)}</span></div>`).join('');
+    `<kbd>${ITEMS[k].key}</kbd><strong>${player.inv[k] || 0}</strong><span>${itemName(k)}</span></div>`).join('');
 }
 function itemDesc(k) { return itemType(k).desc; }
 function itemName(k) { return itemType(k).name; // the grenade / knife type you picked

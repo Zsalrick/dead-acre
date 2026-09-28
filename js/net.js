@@ -701,7 +701,7 @@ function updateMatesHud() {
   let html = '';
   for (const [peer, a] of list) {
     const pct = a.mh ? clamp(a.hp / a.mh, 0, 1) : 0;
-    html += `<div class="mate${a.down ? ' down' : ''}" style="--pc:${a.col}"><b>${esc(a.name)}</b><i><em style="width:${pct * 100}%"></em></i>${a.down ? '<span>ELESETT</span>' : ''}</div>`;
+    html += `<div class="mate${a.down ? ' down' : ''}" style="--pc:${a.col}"><div class="mh"><b>${esc(a.name)}</b><span>${a.down ? 'LEESETT' : `${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m`}</span></div><i><em style="width:${pct * 100}%"></em></i></div>`;
     let el = a.tag; if (!el) { el = a.tag = document.createElement('div'); el.className = 'matetag'; $('pings').appendChild(el); }
     const v = new V3(a.pos.x, (a.down ? .8 : 2.5), a.pos.z).project(camera), off = v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1;
     el.hidden = false; // always on screen: through walls, and pinned to the edge when they are behind you
@@ -769,9 +769,9 @@ const CARD = [['É', 0], ['ÉNY', Math.PI / 4], ['NY', Math.PI / 2], ['DNY', 3 *
 function updateCompass() {
   const el = $('compassIn'); if (!el || !mission) return;
   $('compass').hidden = dirOn('blind'); if (dirOn('blind')) return;
-  let row = 0; const span = Math.PI * .6, at = (b, cls, txt, col) => { const r = angDiff(b - player.yaw); if (Math.abs(r) > span) return ''; const low = cls !== 'cc' && cls !== 'cc big'; return `<i class="${cls}" style="left:${(50 - r / span * 50).toFixed(1)}%${col ? `;--pc:${col}` : ''}${low ? `;top:${14 + (row++ % 2) * 11}px` : ''}">${txt}</i>`; };
+  let row = 0; const span = Math.PI * .6, at = (b, cls, txt, col) => { const r = angDiff(b - player.yaw); if (Math.abs(r) > span) return ''; const low = !/^(cc|tk)/.test(cls); return `<i class="${cls}" style="left:${(50 - r / span * 50).toFixed(1)}%${col ? `;--pc:${col}` : ''}${low ? `;top:${14 + (row++ % 2) * 11}px` : ''}">${txt}</i>`; };
   const bear = (x, z) => Math.atan2(-(x - player.pos.x), -(z - player.pos.z));
-  let h = CARD.map(([t, b]) => at(b, t.length === 1 ? 'cc big' : 'cc', t)).join('');
+  let h = Array.from({ length: 24 }, (_, k) => k % 3 ? at(k * Math.PI / 12, 'tk', '') : '').join('') + CARD.map(([t, b]) => at(b, t === 'É' ? 'cc big n' : t.length === 1 ? 'cc big' : 'cc', t)).join('');
   for (const a of NET.avatars.values()) h += at(bear(a.pos.x, a.pos.z), 'cm', `${esc(a.name)} <small>${Math.round(Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z))} m</small>`, a.col);
   if (truck.beacon.visible) h += at(bear(truck.pos.x, truck.pos.z), 'cv', 'FURGON');
   const w = curW(); if (w && w.reserve < w.mag && !mission.job.test) h += at(bear(ammoBox.pos.x, ammoBox.pos.z), 'cv ammo', `LŐSZER ${Math.round(Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z))} m`);

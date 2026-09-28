@@ -605,8 +605,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 #intro .s2{margin-top:8px;font-size:14px;color:var(--bone);letter-spacing:.1em;text-shadow:0 1px 3px #000}
 #intro .s{border-top:1px solid rgba(232,226,208,.3);padding-top:8px;display:inline-block}
 #intro{animation:fadein .6s ease}
-@media (min-height:1000px){#bl,#br,#inv,#roundBox,#topc{zoom:1.2}}
-@media (max-height:760px){#bl,#br,#inv,#roundBox,#topc{zoom:.9}}
+
+
 /* ---------- party ---------- */
 .party{border:1px solid rgba(232,226,208,.14);border-left:4px solid var(--lantern);background:rgba(255,255,255,.03);padding:10px 14px;margin:0 0 14px;display:grid;gap:8px}
 .party.off{border-left-color:#5a5a55;color:var(--dim);font-size:13px}
