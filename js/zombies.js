@@ -589,18 +589,29 @@ function hbEl(i) {
   }
   return hbPool[i];
 }
+// name tags: only a handful at once, the ones that matter: hit in the last 2.5 s, aimed at for a moment, or close by
+const HB_MAX = 8, HB_NEAR = 12, HB_AIM = .35;
+let hbRayT = 0, hbAimed = null;
 function updateHealthBars() {
-  if (dirOn('blind')) { hbPool.forEach(e => e.hidden = true); }
-  const parts = [];
-  for (const z of zombies) if (!z.dead) parts.push(...z.parts);
-  ray.set(camera.position, new V3(0, 0, -1).applyQuaternion(camera.quaternion)); ray.far = 70;
-  const h = ray.intersectObjects(rayBlockers.concat(parts), false)[0];
-  const looked = h && h.object.userData.z;
-  const W = innerWidth / 2, H = innerHeight / 2, v = new V3();
-  let n = 0;
-  for (const z of dirOn('blind') ? [] : zombies) {
+  const blind = dirOn('blind');
+  if (!blind && now - hbRayT > .1) { // the aim ray is the costly part: ten times a second is plenty
+    const dt = Math.min(.3, now - hbRayT); hbRayT = now;
+    const parts = []; for (const z of zombies) if (!z.dead && Math.abs(z.pos.x - player.pos.x) < 70 && Math.abs(z.pos.z - player.pos.z) < 70) parts.push(...z.parts);
+    ray.set(camera.position, new V3(0, 0, -1).applyQuaternion(camera.quaternion)); ray.far = 70;
+    const h = ray.intersectObjects(rayBlockers.concat(parts), false)[0], lz = (h && h.object.userData.z) || null;
+    if (lz) { lz.aimT = lz === hbAimed ? (lz.aimT || 0) + dt : 0; if (lz.aimT >= HB_AIM) lz.seenT = now; }
+    hbAimed = lz;
+  }
+  const W = innerWidth / 2, H = innerHeight / 2, v = new V3(), pick = [];
+  if (!blind) for (const z of zombies) {
     if (z.dead || z.rise > .5 || z.K.boss || (z.K.ghost && z.op < .4)) continue;
-    if (z !== looked && !z.dummy && !(now - (z.hitT || -99) < 2.5) && Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z) > (z.tier ? 45 : 28)) continue;
+    const d = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z);
+    const pr = now - (z.hitT || -99) < 2.5 ? 0 : now - (z.seenT || -99) < 2 ? 1 : z.dummy ? 2 : d < HB_NEAR ? 3 : -1;
+    if (pr >= 0) pick.push([pr, d, z]);
+  }
+  pick.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let n = 0;
+  for (const [, , z] of pick.slice(0, HB_MAX)) {
     v.set(z.pos.x, (z.K.crawl ? 1.1 : 2.25) * z.scale + z.g.position.y, z.pos.z).project(camera);
     if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) continue;
     const e = hbEl(n++);
