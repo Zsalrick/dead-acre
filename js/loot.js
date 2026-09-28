@@ -1,6 +1,7 @@
 ﻿// ================= DROPS & POWER-UPS =================
 const drops = [];
 function spawnDrop(w, pos) {
+  if (typeof player !== 'undefined' && Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z) < 35) SND.drop(w.unique ? 5 : w.q);
   const g = new THREE.Group();
   const gun = buildGun(w, true); gun.scale.setScalar(1.7); gun.position.y = .7; g.add(gun);
   const col = new THREE.Color(rarColor(w));

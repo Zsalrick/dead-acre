@@ -41,6 +41,8 @@ function openProfile(n) {
   Object.assign(profile, { bag: profile.bag || [], gear: profile.gear || {}, gearStash: profile.gearStash || [], gshop: profile.gshop || [] });
   profile.vet = profile.vet || {};
   profile.throw = profile.throw || { g: 'frag', k: 'steel', own: ['frag', 'steel'] };
+  profile.loadout.forEach((o, k) => { const w = o && unpackW(o); if (w && !canUse(w)) { profile.stash.push(o); profile.loadout[k] = null; } }); // a gun above your level goes to the stash
+  if (!profile.loadout[0] && !profile.loadout[1]) profile.loadout[0] = packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level)));
   for (const k in profile.gear) { const it = profile.gear[k]; if (it && it.level > profile.level && profile.level < LEVEL_CAP) { profile.gearStash.push(it); profile.gear[k] = null; } } // armor above your level can't be worn
   gearChanged();
   profile.name = profile.name || `Zsoldos ${n}`;

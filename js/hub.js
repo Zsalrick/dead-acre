@@ -405,8 +405,8 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'gunshare' && SH.g[+a] && P.gearStash.length < gearMax()) P.gearStash.push(SH.g.splice(+a, 1)[0]);
   if (kind === 'gsell') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.cash += gearValue(it); } }
   if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < gearMax() && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
-  if (kind === 'salvage') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.parts = (P.parts || 0) + salvageGain(w); } } // expertise half back; the core is spent
-  if (kind === 'gsalvage') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.fabric = (P.fabric || 0) + PARTS[it.q]; P.parts = (P.parts || 0) + expRefund(it); } } // armor: fabric, the expertise half back in parts
+  if (kind === 'salvage') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.parts = (P.parts || 0) + salvageGain(w); SND.salvage('w'); } } // expertise half back; the core is spent
+  if (kind === 'gsalvage') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.fabric = (P.fabric || 0) + PARTS[it.q]; P.parts = (P.parts || 0) + expRefund(it); SND.salvage('g'); } } // armor: fabric, the expertise half back in parts
   if (kind === 'fav' || kind === 'trash') { const w = wAt(a, c); if (w) { if (kind === 'fav') { w.fav = !w.fav; if (w.fav) w.junk = false; } else if (!w.fav) w.junk = !w.junk; wList(a)[+c] = packW(w); } }
   if (kind === 'gfav' || kind === 'gtrash') { const it = gearAt(a, c); if (it) { if (kind === 'gfav') { it.fav = !it.fav; if (it.fav) it.junk = false; } else if (!it.fav) it.junk = !it.junk; } }
   if (kind === 'trashsell' || kind === 'trashsalv') { // every trash-marked piece in the bag and stash (weapons) or the armor stash

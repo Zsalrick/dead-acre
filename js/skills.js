@@ -27,7 +27,7 @@ const CLASSES = {
   hunter: {
     name: 'Vadász', tag: 'Hideg szem', color: '#7fd0a0', desc: 'Messziről, egy lövéssel. Fejre céloz, és kiszúrja a legjobb zsákmányt.',
     passive: '+10% fejlövés-sebzés.',
-    ability: { name: 'Jelölés', cd: 40, desc: 'A látómeződben lévő zombik 10 mp-ig 50%-kal több sebzést kapnak.' },
+    ability: { name: 'Halálszem', cd: 40, desc: '8 mp-ig minden zombi, akit eltalálsz, megjelölődik: mindenkitől 50%-kal több sebzést kap. Jelölt zombi megölése +1,5 mp-et ad (legfeljebb 20 mp).' },
     tree: [
       ['h_marks', 'Mesterlövész', 3, r => `+${6 * r}% sebzés pisztollyal, revolverrel, karos és távcsöves fegyverrel`],
       ['h_head', 'Fejvadász', 3, r => `+${12 * r}% fejlövés-sebzés`],
@@ -37,7 +37,7 @@ const CLASSES = {
       ['h_scav', 'Zsákmányszimat', 2, r => `+${15 * r}% esély, hogy egy zombi fegyvert ejt`],
       ['h_deadly', 'Halálos pontosság', 2, r => `+${20 * r}% kritikus sebzés`],
       ['h_refund', 'Takarékos', 1, () => 'fejlövéses ölés után egy töltény visszakerül a tárba'],
-      ['h_mark', 'Éles szem', 2, r => `a Jelölés +${4 * r} mp-ig tart, és ${8 * r} mp-cel hamarabb töltődik`],
+      ['h_mark', 'Éles szem', 2, r => `a Halálszem +${2 * r} mp-ig tart, és ${8 * r} mp-cel hamarabb töltődik`],
       ['h_exec', 'Kivégzés', 1, () => 'dupla sebzés a 25% élet alatti zombikra'],
       ['h_boss', 'Nagyvad', 1, () => '+20% sebzés a Mészárosra'],
       ['h_luck', 'Zsákmányvadász', 1, () => 'jobb ritkaság a zombikból eső fegyvereken'],
@@ -95,12 +95,12 @@ const RESPEC = 300, RECLASS = 800;
 // augments change how the class ability works; unlock with merit tokens, one active per class, switch freely
 const AUGMENTS = {
   soldier: [['ignite', 'Gyújtólövedék', 'A Tűzvihar alatt minden találat felgyújtja a célt.'], ['bulwark', 'Rohampáncél', 'A Tűzvihar alatt 40%-kal kevesebb sebzést kapsz.'], ['resupply', 'Utánpótlás-láda', 'A Tűzvihar +2 gránátot ad, és minden tárat megtölt.']],
-  hunter: [['plague', 'Járvány', 'Ha egy megjelölt zombi meghal, a 8 m-en belüli társai is megjelölődnek.'], ['execute', 'Kivégző', 'A megjelölt zombi 30% élet alatt egy találattól meghal.'], ['wide', 'Sasszem', 'A Jelölés körben mindent megjelöl, és 50%-kal tovább tart.']],
+  hunter: [['plague', 'Járvány', 'Ha egy megjelölt zombi meghal, a 8 m-en belüli társai is megjelölődnek.'], ['execute', 'Kivégző', 'A megjelölt zombi 30% élet alatt egy találattól meghal.'], ['wide', 'Sasszem', 'Halálszem alatt a találat a cél 4 m-es körében mindenkit megjelöl.']],
   engineer: [['shieldtower', 'Pajzstorony', 'A torony 5 m-es pajzskupolát húz: benne 50%-kal kevesebb sebzést kapsz.'], ['twin', 'Ikertorony', 'Két kisebb tornyot telepít (60% sebzés darabonként).'], ['rocket', 'Rakétatorony', 'A torony lassabban lő, de robbanó rakétával.']],
   medic: [['revive', 'Feltámasztó kör', 'A körben dupla a gyógyítás, és az elesett társak felállnak benne.'], ['smite', 'Ítélet', 'A kör égeti és erősen lassítja a benne álló zombikat.'], ['mobile', 'Vándorszentély', 'A kör veled együtt mozog.']],
 };
 const AUG_COST = 2;
-const augAllowed = () => Math.min(4, Math.floor(treeSpent() / 3)); // the 2nd tree row opens the first augment, every row after one more
+const AUG_AT = [12, 15, 18], augAllowed = () => AUG_AT.filter(n => treeSpent() >= n).length; // tree points that open the 1st, 2nd and 3rd augment
 const augOwned = cls => (AUGMENTS[cls] || []).filter(x => (profile.augOwn || []).includes(x[0])).length;
 const augOn = id => !!profile && !!profile.aug && profile.aug[profile.cls] === id;
 const rk = id => (profile && profile.skills && profile.skills[id]) || 0;
@@ -170,17 +170,13 @@ function useAbility() {
     if (augOn('resupply')) { player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 2); [...player.slots, ...player.bag].forEach(w => { if (w) w.ammo = w.mag; }); renderInv(); }
     banner('TŰZVIHAR', `${Math.round(player.stormT)} mp végtelen tár`);
   } else if (c === 'hunter') {
-    const wide = augOn('wide'), f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), dur = (10 + 4 * rk('h_mark')) * (wide ? 1.5 : 1);
-    let n = 0;
-    for (const z of zombies) {
-      if (z.dead) continue;
-      const dx = z.pos.x - player.pos.x, dz = z.pos.z - player.pos.z, d = Math.hypot(dx, dz);
-      if (d < 45 && (wide || (dx * f.x + dz * f.z) / Math.max(d, .01) > .72)) { z.markT = dur; n++; }
-    }
-    if (NET.client) netAct('mark', zombies.filter(z => !z.dead && z.markT > 0).map(z => z.id).slice(0, 40)); // the host marks them too, for the whole party
-    banner('JELÖLÉS', `${n} célpont, ${dur} mp`); SND.stinger && SND.stinger();
+    player.eyeT = 8 + 2 * rk('h_mark'); // Deadeye: see weaponOnHit / weaponOnKill
+    banner('HALÁLSZEM', `${player.eyeT} mp · akit eltalálsz, megjelölődik`); SND.threat(1);
   } else if (c === 'engineer') {
-    if (!deployTurret(0, 25 + 5 * rk('e_tools') + 15 * rk('e_last'), { rate: rk('e_overload') ? 2 : 1, n: augOn('twin') ? 2 : 1, dmgMul: augOn('twin') ? .6 : 1, shield: augOn('shieldtower'), rocket: augOn('rocket') })) return SND.deny();
+    const twin = augOn('twin'), first = twin && !(player.twinWait > 0);
+    if (!deployTurret(0, 25 + 5 * rk('e_tools') + 15 * rk('e_last'), { rate: rk('e_overload') ? 2 : 1, n: 1, max: twin ? 2 : 1, dmgMul: twin ? .6 : 1, small: twin, shield: augOn('shieldtower'), rocket: augOn('rocket') })) return SND.deny();
+    if (first) { player.twinWait = 12; banner('IKERTORONY', 'Tedd le a másodikat is máshova: [C], 12 mp-en belül'); return; } // the cooldown starts with the second
+    player.twinWait = 0;
   } else if (c === 'medic') {
     aura = { pos: player.pos.clone(), t: 8 + 3 * rk('m_circle') };
     auraMesh.position.set(aura.pos.x, .04, aura.pos.z); auraMesh.visible = true;
@@ -190,6 +186,8 @@ function useAbility() {
   (player.buf || (player.buf = {})).ability = 8;
 }
 function updateSkills(dt) {
+  if (player.eyeT > 0) player.eyeT -= dt;
+  if (player.twinWait > 0 && (player.twinWait -= dt) <= 0) { player.twinWait = 0; player.abilCd = abilityCd(); } // the second twin turret never came
   player.abilCd = Math.max(0, (player.abilCd || 0) - dt);
   player.stormT = Math.max(0, (player.stormT || 0) - dt);
   if (!aura) return;
@@ -238,10 +236,10 @@ function skillsTab() {
       <div class="hubbtns">${mine ? hbtn(`Pontok és módosítók vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
     <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${mine ? Math.round(abilityCd()) : C.ability.cd} mp.</p>
     <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent} pont${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
-    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · a fa 2. szintjétől szintenként egy nyitható</small></h3>
+    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · 12, 15 és 18 elköltött pontnál nyílik egy-egy</small></h3>
     <div class="augs">${(AUGMENTS[V] || []).map(([id, name, desc]) => {
       const own = (P.augOwn || []).includes(id), on = mine && augOn(id);
-      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? (own || augOwned(V) < augAllowed() ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : `<small class="lockt">Zárva · a fában ${3 * (augOwned(V) + 1)} pont kell (van: ${spent})</small>`) : ''}</div>`;
+      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? (own || augOwned(V) < augAllowed() ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : `<small class="lockt">Zárva · a fában ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]} pont kell (van: ${spent})</small>`) : ''}</div>`;
     }).join('')}</div>
     <div class="tree">${rows}</div>`;
 }

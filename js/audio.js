@@ -43,7 +43,11 @@ const SND = {
   reload() { nz(.05, 3000, .3, 'bandpass', 2); nz(.05, 2200, .3, 'bandpass', 2, .35); },
   knife() { nz(.12, 4000, .3, 'highpass', 1); },
   legend(u) { [0, 1, 2, 3, 4].forEach(i => tn((u ? 330 : 392) * Math.pow(1.335, i % 3) * (i > 2 ? 2 : 1), .5, .07, 'triangle', 0, i * .09)); nz(1.2, 5000, .05, 'highpass', .5, .1); },
-  pickup(q) { [0, 1, 2].forEach(i => tn(440 * Math.pow(1.26, i + q), .18, .09, 'triangle', 0, i * .07)); },
+  threat(t = 2) { tn(55, 1.1, .16, 'sawtooth', 38); tn(82, .9, .1, 'square', 60, .04); nz(.7, 380, .14, 'lowpass', 1); if (t >= 3) { tn(110, 1.4, .1, 'sawtooth', 70, .25); nz(1, 200, .12, 'lowpass', 1, .2); } }, // something strong has arrived
+  salvage(kind) { if (kind === 'g') { nz(.32, 2600, .2, 'bandpass', 2.5); nz(.22, 1400, .14, 'bandpass', 2, .1); tn(260, .12, .05, 'triangle', 180, .18); } // cloth tearing
+    else { [0, 1, 2, 3].forEach(i => tn(1400 + i * 220, .05, .06, 'square', 0, i * .045)); tn(760, .14, .1, 'triangle', 0, .2); tn(1140, .22, .08, 'triangle', 0, .27); tn(180, .3, .1, 'triangle', 90, .2); nz(.16, 3200, .1, 'highpass', 1, .2); } }, // a ratchet, then the parts clatter out
+  drop(q = 0) { tn(170, .16, .08, 'triangle', 90); nz(.08, 900, .06, 'lowpass', 1); if (q >= 3) [0, 1].forEach(i => tn(660 * Math.pow(1.26, i + q - 3), .2, .05, 'sine', 0, .08 + i * .08)); },
+  pickup(q) { tn(1200, .04, .06, 'square'); nz(.06, 2400, .05, 'highpass', 1); [0, 1, 2].forEach(i => tn(440 * Math.pow(1.26, i + q), .18, .09, 'triangle', 0, .04 + i * .07)); },
   buy() { tn(660, .08, .1, 'square'); tn(990, .12, .1, 'square', 0, .08); },
   heal() { [0, 1].forEach(i => tn(520 + i * 260, .2, .09, 'sine', 0, i * .1)); },
   sell() { [0, 1, 2].forEach(i => tn(1200 + i * 400, .07, .07, 'square', 0, i * .05)); },

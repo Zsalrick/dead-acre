@@ -131,6 +131,7 @@ function gearSummary() {
 const gearDrops = [], gearTexes = {}, gearPlane = new THREE.PlaneGeometry(1.1, 1.1 * 180 / 320);
 function gearTex(it) { const u = gPic(it); return gearTexes[u] || (gearTexes[u] = new THREE.TextureLoader().load(u)); } // cached per icon, kept for the session
 function spawnGearDrop(it, pos) {
+  if (Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z) < 35) SND.drop(it.exo ? 5 : it.q);
   const col = new THREE.Color(gCol(it)), g = new THREE.Group();
   const m = new THREE.Mesh(gearPlane, new THREE.MeshBasicMaterial({ map: gearTex(it), transparent: true, alphaTest: .1, side: THREE.DoubleSide })); // the item's own 2D picture, spinning like a dropped item in Minecraft
   m.position.y = .6; g.add(m);

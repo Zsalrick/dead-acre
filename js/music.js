@@ -119,7 +119,8 @@ function melody(T) {
 
 let mus = null, musWant = null;
 function startTrack(key, idx) {
-  const T = MUSIC[key][idx], bus = ac.createGain(), t = ac.currentTime;
+  const T0 = MUSIC[key][idx], T = key === 'hub' ? T0 : Object.assign({}, T0, { bpm: Math.max(T0.bpm * 1.15, 116), cut: (T0.cut || 1200) * 1.4, // in a job: harder, faster, always drums
+    drums: T0.drums || { kick: '1000100010001000', hat: '1010101010101010', snare: '0000100000001000' }, lead: T0.lead && Object.assign({}, T0.lead, { dens: Math.min(.35, (T0.lead.dens || .1) * 1.4) }) }), bus = ac.createGain(), t = ac.currentTime;
   bus.gain.setValueAtTime(.0001, t); bus.gain.exponentialRampToValueAtTime(1, t + 2.5); bus.connect(musicBus);
   mus = { key, idx, T, bus, step: 0, next: t + .15, mel: T.lead ? melody(T) : null };
 }
@@ -177,7 +178,7 @@ const SET_UI = [
 const FPS_CAPS = [0, 30, 60, 90, 120, 144];
 // key bindings: SET.binds maps an action's default key to the key the player chose; the game reads the default codes
 const BINDS = [['KeyW', 'Előre'], ['KeyS', 'Hátra'], ['KeyA', 'Balra'], ['KeyD', 'Jobbra'], ['ShiftLeft', 'Sprint'], ['Space', 'Ugrás'], ['KeyR', 'Újratöltés'], ['KeyE', 'Használat, felélesztés'],
-  ['KeyF', 'Felvétel a földről'], ['Digit1', '1. fegyver'], ['Digit2', '2. fegyver'], ['KeyV', 'Kés'], ['KeyH', 'Gyógycsomag'], ['KeyG', 'Gránát'], ['KeyQ', 'Dobókés'], ['KeyX', 'Adrenalin'],
+  ['KeyF', 'Felvétel a földről'], ['Digit1', '1. fegyver'], ['Digit2', '2. fegyver'], ['KeyV', 'Kés'], ['KeyH', 'Gyógycsomag'], ['KeyG', 'Gránát'], ['KeyQ', 'Dobókés'], ['KeyT', 'Adrenalin'],
   ['KeyC', 'Kasztképesség'], ['KeyZ', 'Pingelés'], ['KeyI', 'Leltár']];
 const keyName = c => c ? c.replace(/^Key|^Digit/, '').replace(/^Shift(Left|Right)$/, 'Shift').replace(/^Control(Left|Right)$/, 'Ctrl').replace(/^Alt(Left|Right)$/, 'Alt').replace('Space', 'Szóköz').replace(/^Numpad/, 'Num ') : '–';
 const boundKey = d => (SET.binds || {})[d] || d;

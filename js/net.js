@@ -451,7 +451,7 @@ function applySnapshot(g, hostPeer) {
       const bk = Array.isArray(g.bb) && g.bb[0] === id && BOUNTIES[g.bb[1]] ? g.bb[1] : null;
       if (bk) bountyLook(z, bk);
       if (z.K.boss) { banner(bk ? BOUNTIES[bk].name.toUpperCase() : 'A MÉSZÁROS', bk ? BOUNTIES[bk].desc : 'Az utadat állja a furgon felé.'); SND.roar(); }
-      z.traits = [AFFIX_KEYS[((fl >> 11) & 15) - 1], AFFIX_KEYS[((fl >> 15) & 15) - 1]].filter(Boolean); z.affix = z.traits[0] || null; z.tier = (fl >> 19) & 3;
+      z.traits = [AFFIX_KEYS[((fl >> 11) & 15) - 1], AFFIX_KEYS[((fl >> 15) & 15) - 1]].filter(Boolean); z.affix = z.traits[0] || null; { const nt = (fl >> 19) & 3; if (nt >= 2 && !z.tierHeard) { z.tierHeard = true; SND.threat(nt); } z.tier = nt; }
     }
     if (z.dead && z.predDead) { if (tr - z.predDead > 700) resurrect(z); else continue; } // our kill wasn't confirmed: it gets back up
     const hpv = clamp(+hp || 0, 0, 100) / 100 * z.maxHp;

@@ -12,6 +12,7 @@ const aliveCap = () => {
   return Math.min(36 + 8 * (party > 1 ? partySize() - 1 : 0), Math.round(Math.min(20, 6 + round) * (M && M.phase === 'evac' ? 1.3 : 1) * roundMod.spawns * ramp * party));
 };
 const EVAC_WARN = 40, BOARD_T = 6;
+const bountyPre = J => 75 + 15 * ((J.diff || 1) - 1), bountyPost = J => 45 + 10 * ((J.diff || 1) - 1); // a bounty: hold out, the boss, hold out again, then the van
 
 // opts (party jobs): seed and van spots come from the host so everyone gets the same layout; client: the host runs the world
 function startJob(job, opts = {}) {
@@ -119,7 +120,7 @@ function updateMission(dt) {
   const left = M.job.dur - M.t;
   if (updateObjective(M, dt) === 'fail') return finishJob(false);
   if (noClock(M.job) && !objDone(M)) { // objective jobs: no clock, the pressure rises every minute
-    if (M.job.bounty && !M.bountyBoss && M.t > 4) M.bountyBoss = spawnBounty(M.job.bounty);
+    if (M.job.bounty && !M.bountyBoss && M.t > bountyPre(M.job)) { M.bountyBoss = spawnBounty(M.job.bounty); SND.threat(3); banner(`${(BOUNTIES[M.job.bounty] || BOUNTIES.butcher).name.toUpperCase()} MEGÉRKEZETT`, 'Most győzd le!'); }
     if ((M.huntT = (M.huntT || 0) + dt) > 60) { M.huntT = 0; round++; $('round').textContent = round; M.rt = (M.rt || 0) + 1; if (NET.mode && (player.down || player.ffyl > 0)) netRevive(); } // no waves here: the downed get up every minute
   }
   if (!M.evacWarn && left <= EVAC_WARN) { // the pickup spot is known 40 s early: the last wave becomes a run across the map
@@ -350,9 +351,9 @@ $('loadout').addEventListener('click', e => {
     const w = f === 'L' ? player.slots[+i] : player.bag[+i];
     if (!w || (f === 'L' && player.slots.filter(Boolean).length < 2)) return;
     if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
-    itemFeed('szétszedte', `${w.name} · +${fieldParts(w.q)} ⚙`, w.unique ? 5 : w.q); mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
+    SND.salvage('w'); itemFeed('szétszedte', `${w.name} · +${fieldParts(w.q)} ⚙`, w.unique ? 5 : w.q); mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
   }
-  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ${FAB}`, it.q); mission.fabric = (mission.fabric || 0) + fieldParts(it.q); } invSel = ''; }
+  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { SND.salvage('g'); itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ${FAB}`, it.q); mission.fabric = (mission.fabric || 0) + fieldParts(it.q); } invSel = ''; }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
     if (kind === 'wear' && mission.gear[+f] && !canUse(mission.gear[+f])) { SND.deny(); popText(`Csak ${mission.gear[+f].level}. szinttől viselhető`, '#ff8a70'); return renderPauseInv(); }
@@ -400,6 +401,7 @@ addEventListener('keydown', e => {
   if (state !== 'playing' || (mission && mission.leaving) || player.down) return;
   if (player.ffyl > 0 && !['KeyR', 'Digit1', 'Digit2', 'Escape', 'KeyP', 'KeyZ'].includes(c)) return; // on the ground: shoot, reload, swap
   if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+  if (e.repeat && c !== 'Space') return; // a held key fires once
   if (c === 'KeyR') startReload();
   else if (c === 'KeyE') interact();
   else if (c === 'Digit1') switchTo(0);
@@ -407,7 +409,7 @@ addEventListener('keydown', e => {
   else if (c === 'KeyH') useItem('med');
   else if (c === 'KeyG') useItem('gren');
   else if (c === 'KeyQ') useItem('knife');
-  else if (c === 'KeyX' && !(focus && (focus.type === 'drop' || focus.type === 'gear'))) useItem('adren');
+  else if (c === 'KeyT') useItem('adren'); // X is for taking loot apart
   else if (c === 'KeyV') knife();
   else if (c === 'KeyC') useAbility();
   else if (c === 'KeyZ') doPing();
@@ -558,7 +560,7 @@ function updateHUD() {
     const M = mission, left = Math.max(0, M.job.dur - M.t);
     setHTML('timer', M.phase === 'evac' ? 'EVAKUÁCIÓ' : objectiveTimer(M) || fmtTime(left));
     $('timer').classList.toggle('evac', M.phase === 'evac');
-    setHTML('left', M.job.bounty && !M.bountyDone ? `Célpont: ${(BOUNTIES[M.job.bounty] || BOUNTIES.butcher).name} · ${alive()} zombi a pályán` : !M.evacWarn && M.phase !== 'evac' && objectiveLine(M) ? objectiveLine(M) : M.phase === 'lull' ? `Pihenő · ${Math.ceil(M.phaseT)} mp` :
+    setHTML('left', M.job.bounty && M.phase !== 'evac' ? objectiveLine(M) : !M.evacWarn && M.phase !== 'evac' && objectiveLine(M) ? objectiveLine(M) : M.phase === 'lull' ? `Pihenő · ${Math.ceil(M.phaseT)} mp` :
       M.phase === 'evac' ? (M.boardT > 0 ? `Beszállás · ${Math.ceil(M.boardT)} mp${M.boardWarn ? ' · MEGÁLLT: vissza a furgonhoz!' : ' · maradj a furgonnál'}` : truck.parked ? `A furgon vár még ${Math.max(0, Math.ceil(45 - (M.parkT || 0)))} mp · [E] beszállás` : 'Jön a furgon · menj a zöld jelzéshez') :
       M.evacWarn ? `A furgon ${Math.ceil(left)} mp múlva ér ide · indulj a zöld jelzéshez` : `${M.wave}. hullám · ${alive()} zombi a pályán`);
     updateEvacMark(M.phase === 'evac' || !!M.evacWarn);
@@ -674,7 +676,7 @@ function scrapGround(f) { // parts are paid out only if you extract, like taking
   const it = f.type === 'gear' ? f.gd.it : f.drop.w, q = it.unique ? 5 : it.q;
   if (f.type === 'gear') { netTookDrop(f.gd); removeGearDrop(f.gd); } else { netTookDrop(f.drop); removeDrop(f.drop); }
   const gear = f.type === 'gear', n = fieldParts(Math.min(4, q)), u = gear ? FAB : '⚙'; if (gear) mission.fabric = (mission.fabric || 0) + n; else mission.parts = (mission.parts || 0) + n;
-  itemFeed('szétszedte', `${it.name} · +${n} ${u}`, q); SND.explode(); popText(`${it.name} szétszedve · +${n} ${u} kijutáskor`, '#c8c0a8');
+  itemFeed('szétszedte', `${it.name} · +${n} ${u}`, q); SND.salvage(gear ? 'g' : 'w'); popText(`${it.name} szétszedve · +${n} ${u} kijutáskor`, '#c8c0a8');
 }
 function updateSellHold(dt) {
   if (focus && focus.type === 'revive') { // hold E next to a downed mate

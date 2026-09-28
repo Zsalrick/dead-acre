@@ -887,7 +887,7 @@ const turrets = [];
 // returns false when it could not be placed; opts: rate (fire speed), station (the rented one at a tower),
 // n (how many; the Ikertorony augment places two small ones), dmgMul, shield (dome: -50% damage inside), rocket (explosive shots)
 function deployTurret(cost, dur = 60, opts = {}) {
-  if (opts.station ? turrets.some(t => t.station) : turrets.some(t => !t.station)) return false;
+  if (opts.station ? turrets.some(t => t.station) : turrets.filter(t => !t.station).length >= (opts.max || 1)) return false;
   if (player.points < cost) return false;
   player.points -= cost; SND.buy();
   const n = opts.n || 1, fwd = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), side = new V3(-fwd.z, 0, fwd.x);
@@ -899,7 +899,7 @@ function deployTurret(cost, dur = 60, opts = {}) {
     const body = new THREE.Mesh(unitBox, metal); body.scale.set(.35, .3, .5); head.add(body);
     const barrel = new THREE.Mesh(unitBox, metal); barrel.scale.set(opts.rocket ? .18 : .08, opts.rocket ? .18 : .08, .6); barrel.position.z = .5; head.add(barrel);
     const eye = new THREE.Mesh(new THREE.BoxGeometry(.1, .06, .02), basic(opts.shield ? 0x7fe8ff : 0x7fb8ff)); eye.position.set(0, .06, .26); head.add(eye);
-    if (n > 1) g.scale.setScalar(.75);
+    if (n > 1 || opts.small) g.scale.setScalar(.75);
     if (opts.shield) {
       const dome = new THREE.Mesh(new THREE.SphereGeometry(5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x6fd8ff, transparent: true, opacity: .1, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
       g.add(dome);

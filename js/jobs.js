@@ -113,6 +113,10 @@ function objectiveTimer(M) {
 function objectiveLine(M) {
   const J = M.job;
   if (J.test) return 'Lőtér · célbábuk · Esc → Vissza a bázisra';
+  if (J.bounty && M.phase !== 'evac') { const B = BOUNTIES[J.bounty] || BOUNTIES.butcher, boss = zombies.some(z => z.bounty && !z.dead);
+    if (M.bountyDone) return M.bountyEnd ? `Fejvadászat 3/3 · tarts ki a furgonig · ${fmtTime(Math.max(0, M.bountyEnd - M.t))}` : 'Fejvadászat 3/3 · tarts ki, amíg a furgon jön';
+    if (boss || M.t >= bountyPre(J)) return `Fejvadászat 2/3 · győzd le: ${B.name}`;
+    return `Fejvadászat 1/3 · tarts ki · ${B.name} ${fmtTime(Math.max(0, bountyPre(J) - M.t))} múlva érkezik`; }
   if (J.type === 'escort' && M.esc && !objDone(M)) return `Kíséret · túlélő ${Math.max(0, Math.round(M.esc.hp / M.esc.max * 100))}% · ${M.esc.leg === 1 ? 'a holmijáért' : 'a furgonig'} ${Math.round(NET.client ? M.esc.netDist || 0 : M.esc.pos.distanceTo(M.esc.end))} m${M.esc.waiting ? ' · VÁR RÁD' : ''}`;
   if (J.type === 'exterminate' && !objDone(M)) return `Irtás · ${Math.min(M.kc || 0, J.goal)} / ${J.goal} zombi`;
   if (J.type === 'supply' && !objDone(M)) return `Utánpótlás · ${M.crates ? M.crates.filter(c => c.got).length : 0} / ${J.goal} láda · kövesd a sárga fényt`;

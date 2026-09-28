@@ -244,7 +244,7 @@ const ITEMS = {
   med:   { name: 'Gyógycsomag', key: 'H', max: 3, color: '#ff5a5a', desc: '+70 életerő azonnal' },
   gren:  { name: 'Gránát',      key: 'G', max: 4, color: '#8fd35a', desc: '1,8 mp után robban, 5 m sugárban' },
   knife: { name: 'Dobókés',     key: 'Q', max: 8, color: '#d8d8d8', desc: 'Nagy sebzés, fejre dupla' },
-  adren: { name: 'Adrenalin',   key: 'X', max: 2, color: '#7fc4ff', desc: '12 mp: végtelen sprint, +30% sebesség, gyors újratöltés' },
+  adren: { name: 'Adrenalin',   key: 'T', max: 2, color: '#7fc4ff', desc: '12 mp: végtelen sprint, +30% sebesség, gyors újratöltés' },
 };
 const ITEM_KEYS = Object.keys(ITEMS);
 // grenade and knife kinds: bought once at the base, the chosen one fills the G / Q slot

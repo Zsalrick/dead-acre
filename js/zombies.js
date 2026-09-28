@@ -742,9 +742,9 @@ function bountyTick(z, dt, dist) {
 function bountyKilled(z) {
   const M = mission; if (!M || M.bountyDone) return;
   M.bountyDone = true; M.bountyAt = [z.pos.x, z.pos.z]; firstBounty(z.bounty);
-  M.job.dur = M.t + EVAC_WARN + 1;
+  M.bountyEnd = M.t + bountyPost(M.job); M.job.dur = M.bountyEnd + EVAC_WARN + 1; // a last stand before the van comes
   bountyLoot(z.pos, z.bounty);
-  banner(`${(BOUNTIES[z.bounty] || BOUNTIES.butcher).name.toUpperCase()} ELESETT`, 'Legendás zsákmány! Szedd fel, aztán irány a furgon.');
+  banner(`${(BOUNTIES[z.bounty] || BOUNTIES.butcher).name.toUpperCase()} ELESETT`, `Szedd fel a zsákmányt, és tarts ki még ${fmtTime(bountyPost(M.job))}-ig: utána jön a furgon.`);
 }
 function bountyLoot(pos, key) {
   const p = new V3(pos.x, 0, pos.z), B = BOUNTIES[key];
@@ -769,6 +769,8 @@ function weaponOnHit(z, amt, o) {
   if (w.oc === 'ricochet' && !o.chain && Math.random() < .25) { const q = zombies.filter(q => !q.dead && q !== z && q.pos.distanceTo(z.pos) < 8).sort((a, b) => a.pos.distanceTo(z.pos) - b.pos.distanceTo(z.pos))[0]; if (q) { tracer(new V3(z.pos.x, 1.5, z.pos.z), new V3(q.pos.x, 1.5, q.pos.z), 0xffe0a0, .012); hurtZombie(q, amt * .5, { w, chain: true }); } }
   if (w.element === 'leech' && !o.chain) { const s = Math.floor(now), cap = maxHp() * .04; if (player.leechS !== s) { player.leechS = s; player.leechUsed = 0; } // lifesteal with a per-second ceiling
     const h = Math.min(amt * .03, cap - player.leechUsed); if (h > 0) { player.leechUsed += h; player.hp = Math.min(maxHp(), player.hp + h); } }
+  if (player.eyeT > 0 && !o.chain) { const marks = augOn('wide') ? zombies.filter(q => !q.dead && q.pos.distanceTo(z.pos) < 4) : [z]; // Deadeye marks what you hit
+    const fresh = marks.filter(q => !(q.markT > 1)); marks.forEach(q => q.markT = Math.max(q.markT || 0, 6)); if (NET.client && fresh.length) netAct('mark', fresh.map(q => q.id)); }
   if (w.tal && !o.chain) talentHit(z, amt, o, w);
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
   if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
@@ -790,6 +792,7 @@ function weaponOnKill(z, o) {
   if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }
   if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
   if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
+  if (player.eyeT > 0 && z.markT > 0) player.eyeT = Math.min(20, player.eyeT + 1.5); // a marked kill keeps Deadeye going
   if (w.tal === 'frenzy') player.frenzyT = now + 5;
   if (w.tal === 'feast' && o.head) player.hp = Math.min(maxHp(), player.hp + maxHp() * .04);
   if (w.tal === 'scav') w.ammo = Math.min(w.mag, w.ammo + Math.ceil(w.mag * .15));
@@ -853,7 +856,7 @@ function rollTier(z, kind) {
   const d = mission.job.diff - 1, t = jobTier(), r = Math.random();
   const w = Math.min(20, round - 1), pN = .006 + .003 * d + .004 * t + .0015 * w, pE = .03 + .012 * d + .02 * t + .006 * w + (roundMod.elite ? .2 : 0), pV = .14 + .03 * d + .03 * t + .012 * w;
   const tier = r < pN ? 3 : r < pN + pE ? 2 : r < pN + pE + pV ? 1 : 0;
-  if (tier) setZTier(z, tier);
+  if (tier) { setZTier(z, tier); if (tier >= 2 && Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z) < 60) SND.threat(tier); }
 }
 const zName = z => { const T = ZTIERS[z.tier || 0], tr = (z.traits || []).map(k => AFFIX[k].name);
   const kn = z.dummy ? `Célbábu · ${z.K.name}` : z.K.name;
