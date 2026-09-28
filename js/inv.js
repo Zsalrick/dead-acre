@@ -218,6 +218,11 @@ function enableDrag(root, fireRoot = root, ground = false) {
     from = t.dataset.act.slice(4); e.dataTransfer.setData('text/plain', from); e.dataTransfer.effectAllowed = 'move';
     t.classList.add('dragging'); root.classList.add('dnd');
   });
+  document.addEventListener('dragover', e => { // dragging near the list's top or bottom edge (or past it) scrolls it
+    if (!from) return; const sc = root.querySelector('.invl'); if (!sc) return;
+    const r = sc.getBoundingClientRect(), m = 70, up = r.top + m - e.clientY, dn = e.clientY - (r.bottom - m);
+    if (up > 0) sc.scrollTop -= Math.min(30, up / 3); else if (dn > 0) sc.scrollTop += Math.min(30, dn / 3);
+  });
   root.addEventListener('dragend', () => { from = null; root.classList.remove('dnd', 'ground'); root.querySelectorAll('.dragging,.dropok').forEach(x => x.classList.remove('dragging', 'dropok')); });
   root.addEventListener('dragover', e => {
     if (!from) return; const to = target(e.target); if (!to || !dropAct(from, to)) return;

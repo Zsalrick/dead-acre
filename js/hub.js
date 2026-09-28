@@ -118,7 +118,7 @@ function renderHub() {
   $('hubCls').textContent = P.cls ? CLASSES[P.cls].name : 'nincs kaszt'; $('hubCls').style.setProperty('--cc', P.cls ? CLASSES[P.cls].color : '');
   document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.classList.toggle('on', !!(b.dataset.hub === hubTab || (b.dataset.group && HUB_GROUPS[b.dataset.group].some(([k]) => k === hubTab)))));
   const grp = Object.values(HUB_GROUPS).find(g => g.some(([k]) => k === hubTab)), sub = grp ? `<nav class="subnav">${grp.map(([k, t]) => `<button class="sbtab${k === hubTab ? ' on' : ''}" data-sub="${k}">${t}</button>`).join('')}</nav>` : '';
-  const hb = $('hubBody'); hb.innerHTML = (NET.code && hubTab !== 'jobs' ? partyPanel() : '') + sub + HUB[hubTab](); // in a party the strip is on every tab hb.style.animation = 'none'; void hb.offsetWidth; hb.style.animation = '';
+  const hb = $('hubBody'); hb.innerHTML = (NET.code && hubTab !== 'jobs' ? partyPanel() : '') + sub + HUB[hubTab](); // in a party the strip is on every tab
   updateKeybar($('hubBody'));
 }
 const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)}"><div class="head"><div class="lvl">Lv ${w.level}</div><div class="rar">${RARITIES[w.q].name}</div>
@@ -160,13 +160,7 @@ const HUB = {
     else if (w && sl === 'K') acts = hbtn('Kézbe', `mv:K:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('Táskába', `mv:K:${i}:B`, bagFull, 'KeyT') + hbtn('Raktárba', `mv:K:${i}:S`, stashFull, 'KeyR');
     else if (w) acts = hbtn('Kézbe', `mv:${sl}:${i}:L:${freeHand(lists.L)}`, !canUse(w), 'KeyF') + hbtn('1. kézbe', `mv:${sl}:${i}:L:0`, !canUse(w), 'Digit1') + hbtn('2. kézbe', `mv:${sl}:${i}:L:1`, !canUse(w), 'Digit2') +
       hbtn('Karakterládába', `mv:${sl}:${i}:K`, sharedFull, 'KeyK') + (sl === 'B' ? hbtn('Raktárba', `mv:B:${i}:S`, stashFull, 'KeyR') : hbtn('Táskába', `mv:S:${i}:B`, bagFull, 'KeyT') + hbtn(`Eladás $${sellValue(w)}`, `sell:${i}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[w.q]} ⚙`, `salvage:${i}`, false, 'KeyB'));
-    const pp = P.parts || 0;
-    if (w) acts += hbtn(w.level + 2 > HFORGE.cap() ? `Kovács: szintkorlát (${HFORGE.cap()})` : `Kovács: +2 szint · ${HFORGE.level(w)} ⚙`, `hforge:level:${sl}:${i}`, pp < HFORGE.level(w) || w.level + 2 > HFORGE.cap(), 'KeyG') +
-      (w.q < 4 ? hbtn(`Kovács: ${RARITIES[w.q + 1].name} · ${HFORGE.rarity(w)} ⚙`, `hforge:rarity:${sl}:${i}`, pp < HFORGE.rarity(w), 'KeyV') : '') +
-      (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '') +
-      hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
-      hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM') +
-      ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
+    if (w) acts += hbtn('Kovács ›', 'goforge', false, 'KeyG');
     const cmp = sl === 'L' ? lists.L[1 - i] : lists.L[0] || lists.L[1];
     const hands = lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('');
     const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${hands}</div>
@@ -184,18 +178,45 @@ const HUB = {
     const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : sl === 'H' ? SH.g[+si] : null;
     if (!get()) { const k = GEAR_KEYS.find(k => P.gear[k]); [sl, si] = k ? ['W', k] : ['G', '0']; invSel = `${sl}:${si}`; }
     const it = get();
-    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:W:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it)) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it)) + hbtn(`Eladás $${gearValue(it)}`, `gsell:${si}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[it.q]} ⚙`, `gsalvage:${si}`, false, 'KeyB');
+    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, false, 'KeyF') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + hbtn(`Eladás $${gearValue(it)}`, `gsell:${si}`, false, 'KeyX') + hbtn(`Szétszedés +${PARTS[it.q]} ⚙`, `gsalvage:${si}`, false, 'KeyB');
     const worn = GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('');
     const sorted = st.map((x, k) => [x, k]).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
     const left = `<h3>Viselt</h3><div class="tiles worn" data-drop="W">${worn}</div>
-      <h3>Összesítve</h3>${gearSummary()}
       <h3>Páncélraktár <small>${st.length} / ${gearMax()}</small></h3><div class="tiles" data-drop="G">${sorted.map(([x, k]) => gTile(`G:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'A munkán talált páncél ide kerül')}</div>
       <h3>Karakterek közti láda <small>${SH.g.length} / ${SHARED_MAX} · a saját mentéseid között, nem a csapattal</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>
-      <h3>Márka-kódex</h3><div class="brands">${Object.values(BRANDS).map(B => `<div class="brand" style="--bc:${B.color}"><b>${B.name}</b><small>${B.tag} · minden darab: ${GSTATS[B.core[0]].name} ${fmtG(...B.core)}</small>
-        <ul>${B.sets.map(([n, k, v]) => `<li>${n} db: ${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('')}${B.t4 ? `<li class="t4"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</li>` : ''}</ul></div>`).join('')}</div>`;
+`;
     return `${buildsRow()}
       <p class="lede">Sisak, mellvért, nadrág, csizma. A páncél a pajzsodat növeli, minden darab márkabónuszt ad, és 2/3/4 azonos márkájú darab szettbónuszt. Kattints egy darabra a részletekért.</p>
       ${invLayout(left, it ? gearDetail(it, sl === 'G' ? P.gear[it.slot] : null, acts) : noDetail('Még nincs páncélod. A zombik dobják, és a boltban is van.'))}`;
+  },
+  forge() { // the smith: levels, rarity, anoint, recalibration, expertise and overclocks, away from the move/sell buttons
+    const P = profile, lists = { L: P.loadout.map(unpackW), B: P.bag.map(unpackW), S: P.stash.map(unpackW) }, st = P.gearStash;
+    let [sl, si] = invSel.split(':');
+    const okSel = () => lists[sl] ? !!lists[sl][+si] : sl === 'W' ? !!P.gear[si] : sl === 'G' ? !!st[+si] : false;
+    if (!okSel()) { sl = 'L'; si = lists.L[0] ? '0' : '1'; invSel = `L:${si}`; }
+    const i = +si, w = lists[sl] && lists[sl][i], it = !w && (sl === 'W' ? P.gear[si] : st[i]);
+    const wActs = w && (() => {
+      const pp = P.parts || 0;
+      return hbtn(w.level + 2 > HFORGE.cap() ? `Szintkorlát (${HFORGE.cap()})` : `+2 szint · ${HFORGE.level(w)} ⚙`, `hforge:level:${sl}:${i}`, pp < HFORGE.level(w) || w.level + 2 > HFORGE.cap(), 'KeyG') +
+      (w.q < 4 ? hbtn(`Ritkaság: ${RARITIES[w.q + 1].name} · ${HFORGE.rarity(w)} ⚙`, `hforge:rarity:${sl}:${i}`, pp < HFORGE.rarity(w), 'KeyV') : '') +
+      (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '') +
+      hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
+      hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM') +
+      ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
+    })();
+    const gActs = it ? hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it), 'KeyM') : '';
+    const sec = (t, x) => x ? `<h3>${t}</h3><div class="tiles">${x}</div>` : '';
+    const left = sec('Kézben', lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : '').join('')) + sec('Táska', lists.B.map((x, k) => wTile(`B:${k}`, x)).join('')) + sec('Raktár', lists.S.map((x, k) => wTile(`S:${k}`, x)).join('')) +
+      sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
+    return `<p class="lede">Kovács: szintemelés, ritkaság, felkenés, kalibrálás, szakértelem és túlhajtás alkatrészért (⚙ ${P.parts || 0} · mag: ${P.oc || 0}). Válassz egy fegyvert vagy páncélt.</p>
+      ${invLayout(left, w ? weaponDetail(w, null, wActs) : it ? gearDetail(it, null, gActs) : noDetail('Nincs mit fejleszteni.'))}`;
+  },
+  stats() {
+    const P = profile, ws = P.loadout.map(unpackW).filter(Boolean);
+    return `<h3>Karakter</h3><ul class="mlist"><li><b>Kaszt</b><span>${P.cls ? CLASSES[P.cls].name : 'nincs'}</span></li><li><b>Szint</b><span>${P.level}</span></li><li><b>Max életerő</b><span>${Math.round(maxHp())}</span></li>${ws.map((w, k) => `<li><b>${k + 1}. kéz · ${w.name}</b><span>DPS ${dps(w)}</span></li>`).join('')}</ul>
+      <h3>Páncél összesítve</h3>${gearSummary()}
+      <h3>Márka-kódex</h3><div class="brands">${Object.values(BRANDS).map(B => `<div class="brand" style="--bc:${B.color}"><b>${B.name}</b><small>${B.tag} · minden darab: ${GSTATS[B.core[0]].name} ${fmtG(...B.core)}</small>
+        <ul>${B.sets.map(([n, k, v]) => `<li>${n} db: ${GSTATS[k].name} ${fmtG(k, v)}</li>`).join('')}${B.t4 ? `<li class="t4"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</li>` : ''}</ul></div>`).join('')}</div>`;
   },
   upgrades() {
     return `<div class="hubhead"><h2>Fejlesztések</h2></div><p class="lede">Tartós fejlesztések dollárért. Minden munkára veled jönnek.</p>
@@ -244,7 +265,7 @@ const HUB = {
 };
 enableDrag($('hubBody'));
 // five tabs; Felszerelés and Fejlődés have sub-tabs
-const HUB_GROUPS = { kit: [['arsenal', 'Fegyverek'], ['gear', 'Páncél']], grow: [['skills', 'Képességek'], ['upgrades', 'Fejlesztések'], ['vet', 'Veterán és gyűjtemény']] };
+const HUB_GROUPS = { kit: [['arsenal', 'Fegyverek'], ['gear', 'Páncél'], ['forge', 'Kovács'], ['stats', 'Statisztika']], grow: [['skills', 'Képességek'], ['upgrades', 'Fejlesztések'], ['vet', 'Veterán és gyűjtemény']] };
 document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.onclick = () => { hubTab = b.dataset.hub; renderHub(); });
 $('hubBody').addEventListener('click', e => { const t = e.target.closest('[data-sub]'); if (t) { hubTab = t.dataset.sub; renderHub(); } });
 $('hubMenuBtn').onclick = () => { saveProfile(); openMenu(); };
@@ -252,6 +273,7 @@ $('hubBody').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const [kind, a, c] = b.dataset.act.split(':'), P = profile;
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
+  if (kind === 'goforge') { hubTab = 'forge'; return renderHub(); }
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
   if (kind === 'jsel') { jobSel = +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
@@ -266,7 +288,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'junk') P.junkQ = clamp(+a, -1, 2);
   if (kind === 'testground') { if (NET.code && !NET.host) return; return startJob(testJob()); }
   if (kind === 'job') { if (!P.cls) { hubTab = 'skills'; return renderHub(); } if (NET.code && (!NET.host || partyMembers().some(m => !m.me && !m.rdy))) return; return startJob(P.jobs[+a]); }
-  if (['cls', 'sk', 'respec', 'reclass', 'aug'].includes(kind)) skillAction(kind, a);
+  if (['cls', 'sk', 'respec', 'aug', 'skview', 'swcls'].includes(kind)) skillAction(kind, a);
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy', 'pready'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetAvail() > 0) { P.vet[a] = (P.vet[a] || 0) + 1; gearChanged(); }
   if (kind === 'reroll' && pay(reroll())) rollBoard();

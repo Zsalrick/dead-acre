@@ -111,11 +111,12 @@ function gearSummary() {
 }
 
 // ---------- gear dropped during a job: walk over it to bag it; it is yours if you extract ----------
-const gearDrops = [];
+const gearDrops = [], gearTexes = {}, gearPlane = new THREE.PlaneGeometry(1.1, 1.1 * 180 / 320);
+function gearTex(it) { const u = gPic(it); return gearTexes[u] || (gearTexes[u] = new THREE.TextureLoader().load(u)); } // cached per icon, kept for the session
 function spawnGearDrop(it, pos) {
   const col = new THREE.Color(gCol(it)), g = new THREE.Group();
-  const m = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color: 0x2e2f2a, emissive: col, emissiveIntensity: .35, roughness: .6 }));
-  m.scale.set(.5, .32, .38); m.position.y = .45; g.add(m);
+  const m = new THREE.Mesh(gearPlane, new THREE.MeshBasicMaterial({ map: gearTex(it), transparent: true, alphaTest: .1, side: THREE.DoubleSide })); // the item's own 2D picture, spinning like a dropped item in Minecraft
+  m.position.y = .6; g.add(m);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 2 + it.q * .8, 6, 1, true),
     new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 1 + it.q * .4; g.add(beam);
@@ -126,11 +127,11 @@ function spawnGearDrop(it, pos) {
 function updateGearDrops(dt) {
   for (let i = gearDrops.length - 1; i >= 0; i--) {
     const d = gearDrops[i]; d.t -= dt;
-    d.m.rotation.y += dt * 1.5; d.g.visible = d.t > 8 || Math.sin(now * 14) > 0;
+    d.m.rotation.y += dt * 2; d.m.position.y = .6 + Math.sin(now * 2.4 + d.pos.x) * .08; d.g.visible = d.t > 8 || Math.sin(now * 14) > 0;
     if (d.t <= 0) removeGearDrop(d);
   }
 }
-function removeGearDrop(d) { scene.remove(d.g); d.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map && o.material.map !== glowTex) o.material.map.dispose(); o.material.dispose(); } }); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
+function removeGearDrop(d) { scene.remove(d.g); d.g.traverse(o => { if (o.geometry && o.geometry !== gearPlane) o.geometry.dispose(); if (o.material) { if (o.material.map && o.material.map !== glowTex && !Object.values(gearTexes).includes(o.material.map)) o.material.map.dispose(); o.material.dispose(); } }); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
 const gearBagMax = () => 6 + U('bag'); // armor pieces a job's bag holds
 function takeGear(d) {
   if (mission && mission.gear.length >= gearBagMax()) { popText(`Tele a páncélzsák (${gearBagMax()} db)`, '#ff8a70'); return; }

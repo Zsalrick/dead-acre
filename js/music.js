@@ -1,7 +1,7 @@
 ﻿// ================= SETTINGS =================
 // per-viewer preferences, kept in localStorage (guarded: it can be blocked)
 const SET_KEY = 'deadacre.settings';
-const SET_DEF = { sens: 1, adsSens: .8, invertY: false, fov: 75, master: .8, music: .5, sfx: 1, gfx: devicePixelRatio > 1.25 ? 1 : 2 }; // gfx: high-DPI laptop screens start on medium
+const SET_DEF = { binds: {}, sens: 1, adsSens: .8, invertY: false, fov: 75, master: .8, music: .5, sfx: 1, gfx: devicePixelRatio > 1.25 ? 1 : 2 }; // gfx: high-DPI laptop screens start on medium
 const SET = Object.assign({}, SET_DEF, (() => { try { return JSON.parse(localStorage.getItem(SET_KEY)) || {}; } catch (e) { return {}; } })());
 function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch (e) {} applyVolumes(); }
 
@@ -173,16 +173,38 @@ const SET_UI = [
   ['sfx', 'Effektek', 0, 1, .05, v => `${Math.round(v * 100)}%`],
   ['gfx', 'Minőség', 0, 2, 1, v => ['Alacsony', 'Közepes', 'Magas'][v]],
 ];
+// key bindings: SET.binds maps an action's default key to the key the player chose; the game reads the default codes
+const BINDS = [['KeyW', 'Előre'], ['KeyS', 'Hátra'], ['KeyA', 'Balra'], ['KeyD', 'Jobbra'], ['ShiftLeft', 'Sprint'], ['Space', 'Ugrás'], ['KeyR', 'Újratöltés'], ['KeyE', 'Használat, felélesztés'],
+  ['KeyF', 'Felvétel a földről'], ['Digit1', '1. fegyver'], ['Digit2', '2. fegyver'], ['KeyV', 'Kés'], ['KeyH', 'Gyógycsomag'], ['KeyG', 'Gránát'], ['KeyQ', 'Dobókés'], ['KeyX', 'Adrenalin'],
+  ['KeyC', 'Kasztképesség'], ['KeyZ', 'Pingelés'], ['KeyI', 'Leltár']];
+const keyName = c => c ? c.replace(/^Key|^Digit/, '').replace(/^Shift(Left|Right)$/, 'Shift').replace(/^Control(Left|Right)$/, 'Ctrl').replace(/^Alt(Left|Right)$/, 'Alt').replace('Space', 'Szóköz').replace(/^Numpad/, 'Num ') : '–';
+const boundKey = d => (SET.binds || {})[d] || d;
+function keyCode(p) { // physical key -> the default code of the action bound to it; a default key moved elsewhere does nothing
+  const b = SET.binds || {}; for (const d in b) if (b[d] === p) return d;
+  return b[p] && b[p] !== p ? null : p;
+}
+let bindWait = null;
+function bindKey(e) { // while the settings wait for a key: take it, swapping with an action that already had it
+  if (!bindWait) return false; e.preventDefault();
+  if (e.code !== 'Escape') {
+    const b = SET.binds = Object.assign({}, SET.binds), old = boundKey(bindWait), other = BINDS.find(([d]) => d !== bindWait && boundKey(d) === e.code);
+    if (other) b[other[0]] = old; b[bindWait] = e.code;
+    for (const d in b) if (b[d] === d) delete b[d];
+    saveSettings();
+  }
+  bindWait = null; openSettings(); return true;
+}
 function openSettings() {
   const row = ([k, n, a, b, st, f]) => `<label class="setrow"><span>${n}${k === 'music' && mus ? `<small>♪ ${nowPlaying()}</small>` : ''}</span>
     <input type="range" min="${a}" max="${b}" step="${st}" value="${SET[k]}" data-set="${k}"><output id="out_${k}">${f(SET[k])}</output></label>`;
   $('settingsBody').innerHTML = '<h3>Irányítás</h3>' + SET_UI.slice(0, 3).map(row).join('') +
     `<label class="setrow"><span>Függőleges egér megfordítása</span><input type="checkbox" data-set="invertY"${SET.invertY ? ' checked' : ''}><output></output></label>` +
     '<h3>Hang</h3>' + SET_UI.slice(3, 6).map(row).join('') +
-    '<h3>Grafika</h3>' + SET_UI.slice(6).map(row).join('');
+    '<h3>Grafika</h3>' + SET_UI.slice(6).map(row).join('') +
+    '<h3>Billentyűk <small>kattints, majd nyomd meg az új gombot (Esc: mégse)</small></h3><div class="binds">' + BINDS.map(([d, n]) => `<div class="setrow"><span>${n}</span><button class="sbtn bindb${bindWait === d ? ' wait' : ''}" data-bind="${d}">${bindWait === d ? 'Nyomj egy gombot…' : keyName(boundKey(d))}</button></div>`).join('') + '</div>';
   $('settings').hidden = false;
 }
-function closeSettings() { $('settings').hidden = true; }
+function closeSettings() { bindWait = null; $('settings').hidden = true; }
 $('settingsBody').addEventListener('input', e => {
   const k = e.target.dataset.set; if (!k) return;
   SET[k] = e.target.type === 'checkbox' ? e.target.checked : +e.target.value;
@@ -191,4 +213,5 @@ $('settingsBody').addEventListener('input', e => {
 });
 $('settingsReset').onclick = () => { Object.assign(SET, SET_DEF); saveSettings(); openSettings(); };
 $('settingsClose').onclick = closeSettings;
+$('settingsBody').addEventListener('click', e => { const b = e.target.closest('[data-bind]'); if (b) { bindWait = b.dataset.bind; openSettings(); } });
 document.querySelectorAll('[data-settings]').forEach(b => b.onclick = openSettings);

@@ -777,6 +777,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 .ocrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center;width:100%;margin-top:4px}.ocrow small{width:100%;color:#a88aff;font-size:11px}.ocrow .chip.on{background:#a88aff;border-color:#a88aff}
 .deep li i{font-style:normal;color:rgba(232,226,208,.18)}
 .extras{margin:0 0 8px}.extras>summary{cursor:pointer;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8f8b7c;padding:4px 0}
+.binds{display:grid;grid-template-columns:1fr 1fr;gap:2px 24px}.bindb{min-width:120px;justify-content:center}.bindb.wait{border-color:#ffd23f;color:#ffd23f}
+.clspick{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.clspick .chip.on{border-color:var(--cc);color:var(--cc)}
 </style>
 
 <div id="game">
@@ -804,9 +806,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
       <div id="ammo" class="num"><span id="mag">0</span><span id="res">/ 0</span></div><div id="slots"></div></div>
     <div id="kfeed" aria-live="off"></div>
     <div id="helpcard" hidden><b>Irányítás</b>
-      <ul><li><kbd>W A S D</kbd> mozgás · <kbd>Shift</kbd> sprint · <kbd>Space</kbd> ugrás</li><li><kbd>Bal egér</kbd> lövés · <kbd>Jobb egér</kbd> célzás · <kbd>R</kbd> újratöltés · <kbd>1</kbd><kbd>2</kbd> fegyverváltás</li>
-      <li><kbd>E</kbd> használat (láda, kapu, doboz, furgon) · <kbd>F</kbd> felvétel · <kbd>F</kbd> nyomva: csere</li><li><kbd>G</kbd> gránát · <kbd>Q</kbd> dobókés · <kbd>V</kbd> kés · <kbd>H</kbd> gyógycsomag · <kbd>X</kbd> adrenalin</li>
-      <li><kbd>C</kbd> kaszt-képesség · <kbd>Z</kbd> vagy <kbd>középső egér</kbd> ping · <kbd>Tab</kbd> leltár · <kbd>Enter</kbd> csapatchat</li></ul>
+      <ul><li><kbd data-k="KeyW">W</kbd><kbd data-k="KeyA">A</kbd><kbd data-k="KeyS">S</kbd><kbd data-k="KeyD">D</kbd> mozgás · <kbd data-k="ShiftLeft">Shift</kbd> sprint · <kbd data-k="Space">Space</kbd> ugrás</li><li><kbd>Bal egér</kbd> lövés · <kbd>Jobb egér</kbd> célzás · <kbd data-k="KeyR">R</kbd> újratöltés · <kbd data-k="Digit1">1</kbd><kbd data-k="Digit2">2</kbd> fegyverváltás</li>
+      <li><kbd data-k="KeyE">E</kbd> használat (láda, kapu, doboz, furgon) · <kbd data-k="KeyF">F</kbd> felvétel · <kbd data-k="KeyF">F</kbd> nyomva: csere</li><li><kbd data-k="KeyG">G</kbd> gránát · <kbd data-k="KeyQ">Q</kbd> dobókés · <kbd data-k="KeyV">V</kbd> kés · <kbd data-k="KeyH">H</kbd> gyógycsomag · <kbd data-k="KeyX">X</kbd> adrenalin</li>
+      <li><kbd data-k="KeyC">C</kbd> kaszt-képesség · <kbd data-k="KeyZ">Z</kbd> vagy <kbd>középső egér</kbd> ping · <kbd>Tab</kbd> leltár · <kbd>Enter</kbd> csapatchat</li></ul>
       <small>Élj túl, szedd fel a zsákmányt, és szállj be a furgonba, amikor visszajön. <kbd>F1</kbd>: ez a lap újra.</small></div>
     <div id="compass" aria-hidden="true"><div id="compassIn"></div></div>
     <div id="pings"></div>
@@ -885,12 +887,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <div id="chat" hidden><div id="chatLog"></div><input id="chatIn" maxlength="120" placeholder="Üzenet a csapatnak… (Enter: küldés, Esc: mégse)" autocomplete="off" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="js/data.js?v=30" charset="utf-8"></script>
-<script src="js/audio.js?v=30" charset="utf-8"></script>
-<script src="js/music.js?v=30" charset="utf-8"></script>
-<script src="js/world.js?v=30" charset="utf-8"></script>
-<script src="js/maps.js?v=30" charset="utf-8"></script>
-<script src="js/fx.js?v=30" charset="utf-8"></script>
+<script src="js/data.js?v=31" charset="utf-8"></script>
+<script src="js/audio.js?v=31" charset="utf-8"></script>
+<script src="js/music.js?v=31" charset="utf-8"></script>
+<script src="js/world.js?v=31" charset="utf-8"></script>
+<script src="js/maps.js?v=31" charset="utf-8"></script>
+<script src="js/fx.js?v=31" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -898,20 +900,20 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=30" charset="utf-8"></script>
-<script src="js/player.js?v=30" charset="utf-8"></script>
-<script src="js/zombies.js?v=30" charset="utf-8"></script>
-<script src="js/loot.js?v=30" charset="utf-8"></script>
-<script src="js/upgrades.js?v=30" charset="utf-8"></script>
-<script src="js/gear.js?v=30" charset="utf-8"></script>
-<script src="js/vet.js?v=30" charset="utf-8"></script>
-<script src="js/inv.js?v=30" charset="utf-8"></script>
-<script src="js/save.js?v=30" charset="utf-8"></script>
-<script src="js/menu.js?v=30" charset="utf-8"></script>
-<script src="js/skills.js?v=30" charset="utf-8"></script>
-<script src="js/hub.js?v=30" charset="utf-8"></script>
-<script src="js/game.js?v=30" charset="utf-8"></script>
-<script src="js/jobs.js?v=30" charset="utf-8"></script>
+<script src="js/gfx.js?v=31" charset="utf-8"></script>
+<script src="js/player.js?v=31" charset="utf-8"></script>
+<script src="js/zombies.js?v=31" charset="utf-8"></script>
+<script src="js/loot.js?v=31" charset="utf-8"></script>
+<script src="js/upgrades.js?v=31" charset="utf-8"></script>
+<script src="js/gear.js?v=31" charset="utf-8"></script>
+<script src="js/vet.js?v=31" charset="utf-8"></script>
+<script src="js/inv.js?v=31" charset="utf-8"></script>
+<script src="js/save.js?v=31" charset="utf-8"></script>
+<script src="js/menu.js?v=31" charset="utf-8"></script>
+<script src="js/skills.js?v=31" charset="utf-8"></script>
+<script src="js/hub.js?v=31" charset="utf-8"></script>
+<script src="js/game.js?v=31" charset="utf-8"></script>
+<script src="js/jobs.js?v=31" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=30" charset="utf-8"></script>
-<script src="js/net.js?v=30" charset="utf-8"></script>
+<script src="js/p2p.js?v=31" charset="utf-8"></script>
+<script src="js/net.js?v=31" charset="utf-8"></script>

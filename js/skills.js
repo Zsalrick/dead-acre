@@ -213,37 +213,51 @@ function skillsTab() {
   const P = profile;
   if (!P.cls) {
     return `<div class="hubhead"><h2>Válassz kasztot</h2></div>
-      <p class="lede">A kaszt ad egy passzív bónuszt, egy aktív képességet (C gomb) és egy saját képességfát. Az érdemérmeket munkák után kapod. Később ${RECLASS} dollárért válthatsz.</p>
+      <p class="lede">A kaszt ad egy passzív bónuszt, egy aktív képességet (C gomb) és egy saját képességfát. Az érdemérmeket munkák után kapod. Később bármikor ingyen válthatsz, a pontjaid kasztonként megmaradnak.</p>
       <div class="classes">${Object.entries(CLASSES).map(([k, C]) => `<article class="cls" style="--cc:${C.color}">
         <div class="ctag">${C.tag}</div><h3>${C.name}</h3><p>${C.desc}</p>
         <dl><dt>Passzív</dt><dd>${C.passive}</dd><dt>Képesség · ${C.ability.name}</dt><dd>${C.ability.desc} (${C.ability.cd} mp)</dd></dl>
         ${hbtn('Ezt választom', `cls:${k}`)}</article>`).join('')}</div>`;
   }
-  const C = CLASSES[P.cls], spent = treeSpent();
+  const V = CLASSES[skView] ? skView : P.cls, mine = V === P.cls, C = CLASSES[V], SKV = mine ? P.skills : (P.clsSkills || {})[V] || {};
+  const lvOf = id => SKV[id] || 0, spent = C.tree.reduce((a, [id]) => a + lvOf(id), 0), tok = mine ? P.tokens : clsTokens(V);
+  const picker = `<nav class="clspick">${Object.entries(CLASSES).map(([k, c]) => `<button class="chip${k === V ? ' on' : ''}" data-act="skview:${k}" style="--cc:${c.color}">${c.name}${k === P.cls ? ' · aktív' : ''}</button>`).join('')}</nav>`;
   const rows = [0, 1, 2, 3, 4].map(r => {
     const need = r * 3, open = spent >= need;
     return `<div class="trow${open ? '' : ' locked'}"><div class="tlabel">${r + 1}. szint<small>${open ? 'nyitva' : `zárva · ${need} pont kell (${spent}/${need})`}</small></div>` +
       C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => {
-        const l = rk(id), maxed = l >= max;
+        const l = lvOf(id), maxed = l >= max;
         return `<div class="node${l ? ' has' : ''}${maxed ? ' max' : ''}"><b>${name}</b>${pips(l, max)}
           <small>${desc(Math.max(1, l))}${!maxed && l ? ` → ${desc(l + 1)}` : ''}</small>
-          ${hbtn(maxed ? 'Kész' : 'Tanul · 1 érem', `sk:${id}`, maxed || !open || P.tokens < 1)}</div>`;
+          ${mine ? hbtn(maxed ? 'Kész' : 'Tanul · 1 érem', `sk:${id}`, maxed || !open || P.tokens < 1) : ''}</div>`;
       }).join('') + '</div>';
   }).join('');
-  return `<div class="hubhead"><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2>
-      <div class="hubbtns">${hbtn(`Pontok vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent)}${hbtn(`Kasztváltás · $${RECLASS}`, 'reclass', P.cash < RECLASS)}</div></div>
-    <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${Math.round(abilityCd())} mp.</p>
-    <p class="tokens">Elkölthető: <strong>${P.tokens}</strong> érdemérem · a fában: ${spent} pont</p>
+  return `${picker}<div class="hubhead"><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2>
+      <div class="hubbtns">${mine ? hbtn(`Pontok vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
+    <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${mine ? Math.round(abilityCd()) : C.ability.cd} mp.</p>
+    <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent} pont${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
     <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív, szabadon váltható</small></h3>
-    <div class="augs">${(AUGMENTS[P.cls] || []).map(([id, name, desc]) => {
-      const own = (P.augOwn || []).includes(id), on = augOn(id);
-      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST))}</div>`;
+    <div class="augs">${(AUGMENTS[V] || []).map(([id, name, desc]) => {
+      const own = (P.augOwn || []).includes(id), on = mine && augOn(id);
+      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : ''}</div>`;
     }).join('')}</div>
     <div class="tree">${rows}</div>`;
 }
+// every class keeps its own tree and its own tokens: switching is free and nothing is re-bought
+let skView = null;
+function tokEarned() { const P = profile; if (P.tokEarned == null) P.tokEarned = (P.tokens || 0) + treeSpent() + (P.cls ? (AUGMENTS[P.cls] || []).filter(x => (P.augOwn || []).includes(x[0])).length * AUG_COST : 0); return P.tokEarned; }
+function clsTokens(k) { const P = profile, t = (P.clsTok || {})[k]; return t == null ? tokEarned() : t; }
+function switchClass(k) {
+  const P = profile; tokEarned(); P.clsSkills = P.clsSkills || {}; P.clsTok = P.clsTok || {};
+  if (P.cls) { P.clsSkills[P.cls] = P.skills; P.clsTok[P.cls] = P.tokens; }
+  P.skills = P.clsSkills[k] || {}; P.tokens = clsTokens(k); P.cls = k;
+}
+function giveTokens(n) { const P = profile; tokEarned(); P.tokEarned += n; P.tokens = (P.tokens || 0) + n; for (const k in P.clsTok || {}) if (k !== P.cls) P.clsTok[k] += n; }
 function skillAction(kind, a) {
   const P = profile;
-  if (kind === 'cls') { const first = !P.cls; P.cls = a; P.skills = {}; if (first) { hubTab = 'jobs'; banner('KÉSZEN ÁLLSZ', 'Válassz egy munkát a térképen, és indulás!'); } return true; }
+  if (kind === 'skview') { skView = a; return true; }
+  if (kind === 'swcls' && CLASSES[a] && a !== P.cls && state === 'hub') { switchClass(a); skView = a; banner(CLASSES[a].name.toUpperCase(), 'Kaszt váltva · a pontjaid megmaradtak'); return true; }
+  if (kind === 'cls') { const first = !P.cls; switchClass(a); if (first) { hubTab = 'jobs'; banner('KÉSZEN ÁLLSZ', 'Válassz egy munkát a térképen, és indulás!'); } return true; }
   if (kind === 'sk') {
     const def = CLASSES[P.cls].tree.find(t => t[0] === a), row = Math.floor(CLASSES[P.cls].tree.indexOf(def) / 3);
     if (P.tokens < 1 || rk(a) >= def[2] || treeSpent() < row * 3) return false;
@@ -256,6 +270,5 @@ function skillAction(kind, a) {
     P.aug[P.cls] = a; return true;
   }
   if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.tokens += treeSpent(); P.skills = {}; return true; }
-  if (kind === 'reclass' && P.cash >= RECLASS) { P.cash -= RECLASS; P.tokens += treeSpent(); P.skills = {}; P.cls = null; return true; }
   return false;
 }

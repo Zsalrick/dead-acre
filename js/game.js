@@ -226,7 +226,7 @@ function finishJob(success, abandoned) {
   const tokens = (success ? (J.diff >= 3 ? 1 : 0) + (J.diff >= 5 ? 1 : 0) + (J.boss ? 1 : 0) + (J.bounty ? 2 : 0) + (J.type && J.type !== 'survive' ? 1 : 0) : 0) + levelUps;
   if (success && J.bounty) stats.bounties = (stats.bounties || 0) + 1;
   if (success && J.tier > (P.tier || 0)) P.tier = J.tier; // next nightmare tier unlocked
-  P.tokens = (P.tokens || 0) + tokens;
+  giveTokens(tokens);
   P.inv = player.inv;
   const bm = stats.byMap[J.map] || (stats.byMap[J.map] = { done: 0, fail: 0 });
   if (success) { stats.jobs++; bm.done++; if (J.diff >= 4 && !J.test) stats.hard = (stats.hard || 0) + 1; } else { stats.fails++; bm.fail++; }
@@ -364,8 +364,8 @@ addEventListener('blur', () => pause());
 
 addEventListener('keydown', e => {
   if (document.activeElement === $('chatIn')) return; // typing in the chat
-  keys[e.code] = true;
-  if (!$('settings').hidden) { if (e.code === 'Escape') closeSettings(); return; }
+  if (!$('settings').hidden) { if (!bindKey(e) && e.code === 'Escape') closeSettings(); return; }
+  const c = keyCode(e.code) || ''; if (c) keys[c] = true;
   if (state === 'hub' && (e.code === 'KeyQ' || e.code === 'KeyE') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { hubCycle(e.code === 'KeyE' ? 1 : -1); return; }
   if (state === 'hub' && invKey(e, $('hubBody'))) return;
   if (state === 'paused' && !$('pause').hidden && invKey(e, $('loadout'))) return;
@@ -373,27 +373,27 @@ addEventListener('keydown', e => {
   if (state === 'paused' && (e.code === 'Escape' || e.code === 'KeyP') && noLock) { resume(); return; }
   if (state === 'paused' && e.code === 'Escape' && !$('pause').hidden && performance.now() - pausedAt > 400) { closePauseForClick(); return; }
   if (e.code === 'Tab') e.preventDefault();
-  if (state === 'paused' && (e.code === 'KeyI' || e.code === 'Tab')) { resume(); return; }
-  if (state === 'playing' && (e.code === 'KeyI' || e.code === 'Tab') && !(mission && mission.leaving)) { if (locked) document.exitPointerLock(); else pause(); return; }
+  if (state === 'paused' && (c === 'KeyI' || e.code === 'Tab')) { resume(); return; }
+  if (state === 'playing' && (c === 'KeyI' || e.code === 'Tab') && !(mission && mission.leaving)) { if (locked) document.exitPointerLock(); else pause(); return; }
   if (state !== 'playing' || (mission && mission.leaving) || player.down) return;
-  if (player.ffyl > 0 && !['KeyR', 'Digit1', 'Digit2', 'Escape', 'KeyP', 'KeyZ'].includes(e.code)) return; // on the ground: shoot, reload, swap
+  if (player.ffyl > 0 && !['KeyR', 'Digit1', 'Digit2', 'Escape', 'KeyP', 'KeyZ'].includes(c)) return; // on the ground: shoot, reload, swap
   if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
-  if (e.code === 'KeyR') startReload();
-  else if (e.code === 'KeyE') interact();
-  else if (e.code === 'Digit1') switchTo(0);
-  else if (e.code === 'Digit2') switchTo(1);
-  else if (e.code === 'KeyH') useItem('med');
-  else if (e.code === 'KeyG') useItem('gren');
-  else if (e.code === 'KeyQ') useItem('knife');
-  else if (e.code === 'KeyX') useItem('adren');
-  else if (e.code === 'KeyV') knife();
-  else if (e.code === 'KeyC') useAbility();
-  else if (e.code === 'KeyZ') doPing();
+  if (c === 'KeyR') startReload();
+  else if (c === 'KeyE') interact();
+  else if (c === 'Digit1') switchTo(0);
+  else if (c === 'Digit2') switchTo(1);
+  else if (c === 'KeyH') useItem('med');
+  else if (c === 'KeyG') useItem('gren');
+  else if (c === 'KeyQ') useItem('knife');
+  else if (c === 'KeyX') useItem('adren');
+  else if (c === 'KeyV') knife();
+  else if (c === 'KeyC') useAbility();
+  else if (c === 'KeyZ') doPing();
   else if (e.code === 'F1') { e.preventDefault(); showHelp(10); }
   else if ((e.code === 'Escape' || e.code === 'KeyP') && !locked) pause();
 });
 
-addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keyup', e => { const c = keyCode(e.code); if (c) keys[c] = false; });
 addEventListener('mousedown', e => {
   if (state === 'paused' && $('pause').hidden && $('settings').hidden) { resume(); return; }
   if (state !== 'playing') return;
@@ -651,4 +651,4 @@ function updateSellHold(dt) {
 
 // the controls card: on the first job, in the testing ground, and on F1
 let helpT = 0;
-function showHelp(sec) { const h = $('helpcard'); h.hidden = false; h.classList.remove('fade'); clearTimeout(helpT); helpT = setTimeout(() => { h.classList.add('fade'); helpT = setTimeout(() => h.hidden = true, 700); }, sec * 1000); }
+function showHelp(sec) { const h = $('helpcard'); h.querySelectorAll('[data-k]').forEach(k => k.textContent = keyName(boundKey(k.dataset.k))); h.hidden = false; h.classList.remove('fade'); clearTimeout(helpT); helpT = setTimeout(() => { h.classList.add('fade'); helpT = setTimeout(() => h.hidden = true, 700); }, sec * 1000); }

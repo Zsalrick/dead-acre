@@ -110,9 +110,10 @@ const TABS = {
       </div>`;
   },
   controls() {
-    const k = [['W A S D', 'mozgás'], ['Shift', 'sprint'], ['Space', 'ugrás'], ['Bal egér', 'lövés'], ['Jobb egér', 'célzás'], ['R', 'újratöltés'],
-      ['1 · 2 · görgő', 'fegyverváltás'], ['E', 'vásárlás, kapuk, állomások, furgon'], ['F', 'földön lévő fegyver a táskába'], ['F (nyomva)', 'csere: a kézben lévő a táskába megy (ha tele, a földre)'], ['F (páncélnál)', 'földön lévő páncél a zsákba'], ['V', 'kés'],
-      ['H', 'gyógycsomag'], ['G', 'gránát'], ['Q', 'dobókés'], ['X', 'adrenalin'], ['C', 'kasztképesség'], ['Z · középső egérgomb', 'pingelés: megjelöl egy helyet vagy zombit a csapatnak'], ['I · Tab', 'leltár: kéz és táska'], ['Esc', 'szünet, leltár, munka feladása']];
+    const K = d => keyName(boundKey(d));
+    const k = [[`${K('KeyW')} ${K('KeyA')} ${K('KeyS')} ${K('KeyD')}`, 'mozgás'], [K('ShiftLeft'), 'sprint'], [K('Space'), 'ugrás'], ['Bal egér', 'lövés'], ['Jobb egér', 'célzás'], [K('KeyR'), 'újratöltés'],
+      [`${K('Digit1')} · ${K('Digit2')} · görgő`, 'fegyverváltás'], [K('KeyE'), 'vásárlás, kapuk, állomások, furgon'], [K('KeyF'), 'földön lévő fegyver a táskába'], [`${K('KeyF')} (nyomva)`, 'csere: a kézben lévő a táskába megy (ha tele, a földre)'], [`${K('KeyF')} (páncélnál)`, 'földön lévő páncél a zsákba'], [K('KeyV'), 'kés'],
+      [K('KeyH'), 'gyógycsomag'], [K('KeyG'), 'gránát'], [K('KeyQ'), 'dobókés'], [K('KeyX'), 'adrenalin'], [K('KeyC'), 'kasztképesség'], [`${K('KeyZ')} · középső egérgomb`, 'pingelés: megjelöl egy helyet vagy zombit a csapatnak'], [`${K('KeyI')} · Tab`, 'leltár: kéz és táska'], ['Esc', 'szünet, leltár, munka feladása']];
     return `<h2>Irányítás</h2><div class="keys big">${k.map(([a, b]) => `<kbd>${a}</kbd><span>${b}</span>`).join('')}</div>
       <p class="note">Ha a böngésző nem engedi befogni az egeret, az egér az ablakon belül is fordít, és a nyilakkal is lehet nézni.</p>`;
   },
