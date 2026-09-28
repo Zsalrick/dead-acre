@@ -957,7 +957,7 @@ function updateTraps(dt) {
 function activateTrap(T) {
   const c = SK.cost(T.cost);
   if (T.active > 0 || T.cd > 0 || player.points < c) return SND.deny();
-  player.points -= c; T.active = 20; SND.buy(); SND.explode();
+  player.points -= c; T.active = 20; SND.buy(); SND.explode(); if (mission) { mission.secTrap = true; secCheck(); }
   if (NET.client) netAct('trap', trapState.indexOf(T));
   banner('TŰZCSAPDA', '20 másodpercig lángokban áll a kapu.');
 }
@@ -1009,7 +1009,7 @@ function areaInteract(f) {
     case 'perk': {
       const k = AREAS[f.area].perk.key, P = PERKS[k], c = SK.cost(P.cost); player.perks = player.perks || {};
       if (player.perks[k] || player.points < c) return SND.deny();
-      player.points -= c; player.perks[k] = true; SND.power(); banner(P.name.toUpperCase(), P.desc);
+      player.points -= c; player.perks[k] = true; SND.power(); banner(P.name.toUpperCase(), P.desc); secCheck();
       if (k === 'jug') player.hp = maxHp();
       return;
     }
@@ -1151,6 +1151,7 @@ function placeBox(i) {
   box.uses = 0; box.limit = 4 + Math.floor(Math.random() * 4);
 }
 function boxUsed() {
+  if (mission) { mission.secBox = true; secCheck(); }
   if (++box.uses < box.limit || BOX_SPOTS.length < 2) return;
   const old = box.pos.clone();
   let i; do i = Math.floor(Math.random() * BOX_SPOTS.length); while (i === box.spot);

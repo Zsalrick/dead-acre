@@ -317,3 +317,38 @@ function updateCache(M, dt) {
   C.t -= dt; if (C.g) C.g.visible = C.t > 0 && (C.t > 8 || Math.sin(now * 14) > 0);
   if (C.t <= 0 && C.g) { scene.remove(C.g); C.g = null; }
 }
+
+// ---------- secondary objectives: one or two per job, each pays +20% money, +20% XP and some parts on a successful job ----------
+const KIND_ACC = { walker: 'Sétálót', runner: 'Futót', crawler: 'Mászót', spitter: 'Köpködőt', brute: 'Behemótot', armored: 'Páncélost', leaper: 'Ugrót', bloater: 'Puffadtat' };
+const SECONDARY = {
+  areas: { name: 'Feltáró', txt: s => 'Nyisd ki az összes területet', n: () => Object.keys(AREAS).length || 1, prog: M => Object.values(AREAS).filter(a => a.unlocked).length, can: j => Object.keys(MAPS[j.map].areas || {}).length > 0 },
+  kind: { name: 'Célzott irtás', txt: (s, n) => `Ölj meg ${n} ${KIND_ACC[s.kind] || KINDS[s.kind].name}`, n: (s, d) => ({ walker: 25 + 10 * d, runner: 10 + 4 * d, crawler: 8 + 3 * d, spitter: 5 + 2 * d, brute: 2 + d, armored: 4 + 2 * d, leaper: 4 + 2 * d, bloater: 4 + 2 * d })[s.kind] || 10, prog: (M, s) => (M.secK || {})[s.kind] || 0, can: () => true },
+  heads: { name: 'Mesterlövő', txt: (s, n) => `${n} fejlövéses ölés`, n: (s, d) => 12 + 8 * d, prog: M => M.secH || 0, can: () => true },
+  melee: { name: 'Közelharc', txt: (s, n) => `Ölj meg ${n} zombit késsel`, n: (s, d) => 4 + 2 * d, prog: M => M.secMelee || 0, can: () => true },
+  elite: { name: 'Elitvadász', txt: (s, n) => `Ölj meg ${n} elit zombit`, n: (s, d) => 1 + d, prog: M => M.secE || 0, can: j => j.diff >= 2 },
+  perk: { name: 'Vásárló', txt: () => 'Vegyél egy perket egy automatából', n: () => 1, prog: M => Object.keys(player.perks || {}).length ? 1 : 0, can: () => true },
+  box: { name: 'Szerencsejátékos', txt: () => 'Vegyél fegyvert a rejtélyes ládából', n: () => 1, prog: M => M.secBox ? 1 : 0, can: () => true },
+  trap: { name: 'Tűzoltó ellen', txt: () => 'Gyújtsd be a tűzcsapdát', n: () => 1, prog: M => M.secTrap ? 1 : 0, can: j => Object.values(MAPS[j.map].areas || {}).some(a => a.station && a.station[0] === 'trap') },
+  nomed: { name: 'Kemény fickó', txt: () => 'Ne használj gyógycsomagot', n: () => 1, prog: M => M.secMed ? 0 : 1, end: true, can: () => true },
+};
+function rollSecondary(j) { // on the job: [{ k, kind? }]
+  const pool = Object.keys(SECONDARY).filter(k => SECONDARY[k].can(j)), out = [], n = j.diff >= 2 ? 2 : 1;
+  while (out.length < n && pool.length) { const k = pool.splice(Math.floor(Math.random() * pool.length), 1)[0], s = { k };
+    if (k === 'kind') s.kind = pick(j.diff >= 3 ? ['walker', 'runner', 'crawler', 'spitter', 'brute', 'armored'] : j.diff >= 2 ? ['walker', 'runner', 'crawler', 'spitter'] : ['walker', 'runner', 'crawler']);
+    out.push(s); }
+  return out;
+}
+const secOf = s => SECONDARY[s.k];
+const secN = (s, j) => secOf(s).n(s, j.diff || 1);
+const secTxt = (s, j) => secOf(s).txt(s, secN(s, j));
+function secState(s, M) { const n = secN(s, M.job), p = Math.min(n, secOf(s).prog(M, s)); return { n, p, done: p >= n, end: !!secOf(s).end }; }
+function secKill(kind, head, melee, elite) { const M = mission; if (!M || !M.job.sec) return; (M.secK || (M.secK = {}))[kind] = (M.secK[kind] || 0) + 1; if (head) M.secH = (M.secH || 0) + 1; if (melee) M.secMelee = (M.secMelee || 0) + 1; if (elite) M.secE = (M.secE || 0) + 1; secCheck(); }
+function secCheck() { // a toast the moment one is met (the no-medkit one only counts at the end)
+  const M = mission; if (!M || !M.job.sec) return;
+  M.job.sec.forEach((s, i) => { const st = secState(s, M); if (st.done && !st.end && !(M.secDone || (M.secDone = {}))[i]) { M.secDone[i] = 1; toast('MELLÉKCÉL TELJESÍTVE', [`${secOf(s).name}: ${secTxt(s, M.job)}`, 'A jutalom sikeres kijutáskor jár.'], '#9dff6a'); SND.power(); } });
+}
+function secBonus(J, M, success) { // what the finished ones pay
+  const done = success && J.sec ? J.sec.filter(s => secState(s, M).done) : [];
+  return { list: done, cash: done.length * Math.round(J.reward * .2 / 10) * 10, xp: done.length * Math.round(J.xp * .2), parts: done.length * (3 + (J.diff || 1)) };
+}
+const secRows = (J, M) => (J.sec || []).map(s => { const st = M ? secState(s, M) : null; return `<li class="sec${st && st.done ? ' done' : ''}"><span>Mellékcél: ${secTxt(s, J)}</span><b>${!st ? '' : st.end ? (st.done ? 'tartva' : 'elbukva') : st.done ? '✓' : `${st.p} / ${st.n}`}</b></li>`; }).join('');

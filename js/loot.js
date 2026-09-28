@@ -169,7 +169,7 @@ function useItem(k) {
   if (!player.inv[k] || (k === 'med' && player.hp >= maxHp() && !(mk === 'shield' && player.shield < maxShield()))) return SND.deny();
   if (k === 'gren' && rk('e_overclock')) player.overT = Math.max(player.overT || 0, now + 4); // Túlhajtás
   const heal = SK.med();
-  player.inv[k]--; player.itemCd = .45; renderInv();
+  player.inv[k]--; player.itemCd = .45; renderInv(); if (k === 'med' && mission) mission.secMed = true; // Kemény fickó: failed
   startArm(k === 'gren' || k === 'knife' ? 'throw' : 'use', k, () => {
     if (k === 'med' && mk === 'regen') { player.regenT = 6; player.regenR = heal * 1.6 / 6; SND.heal(); popText('Regenerálás · 6 mp', ITEMS.med.color); }
     else if (k === 'med') { const h = Math.round(heal * (mk === 'shield' ? .5 : mk === 'combat' ? .7 : 1)); player.hp = Math.min(maxHp(), player.hp + h); if (mk === 'shield') player.shield = maxShield(); if (mk === 'combat') player.guardT = now + 4; SND.heal(); popText(`+${h} életerő${mk === 'shield' ? ' · pajzs tele' : ''}`, ITEMS.med.color); }

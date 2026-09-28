@@ -913,3 +913,9 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 /* the game's own icons (js/icons.js): sized and coloured like the text around them */
 svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none;overflow:visible}
 .jstars svg.ic,.lsst svg.ic,.diffsel b svg.ic{width:.95em;height:.95em;margin-right:.08em}
+
+/* secondary objectives: on the job card, in the HUD list (green once met) */
+.jsec{margin:10px 0 0;padding:10px 14px;border:1px solid rgba(157,255,106,.35);background:rgba(157,255,106,.06);display:grid;gap:4px}
+.jsec small{font-family:var(--fc);font-weight:700;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#9dff6a}
+.jsec span{font-size:14px;color:var(--tx)}
+#objL li.sec span,.pmobj li.sec span{color:var(--tx2)}#objL li.sec.done span,#objL li.sec.done b,.pmobj li.sec.done b{color:#9dff6a}

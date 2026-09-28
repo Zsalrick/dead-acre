@@ -29,7 +29,7 @@ const SPECIALS = {
 };
 const rollSpecials = () => Object.keys(SPECIALS).filter(() => Math.random() < .15);
 const spMul = (j, k) => (j.sp || []).includes(k) ? 2 : 1;
-function withSpecials(j) { j.sp = rollSpecials(); j.reward *= spMul(j, 'cash2'); j.xp *= spMul(j, 'xp2'); j.xv = 2; return j; }
+function withSpecials(j) { j.sec = rollSecondary(j); j.sp = rollSpecials(); j.reward *= spMul(j, 'cash2'); j.xp *= spMul(j, 'xp2'); j.xv = 2; return j; }
 const spTags = j => (j.sp || []).filter(k => SPECIALS[k]).map(k => SPECIALS[k]);
 function fixBoard() { // boards rolled before the XP rework keep their old numbers otherwise
   for (const j of profile.jobs || []) if (j.xv !== 2 && !j.tier && !j.deep) { j.xp = j.bounty ? Math.round(jobXp(j.diff, 300) * 1.1 / 10) * 10 : jobXp(j.diff, j.dur, j); j.xv = 2; }
@@ -142,6 +142,7 @@ function jobCard(j, i, notReady) {
     ${weak ? `<p class="jwarn">Vigyázz: a legjobb fegyvered Lv ${gl}, a zóna ${lv}. szintű. Itt nagyon kevés leszel.</p>` : ''}
     ${j.mod ? `<div class="jmodbox"><small>Módosító · ${MODS[j.mod].label}</small><span>${MODS[j.mod].sub}</span></div>` : ''}
     ${spTags(j).map(S => `<div class="jmodbox jsp" style="--sc:${S.color}"><small>Különleges · ${S.name}</small><span>${S.desc}</span></div>`).join('')}
+    ${(j.sec || []).length ? `<div class="jsec"><small>Mellékcélok · egyenként +$${Math.round(j.reward * .2 / 10) * 10}, +${Math.round(j.xp * .2)} XP, +${3 + j.diff} ⚙</small>${j.sec.map(s => `<span>${secOf(s).name}: ${secTxt(s, j)}</span>`).join('')}</div>` : ''}
     ${dirs}
     <div class="jc-foot"><div class="jc-pay"><b>$${Math.round(j.reward * (1 + .1 * n))}</b><small>+${Math.round(j.xp * (1 + .15 * n))} XP${n ? ` · direktívák: +${10 * n}% pénz, +${15 * n}% XP` : ''}</small></div>${off ? `<button class="sbtn rdyb${NET.ready ? ' on' : ''}" data-act="pready">${NET.ready ? '✓ Kész vagyok · a vezető indít' : 'Kész vagyok'}</button>` : hbtn(btn, `job:${i}`, notReady > 0)}</div>
   </article>`;

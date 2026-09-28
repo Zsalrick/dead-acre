@@ -88,6 +88,7 @@ function showLoading(job) {
     ['Idő', noClock(job) ? 'nincs időkorlát' : fmtTime(job.dur)], ['Zóna', `${job.lvl || profile.level}. szint`], ['Kezdő veszély', START_THREAT[job.diff - 1]],
     ['Díj', `$${job.reward} · ${job.xp} XP`],
     ...(job.mod && MODS[job.mod] ? [['Módosító', MODS[job.mod].label]] : []), ...sp.map(S => ['Különleges', `<b style="color:${S.color}">${S.name}</b>`]),
+    ...(job.sec || []).map(s => ['Mellékcél', `${secOf(s).name}: ${secTxt(s, job)}`]),
     ...(job.boss && !B ? [['Főellenség', 'A Mészáros is eljön']] : []), ...((job.dir || []).length ? [['Direktívák', job.dir.map(k => DIRECTIVES[k] ? DIRECTIVES[k].name : k).join(', ')]] : []),
   ];
   $('lsF').innerHTML = f.map(([k, v]) => `<li><small>${k}</small><span>${v}</span></li>`).join('');
@@ -319,13 +320,14 @@ function finishJob(success, abandoned) {
   truck.beacon.visible = truck.beam.visible = false; $('evacMark').hidden = true; $('intro').hidden = true;
   clearGearDrops(); clearFx(); if (M.esc) scene.remove(M.esc.a.g); if (M.cache && M.cache.g) scene.remove(M.cache.g);
   const w = settleWeapons(success, M);
+  const secB = secBonus(J, M, success);
   // dying after the clock ran out (during evac) still pays a quarter of the fee
-  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1)) * (1 + .1 * dirCount(J)) * (exoOn('charm') ? 1.2 : 1)) : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
-  const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1) * (J.map === featuredMap() ? 1.25 : 1) * (1 + .15 * dirCount(J)) * (success && exoOn('charm') ? 1.2 : 1)); // the first five jobs: double XP; the featured map +25%; directives +15% each
-  const bd = success ? { c: [[`Munka díja${spMul(J, 'cash2') > 1 ? ' (2× pénz)' : ''}`, `$${J.reward}`], [`Pontjaid 7%-a`, `$${Math.floor(player.earned * .07)}`], SK.cash() > 1 ? ['Képesség', `×${SK.cash().toFixed(2)}`] : null, party > 1 ? [`Csapat (${party} fő)`, `+${10 * (party - 1)}%`] : null, dirCount(J) ? [`Direktívák (${dirCount(J)})`, `+${10 * dirCount(J)}%`] : null].filter(Boolean),
-    x: [['Munka', `${J.xp} XP${spMul(J, 'xp2') > 1 ? ' (2× XP)' : ''}`], [`Ölések (${player.kills} × 2)`, `${player.kills * 2} XP`], party > 1 ? [`Csapat`, `+${10 * (party - 1)}%`] : null, stats.jobs < 5 ? ['Első 5 munka', '×2'] : null, J.map === featuredMap() ? ['Heti kiemelt pálya', '+25%'] : null, dirCount(J) ? ['Direktívák', `+${15 * dirCount(J)}%`] : null].filter(Boolean) } : null; // shown on the results
+  const cash = success ? Math.round((J.reward + Math.floor(player.earned * .07)) * SK.cash() * (1 + .1 * (party - 1)) * (1 + .1 * dirCount(J)) * (exoOn('charm') ? 1.2 : 1)) + secB.cash : !abandoned ? Math.round(J.reward * (M.phase === 'evac' ? .25 : .1)) : 0; // falling short still pays a little
+  const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1) * (J.map === featuredMap() ? 1.25 : 1) * (1 + .15 * dirCount(J)) * (success && exoOn('charm') ? 1.2 : 1)) + secB.xp; // the first five jobs: double XP; the featured map +25%; directives +15% each
+  const bd = success ? { c: [[`Munka díja${spMul(J, 'cash2') > 1 ? ' (2× pénz)' : ''}`, `$${J.reward}`], [`Pontjaid 7%-a`, `$${Math.floor(player.earned * .07)}`], SK.cash() > 1 ? ['Képesség', `×${SK.cash().toFixed(2)}`] : null, party > 1 ? [`Csapat (${party} fő)`, `+${10 * (party - 1)}%`] : null, dirCount(J) ? [`Direktívák (${dirCount(J)})`, `+${10 * dirCount(J)}%`] : null, ...secB.list.map(s => [`Mellékcél: ${secOf(s).name}`, `+$${Math.round(J.reward * .2 / 10) * 10}`])].filter(Boolean),
+    x: [['Munka', `${J.xp} XP${spMul(J, 'xp2') > 1 ? ' (2× XP)' : ''}`], [`Ölések (${player.kills} × 2)`, `${player.kills * 2} XP`], party > 1 ? [`Csapat`, `+${10 * (party - 1)}%`] : null, stats.jobs < 5 ? ['Első 5 munka', '×2'] : null, J.map === featuredMap() ? ['Heti kiemelt pálya', '+25%'] : null, dirCount(J) ? ['Direktívák', `+${15 * dirCount(J)}%`] : null, ...secB.list.map(s => [`Mellékcél: ${secOf(s).name}`, `+${Math.round(J.xp * .2)} XP`])].filter(Boolean) } : null; // shown on the results
   P.cash += cash; stats.cash += cash;
-  const parts = success ? M.parts || 0 : 0; P.parts = (P.parts || 0) + parts; const fabric = success ? M.fabric || 0 : 0; P.fabric = (P.fabric || 0) + fabric;
+  const parts = success ? (M.parts || 0) + secB.parts : 0; P.parts = (P.parts || 0) + parts; const fabric = success ? M.fabric || 0 : 0; P.fabric = (P.fabric || 0) + fabric;
   let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun
   if (success && stats.jobs === 0 && !J.test) { tierBonus = makeWeapon(pick(BASES), 2, Math.max(1, P.level)); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   if (success && J.tier) P.parts = (P.parts || 0) + 10 + 5 * J.tier; // Rémálom pays parts too
@@ -419,7 +421,7 @@ function renderPauseMenu(help) {
   const out = [M.parts ? `+${M.parts} ⚙` : '', M.fabric ? `+${M.fabric} ${FAB}` : ''].filter(Boolean).join(' · ') || '—';
   $('pmission').innerHTML = `<div class="eyebrow">Szünet · ${J.test ? 'Lőtér' : `${MAPS[J.map] ? MAPS[J.map].name : ''} · ${J.bounty ? 'Fejvadászat' : T ? T.name : 'Túlélés'} · ${'★'.repeat(J.diff)}`}</div>
     <div class="pmt">${J.title}</div>
-    <div class="pmobj"><small>Feladat</small><ul><li><span>${main[0]}</span><b>${main[1]}</b></li>${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}</ul></div>
+    <div class="pmobj"><small>Feladat</small><ul><li><span>${main[0]}</span><b>${main[1]}</b></li>${secRows(J, mission)}${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}</ul></div>
     <div class="pmstats"><div><small>Veszélyszint</small><b class="red">${round}</b></div><div><small>Pont</small><b class="amb">${Math.floor(player.points).toLocaleString('hu-HU')}</b></div><div><small>Ölés</small><b>${player.kills}</b></div><div><small>Idő</small><b>${fmtTime(M.t || 0)}</b></div><div><small>Kijutáskor</small><b>${out}</b></div></div>
     ${cards ? `<div class="pmcards">${cards}</div>` : ''}${team}<div class="pmver">Dead Acre ${GAME_VER}</div>`;
   const q = $('quitBtn2'); q.textContent = J.test ? 'Vissza a bázisra' : quitArmed ? 'Biztos? Feladom' : 'Munka feladása'; q.classList.toggle('armed', quitArmed && !J.test);
@@ -743,7 +745,7 @@ function updateHUD() {
       setHTML('objK', `${J.test ? 'Lőtér' : MAPS[J.map].name} · ${T}${J.test ? '' : ` · ${'★'.repeat(J.diff)}`}`); setHTML('objN', J.title);
       const main = M.phase === 'evac' ? ['Szállj be a furgonba', M.boardT > 0 ? `${Math.ceil(M.boardT)} mp` : ''] : objectiveLine(M) ? (L => { const m = L.match(/^(.*?) · (\d+ \/ \d+[^·]*)(.*)$/); return m ? [m[1] + m[3], m[2]] : [L, '']; })(objectiveLine(M)) : ['Éld túl, amíg a furgon visszajön', fmtTime(left)];
       const P = profile, ct = !J.test && P.daily ? P.daily.list.map(c => [c, cProg(c, false)]).filter(([c, p]) => !c.got && p < c.n).sort((a, b) => b[1] / b[0].n - a[1] / a[0].n)[0] : null;
-      setHTML('objL', `<li><span>${main[0]}</span><b>${main[1]}</b></li>${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}`);
+      setHTML('objL', `<li><span>${main[0]}</span><b>${main[1]}</b></li>${secRows(J, mission)}${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}`);
       setHTML('objD', [...(J.dir || []).filter(k => DIRECTIVES[k]).map(k => `<i data-tip="${DIRECTIVES[k].desc}">${DIRECTIVES[k].name}</i>`), J.mod && MODS[J.mod] ? `<i class="mod" data-tip="${MODS[J.mod].sub}">${MODS[J.mod].label}</i>` : '', J.tier ? `<i class="nm">Rémálom +${J.tier}</i>` : ''].join(''));
     }
     updateEvacMark(M.phase === 'evac' || !!M.evacWarn);

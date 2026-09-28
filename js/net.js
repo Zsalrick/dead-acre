@@ -368,7 +368,7 @@ function netOwnKill(e) {
   player.kills++; stats.kills++; stats.killsBy[kind] = (stats.killsBy[kind] || 0) + 1; myKill(curW(), KINDS[kind].name, head); noteBaseKill(curW());
   if (head) { player.heads++; stats.heads++; }
   if (rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
-  necroOnKill(kind, x / 10, zz / 10, elite); eyeKill();
+  necroOnKill(kind, x / 10, zz / 10, elite); eyeKill(); secKill(kind, !!head, false, !!elite);
   addPoints(+pts || 60); hitmarker(true); SND.kill();
   const zid = e[8], lh = NET.lastHit.get(zid) || {}, pz = zombies.find(q => q.id === zid) || { pos: new V3(x / 10, 0, zz / 10), burnT: 0 };
   weaponOnKill(pz, { w: lh.w, head: !!head }); killPerks(pz.K ? pz : Object.assign(pz, { K: KINDS[kind] }), { w: lh.w, head: !!head }); NET.lastHit.delete(zid);
