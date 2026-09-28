@@ -294,7 +294,7 @@ function netAimEnd() { sndVol = 1; if (!AIM) return; player.pos = NET.selfPos; p
 function netRedirectHurt(d) {
   if (zTarget && zTarget.minion) { hurtMinion(zTarget.minion, d); return true; }
   if (zTarget && zTarget.mi != null) { pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10, '#m' + zTarget.mi], 16); return true; } // a teammate's minion
-  if (zTarget && zTarget.gen) { const M = mission; if (M && zTarget.esc && M.esc) { M.esc.hp -= d; M.esc.hitT = now; } else if (M && M.gens && M.gens[zTarget.gi]) { const G = M.gens[zTarget.gi]; G.hp -= d; G.hitT = now; } return true; } // the generator is sturdier than a person
+  if (zTarget && zTarget.gen) { const M = mission; if (M && zTarget.esc && M.esc) { M.esc.hp -= d; M.esc.hitT = now; } else if (M && M.gens && M.gens[zTarget.gi]) { const G = M.gens[zTarget.gi]; G.hp -= d * GEN_DMG; G.hitT = now; } return true; } // the generator is sturdier than a person
   if (!zTarget || !zTarget.remote) return false;
   pushRoll(NET.dmgs, [++NET.seq, zTarget.peer, Math.round(d * 10) / 10, hurtSrc], 16);
   return true;

@@ -30,7 +30,8 @@ function setupObjective(M) {
   if (M.job.type === 'escort') buildEscort(M);
 }
 // ---------- defense: three generators; if any one falls the job is lost; hold E to repair (5%/s for points) ----------
-const GEN_REP_RATE = .05, GEN_REP_COST = 300; // per second of holding E
+const GEN_REP_RATE = .05, GEN_DMG = 2.5; // zombies hit a generator 2.5× as hard as a person
+const genRepCost = () => 300 + 200 * ((mission && mission.job.diff) || 1); // points a second of holding E: 1300 at five stars
 function buildGenerator(M) {
   const R = MAIN_RECT, cx = (R.minX + R.maxX) / 2, cz = (R.minZ + R.maxZ) / 2, spots = [];
   for (let k = 0; k < 3; k++) { // spread round the middle, a third of a turn apart
@@ -135,13 +136,26 @@ function repairGen() { // the escort: points for a quarter back (generators are 
   if (NET.client) netAct('repair'); else T.hp = Math.min(T.max, T.hp + T.max * .25);
 }
 let repAcc = 0;
+// the wrench: while you repair, the gun goes down and a wrench works the bolts, clanking
+const wrench = (() => { const g = new THREE.Group(), steel = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: .8, roughness: .35 }), grip = new THREE.MeshStandardMaterial({ color: 0xb03a22, roughness: .7 });
+  const box = (m, sx, sy, sz, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); b.position.set(x, y, z); g.add(b); return b; };
+  box(steel, .035, .02, .3, 0, 0, 0); box(grip, .045, .03, .16, 0, 0, .1); box(steel, .09, .025, .05, 0, 0, -.16); box(steel, .03, .026, .04, -.03, 0, -.2); box(steel, .03, .026, .04, .03, 0, -.2);
+  g.visible = false; vmScene.add(g); return g; })();
+let wrenchT = 0;
+function showWrench(on, dt) {
+  wrench.visible = on; if (!on) { wrenchT = 0; return; }
+  vmRoot.visible = false; wrenchT += dt;
+  const turn = (wrenchT * 2.6) % 1, pull = turn < .6 ? turn / .6 : 1 - (turn - .6) / .4; // a pull, then back for the next bite
+  wrench.scale.setScalar(.55); wrench.position.set(.2 - pull * .04, -.2 + pull * .02, -.55); wrench.rotation.set(-.7, .15, -.3 + pull * .8);
+  if (wrenchT - (showWrench.last || 0) > 1 / 2.6) { showWrench.last = wrenchT; nz(.06, 2600, .22, 'bandpass', 6); tn(1400 + Math.random() * 300, .05, .05, 'triangle', 900); nz(.05, 700, .12, 'lowpass', 2, .03); } // ratchet clank
+}
 function holdRepair(gi, dt) { // hold E at a generator: 5% a second, paid by the second
   const M = mission, G = M && M.gens && M.gens[gi]; if (!G || G.hp <= 0 || G.hp >= G.max) return false;
-  const cost = GEN_REP_COST * dt; if (player.points < cost) { if (!M.repWarn) { M.repWarn = true; popText('Nincs elég pont a javításhoz', '#ff8a70'); SND.deny(); } return false; }
+  const cost = genRepCost() * dt; if (player.points < cost) { if (!M.repWarn) { M.repWarn = true; popText('Nincs elég pont a javításhoz', '#ff8a70'); SND.deny(); } return false; }
   player.points -= cost; M.repWarn = false; const add = G.max * GEN_REP_RATE * dt;
   if (NET.client) { repAcc += add; if (repAcc > G.max * .01) { netAct('repair', [gi, Math.round(repAcc)]); repAcc = 0; } G.hp = Math.min(G.max, G.hp + add); }
   else G.hp = Math.min(G.max, G.hp + add);
-  if (Math.random() < dt * 14) burst(G.pos.clone().setY(1.2 + Math.random()), 0x9aff7a, 1, 1.5, .4);
+  if (Math.random() < dt * 14) burst(G.pos.clone().setY(1.2 + Math.random()), Math.random() < .5 ? 0xffd27a : 0x9aff7a, 1, 1.5, .4); // sparks
   return true;
 }
 function takeCrate(i) { // E on a crate: both hands on it (no shooting, sprinting or jumping)

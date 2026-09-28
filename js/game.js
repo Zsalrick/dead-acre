@@ -379,7 +379,7 @@ function renderPauseMenu(help) {
   $('pmission').innerHTML = `<div class="eyebrow">Szünet · ${J.test ? 'Lőtér' : `${MAPS[J.map] ? MAPS[J.map].name : ''} · ${J.bounty ? 'Fejvadászat' : T ? T.name : 'Túlélés'} · ${'★'.repeat(J.diff)}`}</div>
     <div class="pmt">${J.title}</div>
     <div class="pmobj"><small>Feladat</small><ul><li><span>${main[0]}</span><b>${main[1]}</b></li>${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}</ul></div>
-    <div class="pmstats"><div><small>Veszélyszint</small><b class="red">${round}</b></div><div><small>Pont</small><b class="amb">${player.points.toLocaleString('hu-HU')}</b></div><div><small>Ölés</small><b>${player.kills}</b></div><div><small>Idő</small><b>${fmtTime(M.t || 0)}</b></div><div><small>Kijutáskor</small><b>${out}</b></div></div>
+    <div class="pmstats"><div><small>Veszélyszint</small><b class="red">${round}</b></div><div><small>Pont</small><b class="amb">${Math.floor(player.points).toLocaleString('hu-HU')}</b></div><div><small>Ölés</small><b>${player.kills}</b></div><div><small>Idő</small><b>${fmtTime(M.t || 0)}</b></div><div><small>Kijutáskor</small><b>${out}</b></div></div>
     ${cards ? `<div class="pmcards">${cards}</div>` : ''}${team}<div class="pmver">Dead Acre ${GAME_VER}</div>`;
   const q = $('quitBtn2'); q.textContent = J.test ? 'Vissza a bázisra' : quitArmed ? 'Biztos? Feladom' : 'Munka feladása'; q.classList.toggle('armed', quitArmed && !J.test);
   let w = document.querySelector('#pause .pmwarn'); if (!w) { w = document.createElement('div'); w.className = 'pmwarn'; q.after(w); }
@@ -664,7 +664,7 @@ function updateHUD() {
     else if (focus.type === 'crate') prompt = '<b>[E]</b> Láda felvétele (két kézzel)';
     else if (focus.type === 'carry') prompt = mission.drop && Math.hypot(mission.drop.pos.x - player.pos.x, mission.drop.pos.z - player.pos.z) < 5 ? '<b>[E]</b> Láda leadása' : '<b>[E]</b> Láda letétele';
     else if (focus.type === 'desk') prompt = NET.client ? 'Lőtér-vezérlő · csak a vezető állíthatja' : '<b>[E]</b> Lőtér-vezérlő: a célbábuk rangja, fajtája, tulajdonsága';
-    else if (focus.type === 'repair') prompt = focus.gi != null ? `<b>[E]</b> nyomva: ${mission.gens[focus.gi].name} generátor javítása · +5%/mp · ${GEN_REP_COST} pont/mp${player.points < GEN_REP_COST ? ' (kevés a pont)' : ''}` : `<b>[E]</b> Túlélő ellátása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
+    else if (focus.type === 'repair') prompt = focus.gi != null ? `<b>[E]</b> nyomva: ${mission.gens[focus.gi].name} generátor javítása · +5%/mp · ${genRepCost()} pont/mp${player.points < genRepCost() ? ' (kevés a pont)' : ''}` : `<b>[E]</b> Túlélő ellátása (+25%) · ${GEN_REPAIR} pont${player.points < GEN_REPAIR ? ' (kevés a pont)' : ''}`;
     else if (!['box', 'ammo', 'drop', 'gear', 'desk', 'carry', 'res'].includes(focus.type)) prompt = areaPrompt(focus);
     else if (focus.type === 'box') prompt = box.state === 'spin' ? 'A doboz pörög…' : `<b>[E]</b> Rejtélyes doboz · ${SK.cost(BOX_COST)} pont${player.points < SK.cost(BOX_COST) ? ' (kevés a pont)' : ''}`;
     else if (focus.type === 'ammo') prompt = `<b>[E]</b> Lőszer feltöltése · ${SK.cost(AMMO_COST)} pont${w.reserve >= resMax(w) ? ' (tele)' : player.points < SK.cost(AMMO_COST) ? ' (kevés a pont)' : ''}`;
@@ -673,7 +673,7 @@ function updateHUD() {
   if (focus && (focus.w || focus.it)) $('card').style.setProperty('--rc', focus.w ? rarColor(focus.w) : gCol(focus.it));
   setHTML('prompt', prompt.replace(/<b>\[(\w+)\]<\/b>/g, '<kbd class="pk">$1</kbd>')); $('prompt').hidden = !prompt; // [E] as a key cap
 
-  setHTML('points', `${player.points.toLocaleString('hu-HU')}<small>PONT</small>`);
+  setHTML('points', `${Math.floor(player.points).toLocaleString('hu-HU')}<small>PONT</small>`);
   if (profile && profile.cls) {
     const C = CLASSES[profile.cls], cd = player.abilCd, active = player.stormT > 0 || aura;
     setHTML('ability', `<span class="abtx"><b>${C.ability.name}</b><small>${active ? 'aktív' : cd > 0 ? Math.ceil(cd) + ' mp' : 'kész'}</small></span><span class="abring" style="--p:${Math.round((active ? 1 : clamp(1 - cd / (abilityCd() || 1), 0, 1)) * 100)}%"><kbd>C</kbd></span>`);
@@ -831,6 +831,7 @@ function updateSellHold(dt) {
     $('hold').hidden = reviveHold <= 0; $('holdLbl').textContent = 'Felélesztés…'; $('holdfill').style.width = reviveHold / reviveT() * 100 + '%'; return;
   }
   reviveHold = 0;
+  const repOn = !!(focus && focus.type === 'repair' && focus.gi != null && keys.KeyE && mission.gens[focus.gi].hp < mission.gens[focus.gi].max); showWrench(repOn, dt);
   if (focus && focus.type === 'repair' && focus.gi != null) { const on = keys.KeyE && holdRepair(focus.gi, dt); $('hold').hidden = !on; if (on) { const G = mission.gens[focus.gi]; $('holdLbl').textContent = `${G.name} generátor javítása…`; $('holdfill').style.width = G.hp / G.max * 100 + '%'; } return; }
   if (focus && (focus.type === 'gear' || focus.type === 'drop') && !mission.job.test && keys.KeyX) { // hold X over loot on the ground: take it apart for parts
     xHold += dt; $('hold').hidden = false; $('holdLbl').textContent = 'Szétszedés…'; $('holdfill').style.width = Math.min(1, xHold / HOLD_T) * 100 + '%';

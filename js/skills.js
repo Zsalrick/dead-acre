@@ -93,7 +93,7 @@ const CLASSES = {
   necro: {
     name: 'Nekromanta', tag: 'Holtak ura', color: '#9d7cff', desc: 'Akit megöl, az neki harcol tovább. Egyedül sem egyedül.',
     passive: '+10% sebzés maró fegyverrel, és minden ölés +1 életerőt ad.',
-    ability: { name: 'Feltámasztás', cd: 45, desc: 'Az utoljára megölt zombid feltámad, és 60 mp-ig melletted harcol: teli élettel, erősebben és gyorsabban, mint életében. Az ütései a te öléseid. Utána végleg összeesik.' },
+    ability: { name: 'Feltámasztás', cd: 90, desc: 'Az utoljára megölt zombid feltámad, és 60 mp-ig melletted harcol: teli élettel, erősebben és gyorsabban, mint életében. Az ütései a te öléseid. Utána végleg összeesik.' },
     tree: [
       ['n_bond', 'Erős kötelék', 3, r => `a szolgád +${20 * r}% életerőt kap`],
       ['n_rage', 'Vérszomj', 3, r => `a szolgád +${15 * r}% sebzést okoz`],

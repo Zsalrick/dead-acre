@@ -67,6 +67,13 @@ function rollShop() {
   const more = 2 * Math.floor(Math.min(30, lvl) / 10); // +2 guns and +2 armor pieces at levels 10, 20 and 30
   profile.shop = Array.from({ length: 4 + more }, (_, k) => k).map(k => packW(makeWeapon(pick(BASES), Math.min(4, rollRarity(.15 + lvl * .02)), lvl + (k === 0 ? 1 : 0)))); // your level; one gun a level above to aim for · exotics only drop
   profile.gshop = Array.from({ length: 3 + more }).map(() => makeGear(null, rollRarity(.15 + lvl * .02), lvl));
+  profile.shopMore = more;
+}
+function topUpShop() { // reached level 10/20/30 since the last restock: the new places fill now (bought ones stay bought)
+  const lvl = profile.level, more = 2 * Math.floor(Math.min(30, lvl) / 10), had = profile.shopMore ?? Math.max(0, (profile.shop || []).length - 4); // older saves don't know: guess from what is on the shelf
+  if (more <= had || !profile.shop) return;
+  for (let k = had; k < more; k++) { profile.shop.push(packW(makeWeapon(pick(BASES), Math.min(4, rollRarity(.15 + lvl * .02)), lvl))); (profile.gshop || (profile.gshop = [])).push(makeGear(null, rollRarity(.15 + lvl * .02), lvl)); }
+  profile.shopMore = more; saveProfile();
 }
 
 // ---------- rendering ----------
@@ -125,6 +132,7 @@ function showHub() {
   renderHub();
 }
 function renderHub() {
+  if (profile) topUpShop();
   const P = profile;
   $('hubSlot').textContent = P.name; $('hubJobs').textContent = `${stats.jobs} kész munka${NET.code ? ` · csapat ${partyMembers().length} fő` : ''}`;
   $('hubLvl').textContent = P.level;
