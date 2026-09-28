@@ -131,7 +131,10 @@ function updateGearDrops(dt) {
   }
 }
 function removeGearDrop(d) { scene.remove(d.g); d.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map && o.material.map !== glowTex) o.material.map.dispose(); o.material.dispose(); } }); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
-function takeGear(d) { if (d.it.exo) (stats.exo || (stats.exo = {}))[d.it.exo] = 1; netTookDrop(d); itemFeed('felvette', d.it.name, d.it.q); d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
+const gearBagMax = () => 6 + U('bag'); // armor pieces a job's bag holds
+function takeGear(d) {
+  if (mission && mission.gear.length >= gearBagMax()) { popText(`Tele a páncélzsák (${gearBagMax()} db)`, '#ff8a70'); return; }
+  if (d.it.exo) (stats.exo || (stats.exo = {}))[d.it.exo] = 1; netTookDrop(d); itemFeed('felvette', d.it.name, d.it.q); d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
 function clearGearDrops() { while (gearDrops.length) removeGearDrop(gearDrops[gearDrops.length - 1]); }
 
 // ---------- weapons: two in hand (L, fixed slots), up to five in the bag (B), the stash at home (S) ----------

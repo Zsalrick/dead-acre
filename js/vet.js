@@ -62,8 +62,8 @@ const featuredMap = () => MAP_IDS[weekKey() % MAP_IDS.length]; // this week's fe
 const dayKey = () => new Date().toLocaleDateString('sv'), weekKey = () => Math.floor((Date.now() / 864e5 + 3) / 7);
 function rollContracts() {
   const P = profile, mk = (D, lvl) => ({ id: D.id, n: Math.round(D.n[0] + Math.random() * (D.n[1] - D.n[0])), base: D.get(stats) || 0, got: false, lvl });
-  if (!P.daily || P.daily.day !== dayKey()) { const pool = CONTRACTS.filter(c => c.id !== 'bounty' || P.level >= 3).sort(() => Math.random() - .5); P.daily = { day: dayKey(), list: pool.slice(0, 3).map(D => mk(D)) }; }
-  if (!P.weekly || P.weekly.wk !== weekKey()) P.weekly = { wk: weekKey(), c: mk(pick(WEEKLY.filter(c => c.id !== 'bounty' || P.level >= 3))) };
+  if (!P.daily || P.daily.day !== dayKey()) { const pool = CONTRACTS.filter(c => (c.id !== 'bounty' || P.level >= 3) && (c.id !== 'hard' || P.level >= 16) && (c.id !== 'legend' || P.level >= 10)).sort(() => Math.random() - .5); P.daily = { day: dayKey(), list: pool.slice(0, 3).map(D => mk(D)) }; }
+  if (!P.weekly || P.weekly.wk !== weekKey()) P.weekly = { wk: weekKey(), c: mk(pick(WEEKLY.filter(c => (c.id !== 'bounty' || P.level >= 3) && (c.id !== 'hard' || P.level >= 16)))) };
 }
 const cDef = (c, weekly) => (weekly ? WEEKLY : CONTRACTS).find(d => d.id === c.id);
 const cProg = (c, weekly) => Math.min(c.n, (cDef(c, weekly).get(stats) || 0) - c.base);
@@ -119,7 +119,7 @@ function deepJob(i) { // build stage i as a normal job, flagged as part of the d
 }
 function deepState() { const P = profile, d = P.deep && P.deep.wk === weekKey() ? P.deep : (P.deep = { wk: weekKey(), stage: 0, done: false }); return d; }
 function deepCard() {
-  if (profile.level < 10) return '';
+  if (profile.level < 16) return '';
   const D = deepDive(), st = deepState(), off = NET.code && !NET.host;
   const rows = D.stages.map((S, i) => `<li class="${i < st.stage || st.done ? 'ok' : i === st.stage ? 'cur' : ''}"><b>${i + 1}.</b> ${MAPS[S.map].name} · ${S.type === 'bounty' ? BOUNTIES[S.bounty].name : JOB_TYPES[S.type].name} · ${stars(S.diff)}${S.mod ? ` · ${MODS[S.mod].label}` : ''}</li>`).join('');
   return `<div class="deep"><div><small>HETI MÉLYFÚRÁS · minden héten új, mindenkinek ugyanaz</small><b>Három munka egymás után</b><ul>${rows}</ul>

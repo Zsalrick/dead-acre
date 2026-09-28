@@ -50,7 +50,7 @@ function rollBoard() {
 }
 function setTier(j, T) { // pay, XP and parts grow faster than zombie health (~+26% a tier)
   j.tier = T; j.lvl = LEVEL_CAP + 2 * T;
-  j.reward = Math.round(j.base.reward * 1.4 * Math.pow(1.3, T) / 10) * 10; j.xp = Math.round(j.base.xp * 1.3 * Math.pow(1.25, T));
+  j.reward = Math.round(j.base.reward * 1.4 * Math.pow(1.18, T) / 10) * 10; j.xp = Math.round(j.base.xp * 1.3 * Math.pow(1.25, T));
   j.title = `Rémálom +${T}: ${j.base.title}`;
 }
 // a bounty: one strong boss, no clock, guaranteed legendary gun + armor
@@ -147,7 +147,7 @@ const HUB = {
       const tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase();
       return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy})" style="--jc:${col}"><line x1="0" y1="0" x2="${-dx}" y2="${-dy}"/><circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 10 : 8}"/><text y="-24">${tag}</text></g>`;
     }).join('');
-    return partyPanel() + `${contractsStrip()}${deepCard()}${directivesRow()}<div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
+    return partyPanel() + `<details class="extras" ontoggle="hubExtras = this.open"${(window.hubExtras ?? innerHeight > 860) ? ' open' : ''}><summary>Kontraktok · Mélyfúrás · Direktívák</summary>${contractsStrip()}${deepCard()}${directivesRow()}</details><div class="hubhead"><h2>Munkák</h2><span>${hbtn('Lőtér', 'testground', NET.code && !NET.host)}${hbtn(`Új munkák · $${reroll()}`, 'reroll', P.cash < reroll())}</span></div>
       <div class="jobmap"><svg viewBox="0 0 900 440" class="jsvg" role="img" aria-label="Munkatérkép">${MAP_ART}${locs}${marks}</svg><div class="jside">${hostPick()}${jobCard(J[jobSel], jobSel, notReady)}</div></div>`;
   },
   arsenal() {
@@ -166,7 +166,7 @@ const HUB = {
       (w.q >= 2 ? hbtn(`Új felkenés · ${HFORGE.anoint()} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(), 'KeyN') : '') +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
       hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM') +
-      `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`;
+      ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
     const cmp = sl === 'L' ? lists.L[1 - i] : lists.L[0] || lists.L[1];
     const hands = lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('');
     const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${hands}</div>
@@ -289,7 +289,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'gunshare' && SH.g[+a] && P.gearStash.length < gearMax()) P.gearStash.push(SH.g.splice(+a, 1)[0]);
   if (kind === 'gsell') { P.cash += gearValue(P.gearStash.splice(+a, 1)[0]); }
   if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < gearMax() && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
-  if (kind === 'salvage') { const w = P.stash[+a] && unpackW(P.stash[+a]); if (w) { P.stash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[w.q] + expRefund(w); if (w.oc) P.oc = (P.oc || 0) + 1; } } // expertise half back, the core back
+  if (kind === 'salvage') { const w = P.stash[+a] && unpackW(P.stash[+a]); if (w) { P.stash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[w.q] + expRefund(w); } } // expertise half back; the core is spent
   if (kind === 'gsalvage') { const it = P.gearStash[+a]; if (it) { P.gearStash.splice(+a, 1); P.parts = (P.parts || 0) + PARTS[it.q] + expRefund(it); } }
   if (kind === 'sell') { const w = unpackW(P.stash.splice(+a, 1)[0]); P.cash += sellValue(w); }
   SND.buy(); saveProfile(); saveShared(); renderHub();
@@ -341,9 +341,9 @@ function throwRows() {
 }
 
 // ---------- the slot machine: a cash sink with a jackpot ----------
-const slotCost = () => 400 + 120 * profile.level, SLOT_TXT = '55% semmi vagy pénz vissza · 25% ⚙ · 15% fegyver · 4% legendás · 1% egyedi';
+const slotLvl = () => profile.level >= LEVEL_CAP ? LEVEL_CAP + 2 * (profile.tier || 0) : profile.level, slotCost = () => 400 + 120 * slotLvl(), SLOT_TXT = '55% semmi vagy pénz vissza · 25% ⚙ · 15% fegyver · 4% legendás · 1% egyedi';
 function spinSlot() {
-  const P = profile, r = Math.random(), lv = P.level;
+  const P = profile, r = Math.random(), lv = slotLvl();
   let msg;
   if (r < .35) msg = 'Semmi. A gép nyert.';
   else if (r < .55) { const c = Math.round(slotCost() * rand(.5, 2)); P.cash += c; msg = `$${c} vissza`; }
@@ -391,11 +391,12 @@ function hubCycle(d) { // Q / E: previous / next top tab
 }
 
 function directivesRow() { // toggles; the leader's choice is what the party plays
+  if (profile.level < 5 && !(NET.code && !NET.host)) return '';
   const off = NET.code && !NET.host, lead = off && partyMembers().find(m => m.h), D = off ? (lead && lead.dr) || [] : profile.dirs || [], n = D.length; // a member sees the leader's set
   return `<div class="dirs"><b>Direktívák</b>${Object.entries(DIRECTIVES).map(([k, d]) => `<button class="chip${D.includes(k) ? ' on' : ''}" data-act="dir:${k}" title="${d.desc}"${off ? ' disabled' : ''}>${d.name}</button>`).join('')}<small>${n ? `+${15 * n}% XP · +${10 * n}% pénz · jobb zsákmány` : 'önként vállalt nehezítés több jutalomért'}${off ? ' · a vezető választja' : ''}</small></div>`;
 }
 
 $('resultsBody').addEventListener('click', e => { const b = e.target.closest('[data-act="deepnext"]'); if (b && (!NET.code || NET.host)) { const st = deepState(); $('results').hidden = true; startJob(deepJob(st.stage)); } });
 
-const expCost = it => 6 + 4 * (it.exp || 0); // expertise: parts per level, rising
-const expRefund = it => { let t = 0; for (let k = 0; k < (it.exp || 0); k++) t += 6 + 4 * k; return Math.floor(t / 2); };
+const expCost = it => Math.round((6 + 4 * (it.exp || 0)) * (1 + (it.level || 1) / 15)); // expertise: parts per level, rising
+const expRefund = it => { let t = 0; for (let k = 0; k < (it.exp || 0); k++) t += Math.round((6 + 4 * k) * (1 + (it.level || 1) / 15)); return Math.floor(t / 2); };

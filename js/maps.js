@@ -643,6 +643,7 @@ function buildFences() {
   run(R.minX - e, R.maxX + e, gaps('s'), (a, b) => addBox((a + b) / 2, R.maxZ + e, b - a, T, H, fenceMat));
   run(R.minZ - e, R.maxZ + e, gaps('w'), (a, b) => addBox(R.minX - e, (a + b) / 2, T, b - a, H, fenceMat));
   run(R.minZ - e, R.maxZ + e, gaps('e'), (a, b) => addBox(R.maxX + e, (a + b) / 2, T, b - a, H, fenceMat));
+  if (fenceMat.map === plankTex) { fenceMat.map = plankTex.clone(); fenceMat.map.needsUpdate = true; } // its own tiling, not every plank's
   fenceMat.map.repeat.set(20, 1);
   for (const k in AREAS) { // outer fences of each area: visual + stop bullets (bounds already stop walking)
     const a = AREAS[k], c = a.core, o = .2, vis = (x, z, w, d) => addBox(x, z, w, d, H, fenceMat, 0, false);

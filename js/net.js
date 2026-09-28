@@ -445,7 +445,7 @@ function applySnapshot(g, hostPeer) {
       NET.zById.set(id, z);
       const bk = Array.isArray(g.bb) && g.bb[0] === id && BOUNTIES[g.bb[1]] ? g.bb[1] : null;
       if (bk) bountyLook(z, bk);
-      if (z.K.boss) { banner(bk ? BOUNTIES[bk].name.toUpperCase() : 'A MÉSZÁROS', bk ? BOUNTIES[bk].desc : 'Megérkezett.'); SND.roar(); }
+      if (z.K.boss) { banner(bk ? BOUNTIES[bk].name.toUpperCase() : 'A MÉSZÁROS', bk ? BOUNTIES[bk].desc : 'Az utadat állja a furgon felé.'); SND.roar(); }
       z.affix = AFFIX_KEYS[((fl >> 11) & 7) - 1] || null;
     }
     if (z.dead && z.predDead) { if (tr - z.predDead > 700) resurrect(z); else continue; } // our kill wasn't confirmed: it gets back up

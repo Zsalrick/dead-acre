@@ -18,6 +18,7 @@ const packW = w => w ? Object.assign({}, w, { base: w.base.id }) : null;
 function unpackW(o) {
   if (!o) return null;
   const w = Object.assign({}, o, { base: BASES.find(b => b.id === o.base) || BASES[0] });
+  if (w.spread == null) w.spread = w.base.spread; if (!w.pellets) w.pellets = w.base.pellets || 1; if (!w.maxRes) w.maxRes = w.base.res; if (!(w.reserve >= 0)) w.reserve = w.maxRes; // very old saves
   if (w.base.single && w.reload > 1.2) w.reload = +(w.reload / 2.8 * w.base.reload).toFixed(2); // saves from before round-by-round loading
   if (w.unique && UNIQUES[w.unique] && UNIQUES[w.unique].baseMod) w.base = Object.assign({}, w.base, UNIQUES[w.unique].baseMod);
   if (!w.sv) { w.dmg = Math.round(w.dmg * Math.pow(1.08, w.level - 1) / (1 + .075 * (w.level - 1))); w.sv = 2; } // saves from before exponential levels
