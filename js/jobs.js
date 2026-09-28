@@ -39,7 +39,7 @@ function buildGenerator(M) {
     for (let r = 12; r < 30 && !spot; r += 2) for (let da = 0; da < 1.2 && !spot; da += .2) { const a = k * 2.094 + .5 + da, x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r; if (!blockedAt(x, z, 2.4) && spots.every(s => Math.hypot(s[0] - x, s[1] - z) > 10)) spot = [x, z]; }
     spots.push(spot || [cx + (k - 1) * 12, cz]);
   }
-  const body = matStd({ color: 0x4a5a3a, metalness: .5, roughness: .5 }), dark = matStd({ color: 0x1c1d1f, metalness: .6, roughness: .4 }), max = 2600 * (1 + .3 * (M.job.diff - 1));
+  const body = matStd({ color: 0x4a5a3a, metalness: .5, roughness: .5 }), dark = matStd({ color: 0x1c1d1f, metalness: .6, roughness: .4 }), max = 2600 * (1 + .3 * (M.job.diff - 1)) * Math.pow(1.035, jobLvl() - 1); // keeps pace with how hard zombies hit
   M.gens = spots.map(([x, z], k) => {
     addBox(x, z, 1.8, 1.2, 1.1, body);
     addBox(x, z, 1.9, 1.3, .12, dark, 1.1, false);
@@ -232,7 +232,7 @@ function updateTestGround(M, dt) {
 function buildEscort(M) {
   const a = makeAvatar({ n: 'Túlélő', c: null }); scene.add(a.g); a.gunG.visible = false;
   const start = new V3(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 4.5), [gx, gz] = MAP.vans[M.pickup];
-  const max = 900 * (1 + .3 * (M.job.diff - 1));
+  const max = 900 * (1 + .3 * (M.job.diff - 1)) * Math.pow(1.035, jobLvl() - 1);
   const end = new V3(gx, 0, gz - Math.sign(gz || 1) * 3), far = BOX_SPOTS.map(([x, z]) => new V3(x, 0, z)).sort((p, q) => Math.min(q.distanceTo(start), q.distanceTo(end)) - Math.min(p.distanceTo(start), p.distanceTo(end)))[0];
   const p1 = gridPath(start, far || end), p2 = far ? gridPath(far, end) : [];
   M.esc = { a, pos: a.pos.copy(start), vel: new V3(), goal: p1.shift(), path: p1, path2: p2, end: far || end, leg: far ? 1 : 2, hp: max, max, hitT: -9, side: 0, sideT: 0, last: start.clone(), lastT: 0, waiting: false };

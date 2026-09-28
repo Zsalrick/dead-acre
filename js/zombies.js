@@ -121,7 +121,9 @@ function mkZombie(kind) {
   return { decos: merged, g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
 }
 // ×1.12 per threat level: guns (+7.5% per level, rarity, upgrades, gear) can keep up instead of falling hopelessly behind
-function zombieHp() { return 140 * Math.pow(1.08, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .1 * (((mission && mission.job.diff) || 1) - 1)) * (1 + .08 * jobTier()) * (dirOn('tough') ? 1.25 : 1); }
+// ×1.25 a level up to 30 (gear and skills close the gap), then ×1.08 like the guns (Rémálom levels)
+const zLvlHp = L => Math.pow(1.25, Math.min(L, 30) - 1) * Math.pow(1.08, Math.max(0, L - 30));
+function zombieHp() { return 140 * Math.pow(1.08, round - 1) * zLvlHp(jobLvl()) * (1 + .1 * (((mission && mission.job.diff) || 1) - 1)) * (1 + .08 * jobTier()) * (dirOn('tough') ? 1.25 : 1); }
 // the job's level: zombies and loot scale with it, so the world keeps pace with you forever
 // how hard a zombie hits: ×1.035 a zone level, +10% a star, +8% a Rémálom tier (the wave adds +4% a threat level on each hit, zWave)
 const zDmgMul = () => Math.pow(1.035, jobLvl() - 1) * (1 + .1 * (((mission && mission.job.diff) || 1) - 1)) * (1 + .08 * jobTier());
