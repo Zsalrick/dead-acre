@@ -199,6 +199,9 @@ const MODS = {
   horde: { name: 'HORDA', sub: 'Kétszer annyian jönnek, de gyengébbek.', label: 'Horda' },
   storm: { name: 'VIHAR', sub: 'Zuhog az eső, villámlik, alig látni. A zaj elnyeli a lövéseid: +15% pont.', label: 'Vihar' },
   elite: { name: 'ELIT', sub: 'Az arany szeműek kétszer annyit bírnak, és biztosan zsákmányt ejtenek.', label: 'Elit zombik' },
+  swift: { name: 'FUTÓK ÉJSZAKÁJA', sub: 'A zombik 35%-kal gyorsabbak, de 30%-kal több pontot érnek.', label: 'Futók éjszakája' },
+  tank:  { name: 'VASBŐR', sub: 'A zombik 60%-kal többet bírnak, de 40%-kal több pontot érnek.', label: 'Vasbőr' },
+  cursed: { name: 'ÁTKOZOTT FÖLD', sub: 'Gyorsabb, szívósabb zombik, sok elit köztük. Cserébe másfélszer annyi pont.', label: 'Átkozott föld' },
 };
 // perk machines (one per area, CoD style): bought with points, last for the job
 const PERKS = {
@@ -1175,6 +1178,9 @@ function applyMod(key) {
   if (key === 'horde') { roundMod.hp = .6; roundMod.spawns = 1.8; roundMod.points = .7; }
   if (key === 'elite') roundMod.elite = true;
   if (key === 'storm') { scene.fog.density = baseFog * 1.6; roundMod.points = 1.15; scene.fog.color.setHex(0x0a0e14); scene.background.setHex(0x0a0e14); }
+  if (key === 'swift') { roundMod.speed = 1.35; roundMod.points = 1.3; }
+  if (key === 'tank') { roundMod.hp = 1.6; roundMod.points = 1.4; }
+  if (key === 'cursed') { roundMod.speed = 1.2; roundMod.hp = 1.2; roundMod.elite = true; roundMod.points = 1.5; scene.fog.color.setHex(0x120a18); scene.background.setHex(0x120a18); moonMesh.material.color.setHex(0xb07aff); }
   rain.visible = key === 'storm';
 }
 function updateMapFx(dt) {

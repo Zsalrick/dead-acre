@@ -21,8 +21,20 @@ const ITEM_PRICE = { med: 300, gren: 250, knife: 220, adren: 450 };
 const shopPrice = w => Math.round(sellValue(w) * 4 / 10) * 10;
 
 // XP by difficulty (steeper at the top) and length; objectives, twists and the Butcher add a little. A bounty: a bit over a job of its stars
-const jobXp = (diff, dur, o = {}) => Math.round((150 + 110 * Math.pow(diff, 1.25)) * Math.max(1, (dur || 300) / 300) * (o.mod ? 1.15 : 1) * (o.boss ? 1.2 : 1) * (o.type && o.type !== 'survive' ? 1.1 : 1) / 10) * 10;
-function makeJob() {
+const jobXp = (diff, dur, o = {}) => Math.round((150 + 110 * Math.pow(diff, 1.25)) * Math.max(1, (dur || 300) / 300) * (o.mod ? 1.15 : 1) * (o.boss ? 1.2 : 1) * (o.type && o.type !== 'survive' ? 1.25 : 1) / 10) * 10;
+// special twists: each has its own 15% chance on a job, shown on the map and the card
+const SPECIALS = {
+  cash2: { name: 'Aranyláz', short: '2× PÉNZ', desc: 'Dupla pénz a munkáért.', color: '#f0c040' },
+  xp2: { name: 'Tanulságos éjszaka', short: '2× XP', desc: 'Dupla tapasztalat a munkáért.', color: '#7fd0ff' },
+};
+const rollSpecials = () => Object.keys(SPECIALS).filter(() => Math.random() < .15);
+const spMul = (j, k) => (j.sp || []).includes(k) ? 2 : 1;
+function withSpecials(j) { j.sp = rollSpecials(); j.reward *= spMul(j, 'cash2'); j.xp *= spMul(j, 'xp2'); j.xv = 2; return j; }
+const spTags = j => (j.sp || []).filter(k => SPECIALS[k]).map(k => SPECIALS[k]);
+function fixBoard() { // boards rolled before the XP rework keep their old numbers otherwise
+  for (const j of profile.jobs || []) if (j.xv !== 2 && !j.tier && !j.deep) { j.xp = j.bounty ? Math.round(jobXp(j.diff, 300) * 1.1 / 10) * 10 : jobXp(j.diff, j.dur, j); j.xv = 2; }
+}
+function makeJob0() {
   const lvl = profile.level, maps = MAP_IDS.filter(id => MAPS[id].minLevel <= lvl);
   const map = pick(maps), maxD = lvl >= 22 ? 5 : lvl >= 16 ? 4 : lvl >= 10 ? 3 : lvl >= 5 ? 2 : 1;
   const diff = 1 + Math.floor(Math.random() * maxD);
@@ -36,14 +48,15 @@ function makeJob() {
   return { map, diff, dur, mod, boss, title, client, type, goal: type === 'exterminate' ? 50 + 25 * diff : type === 'supply' ? 5 + diff : 0,
     reward: Math.round(reward * (type === 'survive' ? 1 : type === 'escort' ? .9 : 1.15) / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl), xp: jobXp(diff, dur, { mod, boss, type }) };
 }
+const makeJob = () => withSpecials(makeJob0());
 function rollBoard() {
   profile.jobs = []; // three different jobs, on different maps while there are enough maps
   const nMaps = MAP_IDS.filter(id => MAPS[id].minLevel <= profile.level).length;
   for (let k = 0; profile.jobs.length < 3 && k < 60; k++) { const j = makeJob(); if (!profile.jobs.some(o => o.title === j.title || (o.map === j.map && profile.jobs.length < nMaps))) profile.jobs.push(j); }
   while (profile.jobs.length < 3) profile.jobs.push(makeJob());
   if (!profile.jobs.some(j => j.diff === 1)) profile.jobs[0] = Object.assign(makeJob(), { diff: 1, boss: false }); // always one easy job
-  const j = profile.jobs[0]; j.dur = 300; j.reward = Math.round((470 + profile.level * 35) / 10) * 10; j.xp = jobXp(1, 300); j.lvl = profile.level;
-  if (profile.level >= 3) profile.jobs.push(makeBounty());
+  const j = profile.jobs[0]; j.dur = 300; j.reward = Math.round((470 + profile.level * 35) / 10) * 10 * spMul(j, 'cash2'); j.xp = jobXp(1, 300) * spMul(j, 'xp2'); j.lvl = profile.level;
+  if (profile.level >= 3) profile.jobs.push(withSpecials(makeBounty()));
   if (profile.level >= LEVEL_CAP) { // Rémálom +N after the cap: pick any tier you have unlocked, clear the top one to unlock the next
     let j; for (let k = 0; k < 40 && (!j || j.diff < 5); k++) j = makeJob(); // a 5-star base, so Rémálom never pays less than the board
     j.diff = 5; j.boss = true; j.dur = Math.max(j.dur, 480); j.base = { reward: j.reward, xp: j.xp, title: j.title.replace(/^.*?: /, '') };
@@ -116,6 +129,7 @@ function jobCard(j, i, notReady) {
     <ul class="jc-facts">${facts.map(f => `<li>${f}</li>`).join('')}</ul>
     ${weak ? `<p class="jwarn">Vigyázz: a legjobb fegyvered Lv ${gl}, a zóna ${lv}. szintű. Itt nagyon kevés leszel.</p>` : ''}
     ${j.mod ? `<div class="jmodbox"><small>Módosító · ${MODS[j.mod].label}</small><span>${MODS[j.mod].sub}</span></div>` : ''}
+    ${spTags(j).map(S => `<div class="jmodbox jsp" style="--sc:${S.color}"><small>Különleges · ${S.name}</small><span>${S.desc}</span></div>`).join('')}
     ${dirs}
     <div class="jc-foot"><div class="jc-pay"><b>$${Math.round(j.reward * (1 + .1 * n))}</b><small>+${Math.round(j.xp * (1 + .15 * n))} XP${n ? ` · direktívák: +${10 * n}% pénz, +${15 * n}% XP` : ''}</small></div>${off ? `<button class="sbtn rdyb${NET.ready ? ' on' : ''}" data-act="pready">${NET.ready ? '✓ Kész vagyok · a vezető indít' : 'Kész vagyok'}</button>` : hbtn(btn, `job:${i}`, notReady > 0)}</div>
   </article>`;
@@ -132,7 +146,7 @@ function showHub() {
   renderHub();
 }
 function renderHub() {
-  if (profile) topUpShop();
+  if (profile) { topUpShop(); fixBoard(); }
   const P = profile;
   $('hubSlot').textContent = P.name; $('hubJobs').textContent = `${stats.jobs} kész munka${NET.code ? ` · csapat ${partyMembers().length} fő` : ''}`;
   $('hubLvl').textContent = P.level;
@@ -302,7 +316,7 @@ const HUB = {
     const marks = J.map((j, i) => {
       const [lx, ly] = loc(j.map), k = J.slice(0, i).filter(o => o.map === j.map).length, [dx, dy] = [[0, 0], [60, -34], [-60, -34], [60, 34], [-60, 34]][k % 5].map(v => v * jobMap.k);
       const col = j.bounty ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1], tag = j.bounty ? 'FEJVADÁSZAT' : j.tier ? `RÉMÁLOM +${j.tier}` : DIFF_NAMES[j.diff - 1].toUpperCase(), tw = tag.length * 8 + 16;
-      return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy}) scale(${jobMap.k})" style="--jc:${col}">${k ? `<line x1="0" y1="0" x2="${-dx / jobMap.k}" y2="${-dy / jobMap.k}"/>` : ''}<circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 14 : 12}"/><circle class="core" r="${j.bounty || j.tier ? 6 : 5}"/><rect class="tagb" x="${-tw / 2}" y="-44" width="${tw}" height="17"/><text class="tag" y="-32">${tag}</text>${k ? `<text class="ls" y="30">$${j.reward}</text>` : `<text class="lpay" y="62">$${j.reward}</text>`}</g>`;
+      return `<g class="jm${i === jobSel ? ' on' : ''}" data-act="jsel:${i}" transform="translate(${lx + dx} ${ly + dy}) scale(${jobMap.k})" style="--jc:${col}">${k ? `<line x1="0" y1="0" x2="${-dx / jobMap.k}" y2="${-dy / jobMap.k}"/>` : ''}<circle class="ring" r="18"/><circle class="dot" r="${j.bounty || j.tier ? 14 : 12}"/><circle class="core" r="${j.bounty || j.tier ? 6 : 5}"/><rect class="tagb" x="${-tw / 2}" y="-44" width="${tw}" height="17"/><text class="tag" y="-32">${tag}</text>${k ? `<text class="ls" y="30">$${j.reward}${spTags(j).map(S => `<tspan fill="${S.color}"> · ${S.short}</tspan>`).join('')}</text>` : `<text class="lpay" y="62">$${j.reward}${spTags(j).map(S => `<tspan fill="${S.color}"> · ${S.short}</tspan>`).join('')}</text>`}${spTags(j).length ? `<circle class="spring" r="23" style="stroke:${spTags(j)[0].color}"/>` : ''}</g>`;
     }).join('');
     const [rx, ry] = loc('range'), range = `<g class="jm range${jobSel === 'range' ? ' on' : ''}" data-act="jsel:range" transform="translate(${rx} ${ry}) scale(${jobMap.k})" style="--jc:#5fb4e8"><circle class="ring" r="16"/><rect class="sq" x="-9" y="-9" width="18" height="18"/><rect class="tagb" x="-40" y="-40" width="80" height="17"/><text class="tag" y="-28">GYAKORLÁS</text><text class="ln" y="30">Lőtér</text><text class="ls" y="44">fegyverteszt, nincs veszély</text></g>`;
     const claim = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;

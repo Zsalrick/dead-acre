@@ -867,3 +867,8 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 #card.wcard{top:auto;bottom:calc(50% - 40px)} /* grows upward from just below the crosshair, clear of the weapon block */
 #pause .tiles.bag{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
 #pause .tiles.hands{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+
+/* special twists (2× pay, 2× XP): a coloured box on the card, a halo on the map */
+.jmodbox.jsp{border-color:var(--sc);background:color-mix(in srgb,var(--sc) 10%,transparent)}
+.jmodbox.jsp small{color:var(--sc)}
+.jsvg g .spring{fill:none;stroke-width:2;stroke-dasharray:4 4;opacity:.9}
