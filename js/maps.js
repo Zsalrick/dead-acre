@@ -697,6 +697,7 @@ function buildArea(a) {
     addBox(fx, fz, 2.4, 2.4, 1.6, matStd({ color: 0x4a4038 }));
     put(new THREE.Mesh(new THREE.BoxGeometry(1.8, .1, 1.8), basic(0xff6a1a))).position.set(fx, 1.62, fz);
     glowSprite(0xff7a2a, 3.5, new V3(fx, 2.2, fz)); pointLight(0xff7a2a, 2, 16, fx, 2.5, fz);
+    label(['KOVÁCS'], '#ffb070', 2.2, x, 2.4, z);
     deco(new THREE.ConeGeometry(.22, .7, 10), metal, x - 1.25, .88, z, 1, 1, 1).rotation.z = Math.PI / 2; // anvil horn
     deco(unitBox, ironMat, x + .1, 1.02, z, .08, .08, .7).rotation.x = .3; deco(unitBox, ironMat, x + .1, 1.06, z - .32, .22, .16, .14); // hammer
     const brick = matStd({ color: 0x5a3a2a, roughness: .9 });
@@ -708,8 +709,9 @@ function buildArea(a) {
     glowSprite(0xff5a1a, 1.6, new V3(fx, 1.9, fz));
   } else if (type === 'well') {
     cylinderSolid(x, z, 1.45, .9, matStd({ color: 0x6a6a70 }));
-    const water = put(new THREE.Mesh(new THREE.CircleGeometry(1.2, 20), basic(0x5fd8ff))); water.rotation.x = -Math.PI / 2; water.position.set(x, .92, z);
-    glowSprite(0x5fd8ff, 4, new V3(x, 1.6, z)); pointLight(0x5fd8ff, 1.6, 14, x, 2, z);
+    const water = put(new THREE.Mesh(new THREE.CircleGeometry(1.2, 20), basic(0x3a9ac0))); water.rotation.x = -Math.PI / 2; water.position.set(x, .92, z);
+    glowSprite(0x5fd8ff, 2.2, new V3(x, 1.4, z)); pointLight(0x5fd8ff, 1.1, 12, x, 2, z);
+    label(['SZENT KÚT'], '#9feaff', 2.4, x, 3.9, z);
     for (let k = 0; k < 14; k++) { const q = k / 14 * Math.PI * 2; deco(unitBox, stoneMat, x + Math.cos(q) * 1.5, .5 + (k % 2) * .08, z + Math.sin(q) * 1.5, .6, 1, .42).rotation.y = -q; }
     for (const s2 of [-1, 1]) deco(unitBox, poleMat, x + s2 * 1.45, 1.5, z, .14, 2.9, .14);
     deco(unitBox, matStd({ color: 0x4a3024 }), x, 3.05, z - .45, 3.4, .1, 1.3).rotation.x = .45; deco(unitBox, matStd({ color: 0x4a3024 }), x, 3.05, z + .45, 3.4, .1, 1.3).rotation.x = -.45;
@@ -736,8 +738,8 @@ function buildArea(a) {
     const txF = a.side === 'e' || a.side === 'w' ? cx + a.out.x * 5 : cx, tzF = a.side === 'n' || a.side === 's' ? cz + a.out.z * 5 : cz;
     for (const [dx, dz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) addBox(txF + dx, tzF + dz, .35, .35, 7, wood);
     addBox(txF, tzF, 7, 7, .3, wood, 7, false); addBox(txF, tzF, 7.6, 7.6, .25, matStd({ color: 0x2b2a2c }), 9.6, false);
-    addBox(x, z, .9, .6, 1.3, matStd({ color: 0x2e3440, metalness: .4, roughness: .5 }));
-    put(new THREE.Mesh(new THREE.PlaneGeometry(.6, .4), basic(0x7fb8ff))).position.set(x, 1.05, z + .31);
+    addBox(x, z, .8, .8, 1.3, matStd({ color: 0x2e3440, metalness: .4, roughness: .5 }));
+    { const f = new THREE.Group(); f.position.set(x, 0, z); f.rotation.y = Math.atan2(cx - x, cz - z); mapGroup.add(f); deco(new THREE.PlaneGeometry(.6, .4), basic(0x7fb8ff), 0, 1.05, .41, 1, 1, 1, f); } // the screen faces the way you come in
     label(['LÖVEGTORONY'], '#9fc8ff', 2.4, x, 2.3, z);
     for (let k = 0; k < 16; k++) { const q = k / 16 * Math.PI * 2; deco(unitBox, sandMat, txF + Math.cos(q) * 4.3, .25 + (k % 2) * .05, tzF + Math.sin(q) * 4.3, .9, .42, .5).rotation.y = -q; }
     for (let k = 0; k < 9; k++) deco(unitBox, poleMat, txF + 3.35, .4 + k * .75, tzF, .08, .06, .7);
@@ -753,6 +755,7 @@ function buildBoxAndAmmo() {
     new THREE.MeshBasicMaterial({ color: 0x6fd6ff, transparent: true, opacity: .09, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })));
   box.light = pointLight(0x6fd6ff, 1.3, 9, 0, 1.8, 0);
   box.deco = new THREE.Group(); mapGroup.add(box.deco);
+  for (const c of [...mapGroup.children]) if (c.isMesh && c.material === stoneMat && BOX_SPOTS.some(([bx, bz]) => Math.hypot(c.position.x - bx, c.position.z - bz) < 1.8)) mapGroup.remove(c); // no gravestones through the box
   const qTex = panelTex('qmark', 128, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#9fe8ff'; g.font = 'bold 56px Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = '#5fd8ff'; g.shadowBlur = 12; g.fillText('? ? ?', w / 2, h / 2 + 2); });
   for (const s2 of [-1, 1]) deco(new THREE.PlaneGeometry(1.5, .5), new THREE.MeshBasicMaterial({ map: qTex, transparent: true, depthWrite: false }), 0, .45, s2 * .47, 1, 1, 1, box.deco).rotation.y = s2 < 0 ? Math.PI : 0;
   for (const bx of [-.7, 0, .7]) deco(unitBox, ironMat, bx, .45, 0, .08, .94, .96, box.deco);
@@ -970,7 +973,7 @@ function areaInteract(f) {
 // ---------- scattered props (seeded) ----------
 const carMats = [0x3a4a52, 0x5a2a24, 0x4a4a3a, 0x2e3a2a].map(c => new THREE.MeshLambertMaterial({ color: c }));
 const tireMat = new THREE.MeshLambertMaterial({ color: 0x141414 });
-const barrelMat = new THREE.MeshLambertMaterial({ color: 0x4a4236 });
+const barrelMat = new THREE.MeshLambertMaterial({ color: 0x6a5a44 });
 const boomBarrelMat = new THREE.MeshLambertMaterial({ color: 0x9a1c14, emissive: 0x2a0400 });
 const logMat = new THREE.MeshLambertMaterial({ color: 0x4a3524 });
 const propHayMat = new THREE.MeshLambertMaterial({ color: 0x9c8443 });
