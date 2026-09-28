@@ -147,7 +147,7 @@ function holdRepair(gi, dt) { // hold E at a generator: 5% a second, paid by the
 function takeCrate(i) { // E on a crate: both hands on it (no shooting, sprinting or jumping)
   const c = mission && mission.crates && mission.crates[i]; if (!c || c.st !== 0) return;
   crateAct(i, 't', c.pos.x, c.pos.z); if (!NET.client) player.carry = i;
-  SND.pickup(2); popText(mission.drop ? 'Vidd a lerakó furgonhoz · E: letétel' : 'A lerakó furgon még nem jött meg · E: letétel', '#f2c12a');
+  if (!NET.client) { SND.pickup(2); popText(mission.drop ? 'Vidd a lerakó furgonhoz · E: letétel' : 'A lerakó furgon még nem jött meg · E: letétel', '#f2c12a'); } // a member hears it when the host confirms
 }
 
 // ---------- every frame (solo or host) ----------

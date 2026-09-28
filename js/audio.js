@@ -11,15 +11,17 @@ function initAudio() {
     initMusic();
   } catch (e) { ac = null; }
 }
+let sndVol = 1; // scales every sound; withVol plays one at a distance
+const withVol = (v, f) => { const o = sndVol; sndVol = o * v; try { f(); } finally { sndVol = o; } };
 function nz(dur, freq, vol, type = 'lowpass', q = .7, delay = 0) {
-  if (!ac) return;
+  if (!ac || sndVol < .02) return; vol *= sndVol;
   const t = ac.currentTime + delay, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
   s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
   s.connect(f).connect(g).connect(master); s.start(t, Math.random() * .5); s.stop(t + dur);
 }
 function tn(freq, dur, vol, type = 'square', freqEnd = 0, delay = 0) {
-  if (!ac) return;
+  if (!ac || sndVol < .02) return; vol *= sndVol;
   const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
   o.type = type; o.frequency.setValueAtTime(freq, t);
   if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);

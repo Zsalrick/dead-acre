@@ -322,17 +322,17 @@ function spit(z) {
   const target = new V3(player.pos.x + player.vel.x * T * .6, .05, player.pos.z + player.vel.z * T * .6);
   const v = target.sub(from).divideScalar(T); v.y += .5 * 12 * T;
   const m = new THREE.Mesh(acidGeo, acidMat); m.position.copy(from); scene.add(m);
-  zProjs.push({ m, v });
-  SND.spit();
+  zProjs.push({ m, v, tgt: zTarget && zTarget.remote ? zTarget : null });
+  SND.spit(); pushFx(['sp', Math.round(from.x * 10), Math.round(from.y * 10), Math.round(from.z * 10), Math.round(v.x * 10), Math.round(v.y * 10), Math.round(v.z * 10)]);
 }
 function updateZProjs(dt) {
   for (let i = zProjs.length - 1; i >= 0; i--) {
     const p = zProjs[i], pos = p.m.position;
     p.v.y -= 12 * dt; pos.addScaledVector(p.v, dt);
     if (Math.random() < dt * 20) burst(pos, 0x9dff3a, 1, .5, .3);
-    const direct = pos.distanceTo(new V3(player.pos.x, player.pos.y + 1, player.pos.z)) < .7;
+    const tp = p.tgt ? p.tgt.pos : player.pos, direct = !p.remote && pos.distanceTo(new V3(tp.x, (tp.y || 0) + 1, tp.z)) < .7;
     if (pos.y <= .05 || direct) {
-      if (direct && liveWorld()) hurtPlayer(15);
+      if (direct && p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, 15, 'Köpködő'], 16); else if (direct && liveWorld()) hurtPlayer(15); // the one it was aimed at takes the hit
       const pm = new THREE.Mesh(puddleGeo, new THREE.MeshBasicMaterial({ color: 0x7fe02a, transparent: true, opacity: .55, depthWrite: false }));
       pm.position.set(pos.x, .03, pos.z); scene.add(pm);
       puddles.push({ m: pm, t: 5 });
@@ -382,7 +382,7 @@ function updateZombies(dt) {
     if (z.acidT > 0) { // corrosive: acid ticks, green drips
       z.acidT -= dt; z.acidAcc = (z.acidAcc || 0) + z.acidDps * dt;
       if (Math.random() < dt * 8) burst(new V3(z.pos.x + rand(-.2, .2), rand(.4, 1.6) * z.scale, z.pos.z + rand(-.2, .2)), 0x9dff3a, 1, .8, .35);
-      if (z.acidAcc >= z.acidDps * .5 || z.acidT <= 0) { const a = z.acidAcc; z.acidAcc = 0; if (a > 0) hurtZombie(z, a, { dot: true, color: ELEMENTS.corrosive.color, w: z.acidW }); if (z.dead) continue; }
+      if (z.acidAcc >= z.acidDps * .5 || z.acidT <= 0) { const a = z.acidAcc; z.acidAcc = 0; if (a > 0) hurtZombie(z, a, { dot: true, color: ELEMENTS.corrosive.color, remote: z.acidBy || undefined, w: z.acidBy ? undefined : z.acidW }); if (z.dead) continue; }
     }
     z.slagT = (z.slagT || 0) - dt;
     z.slowT -= dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
@@ -679,7 +679,7 @@ function bountyTick(z, dt, dist) {
   const want = z.hp > z.maxHp * .66 ? 1 : z.hp > z.maxHp * .33 ? 2 : 3;
   if (want > (z.phase || 1)) { // a new phase: a moment of immunity, a shockwave of adds, and everything gets worse
     z.phase = want; z.invulnT = 2.5; z.dmg *= 1.25; z.speed *= 1.15; z.enraged = true; z.sumT = 1.5;
-    banner(`${B.name.toUpperCase()} · ${want}. FÁZIS`, PHASE_TXT[want]); SND.roar();
+    netBanner(`${B.name.toUpperCase()} · ${want}. FÁZIS`, PHASE_TXT[want]); SND.roar();
     for (let k = 0; k < 32; k++) { const a = k / 32 * 6.28; burst(new V3(z.pos.x + Math.sin(a) * 3, .3, z.pos.z + Math.cos(a) * 3), B.tint, 2, 3, .6); }
     for (let k = 0; k < 3 + 2 * want; k++) { const a = rand(0, 6.28); spawnZombieAt(pick(['runner', 'walker', 'walker', 'brute', 'leaper']), z.pos.x + Math.sin(a) * 4, z.pos.z + Math.cos(a) * 4, .6); }
   }
@@ -830,8 +830,8 @@ function bountyLook(z, key) {
 }
 
 const AFFIX = {
-  fire:  { name: 'Tüzes', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 3.2, 0xff6a1a, .7, () => { burst(new V3(at.x, .5, at.z), 0xff7a1a, 24, 4, .6); SND.explode(); hurtAt(at, 3.2, 25 * affixMul()); }); } },
-  boom:  { name: 'Robbanó', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 4.5, 0xffd23f, 1, () => { burst(new V3(at.x, .8, at.z), 0xffd23f, 30, 6, .7); SND.explode(); hurtAt(at, 4.5, 40 * affixMul()); }); } },
+  fire:  { name: 'Tüzes', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 3.2, 0xff6a1a, .7, () => { burst(new V3(at.x, .5, at.z), 0xff7a1a, 24, 4, .6); SND.explode(); hurtAt(at, 3.2, 25 * affixMul()); }, 'fire'); } },
+  boom:  { name: 'Robbanó', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 4.5, 0xffd23f, 1, () => { burst(new V3(at.x, .8, at.z), 0xffd23f, 30, 6, .7); SND.explode(); hurtAt(at, 4.5, 40 * affixMul()); }, 'boom'); } },
   frost: { name: 'Fagyos', on: z => {}, die: z => { const at = z.pos.clone(); telegraph(at, 5, 0x9fe6ff, .8, () => { burst(new V3(at.x, .5, at.z), 0x9fe6ff, 24, 4, .6); if (Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 5) player.chillT = 2.5; }, 'frost'); } },
   fast:  { name: 'Gyors', on: z => { z.speed *= 1.4; } },
   tough: { name: 'Szívós', on: z => { z.hp *= 1.8; z.maxHp = z.hp; z.scale *= 1.1; z.g.scale.setScalar(z.scale); } },

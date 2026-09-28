@@ -1111,13 +1111,13 @@ function makeProp(type, x, z, rng) {
   props.push(prop);
   return prop;
 }
-function blowBarrel(p) {
-  if (p.gone) return; p.gone = true;
+function blowBarrel(p, remote) {
+  if (p.gone) return; p.gone = true; if (!remote) pushFx(['b', Math.round(p.x * 10), Math.round(p.z * 10)]);
   const i = props.indexOf(p); if (i >= 0) props.splice(i, 1);
   mapGroup.remove(p.g);
   p.obs.forEach(o => { const k = obstacles.indexOf(o); if (k >= 0) obstacles.splice(k, 1); });
   p.blk.forEach(b => { const k = rayBlockers.indexOf(b); if (k >= 0) rayBlockers.splice(k, 1); });
-  explode(new V3(p.x, .8, p.z), { r: 5.5, zdmg: (200 + zombieHp() * 1.2) * (rk('e_barrel') ? 2 : 1), pr: 4.5, pdmg: 40 });
+  if (!remote) explode(new V3(p.x, .8, p.z), { r: 5.5, zdmg: (200 + zombieHp() * 1.2) * (rk('e_barrel') ? 2 : 1), pr: 4.5, pdmg: 40 }); // the teammate's copy just goes away: their explosion arrives as its own effect
 }
 function generateProps(seed) {
   mapSeed = seed;

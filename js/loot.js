@@ -191,7 +191,7 @@ function throwProj(k) {
 }
 function explode(p, o = {}) {
   const r = (o.r || 5) * SK.explRadius(), pr = o.pr || 3.5, pdmg = o.pdmg || 35;
-  fxExplosion(p, o.color, r);
+  fxExplosion(p, o.color, r); pushFx(['x', Math.round(p.x * 10), Math.round(p.y * 10), Math.round(p.z * 10), Math.round(r * 10), o.color || 0xff8a30]);
   boomLight.position.set(p.x, p.y + 1.2, p.z); boomLight.color.set(o.color || 0xff8a30); boomLight.intensity = 10; SND.explode();
   const dmg = (o.zdmg || 150 + zombieHp() * 1.1) * SK.explMul();
   for (const z of zombies) {
@@ -305,11 +305,12 @@ function knifeHit(p, z, head, point) {
 }
 // burning ground: molotovs (hurt zombies) and boss hazards (hurt players)
 const fireZones = [];
-function addFireZone(pos, r, t, hazard = 0) { fireZones.push({ pos: pos.clone().setY(0), r, t, tick: 0, hazard }); }
+function addFireZone(pos, r, t, hazard = 0, visual = false) { fireZones.push({ pos: pos.clone().setY(0), r, t, tick: 0, hazard, visual }); if (!visual && !hazard) pushFx(['f', Math.round(pos.x * 10), Math.round(pos.z * 10), Math.round(r * 10), Math.round(t)]); } // a teammate's copy only burns to look at
 function updateFireZones(dt) {
   for (let i = fireZones.length - 1; i >= 0; i--) {
     const F = fireZones[i]; F.t -= dt; F.tick -= dt;
     for (let k = 0; k < 3; k++) { const a = rand(0, 6.28), r = Math.sqrt(Math.random()) * F.r; burst(new V3(F.pos.x + Math.sin(a) * r, .1, F.pos.z + Math.cos(a) * r), Math.random() < .5 ? 0xff6a1a : 0xffc04a, 1, 1.4, .5); }
+    if (F.visual) { if (F.t <= 0) fireZones.splice(i, 1); continue; }
     if (F.tick <= 0) {
       F.tick = .5;
       if (F.hazard) { if (!NET.client) hurtAt(F.pos, F.r, F.hazard * .5); }

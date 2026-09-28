@@ -112,7 +112,7 @@ function partyAction(kind, a) {
 function netJobStarted(opts) {
   if (!NET.pr) { NET.mode = null; NET.client = false; return; }
   NET.mode = opts.client ? 'client' : 'host'; NET.client = !!opts.client;
-  NET.hits = []; NET.acts = []; NET.kills = []; NET.dmgs = []; NET.tel = []; NET.bev = []; NET.kf = []; NET.drops = []; NET.pks = []; NET.zById.clear(); NET.last = {};
+  NET.hits = []; NET.acts = []; NET.fx = []; NET.kills = []; NET.dmgs = []; NET.tel = []; NET.bev = []; NET.kf = []; NET.drops = []; NET.pks = []; NET.zById.clear(); NET.last = {};
   player.down = false;
   if (NET.host) NET.job = { job: mission.job, seed: opts.seed, a: opts.a, b: opts.b, js: Date.now() };
   publishMember(); setLobby();
@@ -155,11 +155,25 @@ function makeAvatar(m) {
   scene.add(g);
   return { g, hips, legL, legR, torso, head, armL, armR, gunG, flash, pos: new V3(), vel: new V3(), down: false, gunKey: '', gun: null, walkT: 0, pitch: 0, yaw: 0, sh: null, flashT: 0, lastPing: null, name: (m && m.n) || 'Társ', col };
 }
-function remoteShot(b, d) { // their shots, quieter with distance
+// ---------- world effects everyone should see: explosions, fire, barrels, abilities, zombie noises, spit ----------
+function pushFx(e) { if (NET.mode && NET.fx) pushRoll(NET.fx, [++NET.seq, ...e], 20); }
+const remoteAuras = [];
+function playFx(e, a) {
+  const [, t] = e, P = (x, z, y = 0) => new V3((+x || 0) / 10, (+y || 0) / 10, (+z || 0) / 10), dv = p => clamp(1 - Math.hypot(p.x - player.pos.x, p.z - player.pos.z) / 60, 0, 1);
+  if (t === 'x') { const p = P(e[2], e[4], e[3]), r = (+e[5] || 50) / 10; fxExplosion(p, +e[6] || 0xff8a30, r); boomLight.position.set(p.x, p.y + 1.2, p.z); boomLight.color.set(+e[6] || 0xff8a30); boomLight.intensity = 10; withVol(dv(p), () => SND.explode()); }
+  else if (t === 'f') addFireZone(P(e[2], e[3]), (+e[4] || 30) / 10, +e[5] || 5, 0, true);
+  else if (t === 'b') { const x = (+e[2] || 0) / 10, z = (+e[3] || 0) / 10, pr = props.find(q => q.blk && Math.hypot(q.x - x, q.z - z) < .5); if (pr) blowBarrel(pr, true); }
+  else if (t === 'ab') { const C = CLASSES[e[2]]; if (C && a) { popText(`${a.name}: ${C.ability.name}`, C.color); withVol(dv(a.pos) * .7, () => SND.power()); } }
+  else if (t === 'au') { const m = new THREE.Mesh(new THREE.RingGeometry(5.6, 6, 48), new THREE.MeshBasicMaterial({ color: 0xf2d27a, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.copy(P(e[2], e[3])).setY(.05); scene.add(m); remoteAuras.push({ m, t: +e[4] || 8 }); }
+  else if (t === 'zs') { const p = P(e[3], e[4]), f = SND[e[2]]; if (f) withVol(dv(p), () => f()); }
+  else if (t === 'sp') { const from = P(e[2], e[4], e[3]), v = new V3((+e[5] || 0) / 10, (+e[6] || 0) / 10, (+e[7] || 0) / 10), m = new THREE.Mesh(acidGeo, acidMat); m.position.copy(from); scene.add(m); zProjs.push({ m, v, remote: true }); withVol(dv(from), () => SND.spit()); }
+  else if (t === 'bo') { const p = P(e[3], e[4]); burst(p.clone().setY(1), +e[5] || 0xff7a1a, 30, 6, .7); withVol(dv(p), () => (SND[e[2]] || SND.roar)()); if (Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < 14) player.shake = Math.max(player.shake, .5); }
+}
+function updateRemoteAuras(dt) { for (let i = remoteAuras.length - 1; i >= 0; i--) { const A = remoteAuras[i]; A.t -= dt; A.m.material.opacity = .3 + Math.sin(now * 6) * .12; if (A.t <= 0) { scene.remove(A.m); A.m.geometry.dispose(); A.m.material.dispose(); remoteAuras.splice(i, 1); } } }
+function remoteShot(b, d) { // their shots: the gun's own sound, quieter with distance
   const f = clamp(1 - d / 70, 0, 1) * .7; if (f < .03) return;
   if (b && b.flame) return SND.flame(f);
-  const low = b && (b.snd === 'boom' || b.snd === 'heavy' || b.snd === 'thump');
-  nz(.16, low ? 900 : 1800, .55 * f); tn(low ? 90 : 160, .08, .2 * f, 'square', 50);
+  const snd = b && SND[b.snd]; if (snd) withVol(f, () => snd()); else { nz(.16, 1800, .55 * f); tn(160, .08, .2 * f, 'square', 50); }
 }
 function updateAvatars(dt, peers) {
   const seen = new Set();
@@ -176,6 +190,7 @@ function updateAvatars(dt, peers) {
     a.pos.x = q.x; a.pos.z = q.z;
     a.vel.set((a.pos.x - px) / Math.max(dt, 1e-3), 0, (a.pos.z - pz) / Math.max(dt, 1e-3));
     if (P.dn && !a.down) killFeed(String(P.dby || 'a horda').slice(0, 30), '#c9c1a8', '', '', a.name, a.col);
+    for (const e of fresh('fx' + p.peer, P.fx)) playFx(e, a);
     for (const [, wn, wq, kn, hd, vb] of fresh('kf' + p.peer, P.kf)) { const rc = RARITIES[wq] ? RARITIES[wq].color : '#cfc6b0'; killFeed(a.name, a.col, String(wn).slice(0, 40), rc, String(kn).slice(0, 40), vb ? rc : '#c9c1a8', hd, vb ? String(vb).slice(0, 20) : ''); }
     a.down = !!P.dn; a.kc = +P.kc || 0; a.dd = +P.dd || 0; a.rvc = +P.rvc || 0; a.hp = +P.hp || 0; a.mh = +P.mh || 100; a.au = Array.isArray(P.au) ? P.au : null;
     a.yaw = q.yw; a.pitch = q.pt;
@@ -196,13 +211,16 @@ function updateAvatars(dt, peers) {
       if (b) { a.gun = buildGun({ base: b, q: clamp(+P.wq || 0, 0, 5) }, true); a.gun.scale.setScalar(1.25); a.gunG.add(a.gun); a.flash.position.set(0, 0, -((b.model.len + b.model.barrel) * 1.25 * .5) - .1); a.base = b; }
     }
     // their shots: flash, tracer toward where they aim, and the sound
-    if (a.sh === null) a.sh = +P.sh || 0;
+    if (a.sh === null) { a.sh = +P.sh || 0; a.shPrev = a.sh; }
     if ((+P.sh || 0) > a.sh && !a.down) {
       a.sh = +P.sh; a.flashT = .06; a.flash.visible = true; a.flash.material.rotation = Math.random() * 6;
       const from = new V3(); a.flash.getWorldPosition(from);
       const dir = new V3(-Math.sin(a.yaw) * Math.cos(a.pitch), Math.sin(a.pitch), -Math.cos(a.yaw) * Math.cos(a.pitch));
-      if (!(a.base && a.base.flame)) tracer(from, from.clone().addScaledVector(dir, 40), a.base && a.base.tracer || 0xffd9a0, .012);
-      else fxFlame(from, dir, 12, false); // their flame stream, like yours
+      const shots = Math.min(4, Math.max(1, (+P.sh || 0) - (a.shPrev || 0))), b = a.base || {}, col = ELEMENTS[P.we] ? ELEMENTS[P.we].hex : b.tracer || 0xffd9a0; a.shPrev = +P.sh || 0;
+      for (let k = 0; k < shots; k++) {
+        if (b.flame) { fxFlame(from, dir, 12, false); continue; }
+        for (let q = 0; q < Math.min(b.pellets || 1, 4); q++) { const d2 = dir.clone(); if ((b.pellets || 1) > 1 || k) d2.add(new V3(rand(-.05, .05), rand(-.03, .03), rand(-.05, .05))).normalize(); tracer(from, from.clone().addScaledVector(d2, b.range ? Math.min(b.range, 60) : 40), col, b.energy ? .03 : .012); }
+      }
       remoteShot(a.base, Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z));
     } else a.sh = Math.max(a.sh, +P.sh || 0);
     if ((a.flashT -= dt) <= 0) a.flash.visible = false;
@@ -237,8 +255,9 @@ function netAim(z) {
     const gens = AIM.filter(T => T.gen && T.alive); if (gens.length && z.id % 5 < 3 && !z.K.boss) z.tgt = gens.reduce((a, b) => Math.hypot(b.pos.x - z.pos.x, b.pos.z - z.pos.z) < Math.hypot(a.pos.x - z.pos.x, a.pos.z - z.pos.z) ? b : a); // on a defense job 3 in 5 zombies go for the nearest generator
   }
   player.pos = z.tgt.pos; player.vel = z.tgt.vel; zTarget = z.tgt;
+  sndVol = z.tgt.remote && NET.selfPos ? clamp(1 - Math.hypot(z.pos.x - NET.selfPos.x, z.pos.z - NET.selfPos.z) / 45, 0, 1) : 1; // its noises are where it is, not where its target is
 }
-function netAimEnd() { if (!AIM) return; player.pos = NET.selfPos; player.vel = NET.selfVel; zTarget = null; }
+function netAimEnd() { sndVol = 1; if (!AIM) return; player.pos = NET.selfPos; player.vel = NET.selfVel; zTarget = null; }
 // a zombie aimed at a remote player: the damage goes to them instead of the host
 function netRedirectHurt(d) {
   if (zTarget && zTarget.gen) { const M = mission; if (M && zTarget.esc && M.esc) { M.esc.hp -= d; M.esc.hitT = now; } else if (M && M.gens && M.gens[zTarget.gi]) { const G = M.gens[zTarget.gi]; G.hp -= d; G.hitT = now; } return true; } // the generator is sturdier than a person
@@ -288,6 +307,8 @@ function netHit(z, amt, o) {
   if (o.w && o.w.element && !o.chain) {
     if (o.w.element === 'fire') burn = Math.round(o.w.dmg * o.w.pellets * fireRate(o.w) * .12);
     else if (o.w.element === 'cryo') fl |= 16;
+    else if (o.w.element === 'corrosive') { fl |= 64; burn = Math.round(o.w.dmg * o.w.pellets * fireRate(o.w) * .1); }
+    else if (o.w.element === 'slag') fl |= 128;
     else applyElement(z, o.w, amt); // shock: the arc hits another proxy, which is sent too
   }
   pushRoll(NET.hits, [++NET.seq, z.id, Math.round(amt), fl, burn], 24);
@@ -303,7 +324,7 @@ function netKill(z, o) {
   teamLoot(z.kind, z.pos, z.elite, z.tier); // the host's own share of a member's kill
 }
 function teamLoot(kind, pos, elite, tier) { // loot is personal: a mate's kill still drops something for you, at 60% of the odds
-  const K = KINDS[kind]; if (!K || K.boss || !mission || mission.job.test || Math.random() > .6) return;
+  const K = KINDS[kind]; if (!K || !mission || mission.job.test || (K.boss && mission.job.bounty) || (!K.boss && Math.random() > .6)) return; // the Butcher drops for everyone
   dropLoot({ K, kind, elite: !!elite, tier: +tier || 0 }, new V3(pos.x, 0, pos.z));
 }
 // the killer's side: points, stats and their own loot roll
@@ -324,8 +345,8 @@ function buildSnapshot() {
   for (const z of zombies) {
     if (z.dead) continue;
     const fl = (z.rise > 0 ? 1 : 0) | (z.windup > 0 || z.bossState ? 2 : 0) | (z.elite ? 4 : 0) | (z.K.armor && z.armor <= 0 ? 8 : 0) | (z.burnT > 0 ? 16 : 0)
-      | (z.slowT > 0 ? 32 : 0) | (z.buffT > 0 ? 64 : 0) | (z.K.ghost && z.op > .5 ? 128 : 0) | (z.fuse > 0 ? 256 : 0) | (z.crouch > 0 ? 512 : 0) | (z.markT > 0 ? 1024 : 0) | ((AFFIX_KEYS.indexOf((z.traits || [])[0]) + 1) << 11) | ((AFFIX_KEYS.indexOf((z.traits || [])[1]) + 1) << 15) | ((z.tier || 0) << 19);
-    zs.push([z.id, KIND_IDS.indexOf(z.kind), Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), Math.round(z.g.rotation.y * 100), Math.max(0, Math.round(z.hp / z.maxHp * 100)), fl, Math.round(z.g.position.y * 10), Math.round(z.scale * 100)]);
+      | (z.slowT > 0 ? 32 : 0) | (z.buffT > 0 ? 64 : 0) | (z.K.ghost && z.op > .5 ? 128 : 0) | (z.fuse > 0 ? 256 : 0) | (z.crouch > 0 ? 512 : 0) | (z.markT > 0 ? 1024 : 0) | ((AFFIX_KEYS.indexOf((z.traits || [])[0]) + 1) << 11) | ((AFFIX_KEYS.indexOf((z.traits || [])[1]) + 1) << 15) | ((z.tier || 0) << 19) | (z.acidT > 0 ? 1 << 21 : 0) | (z.slagT > 0 ? 1 << 22 : 0);
+    zs.push([z.id, KIND_IDS.indexOf(z.kind), Math.round(z.pos.x * 10), Math.round(z.pos.z * 10), Math.round(z.g.rotation.y * 100), Math.max(0, Math.round(z.hp / z.maxHp * 100)), fl, Math.round(z.g.position.y * 10), Math.round(z.scale * 100), Math.round(z.maxHp)]);
     if (zs.length >= 90) break;
   }
   const keys = Object.keys(AREAS);
@@ -334,7 +355,7 @@ function buildSnapshot() {
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
     kc: M.kc || 0, rt: M.rt || 0, be: NET.bev, ca: M.cache && M.cache.t > 0 ? [Math.round(M.cache.x * 10), Math.round(M.cache.z * 10), Math.round(M.cache.t)] : null, tl: NET.tel, gh: M.gens ? M.gens.map(G => Math.round(G.hp / G.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, M.esc.leg, Math.round(M.esc.pos.distanceTo(M.esc.end))] : null, cr: M.crates ? M.crates.map(c => [Math.round(c.pos.x * 10), Math.round(c.pos.z * 10), c.st, c.by || '']) : null, dv: M.drop ? [Math.round(M.drop.pos.x * 10), Math.round(M.drop.pos.z * 10)] : null, od: M.objDone ? 1 : 0,
-    tr: trapState.map(T => Math.max(0, Math.round(T.active * 10) / 10)), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
+    tr: trapState.map(T => T.active > 0 ? Math.round(T.active * 10) / 10 : -Math.round((T.cd || 0) * 10) / 10), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
   };
@@ -344,7 +365,7 @@ function myPresence() {
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
     pt: Math.round(player.pitch * 100) / 100, sh: NET.shots || 0, kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0] : null, rv: NET.rv,
-    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, tu: turrets.filter(t => !t.station).map(t => [Math.round(t.g.position.x * 10), Math.round(t.g.position.z * 10), (t.rocket ? 1 : 0) | (t.shield ? 2 : 0) | (t.small ? 4 : 0), Math.round(t.head.rotation.y * 100) / 100]), h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
+    wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, fx: NET.fx, we: w ? w.element || '' : '', tu: turrets.filter(t => !t.station).map(t => [Math.round(t.g.position.x * 10), Math.round(t.g.position.z * 10), (t.rocket ? 1 : 0) | (t.shield ? 2 : 0) | (t.small ? 4 : 0), Math.round(t.head.rotation.y * 100) / 100]), h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }
 // only take list entries newer than what was seen; the first sight of a sender skips its history
 function fresh(key, list) {
@@ -383,7 +404,9 @@ function netTick(dt) {
       if (p.sameTab || !p.presence || !p.presence.p) continue;
       for (const [, zid, dmg, fl, burn] of fresh('h' + p.peer, p.presence.p.h)) {
         const z = NET.zById.get(zid); if (!z || z.dead) continue;
-        if (burn > 0) { z.burnT = 3; z.burnDps = Math.max(z.burnDps, Math.min(+burn, 1e6)); z.burnBy = p.peer; }
+        if (fl & 64) { z.acidT = 4; z.acidDps = Math.max(z.acidDps || 0, Math.min(+burn || 0, 1e6)); z.acidBy = p.peer; z.acidW = null; }
+        else if (burn > 0) { z.burnT = 3; z.burnDps = Math.max(z.burnDps, Math.min(+burn, 1e6)); z.burnBy = p.peer; }
+        if (fl & 128) z.slagT = 5;
         if (fl & 16) z.slowT = 2.5;
         hurtZombie(z, clamp(+dmg || 0, 0, 1e7), { remote: p.peer, head: !!(fl & 1), crit: !!(fl & 2), melee: !!(fl & 4), dot: !!(fl & 8), insta: !!(fl & 32) });
       }
@@ -441,11 +464,11 @@ function applySnapshot(g, hostPeer) {
   // areas and traps
   const keys = Object.keys(AREAS);
   keys.forEach((k, i) => { if ((g.ar & (1 << i)) && !AREAS[k].unlocked) openArea(k); });
-  if (Array.isArray(g.tr)) g.tr.forEach((v, i) => { if (trapState[i]) trapState[i].active = +v || 0; });
+  if (Array.isArray(g.tr)) g.tr.forEach((v, i) => { const T = trapState[i]; if (!T) return; if (+v < 0) { T.active = 0; T.cd = -v; } else T.active = +v || 0; });
   // zombies
   const live = new Set();
   if (Array.isArray(g.z)) for (const e of g.z) {
-    const [id, ki, x, zz, h, hp, fl, y, sc] = e, kind = KIND_IDS[ki]; if (!kind) continue;
+    const [id, ki, x, zz, h, hp, fl, y, sc, mh] = e, kind = KIND_IDS[ki]; if (!kind) continue;
     live.add(id);
     let z = NET.zById.get(id);
     if (!z) {
@@ -453,11 +476,12 @@ function applySnapshot(g, hostPeer) {
       z.id = id; z.elite = !!(fl & 4); z.scale = (+sc || 100) / 100; z.g.scale.setScalar(z.scale);
       NET.zById.set(id, z);
       const bk = Array.isArray(g.bb) && g.bb[0] === id && BOUNTIES[g.bb[1]] ? g.bb[1] : null;
-      if (bk) bountyLook(z, bk);
+      if (bk) { bountyLook(z, bk); SND.threat(3); }
       if (z.K.boss) { banner(bk ? BOUNTIES[bk].name.toUpperCase() : 'A MÉSZÁROS', bk ? BOUNTIES[bk].desc : 'Az utadat állja a furgon felé.'); SND.roar(); }
-      z.traits = [AFFIX_KEYS[((fl >> 11) & 15) - 1], AFFIX_KEYS[((fl >> 15) & 15) - 1]].filter(Boolean); z.affix = z.traits[0] || null; { const nt = (fl >> 19) & 3; if (nt >= 2 && !z.tierHeard) { z.tierHeard = true; SND.threat(nt); } z.tier = nt; }
+      z.traits = [AFFIX_KEYS[((fl >> 11) & 15) - 1], AFFIX_KEYS[((fl >> 15) & 15) - 1]].filter(Boolean); z.affix = z.traits[0] || null; { const nt = (fl >> 19) & 3, heard = NET.heard || (NET.heard = new Set()); if (nt >= 2 && !heard.has(id) && Math.hypot(x / 10 - player.pos.x, zz / 10 - player.pos.z) < 60) { heard.add(id); SND.threat(nt); } z.tier = nt; }
     }
     if (z.dead && z.predDead) { if (tr - z.predDead > 700) resurrect(z); else continue; } // our kill wasn't confirmed: it gets back up
+    if (+mh > 0) z.maxHp = +mh; // the host's number, ranks and party size included
     const hpv = clamp(+hp || 0, 0, 100) / 100 * z.maxHp;
     if (hpv < z.hp || now - (z.hitT || -9) > .4) z.hp = hpv;
     z.net = { x: x / 10, z: zz / 10, h: h / 100, y: (+y || 0) / 10, fl }; if (fl & 1024) z.markT = Math.max(z.markT || 0, .3);
@@ -466,19 +490,19 @@ function applySnapshot(g, hostPeer) {
   for (const [id, z] of NET.zById) if (!live.has(id)) { NET.zById.delete(id); proxyDie(z); }
   if (Array.isArray(g.bb)) { const bz = NET.zById.get(g.bb[0]); if (bz) { if (BOUNTIES[g.bb[1]]) bountyLook(bz, g.bb[1]); bz.phase = g.bb[2]; bz.invulnT = g.bb[3] ? .5 : 0; } }
   NET.hz = Array.isArray(g.hz) ? g.hz : [];
-  for (const [, t, s] of fresh('be' + hostPeer, g.be)) banner(String(t).slice(0, 40), String(s || '').slice(0, 80));
+  for (const [, t, s] of fresh('be' + hostPeer, g.be)) { banner(String(t).slice(0, 40), String(s || '').slice(0, 80)); if (/FÁZIS/.test(t)) SND.roar(); }
   if (Array.isArray(g.ca) && !M.cache) { M.cache = { x: (+g.ca[0] || 0) / 10, z: (+g.ca[1] || 0) / 10, t: clamp(+g.ca[2] || 0, 0, 60) }; buildCache(M.cache); banner('UTÁNPÓTLÁS-LÁDA', 'A térkép túloldalán, 60 mp-ig nyitható.'); }
   for (const [, x, z, r, t, col, kind] of fresh('tl' + hostPeer, g.tl)) { // the host's warnings: same ring here; the frost wave chills us too
     const at = new V3((+x || 0) / 10, 0, (+z || 0) / 10), R = clamp((+r || 0) / 10, .5, 30);
     if (kind === 'heal') { tn(520, 1.4, .08, 'sine', 900); popText('A Főorvos gyógyítani készül: sebezd meg!', '#6aff9a'); }
     if (kind === 'bell') { tn(220, 1.6, .12, 'sine', 200); tn(330, 1.6, .06, 'sine', 300); popText('A harang mindjárt megszólal: fedezékbe!', '#d8c47a'); }
-    telegraph(at, R, +col || 0xffffff, clamp((+t || 0) / 100, .1, 3), () => { if (kind === 'bell') bellHit(at); if (kind === 'frost' && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < R) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); } });
+    telegraph(at, R, +col || 0xffffff, clamp((+t || 0) / 100, .1, 3), () => { if (kind === 'boom' || kind === 'fire') { fxExplosion(at.clone().setY(.6), +col || 0xffd23f, R); withVol(clamp(1 - Math.hypot(at.x - player.pos.x, at.z - player.pos.z) / 60, 0, 1), () => SND.explode()); } if (kind === 'bell') bellHit(at); if (kind === 'frost' && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < R) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); } });
   }
   M.kc = +g.kc || 0;
   if (g.rt != null && M.rt != null && g.rt !== M.rt && (player.down || player.ffyl > 0)) netRevive(); M.rt = g.rt;
   if (M.esc && Array.isArray(g.es)) { const E = M.esc, hp = (+g.es[2] || 0) / 1000 * E.max; if (hp < E.hp - 1) E.hitT = now; E.hp = hp; E.net = new V3((+g.es[0] || 0) / 10, 0, (+g.es[1] || 0) / 10); E.moving = !!g.es[3]; E.leg = +g.es[4] || E.leg; E.netDist = +g.es[5] || 0; }
   if (M.gens && Array.isArray(g.gh)) M.gens.forEach((G, k) => { const hp = (+g.gh[k] || 0) * G.max; if (hp < G.hp - 1) G.hitT = now; G.hp = hp; });
-  if (M.crates && Array.isArray(g.cr)) { player.carry = null; M.crates.forEach((c, i) => { const e = g.cr[i]; if (!e) return; c.st = +e[2] || 0; c.by = e[3] || ''; if (!(c.st === 1 && c.by === NET.me)) c.pos.set(e[0] / 10, 0, e[1] / 10); if (c.st === 1 && c.by === NET.me) player.carry = i; }); }
+  if (M.crates && Array.isArray(g.cr)) { const had = player.carry; player.carry = null; M.crates.forEach((c, i) => { const e = g.cr[i]; if (!e) return; if (c.st !== 2 && +e[2] === 2) { burst(new V3(c.pos.x, 1.2, c.pos.z), 0xf2c12a, 14, 3, .5); popText(`Láda leadva · ${g.cr.filter(q => +q[2] === 2).length}/${g.cr.length}`, '#f2c12a'); SND.buy(); } if (+e[2] === 1 && e[3] === NET.me && had !== i) { SND.pickup(2); popText('Vidd a lerakó furgonhoz · E: letétel', '#f2c12a'); } c.st = +e[2] || 0; c.by = e[3] || ''; if (!(c.st === 1 && c.by === NET.me)) c.pos.set(e[0] / 10, 0, e[1] / 10); if (c.st === 1 && c.by === NET.me) player.carry = i; }); }
   if (g.dv && !M.drop) buildDropVan(M, g.dv[0] / 10, g.dv[1] / 10);
   if (M.crates) updateCrates(M, 0);
   if (g.od && !M.objDone) { M.objDone = true; M.job.dur = M.t + EVAC_WARN + 1; banner('CÉL TELJESÍTVE', 'Jön a furgon. Irány a zöld jelzés!'); }
@@ -495,6 +519,7 @@ function proxyDie(z) {
 }
 // proxies glide to the host's positions and animate themselves
 function updateProxies(dt) {
+  for (const z of zombies) { const f = z.net && z.net.fl; if (!f || z.dead) continue; if ((f & (1 << 21)) && Math.random() < dt * 8) burst(new V3(z.pos.x + rand(-.2, .2), rand(.4, 1.6) * z.scale, z.pos.z + rand(-.2, .2)), 0x9dff3a, 1, .8, .35); if ((f & (1 << 22)) && Math.random() < dt * 6) burst(new V3(z.pos.x, rand(.6, 1.8) * z.scale, z.pos.z), 0xc86aff, 1, .6, .35); } // the host's acid and slag
   for (let i = zombies.length - 1; i >= 0; i--) {
     const z = zombies[i], K = z.K, s = z.net;
     if (z.dead) {

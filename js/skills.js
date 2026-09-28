@@ -182,7 +182,7 @@ function useAbility() {
     auraMesh.position.set(aura.pos.x, .04, aura.pos.z); auraMesh.visible = true;
     banner('SZENTELT KÖR', 'Maradj a körben.');
   }
-  player.abilCd = abilityCd(); SND.power();
+  player.abilCd = abilityCd(); SND.power(); pushFx(['ab', c]); if (c === 'medic' && aura) pushFx(['au', Math.round(aura.pos.x * 10), Math.round(aura.pos.z * 10), Math.round(aura.t)]);
   (player.buf || (player.buf = {})).ability = 8;
 }
 function updateSkills(dt) {
