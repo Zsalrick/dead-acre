@@ -21,10 +21,13 @@ const RARITIES = [
   { name: 'Legendás',       color: '#ff8c1a', w: .5, elem: 1 },
   { name: 'Egzotikus',         color: '#ff3b3b', w: .06, elem: 1 }, // one-of-a-kind guns with their own trick (UNIQUES)
 ];
+const KINETIC = { name: 'Kinetikus', color: '#c8c0a8', desc: 'Nincs eleme: +8% alapsebzés' }; // the plain gun's own small edge
 const ELEMENTS = {
   fire:  { name: 'Tűz',   word: 'Hellfire',  color: '#ff6a2a', hex: 0xff6a2a, desc: 'Felgyújtja a célt (3 mp)' },
   shock: { name: 'Villám', word: 'Storm',    color: '#7d8dff', hex: 0x7d8dff, desc: 'Átugrik egy közeli zombira' },
   cryo:  { name: 'Fagy',  word: 'Frostbite', color: '#8ff0ff', hex: 0x8ff0ff, desc: 'Lelassítja a célt (2,5 mp)' },
+  corrosive: { name: 'Maró', word: 'Caustic', color: '#9dff3a', hex: 0x9dff3a, desc: 'Sav marja 4 mp-ig, és a páncélt kétszer olyan gyorsan töri' },
+  slag:  { name: 'Salak', word: 'Slagged',   color: '#c86aff', hex: 0xc86aff, desc: 'Megjelöli a célt: 5 mp-ig +40% sebzést kap minden más forrásból' },
 };
 // weapon categories (skills and makers both key off these)
 const CAT = { carbine: 'rifle', sawed: 'shotgun', plasma: 'energy', ar: 'rifle', burst: 'rifle', lmg: 'heavy', minigun: 'heavy', dmr: 'marks', sniper: 'marks', crossbow: 'marks', lever: 'marks',

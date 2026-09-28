@@ -288,12 +288,24 @@ document.addEventListener('pointerlockchange', () => {
   else { locked = false; if (state === 'playing') pause(); }
 });
 let quitArmed = false, pausedAt = 0;
+let pauseWant = null; // Tab / I asks for the inventory; Esc (or losing the mouse) opens the menu
+function pauseMode(m) { $('pause').dataset.mode = m; if (m === 'inv') renderPauseInv(); else renderPauseMenu(); $('keybar').hidden = m !== 'inv'; }
+function renderPauseMenu() {
+  const M = mission, J = M.job, T = JOB_TYPES[J.type], obj = objectiveLine(M) || (J.bounty ? `Győzd le: ${BOUNTIES[J.bounty] ? BOUNTIES[J.bounty].name : 'a fejvadász'}` : J.test ? 'Lőtér' : M.phase === 'evac' ? 'A furgon itt van: szállj be!' : `Éld túl, amíg a furgon visszajön · ${fmtTime(Math.max(0, (J.dur || 0) - (M.t || 0)))}`);
+  $('pmission').innerHTML = `<div class="eyebrow">${J.test ? 'Lőtér' : `${MAPS[J.map] ? MAPS[J.map].name : ''} · ${J.bounty ? 'Fejvadászat' : T ? T.name : ''}${J.tier ? ` · Rémálom +${J.tier}` : ` · ${'★'.repeat(J.diff)}`}`}</div>
+    <div class="pmt">${J.title}</div><div class="pmobj"><small>Feladat</small>${obj}</div>
+    <div class="pmfacts"><span>Veszélyszint <b>${round}</b></span><span>Pont <b>${player.points}</b></span><span>Ölés <b>${player.kills}</b></span>${M.parts ? `<span>Kijutáskor <b>${M.parts} ⚙</b></span>` : ''}${M.fabric ? `<span>Kijutáskor <b>${M.fabric} ${FAB}</b></span>` : ''}</div>
+    ${modHudText() ? `<div class="pmmods">${modHudText()}</div>` : ''}`;
+  $('quitBtn2').textContent = J.test ? 'Vissza a bázisra' : 'Munka feladása';
+}
+$('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
+  if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'quit') $('quitBtn').click(); });
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
   state = 'paused'; mouseDown = rmb = false; pausedAt = performance.now(); quitArmed = false; $('quitBtn').textContent = mission && mission.job.test ? 'Vissza a bázisra' : 'Munka feladása';
   $('pauseNote').textContent = note || (noLock ? 'Az egér itt nem zárolható: mozgasd az egeret az ablakon belül, vagy fordulj a nyilakkal.' : '');
   $('pauseInfo').textContent = mission.job.test ? 'Lőtér · a fegyvereidet és a páncélt eldobhatod a társaidnak' : `Szünet · ${mission.job.title} · ${round}. szintű veszély · ${player.points} pont${mission.parts ? ` · ${mission.parts} ⚙ evakuáláskor` : ''}`;
-  renderPauseInv();
+  pauseMode(pauseWant || 'menu'); pauseWant = null;
   $('pause').hidden = false;
 }
 // the inventory: move guns between hands and bag, drop them, see the gear you found
@@ -375,13 +387,15 @@ addEventListener('keydown', e => {
   const c = keyCode(e.code) || ''; if (c) keys[c] = true;
   if (state === 'hub' && (e.code === 'KeyQ' || e.code === 'KeyE') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { hubCycle(e.code === 'KeyE' ? 1 : -1); return; }
   if (state === 'hub' && invKey(e, $('hubBody'))) return;
-  if (state === 'paused' && !$('pause').hidden && invKey(e, $('loadout'))) return;
+  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'menu' && e.code === 'Escape' && performance.now() - pausedAt > 400) { resume(); return; }
+  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && e.code === 'Escape') { pauseMode('menu'); return; }
+  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && invKey(e, $('loadout'))) return;
   if (state === 'station' && (e.code === 'Escape' || e.code === 'KeyE')) { closeStation(e.code === 'Escape'); return; }
   if (state === 'paused' && (e.code === 'Escape' || e.code === 'KeyP') && noLock) { resume(); return; }
   if (state === 'paused' && e.code === 'Escape' && !$('pause').hidden && performance.now() - pausedAt > 400) { closePauseForClick(); return; }
   if (e.code === 'Tab') e.preventDefault();
-  if (state === 'paused' && (c === 'KeyI' || e.code === 'Tab')) { resume(); return; }
-  if (state === 'playing' && (c === 'KeyI' || e.code === 'Tab') && !(mission && mission.leaving)) { if (locked) document.exitPointerLock(); else pause(); return; }
+  if (state === 'paused' && (c === 'KeyI' || e.code === 'Tab')) { if ($('pause').dataset.mode === 'menu') pauseMode('inv'); else resume(); return; }
+  if (state === 'playing' && (c === 'KeyI' || e.code === 'Tab') && !(mission && mission.leaving)) { pauseWant = 'inv'; if (locked) document.exitPointerLock(); else pause(); return; }
   if (state !== 'playing' || (mission && mission.leaving) || player.down) return;
   if (player.ffyl > 0 && !['KeyR', 'Digit1', 'Digit2', 'Escape', 'KeyP', 'KeyZ'].includes(c)) return; // on the ground: shoot, reload, swap
   if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
@@ -493,7 +507,15 @@ function cardHTML(w, action, c) {
     ${w.flavor ? `<div class="flav">${w.flavor}</div>` : ''}
     <div class="act">${action}</div>`;
 }
+function modHudText() { // what makes this job harder or richer, for the corner of the screen
+  const J = mission && mission.job; if (!J || J.test) return '';
+  const L = []; if (J.mod && MODS[J.mod]) L.push(`<b>${MODS[J.mod].label}</b><small>${MODS[J.mod].sub}</small>`);
+  for (const k of J.dir || []) if (DIRECTIVES[k]) L.push(`<b class="dir">${DIRECTIVES[k].name}</b>`);
+  if (J.tier) L.push(`<b class="nm">Rémálom +${J.tier}</b>`); if (J.map === featuredMap()) L.push('<b class="ft">Heti kiemelt pálya · +25% XP</b>');
+  return L.join('');
+}
 function updateHUD() {
+  { const mh = $('modhud'), t = ['playing', 'intro'].includes(state) ? modHudText() : ''; if (mh.dataset.t !== t) { mh.innerHTML = t; mh.dataset.t = t; } mh.hidden = !t; }
   const w = curW();
   focus = findFocus();
   let card = '', prompt = '';

@@ -227,6 +227,7 @@ function shotMul(w) {
   if (a === 'lowhp' && player.hp < maxHp() * .35) m *= 1.6;
   if (a === 'first' && (w.fired || 0) < 3) m *= 2;
   if (a === 'swap' && B.swap > 0) m *= 1.4;
+  if (!w.element) m *= 1.08; // kinetic
   if (w.tal === 'optimist') m *= 1 + .3 * (1 - w.ammo / Math.max(1, w.mag));
   if (w.tal === 'frenzy' && now < (player.frenzyT || 0)) m *= 1.2;
   if (w.unique === 'thirteen' && w.ammo === 0) m *= 5;

@@ -13,6 +13,7 @@ let profile = null, slot = 0, stats = emptyStats();
 const SHARED_KEY = 'deadacre.shared', SHARED_MAX = 30;
 const SH = Object.assign({ w: [], g: [] }, store.get(SHARED_KEY) || {});
 const saveShared = () => store.set(SHARED_KEY, SH);
+if (!SH.vet) SH.vet = { ranks: {}, xp: 0, ch: {} }; // the account-wide veteran rank (vet.js)
 
 const packW = w => w ? Object.assign({}, w, { base: w.base.id }) : null;
 function unpackW(o) {
@@ -47,7 +48,7 @@ function openProfile(n) {
   if (!profile.shop.length || !profile.gshop.length) rollShop();
   saveProfile();
 }
-function saveProfile() { if (profile) { profile.at = Date.now(); store.set(SLOT_KEY(slot), profile); } }
+function saveProfile() { if (profile) { if (typeof vetSync === 'function') vetSync(); profile.at = Date.now(); store.set(SLOT_KEY(slot), profile); } }
 const deleteProfile = n => store.del(SLOT_KEY(n));
 
 // ---------- progression ----------
@@ -55,7 +56,7 @@ const LEVEL_CAP = 30; // like The Division: past the cap, XP fills veteran point
 const xpNeed = l => 300 + 250 * Math.min(l, LEVEL_CAP);
 function addXp(n) {
   let ups = 0; profile.xp += n;
-  while (profile.xp >= xpNeed(profile.level)) { profile.xp -= xpNeed(profile.level); if (profile.level < LEVEL_CAP) { profile.level++; ups++; } else profile.vetXp = (profile.vetXp || 0) + 1; }
+  while (profile.xp >= xpNeed(profile.level)) { profile.xp -= xpNeed(profile.level); if (profile.level < LEVEL_CAP) { profile.level++; ups++; } else SH.vet.xp = (SH.vet.xp || 0) + 1; }
   return ups;
 }
 function noteFound(w) {

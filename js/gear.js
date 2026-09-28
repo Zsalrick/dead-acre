@@ -101,7 +101,7 @@ function gearTotals() {
   const t = {}, add = (k, v) => t[k] = (t[k] || 0) + v, count = brandCounts();
   for (const it of wornGear()) { const e = 1 + .03 * (it.exp || 0); add('armor', it.armor * e); for (const k in it.stats) add(k, it.stats[k] * e); add(BRANDS[it.brand].core[0], coreVal(it) * e); } // expertise: +3% a level
   for (const b in count) for (const [n, k, v] of BRANDS[b].sets) if (count[b] >= n) add(k, v);
-  if (profile && profile.vet) for (const k in profile.vet) if (VET[k] && profile.vet[k] > 0) add(k, vetVal(k, profile.vet[k])); // veteran ranks (vet.js)
+  if (vetOpen()) for (const k in SH.vet.ranks) if (VET[k] && SH.vet.ranks[k] > 0) add(k, vetVal(k, SH.vet.ranks[k])); // veteran ranks (vet.js): shared, from level 30
   return gearCache = t;
 }
 const G = k => gearTotals()[k] || 0;

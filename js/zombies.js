@@ -183,8 +183,9 @@ function hurtZombie(z, amt, o = {}) {
     if (o.w && rk('h_exec') && z.hp < z.maxHp * .25) amt *= 2;
     if (powers.insta > 0 && !o.dot && !z.K.boss) amt = Math.max(amt, z.hp);
   }
+  if (z.slagT > 0 && !(o.w && o.w.element === 'slag')) amt *= 1.4; // slagged: everything else hits harder
   if (z.armor > 0 && !o.head && !o.dot && !o.melee) { // armour soaks most body damage until it breaks
-    z.armor -= amt; amt *= .25;
+    z.armor -= amt * (z.acidT > 0 ? 2 : 1); amt *= .25;
     burst(new V3(z.pos.x, 1.3 * z.scale, z.pos.z), 0xc8d0d8, 2, 2, .25);
     if (z.armor <= 0) { z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xc8d0d8, 16, 3.5, .6); o.color = '#c8d0d8'; }
     else o.color = o.color || '#8a929a';
@@ -206,6 +207,8 @@ function hurtZombie(z, amt, o = {}) {
 function applyElement(z, w, amt) {
   if (w.element === 'fire') { z.burnT = 3; z.burnBy = null; z.burnW = w; z.burnDps = Math.max(z.burnDps, w.dmg * w.pellets * fireRate(w) * .12); } // ~12% of the gun's DPS, the same for every gun
   else if (w.element === 'cryo') z.slowT = 2.5;
+  else if (w.element === 'corrosive') { z.acidT = 4; z.acidW = w; z.acidDps = Math.max(z.acidDps || 0, w.dmg * w.pellets * fireRate(w) * .1); burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x9dff3a, 4, 2, .3); }
+  else if (w.element === 'slag') { z.slagT = 5; burst(new V3(z.pos.x, 1.4 * z.scale, z.pos.z), 0xc86aff, 5, 2, .35); }
   else if (w.element === 'shock') {
     let best = null, bd = 5;
     for (const o of zombies) { if (o === z || o.dead) continue; const d = o.pos.distanceTo(z.pos); if (d < bd) { bd = d; best = o; } }
@@ -375,6 +378,12 @@ function updateZombies(dt) {
       if (z.burnAcc > 0 && (z.burnAcc >= z.burnDps * .5 || z.burnT <= 0)) { const a = z.burnAcc; z.burnAcc = 0; hurtZombie(z, a, { dot: true, color: ELEMENTS.fire.color, remote: z.burnBy || undefined, w: z.burnBy ? undefined : z.burnW }); if (z.dead) continue; }
       if (z.burnT <= 0) z.burnDps = 0;
     }
+    if (z.acidT > 0) { // corrosive: acid ticks, green drips
+      z.acidT -= dt; z.acidAcc = (z.acidAcc || 0) + z.acidDps * dt;
+      if (Math.random() < dt * 8) burst(new V3(z.pos.x + rand(-.2, .2), rand(.4, 1.6) * z.scale, z.pos.z + rand(-.2, .2)), 0x9dff3a, 1, .8, .35);
+      if (z.acidAcc >= z.acidDps * .5 || z.acidT <= 0) { const a = z.acidAcc; z.acidAcc = 0; if (a > 0) hurtZombie(z, a, { dot: true, color: ELEMENTS.corrosive.color, w: z.acidW }); if (z.dead) continue; }
+    }
+    z.slagT = (z.slagT || 0) - dt;
     z.slowT -= dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
     const fuseBlink = z.fuse > 0 && Math.sin(now * 40) > 0;
     const em = z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0x0d100b; // a faint glow so they read against the dark

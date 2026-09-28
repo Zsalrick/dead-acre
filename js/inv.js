@@ -136,7 +136,7 @@ function weaponDetail(w, cmp, actions) {
       ${w.tal && TALENTS[w.tal] ? dtal('Tehetség', TALENTS[w.tal].name, TALENTS[w.tal].desc, '#ffd23f') : ''}
       ${w.anoint && ANOINTS[w.anoint] ? dtal('Felkenés', '', ANOINTS[w.anoint], '#6ff0c8') : ''}
       ${w.oc && OVERCLOCKS[w.oc] ? dtal('Túlhajtás', OVERCLOCKS[w.oc].name, OVERCLOCKS[w.oc].desc, '#b48cff') : ''}
-      ${el ? dtal('Elem', el.name, el.desc, el.color) : ''}
+      ${el ? dtal('Elem', el.name, el.desc, el.color) : dtal('Elem', KINETIC.name, KINETIC.desc, KINETIC.color)}
     </div>
     <h4 class="dsec">Fő értékek <small>a csík: hol áll a véletlen dobás (bal: legrosszabb, jobb: legjobb)</small></h4>
     <table class="dtab">

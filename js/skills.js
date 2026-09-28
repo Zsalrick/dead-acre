@@ -100,6 +100,8 @@ const AUGMENTS = {
   medic: [['revive', 'Feltámasztó kör', 'A körben dupla a gyógyítás, és az elesett társak felállnak benne.'], ['smite', 'Ítélet', 'A kör égeti és erősen lassítja a benne álló zombikat.'], ['mobile', 'Vándorszentély', 'A kör veled együtt mozog.']],
 };
 const AUG_COST = 2;
+const augAllowed = () => Math.min(4, Math.floor(treeSpent() / 3)); // the 2nd tree row opens the first augment, every row after one more
+const augOwned = cls => (AUGMENTS[cls] || []).filter(x => (profile.augOwn || []).includes(x[0])).length;
 const augOn = id => !!profile && !!profile.aug && profile.aug[profile.cls] === id;
 const rk = id => (profile && profile.skills && profile.skills[id]) || 0;
 const isCls = c => !!profile && profile.cls === c;
@@ -236,10 +238,10 @@ function skillsTab() {
       <div class="hubbtns">${mine ? hbtn(`Pontok vissza · $${RESPEC}`, 'respec', P.cash < RESPEC || !spent) : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></div>
     <p class="lede"><b>Passzív:</b> ${C.passive} <b>[C] ${C.ability.name}:</b> ${C.ability.desc} Töltődés: ${mine ? Math.round(abilityCd()) : C.ability.cd} mp.</p>
     <p class="tokens">${mine ? 'Elkölthető' : 'Ennél a kasztnál elkölthető'}: <strong>${tok}</strong> érdemérem · a fában: ${spent} pont${mine ? '' : ' · a pontjaid kasztonként megmaradnak, a váltás ingyenes'}</p>
-    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív, szabadon váltható</small></h3>
+    <h3>Képesség-módosítók <small>${C.ability.name} · egy lehet aktív · a fa 2. szintjétől szintenként egy nyitható</small></h3>
     <div class="augs">${(AUGMENTS[V] || []).map(([id, name, desc]) => {
       const own = (P.augOwn || []).includes(id), on = mine && augOn(id);
-      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : ''}</div>`;
+      return `<div class="node aug${on ? ' max' : own ? ' has' : ''}"><b>${name}</b><small>${desc}</small>${mine ? (own || augOwned(V) < augAllowed() ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érem`, `aug:${id}`, on || (!own && P.tokens < AUG_COST)) : `<small class="lockt">Zárva · a fában ${3 * (augOwned(V) + 1)} pont kell (van: ${spent})</small>`) : ''}</div>`;
     }).join('')}</div>
     <div class="tree">${rows}</div>`;
 }
@@ -266,7 +268,7 @@ function skillAction(kind, a) {
   if (kind === 'aug') {
     const ok = (AUGMENTS[P.cls] || []).some(x => x[0] === a); if (!ok) return false;
     P.augOwn = P.augOwn || []; P.aug = P.aug || {};
-    if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST) return false; P.tokens -= AUG_COST; P.augOwn.push(a); }
+    if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST || augOwned(P.cls) >= augAllowed()) return false; P.tokens -= AUG_COST; P.augOwn.push(a); }
     P.aug[P.cls] = a; return true;
   }
   if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.tokens += treeSpent(); P.skills = {}; return true; }
