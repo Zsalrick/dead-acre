@@ -499,7 +499,7 @@ function mergeStatic() {
   const BU = THREE.BufferGeometryUtils; if (!BU) return;
   const roots = new Set([truck.g, ...vanGates.map(g => g.g), ...mapSpin, ...props.filter(p => p.type === 'boom').map(p => p.g)]);
   for (const k in AREAS) { roots.add(AREAS[k].barricade); if (AREAS[k].chest && AREAS[k].chest.lid) roots.add(AREAS[k].chest.lid.parent); }
-  const skip = new Set([box.mesh, ...lamps.map(l => l.bulb)]), by = new Map();
+  const skip = new Set([box.mesh, ...lamps.map(l => l.bulb)]), by = new Map(); if (box.deco) roots.add(box.deco);
   mapGroup.updateMatrixWorld(true);
   const walk = o => { for (const c of o.children) {
     if (roots.has(c)) continue;

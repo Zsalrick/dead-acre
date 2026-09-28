@@ -54,6 +54,18 @@ function pointLight(color, i, d, x, y, z) { // from the pool; past 16 a map ligh
 }
 const mapLabels = [];
 function label(lines, color, size, x, y, z) { const s = textSprite(lines, color, size); s.position.set(x, y, z); mapLabels.push(s); return put(s); }
+
+// ---------- set dressing for stations and shops ----------
+const panelCache = {};
+function panelTex(key, w, h, draw) { // a painted sign, drawn once per key
+  if (panelCache[key]) return panelCache[key];
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return panelCache[key] = t;
+}
+function deco(geo, mat, x, y, z, sx = 1, sy = 1, sz = 1, parent) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = sx * sy * sz > .02; (parent || mapGroup).add(m); return m; }
+const ironMat = new THREE.MeshStandardMaterial({ color: 0x3a3c40, metalness: .8, roughness: .35 }), brassMat = new THREE.MeshStandardMaterial({ color: 0xb8923a, metalness: .8, roughness: .35 });
+const sandMat = new THREE.MeshLambertMaterial({ color: 0x8a7a58 });
+const hazardTex = panelTex('hazard', 128, 32, (g, w, h) => { g.fillStyle = '#e8b82a'; g.fillRect(0, 0, w, h); g.fillStyle = '#111'; for (let x = -h; x < w; x += 24) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 12, h); g.lineTo(x + 12 + h, 0); g.lineTo(x + h, 0); g.fill(); } });
 function lamp(x, z) {
   addBox(x, z, .2, .2, 4.2, poleMat);
   const bulb = put(new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), basic(0xffc070))); bulb.position.set(x, 4.25, z);
@@ -659,8 +671,15 @@ function buildArea(a) {
   const keys = Object.keys(PERKS), pk = keys[Math.floor(mulberry(Math.round(mapSeed + c.minX * 7 + c.minZ * 13))() * keys.length)], P = PERKS[pk];
   const [mx, mz] = corners[0], [chx, chz] = corners[1];
   a.perk = { key: pk, pos: new V3(mx, 0, mz) };
-  addBox(mx, mz, 1.1, .8, 2.1, matStd({ color: 0x2a2a30, metalness: .4, roughness: .5 }));
-  addBox(mx, mz, 1.12, .82, .5, new THREE.MeshBasicMaterial({ color: P.color }), 1.35, false);
+  addBox(mx, mz, 1, 1, 2.1, matStd({ color: 0x2a2a30, metalness: .4, roughness: .5 }));
+  addBox(mx, mz, 1.02, 1.02, .1, new THREE.MeshBasicMaterial({ color: P.color }), 2, false);
+  { const hex = '#' + P.color.toString(16).padStart(6, '0'), face = new THREE.Group(); face.position.set(mx, 0, mz); face.rotation.y = Math.atan2(cx - mx, cz - mz); mapGroup.add(face);
+    const tex = panelTex('perk' + pk, 128, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, hex); gr.addColorStop(1, '#101014'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(10, 96, w - 20, 110); g.fillStyle = '#fff'; g.font = 'bold 20px Impact, sans-serif'; g.textAlign = 'center'; g.fillText(P.name.toUpperCase(), w / 2, 60);
+      for (let k = 0; k < 3; k++) { g.fillStyle = hex; g.fillRect(24 + k * 30, 120, 18, 60); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(28 + k * 30, 110, 10, 12); }
+      g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 3; g.strokeRect(6, 6, w - 12, h - 12); });
+    deco(new THREE.PlaneGeometry(.9, 1.8), new THREE.MeshBasicMaterial({ map: tex }), 0, 1.02, .511, 1, 1, 1, face);
+    deco(unitBox, brassMat, 0, .3, .52, .3, .06, .04, face); deco(unitBox, new THREE.MeshBasicMaterial({ color: 0xffffff }), 0, 2.2, .1, 1.15, .18, .9, face); }
   glowSprite(P.color, 2.4, new V3(mx, 1.7, mz)); pointLight(P.color, 1.2, 8, mx, 2.2, mz);
   label([P.name.toUpperCase()], '#' + P.color.toString(16).padStart(6, '0'), 1.6, mx, 2.7, mz);
   a.chest = { pos: new V3(chx, 0, chz), open: false };
@@ -677,12 +696,24 @@ function buildArea(a) {
     addBox(fx, fz, 2.4, 2.4, 1.6, matStd({ color: 0x4a4038 }));
     put(new THREE.Mesh(new THREE.BoxGeometry(1.8, .1, 1.8), basic(0xff6a1a))).position.set(fx, 1.62, fz);
     glowSprite(0xff7a2a, 3.5, new V3(fx, 2.2, fz)); pointLight(0xff7a2a, 2, 16, fx, 2.5, fz);
-    label(['KOVÁCS'], '#ffb070', 2.2, x, 2.4, z);
+    deco(new THREE.ConeGeometry(.22, .7, 10), metal, x - 1.25, .88, z, 1, 1, 1).rotation.z = Math.PI / 2; // anvil horn
+    deco(unitBox, ironMat, x + .1, 1.02, z, .08, .08, .7).rotation.x = .3; deco(unitBox, ironMat, x + .1, 1.06, z - .32, .22, .16, .14); // hammer
+    const brick = matStd({ color: 0x5a3a2a, roughness: .9 });
+    deco(new THREE.CylinderGeometry(.35, .45, 4.2, 10), brick, fx + .7, 3.7, fz + .7); // chimney
+    for (let k = 0; k < 4; k++) deco(unitBox, brick, fx, .3 + k * .42, fz + 1.22, 2.5, .38, .06); // brick courses on the front
+    deco(unitBox, matStd({ color: 0x6a4a2a }), fx - 1.7, .7, fz, .7, .35, 1.1).rotation.z = .25; // bellows
+    deco(unitBox, poleMat, x + 1.8, 1.1, z + .8, .1, 2.2, .1); deco(unitBox, poleMat, x + 1.8, 2.1, z + .8, 1.4, .08, .08);
+    for (let k = 0; k < 3; k++) deco(unitBox, ironMat, x + 1.35 + k * .45, 1.6, z + .8, .05, .9, .05); // tools hanging
+    glowSprite(0xff5a1a, 1.6, new V3(fx, 1.9, fz));
   } else if (type === 'well') {
     cylinderSolid(x, z, 1.45, .9, matStd({ color: 0x6a6a70 }));
     const water = put(new THREE.Mesh(new THREE.CircleGeometry(1.2, 20), basic(0x5fd8ff))); water.rotation.x = -Math.PI / 2; water.position.set(x, .92, z);
     glowSprite(0x5fd8ff, 4, new V3(x, 1.6, z)); pointLight(0x5fd8ff, 1.6, 14, x, 2, z);
-    label(['SZENT KÚT'], '#9feaff', 2.4, x, 2.6, z);
+    for (let k = 0; k < 14; k++) { const q = k / 14 * Math.PI * 2; deco(unitBox, stoneMat, x + Math.cos(q) * 1.5, .5 + (k % 2) * .08, z + Math.sin(q) * 1.5, .6, 1, .42).rotation.y = -q; }
+    for (const s2 of [-1, 1]) deco(unitBox, poleMat, x + s2 * 1.45, 1.5, z, .14, 2.9, .14);
+    deco(unitBox, matStd({ color: 0x4a3024 }), x, 3.05, z - .45, 3.4, .1, 1.3).rotation.x = .45; deco(unitBox, matStd({ color: 0x4a3024 }), x, 3.05, z + .45, 3.4, .1, 1.3).rotation.x = -.45;
+    deco(unitBox, poleMat, x, 2.5, z, 2.9, .09, .09); deco(unitBox, poleMat, x, 1.95, z, .02, 1.1, .02);
+    deco(new THREE.CylinderGeometry(.18, .14, .3, 10), matStd({ color: 0x6a4a2a }), x, 1.3, z);
   } else if (type === 'trap') {
     const tc = a.gate.clone().addScaledVector(a.out, 2);
     a.st.zone = { minX: tc.x - 3.5, maxX: tc.x + 3.5, minZ: tc.z - 3.5, maxZ: tc.z + 3.5 };
@@ -691,6 +722,11 @@ function buildArea(a) {
     addBox(x, z, .3, .3, 1.1, matStd({ color: 0x3a3a3a }));
     put(new THREE.Mesh(new THREE.SphereGeometry(.12, 8, 6), basic(0xff3a1a))).position.set(x, 1.25, z);
     label(['CSAPDA'], '#ff8a4a', 2, x, 2.3, z);
+    const hz = new THREE.MeshLambertMaterial({ map: hazardTex });
+    deco(unitBox, hz, x, 1.12, z, .32, .06, .32); deco(unitBox, hz, x, .02, z, 1.4, .02, 1.4);
+    deco(unitBox, ironMat, x + .2, 1.2, z, .05, .45, .05).rotation.z = -.5; deco(new THREE.SphereGeometry(.07, 8, 6), basic(0xd82a1a), x + .31, 1.4, z);
+    const along = a.side === 'n' || a.side === 's';
+    for (let k = -2; k <= 2; k++) { const nx = along ? tc.x + k * 1.4 : tc.x, nz = along ? tc.z : tc.z + k * 1.4; deco(new THREE.CylinderGeometry(.09, .12, .5, 8), ironMat, nx, .25, nz); deco(new THREE.SphereGeometry(.06, 6, 5), basic(0xff6a1a), nx, .52, nz); }
     trapState.push(a.st);
   } else if (type === 'tower') {
     a.st.cost = 1200;
@@ -702,6 +738,10 @@ function buildArea(a) {
     addBox(x, z, .9, .6, 1.3, matStd({ color: 0x2e3440, metalness: .4, roughness: .5 }));
     put(new THREE.Mesh(new THREE.PlaneGeometry(.6, .4), basic(0x7fb8ff))).position.set(x, 1.05, z + .31);
     label(['LÖVEGTORONY'], '#9fc8ff', 2.4, x, 2.3, z);
+    for (let k = 0; k < 16; k++) { const q = k / 16 * Math.PI * 2; deco(unitBox, sandMat, txF + Math.cos(q) * 4.3, .25 + (k % 2) * .05, tzF + Math.sin(q) * 4.3, .9, .42, .5).rotation.y = -q; }
+    for (let k = 0; k < 9; k++) deco(unitBox, poleMat, txF + 3.35, .4 + k * .75, tzF, .08, .06, .7);
+    for (const s2 of [-.35, .35]) deco(unitBox, poleMat, txF + 3.35, 3.5, tzF + s2, .08, 7, .08);
+    deco(unitBox, matStd({ color: 0x3a3e46, metalness: .5 }), x, 1.45, z, .7, .12, .5); // console top
   }
 }
 function buildBoxAndAmmo() {
@@ -711,11 +751,22 @@ function buildBoxAndAmmo() {
   box.beam = put(new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 30, 12, 1, true),
     new THREE.MeshBasicMaterial({ color: 0x6fd6ff, transparent: true, opacity: .09, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })));
   box.light = pointLight(0x6fd6ff, 1.3, 9, 0, 1.8, 0);
+  box.deco = new THREE.Group(); mapGroup.add(box.deco);
+  const qTex = panelTex('qmark', 128, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#9fe8ff'; g.font = 'bold 56px Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = '#5fd8ff'; g.shadowBlur = 12; g.fillText('? ? ?', w / 2, h / 2 + 2); });
+  for (const s2 of [-1, 1]) deco(new THREE.PlaneGeometry(1.5, .5), new THREE.MeshBasicMaterial({ map: qTex, transparent: true, depthWrite: false }), 0, .45, s2 * .47, 1, 1, 1, box.deco).rotation.y = s2 < 0 ? Math.PI : 0;
+  for (const bx of [-.7, 0, .7]) deco(unitBox, ironMat, bx, .45, 0, .08, .94, .96, box.deco);
+  for (const [bx, bz] of [[-.88, -.43], [.88, -.43], [-.88, .43], [.88, .43]]) deco(unitBox, brassMat, bx, .45, bz, .1, .96, .1, box.deco);
+  deco(unitBox, new THREE.MeshBasicMaterial({ color: 0x6fd6ff }), 0, .91, 0, 1.7, .02, .8, box.deco);
   box.state = 'idle'; if (box.show) { scene.remove(box.show); box.show = null; }
   placeBox(Math.floor(mulberry(mapSeed + 3)() * BOX_SPOTS.length));
   const [ax, az] = MAP.ammo; ammoBox.pos.set(ax, 0, az);
   addBox(ax, az, 1.4, .8, .7, new THREE.MeshLambertMaterial({ color: 0x3f4f2c }));
   addBox(ax, az, 1.45, .82, .12, new THREE.MeshLambertMaterial({ color: 0xc7a03a }), .45, false);
+  const stTex = panelTex('ammo', 128, 64, (g, w, h) => { g.fillStyle = '#3f4f2c'; g.fillRect(0, 0, w, h); g.fillStyle = '#e8e2c0'; g.font = 'bold 26px Impact, sans-serif'; g.textAlign = 'center'; g.fillText('LŐSZER', w / 2, 30); g.font = '14px monospace'; g.fillText('7.62 · 12G · 9MM', w / 2, 52); });
+  for (const s2 of [-1, 1]) deco(new THREE.PlaneGeometry(1.2, .55), new THREE.MeshLambertMaterial({ map: stTex }), ax, .36, az + s2 * .41).rotation.y = s2 < 0 ? Math.PI : 0;
+  for (const s2 of [-1, 1]) deco(unitBox, ironMat, ax + s2 * .72, .45, az, .04, .12, .3);
+  for (let k = 0; k < 3; k++) deco(unitBox, matStd({ color: 0x4a5a32, metalness: .3 }), ax + 1.15, .22 + (k === 2 ? .44 : 0), az - .25 + (k % 2) * .5, .45, .44, .3);
+  for (let k = 0; k < 6; k++) deco(new THREE.CylinderGeometry(.03, .03, .16, 6), brassMat, ax - .5 + k * .2, .79, az, 1, 1, 1).rotation.z = Math.PI / 2;
   label(['AMMO'], '#e7c85a', 1.6, ax, 1.55, az);
 }
 // the van: it drops you off, leaves, and comes back for you at another spot when time is up.
@@ -1012,7 +1063,7 @@ function generateProps(seed) {
 function placeBox(i) {
   const [x, z] = BOX_SPOTS[i];
   box.spot = i; box.pos.set(x, 0, z);
-  box.mesh.position.set(x, .45, z);
+  box.mesh.position.set(x, .45, z); if (box.deco) box.deco.position.set(x, 0, z);
   Object.assign(box.obs, { minX: x - .9, maxX: x + .9, minZ: z - .45, maxZ: z + .45 });
   box.label.position.set(x, 2.1, z); box.beam.position.set(x, 15, z); box.light.position.set(x, 1.8, z);
   box.uses = 0; box.limit = 4 + Math.floor(Math.random() * 4);
