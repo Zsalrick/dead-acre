@@ -888,7 +888,7 @@ const turrets = [];
 // n (how many; the Ikertorony augment places two small ones), dmgMul, shield (dome: -50% damage inside), rocket (explosive shots)
 function turretMesh(opts, small) { // the tripod turret; also the stand-in for a teammate's (net.js)
   const g = new THREE.Group(), metal = matStd({ color: opts.rocket ? 0x5a3a30 : 0x3a4250, metalness: .6, roughness: .4 });
-  for (let i = 0; i < 3; i++) { const l = new THREE.Mesh(unitBox, metal); l.scale.set(.08, 1.1, .08); l.position.set(Math.sin(i * 2.1) * .3, .5, Math.cos(i * 2.1) * .3); l.rotation.set(Math.cos(i * 2.1) * .3, 0, -Math.sin(i * 2.1) * .3); g.add(l); }
+  for (let i = 0; i < 3; i++) { const l = new THREE.Mesh(unitBox, metal); l.scale.set(.08, 1.1, .08); l.position.set(Math.sin(i * 2.1) * .3, .5, Math.cos(i * 2.1) * .3); l.rotation.set(-Math.cos(i * 2.1) * .3, 0, Math.sin(i * 2.1) * .3); g.add(l); } // feet out, top in
   const head = new THREE.Group(); head.position.y = 1.15; g.add(head);
   const body = new THREE.Mesh(unitBox, metal); body.scale.set(.35, .3, .5); head.add(body);
   const barrel = new THREE.Mesh(unitBox, metal); barrel.scale.set(opts.rocket ? .18 : .08, opts.rocket ? .18 : .08, .6); barrel.position.z = .5; head.add(barrel);

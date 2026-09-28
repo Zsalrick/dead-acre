@@ -756,7 +756,7 @@ function bountyKilled(z) {
 function bountyLoot(pos, key) {
   const p = new V3(pos.x, 0, pos.z), B = BOUNTIES[key];
   const rw = Math.random(), rg = Math.random(); // a gun: 8% one of this boss's exotics, 30% legendary, else epic · armor: 6% exotic, 30% legendary, else epic
-  spawnDrop(B && rw < .08 ? makeUnique(pick(B.loot), lootLvl(3)) : makeWeapon(pick(BASES), rw < .38 ? 4 : 3, lootLvl(3)), p.clone().add(new V3(-1, 0, 0)));
+  spawnDrop(B && rw < .05 ? makeUnique(pick(B.loot), lootLvl(3)) : makeWeapon(pick(BASES), rw < .35 ? 4 : 3, lootLvl(3)), p.clone().add(new V3(-1, 0, 0))); // 5% the boss's own exotic
   spawnGearDrop(rg < .06 ? makeExotic(null, lootLvl(3)) : makeGear(null, rg < .36 ? 4 : 3, lootLvl(3)), p.clone().add(new V3(1, 0, 0)));
   for (let k = 0; k < 2; k++) { const a = k / 2 * 6.28 + .4; setTimeout(() => spawnDrop(makeWeapon(pick(BASES), Math.max(1, rollRarity(.35)), lootLvl(2)), p.clone().add(new V3(Math.cos(a) * 2.6, 0, Math.sin(a) * 2.6))), 250 + k * 180); } // the loot fountain
   slowmo = 1.4; for (let k = 0; k < 5; k++) tn(660 * Math.pow(1.19, k), .25, .06, 'triangle', 0, .15 + k * .12);
@@ -794,7 +794,7 @@ function weaponOnKill(z, o) {
   const w = o.w;
   if (z.markT > 0 && augOn('plague')) for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 8) q.markT = Math.max(q.markT || 0, 6);
   if (!w) return;
-  if (w.unique === 'granny') w.ammo = w.mag;
+  if (w.unique === 'granny') { const t = Math.min(w.mag - w.ammo, w.reserve); w.ammo += t; w.reserve -= t; } // the refill comes out of the reserve
   if (w.unique === 'hydra') player.hydraUntil = now + 3;
   if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }
   if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
@@ -802,7 +802,7 @@ function weaponOnKill(z, o) {
   if (player.eyeT > 0 && z.markT > 0) player.eyeT = Math.min(20, player.eyeT + 1.5); // a marked kill keeps Deadeye going
   if (w.tal === 'frenzy') player.frenzyT = now + 5;
   if (w.tal === 'feast' && o.head) player.hp = Math.min(maxHp(), player.hp + maxHp() * .04);
-  if (w.tal === 'scav') w.ammo = Math.min(w.mag, w.ammo + Math.ceil(w.mag * .15));
+  if (w.tal === 'scav') { const t = Math.min(w.mag - w.ammo, Math.ceil(w.mag * .15), w.reserve); w.ammo += t; w.reserve -= t; }
   if (w.anoint === 'killheal') player.hp = Math.min(maxHp(), player.hp + maxHp() * .06);
   if (w.anoint === 'boom' && Math.random() < .2) explode(new V3(z.pos.x, 1, z.pos.z), { r: 4, zdmg: zombieHp() * .8, pr: .01, pdmg: .001 });
 }

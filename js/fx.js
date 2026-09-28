@@ -153,6 +153,13 @@ const FIRE = [new THREE.Color(1, .66, .28), new THREE.Color(.95, .3, .05), new T
 const EMBER = [new THREE.Color(1, .7, .35), new THREE.Color(1, .38, .06), new THREE.Color(.5, .08, .01)];
 const _fv = new V3(), _fp = new V3();
 const jit = (s) => _fv.set(rand(-s, s), rand(-s, s), rand(-s, s));
+// toasts: a short note in the corner (what you got, paid, or unlocked), stacked, gone after a few seconds
+function toast(title, lines, col = '#ffd23f', ms = 3800) {
+  const box = document.getElementById('toasts'); if (!box) return; const e = document.createElement('div'); e.className = 'toast'; e.style.setProperty('--tc', col);
+  e.innerHTML = `<b>${title}</b>${(lines || []).filter(Boolean).map(l => `<span>${l}</span>`).join('')}`; box.appendChild(e);
+  while (box.children.length > 4) box.firstChild.remove();
+  setTimeout(() => { e.classList.add('out'); setTimeout(() => e.remove(), 450); }, ms);
+}
 // one flamethrower pellet: a hot core at the nozzle, a stream of growing flame puffs that slows, rises and turns to smoke,
 // embers, and a splash of fire where the stream hits something
 function fxFlame(from, dir, dist, hit) {

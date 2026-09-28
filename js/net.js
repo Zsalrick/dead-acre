@@ -157,6 +157,7 @@ function makeAvatar(m) {
 }
 function remoteShot(b, d) { // their shots, quieter with distance
   const f = clamp(1 - d / 70, 0, 1) * .7; if (f < .03) return;
+  if (b && b.flame) return SND.flame(f);
   const low = b && (b.snd === 'boom' || b.snd === 'heavy' || b.snd === 'thump');
   nz(.16, low ? 900 : 1800, .55 * f); tn(low ? 90 : 160, .08, .2 * f, 'square', 50);
 }
@@ -201,7 +202,7 @@ function updateAvatars(dt, peers) {
       const from = new V3(); a.flash.getWorldPosition(from);
       const dir = new V3(-Math.sin(a.yaw) * Math.cos(a.pitch), Math.sin(a.pitch), -Math.cos(a.yaw) * Math.cos(a.pitch));
       if (!(a.base && a.base.flame)) tracer(from, from.clone().addScaledVector(dir, 40), a.base && a.base.tracer || 0xffd9a0, .012);
-      else burst(from.clone().addScaledVector(dir, 2), 0xff8a2a, 2, 2, .3);
+      else fxFlame(from, dir, 12, false); // their flame stream, like yours
       remoteShot(a.base, Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z));
     } else a.sh = Math.max(a.sh, +P.sh || 0);
     if ((a.flashT -= dt) <= 0) a.flash.visible = false;

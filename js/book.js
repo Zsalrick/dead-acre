@@ -37,7 +37,7 @@ function bookZombies() {
     <h3>Fajták</h3><div class="bgrid zk">${kinds.map(([k, K]) => bcard(zombieThumb(k), K.name, `${K.min}. hullámtól`, `<p>${K.desc || 'Lassú, de sokan vannak.'}</p>` + bkv([['Életerő', `×${K.hp}`], ['Sebzés', K.dmg || '—'], K.armor ? ['Páncél', 'igen, fejre lőj'] : null]))).join('')}</div>`;
 }
 function bookBounties() {
-  return bhead('Fejvadászok', 'Fejvadászat munkán egy nagyon erős főellenség vár, fázisokkal és saját trükkökkel. Legalább epikus fegyvert és páncélt ejt, 30% eséllyel legendásat. Az egzotikus fegyverek leginkább tőlük esnek (8%), egzotikus páncél 6% eséllyel. Az első legyőzés egy túlhajtás-magot is ad.') +
+  return bhead('Fejvadászok', 'Fejvadászat munkán egy nagyon erős főellenség vár, fázisokkal és saját trükkökkel. Legalább epikus fegyvert és páncélt ejt, 30% eséllyel legendásat. Az egzotikus fegyverek leginkább tőlük esnek (5%), egzotikus páncél 6% eséllyel. Az első legyőzés egy túlhajtás-magot is ad.') +
     `<div class="bgrid zk">${Object.values(BOUNTIES).map(B => bcard(zombieThumb('butcher', B.tint), B.name, `${B.minLvl ? `${B.minLvl}. szinttől · ` : ''}×${B.hp} életerő`, `<p>${B.desc}</p>` + bkv([['Hív', KINDS[B.summon[0]].name], ['Egzotikus zsákmány', B.loot.map(u => UNIQUES[u] ? UNIQUES[u].name : u).join(', ')]]))).join('')}
     ${bcard(zombieThumb('butcher'), 'A Mészáros', 'nehéz munkák utolsó perceiben', `<p>${KINDS.butcher.desc}</p>`)}</div>`;
 }

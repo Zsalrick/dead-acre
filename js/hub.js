@@ -88,7 +88,7 @@ function jobCard(j, i, notReady) {
   return `<article class="job${B ? ' bounty' : ''}" style="--dc:${B ? '#ff8c1a' : j.tier ? '#b05cff' : DIFF_COL[j.diff - 1]}">
     <div class="jhead"><span class="jmap">${M.name}${j.map === featuredMap() ? ' <b class="featb">★ HETI KIEMELT</b>' : ''}</span><span class="jstars" title="${DIFF_NAMES[j.diff - 1]}">${stars(j.diff)}</span></div>
     <h3>${j.title}</h3><p class="jclient">Megbízó: ${j.client} · <b>${DIFF_NAMES[j.diff - 1]}</b></p>${j.tier ? `<p class="jtier">RÉMÁLOM +${j.tier} · zóna Lv ${j.lvl} · +${10 + 5 * j.tier} ⚙ és garantált legendás a teljesítésért</p>${j.base ? `<div class="tiersel">${hbtn('−', `tier:${i}:-1`, j.tier <= 1)}<b>+${j.tier}</b>${hbtn('+', `tier:${i}:1`, j.tier >= (profile.tier || 0) + 1)}<small>Feloldva: +${(profile.tier || 0) + 1}-ig</small></div>` : ''}` : ''}
-    <ul class="jfacts">${B ? `<li class="jboss"><b>${B.name}</b>: ${B.desc}</li><li class="jleg">Legalább epikus fegyver és páncél, 30% eséllyel legendás</li><li class="jleg">8% eséllyel egzotikus fegyver: ${(B.loot || []).map(k => UNIQUES[k].name).join(', ')}</li><li>Nincs időkorlát · ${lv}. szintű zombik</li>`
+    <ul class="jfacts">${B ? `<li class="jboss"><b>${B.name}</b>: ${B.desc}</li><li class="jleg">Legalább epikus fegyver és páncél, 30% eséllyel legendás</li><li class="jleg">5% eséllyel egzotikus fegyver: ${(B.loot || []).map(k => UNIQUES[k].name).join(', ')}</li><li>Nincs időkorlát · ${lv}. szintű zombik</li>`
       : `${j.type && j.type !== 'survive' ? `<li class="jtype">${JOB_TYPES[j.type].desc(j)}</li>` : ''}<li>${noClock(j) ? 'Nincs időkorlát' : `<b>${fmtTime(j.dur)}</b> ${j.type === 'defense' ? 'védelem' : 'túlélés'}`} · <b>${lv}.</b> szintű zóna</li><li>Kezdő veszélyszint: ${START_THREAT[j.diff - 1]} (hullámonként nő)</li>`}
       ${weak ? `<li class="jwarn">Vigyázz: a legjobb fegyvered Lv ${gl}, a zóna ${lv}. szintű. Itt nagyon kevés leszel.</li>` : ''}${j.mod ? `<li class="jmod">${MODS[j.mod].label}: ${MODS[j.mod].sub}</li>` : ''}${j.boss && !B ? '<li class="jboss">A Mészáros is eljön</li>' : ''}</ul>
     <div class="jfoot"><span class="jreward">$${j.reward}<small>+${j.xp} XP</small></span>${hbtn(btn, `job:${i}`, (NET.code && !NET.host) || notReady > 0)}</div>
@@ -111,7 +111,7 @@ function renderHub() {
   $('hubLvl').textContent = P.level;
   $('hubXp').style.width = P.xp / xpNeed(P.level) * 100 + '%';
   $('hubXpTxt').textContent = `${P.xp} / ${xpNeed(P.level)} XP${vetOpen() ? ` · veterán ${vetEarned()}${vetAvail() ? ` (+${vetAvail()})` : ''}` : ''}`;
-  $('hubCash').textContent = `$${P.cash}`; $('hubParts').textContent = `${P.parts || 0} ⚙ · ${P.fabric || 0} ${FAB}`;
+  $('hubCash').textContent = `$${P.cash}`; $('hubParts').textContent = `${P.parts || 0} ⚙ · ${P.fabric || 0} ${FAB} · ${P.oc || 0} ◆`; $('hubParts').dataset.tip = `⚙ alkatrész: fegyverek szétszedéséből · ${FAB} anyag: páncél szétszedéséből · ◆ túlhajtás-mag: fejvadász első legyőzése, heti kontrakt, Mélyfúrás`;
   rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   $('hubTokens').textContent = P.tokens || 0;
@@ -127,8 +127,9 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
-let optOpen = null; // the forge's optimization panel: open for this selection only
-const KEY_LABEL = { KeyO: 'O', KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+let optOpen = null, ocOpen = null; // the forge's optimization / overclock panels: open for this selection only
+const OC_HELP = 'A túlhajtás-mag (◆) ritka nyersanyag: minden fejvadász első legyőzése, a heti kontrakt és a Mélyfúrás ad belőle. Egy túlhajtás beszereléséhez kell egy.';
+const KEY_LABEL = { KeyU: 'U', KeyO: 'O', KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 // selling and salvaging: weapons from the hands, bag or stash, armor worn or stored; favourites are locked, trash goes in bulk
 const wList = sl => ({ L: profile.loadout, B: profile.bag, S: profile.stash })[sl] || [];
 const wAt = (sl, i) => unpackW(wList(sl)[+i]);
@@ -163,6 +164,19 @@ function showRecal(w, list, i) {
     if (ok) { list[i] = packW(c); SND.explode(); } saveProfile(); renderHub(); };
   const key = e => { e.stopPropagation(); e.preventDefault(); if (e.code === 'Enter') done(true); else if (e.code === 'Escape') done(false); };
   addEventListener('keydown', key, true); yes.onclick = () => done(true); no.onclick = () => done(false);
+}
+// what an action changed, as a toast: money, parts, fabric, cores, tokens, and anything that arrived in your storage
+const hubSnap = () => { const P = profile; return { cash: P.cash, parts: P.parts || 0, fab: P.fabric || 0, oc: P.oc || 0, tok: P.tokens || 0, st: P.stash.slice(), gs: P.gearStash.slice(), vet: vetSpent ? vetSpent() : 0 }; };
+const TOAST_TITLE = { gun: 'Fegyver megvéve', gbuy: 'Páncél megvéve', item: 'Tárgy megvéve', ttype: 'Gránát- / késfajta', up: 'Fejlesztés', sell: 'Eladva', gsell: 'Eladva', salvage: 'Szétszedve', gsalvage: 'Szétszedve',
+  trashsell: 'A kuka eladva', trashsalv: 'A kuka szétszedve', opt: 'Optimalizálva', gopt: 'Optimalizálva', hforge: 'Kovács', gexp: 'Szakértelem', ocset: 'Túlhajtás', anoacc: 'Felkenés elfogadva', claim: 'Kontrakt jutalma',
+  vet: 'Veterán rang', sk: 'Képesség tanulva', aug: 'Képesség-módosító', respec: 'Pontok visszaadva', slot: 'Szerencsekerék', reroll: 'Új munkák', wear: 'Páncél felvéve', unwear: 'Páncél levéve' };
+function hubToast(kind, B) {
+  const P = profile, L = [], d = (x, y, u) => { const v = x - y; if (v) L.push(`${v > 0 ? '+' : '−'}${u === '$' ? '$' : ''}${Math.abs(Math.round(v))}${u !== '$' ? ' ' + u : ''}`); };
+  d(P.cash, B.cash, '$'); d(P.parts || 0, B.parts, '⚙'); d(P.fabric || 0, B.fab, FAB); d(P.oc || 0, B.oc, '◆'); d(P.tokens || 0, B.tok, 'érdemérem');
+  const newW = P.stash.filter(o => !B.st.includes(o)).map(unpackW).filter(Boolean), newG = P.gearStash.filter(o => !B.gs.includes(o));
+  newW.forEach(w => L.push(`<i style="color:${rarColor(w)}">${w.name}</i> a raktárban`)); newG.forEach(it => L.push(`<i style="color:${gCol(it)}">${it.name}</i> a páncélraktárban`));
+  if (!L.length || !TOAST_TITLE[kind]) return;
+  toast(TOAST_TITLE[kind], [L.slice(0, 4).join(' · ')], newW[0] ? rarColor(newW[0]) : L[0][0] === '+' ? '#9dff6a' : '#ffd23f');
 }
 const CONFIRM_ACTS = ['trashsell', 'trashsalv']; // single items are held instead
 let confirmOk = false;
@@ -281,7 +295,8 @@ const HUB = {
       hbtn(optOpen === `${sl}:${i}` ? 'Optimalizálás ▲' : 'Optimalizálás ▼', 'optshow', false, 'KeyO', 'Megnyitja / bezárja: egy véletlen érték feljebb vihető a tartományában, a tökéletesig.') +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
       hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w)) +
-      ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
+      hbtn(ocOpen === `${sl}:${i}` ? 'Túlhajtás ▲' : 'Túlhajtás ▼', 'ocshow', false, 'KeyU', 'Túlhajtás: egy fegyverenkénti átalakítás (pl. nehéz lövedék, dobtár). Beszereléséhez egy túlhajtás-mag (◆) kell.') +
+      (ocOpen !== `${sl}:${i}` ? '' : `<div class="ocrow"><small>${OC_HELP} Van: ${P.oc || 0} ◆ · első beszerelés 1 ◆ + 20 ⚙, csere 20 ⚙.</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" data-tip="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
     })();
     const gActs = it ? hbtn(optOpen === `${sl}:${si}` ? 'Optimalizálás ▲' : 'Optimalizálás ▼', 'optshow', false, 'KeyO', 'Megnyitja / bezárja: a páncél egy értéke feljebb vihető a tartományában, anyagért.') + hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.parts || 0) < expCost(it), 'KeyM', expTip(it, true)) : '';
     const sec = (t, x) => x ? `<h3>${t}</h3><div class="tiles">${x}</div>` : '';
@@ -352,6 +367,7 @@ $('hubBody').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const [kind, a, c] = b.dataset.act.split(':'), P = profile;
   if (CONFIRM_ACTS.includes(kind) && !confirmOk) return askConfirm(b);
+  const before = hubSnap();
   const pay = n => { if (P.cash < n) return false; P.cash -= n; return true; };
   if (kind === 'goforge') { hubTab = 'forge'; return renderHub(); }
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); return renderHub(); }
@@ -372,6 +388,7 @@ $('hubBody').addEventListener('click', e => {
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy', 'pready'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetOpen() && vetAvail() > 0) { SH.vet.ranks[a] = (SH.vet.ranks[a] || 0) + 1; saveShared(); gearChanged(); }
   if (kind === 'reroll' && !(NET.code && !NET.host) && pay(reroll())) rollBoard();
+  if (kind === 'ocshow') { ocOpen = ocOpen === invSel ? null : invSel; return renderHub(); }
   if (kind === 'optshow') { optOpen = optOpen === invSel ? null : invSel; return renderHub(); }
   if (kind === 'gopt') { // gopt:W|G:key:stat
     const [, l, k, st] = b.dataset.act.split(':'), it = gearAt(l, k), row = it && gRolls(it).find(r => r[0] === st);
@@ -416,6 +433,7 @@ $('hubBody').addEventListener('click', e => {
     else for (let k = P.gearStash.length - 1; k >= 0; k--) { const it = P.gearStash[k]; if (it.junk && !it.fav) { P.gearStash.splice(k, 1); if (sell) P.cash += gearValue(it); else { P.fabric = (P.fabric || 0) + PARTS[it.q]; P.parts = (P.parts || 0) + expRefund(it); } } }
   }
   if (kind === 'sell') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.cash += sellValue(w); } }
+  hubToast(kind, before);
   SND.buy(); saveProfile(); saveShared(); renderHub();
 });
 

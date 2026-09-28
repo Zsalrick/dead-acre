@@ -59,7 +59,7 @@ const SND = {
   deny() { tn(160, .18, .12, 'square', 120); },
   // new weapons
   bow() { nz(.12, 1800, .35, 'bandpass', 2); tn(180, .18, .18, 'triangle', 90); },
-  flame() { nz(.14, 900, .22, 'lowpass', .5); },
+  flame(v = 1) { nz(.32, 620, .16 * v, 'lowpass', .4); nz(.12, 2400, .035 * v, 'bandpass', 1.5, .05); }, // a roar with a little crackle
   thump() { nz(.2, 400, .6, 'lowpass', 1); tn(120, .15, .3, 'sine', 50); },
   zap() { tn(1800, .08, .1, 'sawtooth', 300); nz(.1, 5000, .15, 'highpass', 1); },
   spin(v) { tn(220 + v * 500, .09, .05 * v, 'sawtooth', 240 + v * 520); },

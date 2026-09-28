@@ -96,7 +96,7 @@ const BASES = [
     model: { len: .3, h: .1, barrel: .42, br: .024, double: true, stock: .28 } },
   { id: 'sawed', name: 'Sawed-off', dmg: 24, pellets: 9, rpm: 240, mag: 2, fixedMag: true, res: 36, reload: 1.6, spread: 8.5, mode: 'semi', range: 18, zoom: 1.15, snd: 'boom', kick: .07, rl: 'break',
     model: { len: .2, h: .1, barrel: .16, br: .024, double: true } },
-  { id: 'flamer', name: 'Flamethrower', dmg: 9, pellets: 3, rpm: 900, mag: 100, res: 300, reload: 3.2, spread: 7, mode: 'auto', range: 18, zoom: 1.15, snd: 'flame', kick: .002, flame: true, pierce: 3, rl: 'box',
+  { id: 'flamer', name: 'Flamethrower', dmg: 9, pellets: 3, rpm: 900, mag: 60, res: 120, reload: 3.2, spread: 7, mode: 'auto', range: 18, zoom: 1.15, snd: 'flame', kick: .002, flame: true, pierce: 3, rl: 'box',
     model: { len: .5, h: .13, barrel: .3, br: .035, tank: true, stock: .18 } },
   { id: 'dmr', name: 'Marksman Rifle', dmg: 95, rpm: 260, mag: 10, res: 80, reload: 2.5, spread: 1, adsSpread: .05, mode: 'semi', range: 150, zoom: 2.3, snd: 'heavy', kick: .022, pierce: 2, scopeView: true, rl: 'mag',
     model: { len: .52, h: .12, barrel: .3, br: .02, mag: .12, stock: .26, scope: true } },
@@ -165,7 +165,7 @@ const TALENTS = {
   bread:    { name: 'Kenyérkosár', desc: 'Testlövés után a következő fejlövés +40% sebzést okoz.' },
   close:    { name: 'Közelharc',   desc: '10 méteren belül +25% sebzés.' },
   ranger:   { name: 'Távcső',      desc: '25 méteren túl +25% sebzés.' },
-  scav:     { name: 'Guberáló',    desc: 'Minden ölés a tár 15%-át visszatölti.' },
+  scav:     { name: 'Guberáló',    desc: 'Minden ölés a tár 15%-át visszatölti a tartalékból (újratöltés nélkül).' },
   frost:    { name: 'Dermesztő',   desc: 'Minden 5. találat 2 mp-re lelassítja a zombit.' },
 };
 const TAL_KEYS = Object.keys(TALENTS);

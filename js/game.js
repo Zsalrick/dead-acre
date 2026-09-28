@@ -694,7 +694,7 @@ function takeLoot(f, swap) {
   if (!ok) swap = false; // above your level: it can only ride in the bag
   if (!swap && hand < 0 && player.bag.length >= bagMax()) { popText(ok ? 'Tele a táska · tartsd nyomva az F-et a cseréhez' : `${w.level}. szintű: csak a táskába teheted, de tele van`, '#ff8a70'); return SND.deny(); }
   if (f.type === 'drop') { netTookDrop(f.drop); removeDrop(f.drop); } else { box.state = 'idle'; scene.remove(box.show); box.show = null; boxUsed(); }
-  focus = null; itemFeed('felvette', w.name, w.unique ? 5 : w.q);
+  focus = null; itemFeed('felvette', w.name, w.unique ? 5 : w.q); if (w.unique || w.q >= 3) toast(w.unique ? 'EGZOTIKUS FEGYVER' : `${RARITIES[w.q].name.toUpperCase()} FEGYVER`, [`${w.name} · Lv ${w.level} · DPS ${dps(w)}`, w.unique && UNIQUES[w.unique] ? UNIQUES[w.unique].trick : w.tal && TALENTS[w.tal] ? `Tehetség: ${TALENTS[w.tal].name}` : ''], rarColor(w));
   if (swap || hand >= 0) return giveWeapon(w);
   player.bag.push(w); trackBest(w); noteFound(w); SND.pickup(w.q);
   popText(ok ? `${w.name} a táskába (${player.bag.length}/${bagMax()})` : !exoOk ? `${w.name} a táskába · egyszerre csak 1 egzotikus fegyver lehet kézben` : `${w.name} a táskába · ${w.level}. szinttől használhatod`, ok ? rarColor(w) : '#ff8a70');

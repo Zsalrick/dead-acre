@@ -157,6 +157,7 @@ function takeGear(d) {
     const out = gearSwapOut(d.it); mission.gear.splice(mission.gear.indexOf(out), 1); itemFeed('eldobta', out.name, out.q);
     netShareDrop('g', out, spawnGearDrop(out, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))));
   }
+  if (d.it.exo || d.it.q >= 3) toast(d.it.exo ? 'EGZOTIKUS PÁNCÉL' : `${RARITIES[d.it.q].name.toUpperCase()} PÁNCÉL`, [`${d.it.name} · Lv ${d.it.level} · ${d.it.armor} páncél`, d.it.exo && EXOTICS[d.it.exo] ? EXOTICS[d.it.exo].talent : ''], gCol(d.it));
   if (d.it.exo) (stats.exo || (stats.exo = {}))[d.it.exo] = 1; netTookDrop(d); itemFeed('felvette', d.it.name, d.it.q); d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
 function clearGearDrops() { while (gearDrops.length) removeGearDrop(gearDrops[gearDrops.length - 1]); }
 
