@@ -105,6 +105,7 @@ function weaponDetail(w, cmp, actions) {
       ${drow('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2))}
       ${drow('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2))}
       ${drow('Hatótáv', `${b.range} m`, c ? arrow(b.range, c.base.range) : '')}
+      ${w.exp ? drow('Szakértelem', `${w.exp}/10`, '', `+${2 * w.exp}% sebzés`, 'core') : ''}
       ${w.roll != null ? drow('Dobás minősége', `${w.roll}%`, c && c.roll != null ? arrow(w.roll, c.roll) : '', w.roll >= 90 ? 'szinte tökéletes' : w.roll >= 70 ? 'jó dobás' : 'kalibrálható a kovácsnál', w.roll >= 90 ? 'core' : '') : ''}
     </table>
     ${el ? `<div class="delem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
@@ -138,6 +139,7 @@ function gearDetail(it, cmp, actions) {
       <div class="dsub"><span style="color:${B.color}">${B.name}</span> · ${B.tag}</div></div>
     ${c ? `<div class="dcmp">Összevetve a viselt darabbal: <span style="color:${RARITIES[c.q].color}">${c.name}</span></div>` : ''}
     ${it.exo && EXOTICS[it.exo] ? `<div class="duniq" style="border-color:${EXO_COL}"><b>Egzotikus tehetség:</b> ${EXOTICS[it.exo].talent}</div>` : ''}
+    ${it.exp ? `<div class="doc"><b>Szakértelem ${it.exp}/10:</b> +${3 * it.exp}% páncél és tulajdonság</div>` : ''}
     <table class="dtab" style="--bc:${B.color}">${rows}</table>
     <div class="dsets" style="--bc:${B.color}"><b>${B.name}</b> ${pipsB} <small>${cnt}/4 viselve</small><ul>${sets}</ul>
       ${B.t4 ? `<p class="dt4${cnt >= 4 ? ' on' : ''}"><b>4 db · ${B.t4[0]}:</b> ${B.t4[1]}</p>` : ''}

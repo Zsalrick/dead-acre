@@ -82,7 +82,7 @@ function brandCounts() { // an exotic is a wildcard: it counts toward the brand 
 function gearTotals() {
   if (gearCache) return gearCache;
   const t = {}, add = (k, v) => t[k] = (t[k] || 0) + v, count = brandCounts();
-  for (const it of wornGear()) { add('armor', it.armor); for (const k in it.stats) add(k, it.stats[k]); add(BRANDS[it.brand].core[0], coreVal(it)); }
+  for (const it of wornGear()) { const e = 1 + .03 * (it.exp || 0); add('armor', it.armor * e); for (const k in it.stats) add(k, it.stats[k] * e); add(BRANDS[it.brand].core[0], coreVal(it) * e); } // expertise: +3% a level
   for (const b in count) for (const [n, k, v] of BRANDS[b].sets) if (count[b] >= n) add(k, v);
   if (profile && profile.vet) for (const k in profile.vet) if (VET[k] && profile.vet[k] > 0) add(k, vetVal(k, profile.vet[k])); // veteran ranks (vet.js)
   return gearCache = t;
