@@ -94,7 +94,7 @@ function renderStation() {
     title = 'Szent kút'; lede = 'A kút vize gyógyít, ha a közelében állsz. A kútnál felszerelést is vehetsz.';
     body = Object.entries(VEND).map(([k, c]) => {
       const n = k === 'knife' ? 3 : 1, full = P.inv[k] >= itemMax(k);
-      return srow(`${ITEMS[k].name}${n > 1 ? ` ×${n}` : ''}`, `${ITEMS[k].desc} · nálad: ${P.inv[k]}/${itemMax(k)}`, `${c} pont`, `vend:${k}`, full || pts < c, full ? 'Tele' : 'Megveszem');
+      return srow(`${itemName(k)}${n > 1 ? ` ×${n}` : ''}`, `${itemDesc(k)} · nálad: ${P.inv[k]}/${itemMax(k)}`, `${c} pont`, `vend:${k}`, full || pts < c, full ? 'Tele' : 'Megveszem');
     }).join('') + (maxShield() ? srow('Pajzs feltöltése', `Most: ${Math.round(P.shield)}/${maxShield()}`, '200 pont', 'vend:shield', P.shield >= maxShield() || pts < 200, 'Feltöltés') : '');
   }
   $('stationBody').innerHTML = `<div class="shop-top"><div><div class="eyebrow">Állomás</div><div class="title st-title">${title}</div><p class="lede">${lede}</p></div>

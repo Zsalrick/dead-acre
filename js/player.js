@@ -335,7 +335,7 @@ function updateWeapon(dt) {
     const wantsFire = w.base.mode === 'auto' ? mouseDown : clickQueued > 0;
     if (player.reloading === 'single' && wantsFire && w.ammo > 0) { stopReload(); SND.pump(); vm.kick = .04; } // firing interrupts round-by-round loading
     else {
-      player.reloadT -= dt * (player.adrenT > 0 ? 1.6 : 1) * reloadMul();
+      player.reloadT -= dt * (stimOn('adren') ? 1.6 : 1) * reloadMul();
       if (player.reloadT <= 0) {
         if (player.reloading === 'single') {
           w.ammo++; w.reserve--;
@@ -386,11 +386,12 @@ function updatePlayer(dt) {
   const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
   const mv = new V3(-sy * f + cy * s, 0, -cy * f - sy * s);
   if (mv.lengthSq() > 0) mv.normalize();
-  const adren = player.adrenT > 0;
+  const adren = stimOn('adren');
   player.sprint = !ff && player.carry == null && keys.ShiftLeft && f > 0 && !rmb && !mouseDown && player.knifeT <= 0 && !player.reloading && (adren || player.stam > (player.sprint ? 0 : 15));
   if (player.sprint && !adren && !perk('runner') && !exoOn('league')) { player.stam = Math.max(0, player.stam - 20 * dt); player.stamT = .9; }
   else if ((player.stamT -= dt) <= 0) player.stam = Math.min(maxStam(), player.stam + 28 * (1 + .15 * U('stamina')) * dt);
   player.adrenT = Math.max(0, player.adrenT - dt); player.itemCd -= dt;
+  if (player.regenT > 0) { player.regenT = player.down ? 0 : player.regenT - dt; if (!player.down) player.hp = Math.min(maxHp(), player.hp + player.regenR * dt); } // Regeneráló injekció
   const speed = (ff ? .9 : 1) * (ff ? 1 : player.sprint ? 8.2 : 5.2 * (1 - player.ads * .4)) * (adren ? 1.3 : 1) * speedMul() * (player.chillT > 0 ? .55 : 1) * (player.carry != null ? .72 : 1) * (1 - .35 * (player.spin || 0) * (rk('s_heavy') ? 0 : 1));
   const k = 1 - Math.exp(-(player.onGround ? 12 : 3) * dt);
   player.vel.x = lerp(player.vel.x, mv.x * speed, k); player.vel.z = lerp(player.vel.z, mv.z * speed, k);

@@ -115,12 +115,13 @@ function renderHub() {
   rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   { const nw = [...P.stash, ...P.bag].filter(o => o && o.isNew).length + P.gearStash.filter(it => it && it.isNew).length; document.querySelector('[data-hub="arsenal"]').dataset.badge = nw || ''; }
+  document.querySelector('[data-hub="shop"]').dataset.badge = P.lost ? P.lost.w.length + P.lost.g.length : ''; // something to buy back
   $('hubTokens').textContent = P.tokens || 0;
   $('hubCls').textContent = P.cls ? CLASSES[P.cls].name : 'nincs kaszt'; $('hubCls').style.setProperty('--cc', P.cls ? CLASSES[P.cls].color : '');
   document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.classList.toggle('on', !!(b.dataset.hub === hubTab || (b.dataset.group && HUB_GROUPS[b.dataset.group].some(([k]) => k === hubTab)))));
   const grp = Object.values(HUB_GROUPS).find(g => g.some(([k]) => k === hubTab)), sub = grp ? `<nav class="subnav">${grp.map(([k, t]) => `<button class="sbtab${k === hubTab ? ' on' : ''}" data-sub="${k}">${t}</button>`).join('')}</nav>` : '';
   if (P.abandonNote) { const n = P.abandonNote; delete P.abandonNote; saveProfile();
-    if (n === 'lost') toast('A MUNKÁT FÉLBEHAGYTAD', ['Kiléptél munka közben: a kézben és a táskában lévő fegyvereid és a páncélod elveszett.', 'A Boltban (Elveszett felszerelés) drágán visszavásárolhatod őket.'], '#ff5a4a', 9000);
+    if (n === 'lost') toast('A MUNKÁT FÉLBEHAGYTAD', ['Kiléptél munka közben: a kézben és a táskában lévő fegyvereid és a páncélod elveszett.', 'Bolt → Elveszett bolt: drágán visszavásárolhatod őket.'], '#ff5a4a', 9000);
     else { toast('KIESTÉL A CSAPATBÓL', ['A hátizsákod tartalma a csapatnál maradt, a pályán.', P.rejoin ? 'Visszacsatlakozhatsz: Csapat fül.' : ''], '#ff8a70', 9000); if (P.rejoin) hubTab = 'party'; } }
   const hb = $('hubBody'), same = renderHub.tab === hubTab, keep = same ? [hb.scrollTop, ...[...hb.querySelectorAll('.invl,.invd')].map(e => e.scrollTop)] : null; renderHub.tab = hubTab; hb.innerHTML = sub + HUB[hubTab](); // in a party the strip is on every tab
   if (keep) { hb.scrollTop = keep[0]; [...hb.querySelectorAll('.invl,.invd')].forEach((e, k) => { if (keep[k + 1] != null) e.scrollTop = keep[k + 1]; }); } // a click re-renders the tab: stay where you were
@@ -191,7 +192,7 @@ function hubToast(kind, B, act) {
   if (kind === 'hforge' && x1 === 'anoint') D.push('Új felkenés dobva: döntsd el a kovácsnál');
   if (kind === 'gexp') { const it = gearAt(x1, x2); if (it) D.push(`Szakértelem ${it.exp}/10 · +${3 * it.exp}% minden értékre`); }
   if (kind === 'ocset' && OVERCLOCKS[x3]) D.push(`${OVERCLOCKS[x3].name}: ${OVERCLOCKS[x3].desc}`);
-  if (kind === 'ttype') { const T = (x1 === 'g' ? GREN_TYPES : KNIFE_TYPES)[x2]; if (T) D.push(T.name); }
+  if (kind === 'ttype') { const T = TYPE_LISTS[x1] && TYPE_LISTS[x1][x2]; if (T) D.push(T.name); }
   if (kind === 'wear') { const it = GEAR_KEYS.map(k => P.gear[k]).find(g => g && !B.st.includes(g) && B.gs.includes(g)); if (it) D.push(`<i style="color:${gCol(it)}">${it.name}</i> rajtad`); }
   if (kind === 'vet' && GSTATS[x1]) D.push(`${GSTATS[x1].name}: ${SH.vet.ranks[x1]}. rang`);
   if (kind === 'slot') { const won = P.cash - B.cash + slotCostPaid; L.length = 0; L.push(`Fizetve: $${slotCostPaid}`); if (won > 0) L.push(`Nyeremény: $${won}`); if ((P.parts || 0) > B.parts) L.push(`+${(P.parts || 0) - B.parts} ⚙`); newW.forEach(w => L.push(`<i style="color:${rarColor(w)}">${w.name}</i>`)); if (L.length === 1) L.push('Most semmi…'); }
@@ -345,34 +346,11 @@ const HUB = {
         return srow(`${u.name} ${pips(l, u.max)}`, `${u.desc} · most: ${u.val(l)}${maxed ? '' : ` → ${u.val(l + 1)}`}`, `${l}/${u.max}`, `up:${k}`, maxed || profile.cash < c, maxed ? 'Kész' : `$${c}`);
       }).join('')}</div>`;
   },
-  shop() {
+  shop() { return shopPage('P'); }, sgear() { return shopPage('Q'); }, skit() { return shopPage('I'); }, slost() { return shopPage('X'); },
+  swheel() {
     const P = profile;
-    const items = Object.entries(ITEM_PRICE).map(([k, c]) => {
-      const n = k === 'knife' ? 3 : 1, full = P.inv[k] >= itemMax(k);
-      return srow(`<img class="sico" src="${ICONS[k]}" alt="">${ITEMS[k].name}${n > 1 ? ` ×${n}` : ''}`, `${ITEMS[k].desc} · nálad: ${P.inv[k]}/${itemMax(k)}`, `$${c}`, `item:${k}`, full || P.cash < c, full ? 'Tele' : 'Megveszem');
-    }).join('');
-    let [sl, si] = invSel.split(':');
-    const get = () => sl === 'P' ? P.shop[+si] && unpackW(P.shop[+si]) : sl === 'Q' ? P.gshop[+si] : sl === 'I' && ITEMS[si] ? si : sl === 'X' ? P.lost && P.lost.w[+si] && unpackW(P.lost.w[+si]) : sl === 'Y' ? P.lost && P.lost.g[+si] : null;
-    if (!get()) { const a = P.shop.findIndex(Boolean), b = P.gshop.findIndex(Boolean); [sl, si] = a >= 0 ? ['P', a] : ['Q', b]; invSel = `${sl}:${si}`; }
-    const x = get();
-    let detail = noDetail('Minden elfogyott. Munka után megújul a kínálat.');
-    if (x && sl === 'P') { const c = shopPrice(x); detail = weaponDetail(x, unpackW(P.loadout[0]) || unpackW(P.loadout[1]), hbtn(`Megveszem · $${c}`, `gun:${si}`, P.cash < c || P.stash.length >= stashMax(), 'KeyF')); }
-    if (x && sl === 'I') { const c = ITEM_PRICE[x], full = P.inv[x] >= itemMax(x); detail = itemDetail(x, hbtn(full ? 'Tele' : `Megveszem · $${c}`, `item:${x}`, full || P.cash < c, 'KeyF')); }
-    if (x && sl === 'X') { const c = lostPrice(x, 'w'); detail = weaponDetail(x, unpackW(P.loadout[0]) || unpackW(P.loadout[1]), hbtn(`Visszavásárlás · $${c}`, `lostbuy:w:${si}`, P.cash < c || P.stash.length >= stashMax(), 'KeyF', 'A kilépéskor elveszett fegyvered, a raktárba kerül.')); }
-    if (x && sl === 'Y') { const c = lostPrice(x, 'g'); detail = gearDetail(x, P.gear[x.slot], hbtn(`Visszavásárlás · $${c}`, `lostbuy:g:${si}`, P.cash < c || P.gearStash.length >= gearMax(), 'KeyF', 'A kilépéskor elveszett páncélod, a páncélraktárba kerül.')); }
-    if (x && sl === 'Q') { const c = gearPrice(x); detail = gearDetail(x, P.gear[x.slot], hbtn(`Megveszem · $${c}`, `gbuy:${si}`, P.cash < c || P.gearStash.length >= gearMax(), 'KeyF')); }
-    const L0 = unpackW(P.loadout[0]) || unpackW(P.loadout[1]);
-    const guns = P.shop.map((o, k) => { if (!o) return ''; const w = unpackW(o), c = shopPrice(w); return wTile(`P:${k}`, w, { cmp: L0, price: `$${c}`, cant: P.cash < c }); }).join('');
-    const gear = P.gshop.map((it, k) => it ? gTile(`Q:${k}`, it, { cmp: P.gear[it.slot] || null, price: `$${gearPrice(it)}`, cant: P.cash < gearPrice(it) }) : '').join('');
-    const cons = Object.entries(ITEM_PRICE).map(([k, c]) => tile(`I:${k}`, ICONS[k], itemName(k), `${ITEMS[k].desc}`, ITEMS[k].color, { val: `${P.inv[k]}/${itemMax(k)}`, valLbl: 'nálad', price: `$${c}`, cant: P.cash < c || P.inv[k] >= itemMax(k) })).join('');
-    const LS = P.lost, lostW = LS ? LS.w.map((o, k) => { const w = unpackW(o); return w ? wTile(`X:${k}`, w, { price: `$${lostPrice(w, 'w')}`, cant: P.cash < lostPrice(w, 'w') }) : ''; }).join('') : '', lostG = LS ? LS.g.map((it, k) => gTile(`Y:${k}`, it, { price: `$${lostPrice(it, 'g')}`, cant: P.cash < lostPrice(it, 'g') })).join('') : '';
-    const left = `${lostW || lostG ? `<h3 class="losth">Elveszett felszerelés <small>munka közbeni kilépéskor maradt ott · drágán visszavásárolható · egy újabb elvesztés lecseréli</small></h3><div class="tiles">${lostW}${lostG}</div>` : ''}<h3>Fegyverek</h3><div class="tiles">${guns || emptyTile('Elfogyott', 'Munka után megújul')}</div>
-      <h3>Páncél</h3><div class="tiles">${gear || emptyTile('Elfogyott', 'Munka után megújul')}</div>
-      <h3>Felszerelés</h3><div class="tiles">${cons}</div>
-      <h3>Szerencsekerék <small>pénzért bármi kijöhet, a semmitől a legendásig</small></h3><div class="slist">${srow('Pörgetés', `${SLOT_TXT}`, `$${slotCost()}`, 'slot', P.cash < slotCost() || P.stash.length >= stashMax(), 'Pörgetés')}${P.lastSlot ? `<p class="note">Legutóbb: ${P.lastSlot}</p>` : ''}</div>
-      <h3>Gránát- és késfajták <small>egyszer veszed meg, utána szabadon választható</small></h3><div class="slist">${throwRows()}</div>`;
-    return `<div class="hubhead"><h2>Bolt</h2></div><p class="lede">A kínálat minden munka után megújul. A vett fegyver a raktárba, a páncél a páncélraktárba kerül.</p>
-      ${invLayout(left, detail)}`;
+    return `<div class="hubhead"><h2>Szerencsekerék</h2></div><p class="lede">Pénzért bármi kijöhet, a semmitől a legendásig. A nyert fegyver a raktárba kerül, ezért kell hely a raktárban.</p>
+      <div class="slist">${srow('Pörgetés', SLOT_TXT, `$${slotCost()}`, 'slot', P.cash < slotCost() || P.stash.length >= stashMax(), P.stash.length >= stashMax() ? 'Tele a raktár' : 'Pörgetés')}</div>${P.lastSlot ? `<p class="note">Legutóbb: ${P.lastSlot}</p>` : ''}`;
   },
   career() {
     const t = Math.round(stats.time / 60), ptime = t < 60 ? `${t} p` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
@@ -388,7 +366,7 @@ const HUB = {
 };
 enableDrag($('hubBody'));
 // five tabs; Felszerelés and Fejlődés have sub-tabs
-const HUB_GROUPS = { kit: [['arsenal', 'Fegyverek'], ['gear', 'Páncél'], ['forge', 'Kovács'], ['stats', 'Statisztika']], grow: [['skills', 'Képességek'], ['upgrades', 'Fejlesztések'], ['vet', 'Veterán'], ['coll', 'Gyűjtemény']],
+const HUB_GROUPS = { kit: [['arsenal', 'Fegyverek'], ['gear', 'Páncél'], ['forge', 'Kovács'], ['stats', 'Statisztika']], grow: [['skills', 'Képességek'], ['upgrades', 'Fejlesztések'], ['vet', 'Veterán'], ['coll', 'Gyűjtemény']], shop: [['shop', 'Fegyverek'], ['sgear', 'Páncél'], ['skit', 'Felszerelés'], ['swheel', 'Szerencsekerék'], ['slost', 'Elveszett bolt']],
   book: [['bweap', 'Fegyverek'], ['btal', 'Tehetségek'], ['bgear', 'Páncél'], ['bzomb', 'Zombik'], ['bboss', 'Fejvadászok'], ['bjobs', 'Munkák és pályák']] };
 document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.onclick = () => { hubTab = b.dataset.hub; renderHub(); });
 $('hubBody').addEventListener('click', e => { const t = e.target.closest('[data-sub]'); if (t) { hubTab = t.dataset.sub; renderHub(); } });
@@ -445,7 +423,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'up' && U(a) < UPGRADES[a].max && pay(upCost(a))) P.up[a] = U(a) + 1;
   if (kind === 'item') { const n = a === 'knife' ? 3 : 1; if (P.inv[a] < itemMax(a) && pay(ITEM_PRICE[a])) P.inv[a] = Math.min(itemMax(a), P.inv[a] + n); }
   if (kind === 'ttype') { // ttype:g|k:kind
-    const T = P.throw, list = a === 'g' ? GREN_TYPES : KNIFE_TYPES, D = list[c];
+    const T = P.throw, D = TYPE_LISTS[a] && TYPE_LISTS[a][c];
     if (D) { if (!T.own.includes(c)) { if (!pay(D.price)) return; T.own.push(c); } T[a] = c; }
   }
   if (kind === 'gun') { const w = unpackW(P.shop[+a]); if (P.stash.length < stashMax() && pay(shopPrice(w))) { P.stash.push(packW(w)); P.shop[+a] = null; noteFound(w); } }
@@ -510,12 +488,39 @@ $('hubBody').addEventListener('change', e => {
   saveProfile(); publishMember(); renderHub();
 });
 
-function throwRows() {
-  const T = profile.throw, row = (slot, key, D) => {
-    const own = T.own.includes(key), on = T[slot] === key;
-    return srow(`${D.name}${on ? ' <span class="vrank">nálad</span>' : ''}`, D.desc, own ? '' : `$${D.price}`, `ttype:${slot}:${key}`, on || (!own && profile.cash < D.price), on ? 'Kiválasztva' : own ? 'Kiválaszt' : 'Megveszem');
-  };
-  return Object.entries(GREN_TYPES).map(([k, D]) => row('g', k, D)).join('') + Object.entries(KNIFE_TYPES).map(([k, D]) => row('k', k, D)).join('');
+// the shop's sub-tabs: guns (P), armor (Q), kit (I), lost-and-found (X guns / Y armor); the detail panel is shared
+function shopPage(tab) {
+  const P = profile, LS = P.lost;
+  let [sl, si] = invSel.split(':');
+  const get = () => sl === 'P' ? P.shop[+si] && unpackW(P.shop[+si]) : sl === 'Q' ? P.gshop[+si] : sl === 'I' && ITEMS[si] ? si : sl === 'X' ? LS && LS.w[+si] && unpackW(LS.w[+si]) : sl === 'Y' ? LS && LS.g[+si] : null;
+  if (!(tab === 'X' ? 'XY' : tab).includes(sl) || !get()) { [sl, si] = tab === 'P' ? ['P', P.shop.findIndex(Boolean)] : tab === 'Q' ? ['Q', P.gshop.findIndex(Boolean)] : tab === 'I' ? ['I', 'med'] : LS && LS.w.length ? ['X', 0] : ['Y', 0]; invSel = `${sl}:${si}`; }
+  const x = get(), L0 = unpackW(P.loadout[0]) || unpackW(P.loadout[1]);
+  let detail = noDetail(tab === 'X' ? 'Nincs elveszett felszerelésed.' : 'Minden elfogyott. Munka után megújul a kínálat.');
+  if (x && sl === 'P') { const c = shopPrice(x); detail = weaponDetail(x, L0, hbtn(`Megveszem · $${c}`, `gun:${si}`, P.cash < c || P.stash.length >= stashMax(), 'KeyF')); }
+  if (x && sl === 'Q') { const c = gearPrice(x); detail = gearDetail(x, P.gear[x.slot], hbtn(`Megveszem · $${c}`, `gbuy:${si}`, P.cash < c || P.gearStash.length >= gearMax(), 'KeyF')); }
+  if (x && sl === 'I') { const c = ITEM_PRICE[x], full = P.inv[x] >= itemMax(x); detail = itemDetail(x, hbtn(full ? 'Tele' : `Megveszem · $${c}`, `item:${x}`, full || P.cash < c, 'KeyF')); }
+  if (x && sl === 'X') { const c = lostPrice(x, 'w'); detail = weaponDetail(x, L0, hbtn(`Visszavásárlás · $${c}`, `lostbuy:w:${si}`, P.cash < c || P.stash.length >= stashMax(), 'KeyF', 'A kilépéskor elveszett fegyvered, a raktárba kerül.')); }
+  if (x && sl === 'Y') { const c = lostPrice(x, 'g'); detail = gearDetail(x, P.gear[x.slot], hbtn(`Visszavásárlás · $${c}`, `lostbuy:g:${si}`, P.cash < c || P.gearStash.length >= gearMax(), 'KeyF', 'A kilépéskor elveszett páncélod, a páncélraktárba kerül.')); }
+  const soon = emptyTile('Elfogyott', 'Munka után megújul'), room = (n, m) => `<small>hely: ${n} / ${m}</small>`;
+  let head, lede, left;
+  if (tab === 'P') { head = 'Fegyverek'; lede = 'A kínálat minden munka után megújul. A vett fegyver a raktárba kerül.';
+    left = `<h3>Kínálat ${room(P.stash.length, stashMax())}</h3><div class="tiles">${P.shop.map((o, k) => { if (!o) return ''; const w = unpackW(o), c = shopPrice(w); return wTile(`P:${k}`, w, { cmp: L0, price: `$${c}`, cant: P.cash < c }); }).join('') || soon}</div>`; }
+  if (tab === 'Q') { head = 'Páncél'; lede = 'A kínálat minden munka után megújul. A vett páncél a páncélraktárba kerül.';
+    left = `<h3>Kínálat ${room(P.gearStash.length, gearMax())}</h3><div class="tiles">${P.gshop.map((it, k) => it ? gTile(`Q:${k}`, it, { cmp: P.gear[it.slot] || null, price: `$${gearPrice(it)}`, cant: P.cash < gearPrice(it) }) : '').join('') || soon}</div>`; }
+  if (tab === 'I') { head = 'Felszerelés'; lede = 'Mindegyik tárgyból több fajta van. A fajtát egyszer kell megvenned, utána szabadon választhatsz; munkára mindig a kiválasztott fajta jön veled.';
+    left = ITEM_KEYS.map(k => { const s = TYPE_SLOT[k], c = ITEM_PRICE[k], n = k === 'knife' ? 3 : 1;
+      return `<h3 class="kith"><img class="sico" src="${ICONS[k]}" alt="">${ITEMS[k].name} <kbd>${ITEMS[k].key}</kbd> <small>nálad ${P.inv[k]}/${itemMax(k)} · most: ${itemName(k)}</small></h3>
+        <div class="tiles">${tile(`I:${k}`, ICONS[k], `${itemName(k)}${n > 1 ? ` ×${n}` : ''}`, 'utántöltés', ITEMS[k].color, { val: `${P.inv[k]}/${itemMax(k)}`, valLbl: 'nálad', price: `$${c}`, cant: P.cash < c || P.inv[k] >= itemMax(k) })}</div>
+        <div class="slist">${typeRows(s)}</div>`; }).join(''); }
+  if (tab === 'X') { head = 'Elveszett bolt'; lede = 'Ha munka közben kilépsz (egyedül, vagy utolsóként a csapatból), a nálad lévő fegyverek és páncél ide kerülnek. Drágán visszavásárolhatod őket; egy újabb elvesztés lecseréli a listát.';
+    const lw = LS ? LS.w.map((o, k) => { const w = unpackW(o); return w ? wTile(`X:${k}`, w, { price: `$${lostPrice(w, 'w')}`, cant: P.cash < lostPrice(w, 'w') || P.stash.length >= stashMax() }) : ''; }).join('') : '', lg = LS ? LS.g.map((it, k) => gTile(`Y:${k}`, it, { price: `$${lostPrice(it, 'g')}`, cant: P.cash < lostPrice(it, 'g') || P.gearStash.length >= gearMax() })).join('') : '';
+    left = lw || lg ? `${lw ? `<h3 class="losth">Fegyverek ${room(P.stash.length, stashMax())}</h3><div class="tiles">${lw}</div>` : ''}${lg ? `<h3 class="losth">Páncél ${room(P.gearStash.length, gearMax())}</h3><div class="tiles">${lg}</div>` : ''}` : `<div class="tiles">${emptyTile('Üres', 'Nincs elveszett felszerelésed')}</div>`; }
+  return `<div class="hubhead"><h2>${head}</h2></div><p class="lede">${lede}</p>${invLayout(left, detail)}`;
+}
+function typeRows(slot) {
+  const T = profile.throw;
+  return Object.entries(TYPE_LISTS[slot]).map(([key, D]) => { const own = T.own.includes(key), on = throwKind({ g: 'gren', k: 'knife', m: 'med', s: 'adren' }[slot]) === key;
+    return srow(`${D.name}${on ? ' <span class="vrank">nálad</span>' : ''}`, D.desc, own ? '' : `$${D.price}`, `ttype:${slot}:${key}`, on || (!own && profile.cash < D.price), on ? 'Kiválasztva' : own ? 'Kiválaszt' : 'Megveszem'); }).join('');
 }
 
 // ---------- the slot machine: a cash sink with a jackpot ----------

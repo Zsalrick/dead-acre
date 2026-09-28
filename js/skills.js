@@ -121,9 +121,10 @@ const SK = {
     if (exoOn('berserk')) m += .5 * clamp(1 - player.hp / maxHp(), 0, 1);
     if (player.bloodN && now < player.bloodT) m += .05 * player.bloodN; // Gravetide: Vérszomj
     m += .02 * masteryTier(w.base.id) + .02 * (w.exp || 0); // weapon mastery, expertise
+    if (stimOn('berserk')) m += .3; // Berzerker-szérum
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
-  crit: w => .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
+  crit: w => (stimOn('focus') ? .2 : 0) + .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
   critDmg: () => .2 * rk('h_deadly') + (exoOn('glass') ? .5 : 0),
   head: () => (isCls('hunter') ? .1 : 0) + .12 * rk('h_head'),
   hp: () => 8 * rk('s_hide'),
@@ -133,7 +134,7 @@ const SK = {
   speed: () => .04 * rk('h_light'),
   reload: () => .08 * rk('s_hands'),
   ammo: () => .15 * rk('s_ammo'),
-  taken: () => (dirOn('fragile') ? 1.3 : 1) * (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < 6 ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .04 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
+  taken: () => (stimOn('iron') ? .6 : 1) * (now < (player.guardT || 0) ? .5 : 1) * (dirOn('fragile') ? 1.3 : 1) * (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < 6 ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .04 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
     * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1),
   med: () => Math.round((70 + 20 * rk('m_bless')) * (isCls('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),

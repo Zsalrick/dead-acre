@@ -149,7 +149,8 @@ function renderInv() {
   $('inv').innerHTML = ITEM_KEYS.map(k => `<div class="it${player.inv[k] ? '' : ' empty'}" style="--ic:${ITEMS[k].color}" title="${ITEMS[k].name}">` +
     `<b>${ITEMS[k].key}</b><img src="${ICONS[k]}" alt=""><strong>${player.inv[k] || 0}</strong><span>${itemName(k)}</span></div>`).join('');
 }
-function itemName(k) { return k === 'gren' ? GREN_TYPES[throwKind('gren')].name : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].name : ITEMS[k].name; // the grenade / knife type you picked
+function itemDesc(k) { return itemType(k).desc; }
+function itemName(k) { return itemType(k).name; // the grenade / knife type you picked
 }
 function sell() {
   if (!focus) return;
@@ -163,13 +164,15 @@ function sell() {
 }
 function useItem(k) {
   if (!k || player.itemCd > 0 || armAnim || player.reloading) return;
-  if (!player.inv[k] || (k === 'med' && player.hp >= maxHp())) return SND.deny();
+  const mk = throwKind('med');
+  if (!player.inv[k] || (k === 'med' && player.hp >= maxHp() && !(mk === 'shield' && player.shield < maxShield()))) return SND.deny();
   if (k === 'gren' && rk('e_overclock')) player.overT = Math.max(player.overT || 0, now + 4); // Túlhajtás
   const heal = SK.med();
   player.inv[k]--; player.itemCd = .45; renderInv();
   startArm(k === 'gren' || k === 'knife' ? 'throw' : 'use', k, () => {
-    if (k === 'med') { player.hp = Math.min(maxHp(), player.hp + heal); SND.heal(); popText(`+${heal} életerő`, ITEMS.med.color); }
-    else if (k === 'adren') { player.adrenT = 12; player.stam = maxStam(); SND.power(); }
+    if (k === 'med' && mk === 'regen') { player.regenT = 6; player.regenR = heal * 1.6 / 6; SND.heal(); popText('Regenerálás · 6 mp', ITEMS.med.color); }
+    else if (k === 'med') { const h = Math.round(heal * (mk === 'shield' ? .5 : mk === 'combat' ? .7 : 1)); player.hp = Math.min(maxHp(), player.hp + h); if (mk === 'shield') player.shield = maxShield(); if (mk === 'combat') player.guardT = now + 4; SND.heal(); popText(`+${h} életerő${mk === 'shield' ? ' · pajzs tele' : ''}`, ITEMS.med.color); }
+    else if (k === 'adren') { const sk = throwKind('adren'); player.stimK = sk; player.adrenT = STIM_TYPES[sk].t; if (sk === 'adren') player.stam = maxStam(); SND.power(); popText(STIM_TYPES[sk].name, STIM_TYPES[sk].col); }
     else throwProj(k);
   });
 }

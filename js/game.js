@@ -30,7 +30,7 @@ function startJob(job, opts = {}) {
   const P = profile;
   Object.assign(player, { points: 500, earned: 0, kills: 0, heads: 0, cur: 0, ads: 0, bloom: 0, recoil: 0, reloadT: 0, reloading: false, spin: 0,
     ffyl: 0, shotsN: 0, hitsN: 0, dmgDone: 0, stepD: 0, fireCd: 0, burstLeft: 0, switchT: 0, knifeT: 0, knifeCd: 0, best: null, yaw: 0, pitch: 0, vy: 0, lastHurt: -99,
-    inv: P.inv, up: P.up, stam: maxStam(), stamT: 0, adrenT: 0, itemCd: 0, perks: {}, buf: {}, uHeat: 0, uStack: 0 });
+    inv: P.inv, up: P.up, stam: maxStam(), stamT: 0, adrenT: 0, stimK: null, regenT: 0, guardT: 0, itemCd: 0, perks: {}, buf: {}, uHeat: 0, uStack: 0 });
   player.hp = maxHp(); player.shield = maxShield(); endFFYLView();
   resetSkillsRun();
   const extraGren = (isCls('engineer') ? 1 : 0) + rk('e_belt');
@@ -343,7 +343,7 @@ function renderPauseInv() {
     <h3>Viselt páncél</h3><div class="tiles worn" data-drop="W">${GEAR_KEYS.map(k => profile.gear[k] ? gTile(`W:${k}`, profile.gear[k], { tag: profile.gear[k].found ? 'új' : '' }) : emptyTile(GEAR_SLOTS[k], 'Húzz ide páncélt', gearIcon(k, '#5a5a55'), 'W')).join('')}</div>
     <h3>Páncél a zsákban <small>a talált darab csak evakuálással a tiéd</small></h3><div class="tiles" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: profile.gear[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Még semmi', 'A zombik dobják, rálépve felveszed')}</div>
     <h3>Lőszer <small>tartalék, a fegyvereid szerint</small></h3><div class="invlist ammo">${ammoRows()}</div>
-    <h3>Tárgyak</h3><div class="invlist">${ITEM_KEYS.map(k => `<div><img src="${ICONS[k]}" alt=""><span>[${ITEMS[k].key}] ${k === 'gren' ? GREN_TYPES[throwKind('gren')].name : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].name : ITEMS[k].name}<small>${k === 'gren' ? GREN_TYPES[throwKind('gren')].desc : k === 'knife' ? KNIFE_TYPES[throwKind('knife')].desc : ITEMS[k].desc}</small></span><strong>${player.inv[k]}/${itemMax(k)}</strong></div>`).join('')}</div>`;
+    <h3>Tárgyak</h3><div class="invlist">${ITEM_KEYS.map(k => `<div><img src="${ICONS[k]}" alt=""><span>[${ITEMS[k].key}] ${itemName(k)}<small>${itemDesc(k)}</small></span><strong>${player.inv[k]}/${itemMax(k)}</strong></div>`).join('')}</div>`;
   const lo = $('loadout'), keep = [...lo.querySelectorAll('.invl,.invd')].map(e => e.scrollTop);
   lo.innerHTML = invLayout(left, detail);
   [...lo.querySelectorAll('.invl,.invd')].forEach((e, k) => { if (keep[k] != null) e.scrollTop = keep[k]; }); // a click re-renders it: stay where you were
@@ -539,7 +539,9 @@ function modHudText() { // what makes this job harder or richer, for the corner 
 function buffIcons(w) {
   const B = player.buf || {}, L = [], seen = player.bufSeen || (player.bufSeen = {}), add = (ic, name, col, v, max) => { const key = name.split(':')[0]; if (!seen[key] || now - seen[key].last > 1) seen[key] = { t: now }; seen[key].last = now; L.push(`<span class="bf${/Lelassítva/.test(name) ? ' bad' : ''}" style="--bc:${col}" data-tip="${name}">${now - seen[key].t < 2.5 ? `<em>${key}</em>` : ''}<i>${ic}</i>${v != null ? `<b>${v}</b>` : ''}${max ? `<u style="width:${clamp(v / max, 0, 1) * 100}%"></u>` : ''}</span>`); };
   const sec = t => Math.max(0, Math.ceil(t));
-  if (player.adrenT > 0) add('»', 'Adrenalin', '#7fc4ff', sec(player.adrenT), 12);
+  if (player.adrenT > 0) { const S = STIM_TYPES[player.stimK || 'adren']; add(S.ic, `${S.name}: ${S.desc.replace(/^\d+ mp: /, '')}`, S.col, sec(player.adrenT), S.t); }
+  if (player.regenT > 0) add('+', 'Regenerálás', '#ff5a5a', sec(player.regenT), 6);
+  if (now < (player.guardT || 0)) add('▲', 'Harci csomag: fele sebzés', '#ff9a7a', sec(player.guardT - now), 4);
   if (player.stormT > 0) add('∞', 'Tűzvihar: nem fogy a tár', '#ff8a3a', sec(player.stormT), 11);
   if (player.eyeT > 0) add('◎', 'Halálszem: amit eltalálsz, megjelölődik', '#b46cff', sec(player.eyeT), 20);
   if (now < (player.overT || 0)) add('↯', 'Pörgés: +40% tűzgyorsaság', '#ffd23f', sec(player.overT - now), 8);
@@ -595,8 +597,8 @@ function updateHUD() {
     $('ability').className = cd > 0 && !active ? 'cd' : 'ready'; $('ability').style.setProperty('--cc', C.color);
   } else setHTML('ability', '');
   $('hpfill').style.width = player.hp / maxHp() * 100 + '%';
-  $('stamfill').style.width = (player.adrenT > 0 ? 100 : player.stam / maxStam() * 100) + '%';
-  $('stam').classList.toggle('full', player.adrenT <= 0 && player.stam >= maxStam() - .5);
+  $('stamfill').style.width = (stimOn('adren') ? 100 : player.stam / maxStam() * 100) + '%';
+  $('stam').classList.toggle('full', !stimOn('adren') && player.stam >= maxStam() - .5);
   $('hp').classList.toggle('low', player.hp / maxHp() < .3);
   $('hud').classList.toggle('ads', player.ads > .6);
   $('shield').hidden = !maxShield(); $('shieldfill').style.width = (maxShield() ? player.shield / maxShield() * 100 : 0) + '%';

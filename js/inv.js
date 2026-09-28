@@ -200,7 +200,7 @@ function gearDetail(it, cmp, actions) {
 function itemDetail(k, actions) {
   const I = ITEMS[k];
   return `<div class="dhead" style="--rc:${I.color}"><div class="dband"><span class="rar">Felszerelés</span> [${I.key}] gomb</div>
-      <div class="dname">${itemName(k)}</div><img class="dico" src="${ICONS[k]}" alt=""><div class="dsub">${I.desc}</div></div>
+      <div class="dname">${itemName(k)}</div><img class="dico" src="${ICONS[k]}" alt=""><div class="dsub">${itemDesc(k)}</div></div>
     <table class="dtab">${drow('Nálad', `${profile.inv[k]} / ${itemMax(k)}`)}${drow('Egyszerre', k === 'knife' ? '3 db' : '1 db')}</table>
     ${actions ? `<div class="dact">${actions}</div>` : ''}`;
 }

@@ -244,10 +244,10 @@ const rarColor = w => RARITIES[w.q].color;
 const sellValue = w => Math.round([60, 150, 320, 650, 1300, 2600][w.q] * (1 + .08 * (w.level - 1)));
 
 const ITEMS = {
-  med:   { name: 'Gyógycsomag', key: 'H', max: 3, color: '#ff5a5a', desc: '+70 életerő azonnal' },
+  med:   { name: 'Gyógyítás',   key: 'H', max: 3, color: '#ff5a5a', desc: '+70 életerő azonnal' },
   gren:  { name: 'Gránát',      key: 'G', max: 4, color: '#8fd35a', desc: '1,8 mp után robban, 5 m sugárban' },
   knife: { name: 'Dobókés',     key: 'Q', max: 8, color: '#d8d8d8', desc: 'Nagy sebzés, fejre dupla' },
-  adren: { name: 'Adrenalin',   key: 'T', max: 2, color: '#7fc4ff', desc: '12 mp: végtelen sprint, +30% sebesség, gyors újratöltés' },
+  adren: { name: 'Stimuláns',   key: 'T', max: 2, color: '#7fc4ff', desc: '12 mp: végtelen sprint, +30% sebesség, gyors újratöltés' },
 };
 const ITEM_KEYS = Object.keys(ITEMS);
 // grenade and knife kinds: bought once at the base, the chosen one fills the G / Q slot
@@ -264,7 +264,23 @@ const KNIFE_TYPES = {
   blast:    { name: 'Robbanó kés', desc: 'Becsapódáskor felrobban.', price: 1200 },
   ricochet: { name: 'Pattanó kés', desc: 'Még két zombiról lepattan.', price: 1000 },
 };
-const throwKind = k => { const T = profile && profile.throw || {}; return k === 'gren' ? (GREN_TYPES[T.g] ? T.g : 'frag') : (KNIFE_TYPES[T.k] ? T.k : 'steel'); };
+// medkit and stim kinds work the same way: the chosen one fills the H / T slot
+const MED_TYPES = {
+  std:    { name: 'Gyógycsomag', desc: 'Azonnal gyógyít (alapból +70 életerő).', price: 0 },
+  regen:  { name: 'Regeneráló injekció', desc: 'A gyógyítás 160%-a, 6 mp alatt elosztva. Közben harcolhatsz.', price: 900 },
+  shield: { name: 'Pajzstöltő', desc: 'Teljesen feltölti a pajzsot, és a gyógyítás felét adja. Teli életerővel is használható.', price: 1100 },
+  combat: { name: 'Harci csomag', desc: 'A gyógyítás 70%-a, és 4 mp-ig fele annyi sebzést kapsz.', price: 1300 },
+};
+const STIM_TYPES = {
+  adren:   { name: 'Adrenalin', desc: '12 mp: végtelen sprint, +30% sebesség, gyors újratöltés.', price: 0, t: 12, ic: '»', col: '#7fc4ff' },
+  berserk: { name: 'Berzerker-szérum', desc: '10 mp: +30% sebzés.', price: 1000, t: 10, ic: '✹', col: '#ff5a4a' },
+  focus:   { name: 'Fókusz-cseppek', desc: '10 mp: +20% kritikus esély.', price: 900, t: 10, ic: '◎', col: '#ffd23f' },
+  iron:    { name: 'Vasbőr-injekció', desc: '10 mp: 40%-kal kevesebb sebzést kapsz.', price: 1200, t: 10, ic: '▣', col: '#9fb4c8' },
+};
+const TYPE_LISTS = { g: GREN_TYPES, k: KNIFE_TYPES, m: MED_TYPES, s: STIM_TYPES }, TYPE_SLOT = { gren: 'g', knife: 'k', med: 'm', adren: 's' }, TYPE_DEF = { g: 'frag', k: 'steel', m: 'std', s: 'adren' };
+const throwKind = k => { const s = TYPE_SLOT[k], T = profile && profile.throw || {}; return TYPE_LISTS[s][T[s]] ? T[s] : TYPE_DEF[s]; };
+const itemType = k => TYPE_LISTS[TYPE_SLOT[k]][throwKind(k)];
+const stimOn = k => player.adrenT > 0 && (player.stimK || 'adren') === k;
 function drawIcon(k) {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const g = c.getContext('2d'), col = ITEMS[k].color;

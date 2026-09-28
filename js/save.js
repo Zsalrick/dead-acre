@@ -40,7 +40,7 @@ function openProfile(n) {
   player.up = profile.up;
   Object.assign(profile, { bag: profile.bag || [], gear: profile.gear || {}, gearStash: profile.gearStash || [], gshop: profile.gshop || [] });
   profile.vet = profile.vet || {};
-  profile.throw = profile.throw || { g: 'frag', k: 'steel', own: ['frag', 'steel'] };
+  profile.throw = profile.throw || { g: 'frag', k: 'steel', own: ['frag', 'steel'] }; for (const d of ['std', 'adren']) if (!profile.throw.own.includes(d)) profile.throw.own.push(d);
   profile.loadout.forEach((o, k) => { const w = o && unpackW(o); if (w && !canUse(w)) { profile.stash.push(o); profile.loadout[k] = null; } }); // a gun above your level goes to the stash
   if (!profile.loadout[0] && !profile.loadout[1]) profile.loadout[0] = packW(makeWeapon(BASES[0], 0, Math.max(1, profile.level)));
   { let seen = false; profile.loadout.forEach((o, k) => { if (o && o.unique) { if (seen) { profile.stash.push(o); profile.loadout[k] = null; } seen = true; } }); } // one exotic gun in hand
