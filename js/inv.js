@@ -159,7 +159,8 @@ function itemDetail(k, actions) {
 function updateKeybar(root) {
   const bar = $('keybar'), inv = root.querySelector('.inv');
   if (!inv) { bar.innerHTML = ''; return; }
-  const acts = [...inv.querySelectorAll('.invd [data-key]')].map(b => `<span${b.disabled ? ' class="off"' : ''}><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '')}</span>`);
+  const btns = [...inv.querySelectorAll('.invd [data-key]')]; bar.btns = btns;
+  const acts = btns.map((b, i) => `<span data-i="${i}"${b.disabled ? ' class="off"' : ''}><kbd>${KEY_LABEL[b.dataset.key]}</kbd>${b.textContent.replace(KEY_LABEL[b.dataset.key], '')}</span>`);
   bar.innerHTML = `<span><kbd>←↑↓→</kbd>Választás</span>${acts.join('')}`;
 }
 function invKey(e, root) {
@@ -254,3 +255,8 @@ function endHold() { if (holding) { holding.b.style.setProperty('--hp', '0%'); h
 addEventListener('pointerdown', e => { const b = e.target.closest && e.target.closest('.sbtn.hold'); if (b) startHold(b, b.closest('#loadout,#hubBody') || document.body); }, true);
 addEventListener('pointerup', endHold, true);
 addEventListener('keyup', e => { if (holding && holding.b.dataset.key === e.code) endHold(); });
+
+$('keybar').addEventListener('pointerdown', e => { // the bar is the action list: click (or hold) an entry
+  const sp = e.target.closest('[data-i]'), b = sp && $('keybar').btns && $('keybar').btns[+sp.dataset.i]; if (!b || b.disabled) return;
+  e.preventDefault(); if (b.classList.contains('hold')) startHold(b, b.closest('#loadout,#hubBody') || document.body); else b.click();
+});

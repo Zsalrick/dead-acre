@@ -38,9 +38,9 @@ function vetTab() {
   return `<div class="hubhead"><h2>Veterán</h2></div>
     <p class="lede">Minden szintlépés és minden kihívás-fokozat ad egy veterán pontot. A pontokért kis, de sosem véget érő bónuszokat veszel; minden rang egy kicsit kevesebbet ad, mint az előző, de a fejlődésnek nincs plafonja.</p>
     <div class="vtop"><div>Veterán rang<strong>${vetEarned()}</strong></div><div>Elkölthető pont<strong class="cash">${avail}</strong></div></div>
-    ${collectionLog()}
     <div class="gtop"><section><h3>Bónuszok</h3><div class="slist">${rows}</div></section><section><h3>Kihívások</h3><div class="chals">${ch}</div></section></div>`;
 }
+const collTab = () => `<div class="hubhead"><h2>Gyűjtemény</h2></div>${collectionLog()}`;
 
 // ---------- daily and weekly contracts (Division projects): fresh goals every day, a big one every week ----------
 const CONTRACTS = [
