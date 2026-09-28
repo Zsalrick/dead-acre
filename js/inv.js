@@ -126,7 +126,7 @@ function weaponDetail(w, cmp, actions) {
   const b = w.base, A = wCalc(w), C = cmp && cmp !== w ? wCalc(cmp) : null, c = C && cmp, el = w.element && ELEMENTS[w.element];
   const x = (k, low, dg) => C ? arrow(A[k], C[k], low, dg) : '', RL = rollsOf(w);
   return `<div class="dhead" style="--rc:${rarColor(w)}"><div class="dband"><span class="rar">${RARITIES[w.q].name}</span> ${b.name}<i class="dlv">Lv ${w.level}</i></div>
-      <div class="dname">${w.name}</div><img src="${wPic(w)}" alt="">
+      <div class="dname">${w.name}</div><img src="${wPic(w)}" alt=""><div class="dammo" data-tip="${CAT_NAMES[CAT[b.id]] || ''} lőszert használ"><img src="${ammoURL(CAT[b.id])}" alt=""><small>${CAT_NAMES[CAT[b.id]] || ''}</small></div>
       <div class="dsub">${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''}</div></div>
     <div class="dmaker">${makerLogo(w.mk)}<div><small>Gyártó</small><b>${w.maker}</b></div><div class="mperk"><small>Gyártó bónusz</small><span>${mkOf(w).perk || '—'}</span></div></div>
     ${!canUse(w) ? `<div class="dlock">Csak ${w.level}. szinttől használható. Addig viheted a táskában.</div>` : ''}

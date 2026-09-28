@@ -823,6 +823,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 .dsec small{display:block;margin-top:2px;font-size:10px;letter-spacing:.02em;text-transform:none;color:var(--dim);font-weight:400}
 .optbox{flex-basis:100%;margin:2px 0 6px;padding:8px 10px;border:1px solid rgba(255,210,63,.25);background:rgba(255,210,63,.04)}.optbox>small{display:block;color:var(--dim);font-size:11px;margin-bottom:4px}
 .optrow{display:grid;grid-template-columns:110px 1fr 38px auto;gap:8px;align-items:center;padding:3px 0;font-size:12.5px}.optrow .rbar{margin:0}.optrow b{text-align:right;font-variant-numeric:tabular-nums}.optrow .sbtn{padding:4px 8px;font-size:11px}
+.dhead{position:relative}.dammo{position:absolute;right:14px;top:92px;display:grid;justify-items:center;opacity:.5;pointer-events:auto}.dammo img{width:52px !important;height:52px;object-fit:contain;margin:0 !important}.dammo small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone)}
+.cammo{width:18px;height:18px;vertical-align:middle;margin-right:4px;opacity:.8}
 </style>
 
 <div id="game">
@@ -933,12 +935,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <div id="chat" hidden><div id="chatLog"></div><input id="chatIn" maxlength="120" placeholder="Üzenet a csapatnak… (Enter: küldés, Esc: mégse)" autocomplete="off" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="js/data.js?v=52" charset="utf-8"></script>
-<script src="js/audio.js?v=52" charset="utf-8"></script>
-<script src="js/music.js?v=52" charset="utf-8"></script>
-<script src="js/world.js?v=52" charset="utf-8"></script>
-<script src="js/maps.js?v=52" charset="utf-8"></script>
-<script src="js/fx.js?v=52" charset="utf-8"></script>
+<script src="js/data.js?v=53" charset="utf-8"></script>
+<script src="js/audio.js?v=53" charset="utf-8"></script>
+<script src="js/music.js?v=53" charset="utf-8"></script>
+<script src="js/world.js?v=53" charset="utf-8"></script>
+<script src="js/maps.js?v=53" charset="utf-8"></script>
+<script src="js/fx.js?v=53" charset="utf-8"></script>
 <!-- optional post-processing (bloom); gfx.js falls back to plain rendering if these fail to load -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
@@ -946,21 +948,21 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(-
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/gfx.js?v=52" charset="utf-8"></script>
-<script src="js/player.js?v=52" charset="utf-8"></script>
-<script src="js/zombies.js?v=52" charset="utf-8"></script>
-<script src="js/loot.js?v=52" charset="utf-8"></script>
-<script src="js/upgrades.js?v=52" charset="utf-8"></script>
-<script src="js/gear.js?v=52" charset="utf-8"></script>
-<script src="js/vet.js?v=52" charset="utf-8"></script>
-<script src="js/inv.js?v=52" charset="utf-8"></script>
-<script src="js/save.js?v=52" charset="utf-8"></script>
-<script src="js/menu.js?v=52" charset="utf-8"></script>
-<script src="js/skills.js?v=52" charset="utf-8"></script>
-<script src="js/hub.js?v=52" charset="utf-8"></script>
-<script src="js/book.js?v=52" charset="utf-8"></script>
-<script src="js/game.js?v=52" charset="utf-8"></script>
-<script src="js/jobs.js?v=52" charset="utf-8"></script>
+<script src="js/gfx.js?v=53" charset="utf-8"></script>
+<script src="js/player.js?v=53" charset="utf-8"></script>
+<script src="js/zombies.js?v=53" charset="utf-8"></script>
+<script src="js/loot.js?v=53" charset="utf-8"></script>
+<script src="js/upgrades.js?v=53" charset="utf-8"></script>
+<script src="js/gear.js?v=53" charset="utf-8"></script>
+<script src="js/vet.js?v=53" charset="utf-8"></script>
+<script src="js/inv.js?v=53" charset="utf-8"></script>
+<script src="js/save.js?v=53" charset="utf-8"></script>
+<script src="js/menu.js?v=53" charset="utf-8"></script>
+<script src="js/skills.js?v=53" charset="utf-8"></script>
+<script src="js/hub.js?v=53" charset="utf-8"></script>
+<script src="js/book.js?v=53" charset="utf-8"></script>
+<script src="js/game.js?v=53" charset="utf-8"></script>
+<script src="js/jobs.js?v=53" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/p2p.js?v=52" charset="utf-8"></script>
-<script src="js/net.js?v=52" charset="utf-8"></script>
+<script src="js/p2p.js?v=53" charset="utf-8"></script>
+<script src="js/net.js?v=53" charset="utf-8"></script>

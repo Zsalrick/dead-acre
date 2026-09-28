@@ -37,14 +37,28 @@ const powerUps = [];
 // ammo on the ground is typed by weapon family, with its own icon: mostly for a gun you carry, sometimes for another
 const AMMO_COL = { pistol: '#e8c86a', smg: '#9fd0ff', rifle: '#ffb060', marks: '#c8a8ff', heavy: '#ff7a5a', shotgun: '#ff5a5a', energy: '#6ff0c8', explosive: '#ffd23f' };
 const ammoMats = {};
-function ammoIcon(cat) { // a small box of rounds in the family's colour, with its name
-  if (ammoMats[cat]) return ammoMats[cat];
+// every family has its own round, drawn after the real thing: 9 mm, a mag of SMG rounds, 5.56, .308, a .50 belt, a 12-gauge shell, an energy cell, a 40 mm grenade
+const ammoCanvases = {}, ammoURLs = {};
+function ammoCanvas(cat, ring = true) {
+  const key = cat + ring; if (ammoCanvases[key]) return ammoCanvases[key];
   const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d'), col = AMMO_COL[cat] || '#e8c86a';
-  g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(64, 60, 56, 0, 7); g.fill(); g.strokeStyle = col; g.lineWidth = 4; g.stroke();
-  for (let i = 0; i < 3; i++) { const x = 34 + i * 22; g.fillStyle = '#b08a3a'; g.fillRect(x, 50, 16, 34); g.fillStyle = col; g.beginPath(); g.moveTo(x, 50); g.lineTo(x + 8, cat === 'shotgun' ? 38 : 28); g.lineTo(x + 16, 50); g.fill(); g.fillStyle = '#6a5020'; g.fillRect(x, 80, 16, 4); }
-  g.fillStyle = col; g.font = 'bold 17px Impact, sans-serif'; g.textAlign = 'center'; g.fillText((CAT_NAMES[cat] || cat).toUpperCase(), 64, 106);
-  return ammoMats[cat] = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false });
+  if (ring) { g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(64, 58, 56, 0, 7); g.fill(); g.strokeStyle = col; g.lineWidth = 4; g.stroke(); }
+  const brass = (x, y, w, h) => { const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, '#8a6a28'); gr.addColorStop(.45, '#f0d080'); gr.addColorStop(1, '#8a6a28'); g.fillStyle = gr; g.fillRect(x, y, w, h); g.fillStyle = '#6a5020'; g.fillRect(x - 1, y + h - 4, w + 2, 4); };
+  const copper = (x, y, w, h, sharp) => { const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, '#8a4a28'); gr.addColorStop(.45, '#e8a070'); gr.addColorStop(1, '#8a4a28'); g.fillStyle = gr; g.beginPath(); g.moveTo(x, y + h); if (sharp) { g.quadraticCurveTo(x, y + h * .35, x + w / 2, y); g.quadraticCurveTo(x + w, y + h * .35, x + w, y + h); } else { g.lineTo(x, y + h * .5); g.arc(x + w / 2, y + h * .5, w / 2, Math.PI, 0); g.lineTo(x + w, y + h); } g.fill(); };
+  const round = (x, base, w, caseH, bulH, neck, sharp) => { if (neck) { brass(x, base - caseH, w, caseH); g.fillStyle = '#c8a050'; g.beginPath(); g.moveTo(x, base - caseH); g.lineTo(x + w * .22, base - caseH - neck); g.lineTo(x + w * .78, base - caseH - neck); g.lineTo(x + w, base - caseH); g.fill(); copper(x + w * .22, base - caseH - neck - bulH, w * .56, bulH, sharp); } else { brass(x, base - caseH, w, caseH); copper(x, base - caseH - bulH, w, bulH, sharp); } };
+  if (cat === 'pistol') { round(38, 88, 20, 26, 16, 0, false); round(68, 88, 20, 26, 16, 0, false); }
+  else if (cat === 'smg') { g.fillStyle = '#2a2c2e'; g.fillRect(44, 58, 40, 36); g.fillStyle = '#44484c'; g.fillRect(44, 58, 40, 6); round(47, 60, 15, 16, 11, 0, false); round(66, 60, 15, 16, 11, 0, false); }
+  else if (cat === 'rifle') { for (let k = 0; k < 3; k++) round(34 + k * 22, 92, 14, 36, 18, 8, true); }
+  else if (cat === 'marks') { round(44, 100, 14, 46, 26, 10, true); round(70, 100, 14, 46, 26, 10, true); }
+  else if (cat === 'heavy') { g.save(); g.translate(64, 62); g.rotate(-.5); for (let k = -2; k <= 2; k++) { g.fillStyle = '#3a3c3e'; g.fillRect(k * 16 - 9, 16, 18, 8); round(k * 16 - 7, 18, 14, 30, 16, 6, true); } g.restore(); }
+  else if (cat === 'shotgun') { for (const x of [40, 68]) { const gr = g.createLinearGradient(x, 0, x + 22, 0); gr.addColorStop(0, '#7a1a1a'); gr.addColorStop(.45, '#e84a3a'); gr.addColorStop(1, '#7a1a1a'); g.fillStyle = gr; g.fillRect(x, 34, 22, 44); g.fillStyle = '#5a1010'; for (let k = 0; k < 4; k++) g.fillRect(x + 2 + k * 5, 34, 2, 5); brass(x - 1, 76, 24, 16); } }
+  else if (cat === 'energy') { g.fillStyle = '#1e2a2a'; g.fillRect(46, 32, 36, 60); g.fillStyle = '#5a6a6a'; g.fillRect(56, 26, 16, 7); const gr = g.createLinearGradient(0, 38, 0, 88); gr.addColorStop(0, '#dfffff'); gr.addColorStop(1, col); g.fillStyle = gr; g.fillRect(51, 40, 26, 46); g.fillStyle = '#1e2a2a'; g.beginPath(); g.moveTo(67, 44); g.lineTo(57, 64); g.lineTo(64, 64); g.lineTo(60, 82); g.lineTo(71, 60); g.lineTo(64, 60); g.fill(); }
+  else if (cat === 'explosive') { brass(46, 70, 36, 20); const gr = g.createLinearGradient(46, 0, 82, 0); gr.addColorStop(0, '#3a4a2a'); gr.addColorStop(.45, '#7a8a5a'); gr.addColorStop(1, '#3a4a2a'); g.fillStyle = gr; g.beginPath(); g.moveTo(46, 70); g.lineTo(46, 50); g.quadraticCurveTo(46, 28, 64, 26); g.quadraticCurveTo(82, 28, 82, 50); g.lineTo(82, 70); g.fill(); g.fillStyle = '#ffd23f'; g.fillRect(46, 56, 36, 5); }
+  if (ring) { g.fillStyle = col; g.font = 'bold 15px Impact, sans-serif'; g.textAlign = 'center'; g.fillText((CAT_NAMES[cat] || cat).toUpperCase(), 64, 110); }
+  return ammoCanvases[key] = c;
 }
+const ammoURL = cat => ammoURLs[cat] || (ammoURLs[cat] = ammoCanvas(cat, false).toDataURL());
+function ammoIcon(cat) { return ammoMats[cat] || (ammoMats[cat] = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(ammoCanvas(cat)), transparent: true, depthWrite: false })); }
 function ammoCat() { const mine = [...player.slots, ...player.bag].filter(Boolean).map(w => CAT[w.base.id]).filter(Boolean); return mine.length && Math.random() < .7 ? pick(mine) : pick([...new Set(Object.values(CAT))]); }
 function spawnPower(pos, type) {
   type = type || pick(Object.keys(POWERS).filter(k => !POWERS[k].small));

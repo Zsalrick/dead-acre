@@ -478,7 +478,7 @@ function statRows(w, c) {
 function cardHTML(w, action, c) {
   const el = w.element ? ELEMENTS[w.element] : null;
   return `<div class="head"><div class="lvl">Lv ${w.level}</div><div class="rar">${RARITIES[w.q].name}</div><div class="name">${w.name}</div>
-    <div class="sub">${w.maker} · ${w.base.name}</div>${c && c !== w ? `<span class="verdict ${dps(w) >= dps(c) ? 'up">JOBB' : 'down">GYENGÉBB'}</span>` : ''}</div>
+    <div class="sub"><img class="cammo" src="${ammoURL(CAT[w.base.id])}" alt="">${w.maker} · ${w.base.name} · ${CAT_NAMES[CAT[w.base.id]] || ''}</div>${c && c !== w ? `<span class="verdict ${dps(w) >= dps(c) ? 'up">JOBB' : 'down">GYENGÉBB'}</span>` : ''}</div>
     <div class="wperk">${w.maker}: ${mkOf(w).perk || ''}</div>
     <table>${statRows(w, c)}</table>
     ${el ? `<div class="elem" style="color:${el.color}">${el.name}: ${el.desc}</div>` : ''}
