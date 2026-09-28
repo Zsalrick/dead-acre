@@ -629,13 +629,7 @@ function clientMission(dt) {
   const M = mission; if (!M) return;
   if (M.job.test) testRefill();
   if (M.gen || M.esc) updateObjective(M, dt); // looks only; the host decides the outcome
-  if (M.leaving) {
-    M.leaving += dt;
-    truck.g.position.x += truck.dir * dt * (4 + M.leaving * 6);
-    $('flash').style.background = '#000'; $('flash').style.opacity = clamp((M.leaving - .8) / 1.4, 0, 1);
-    if (M.leaving > 2.4) finishJob(!!M.extractOk);
-    return;
-  }
+  if (M.leaving) { if (updateOutro(M, dt, !!M.extractOk)) finishJob(!!M.extractOk); return; }
   if (M.departT >= 0) { M.departT += dt; setVanAt(M.departT * M.departT * 2.5); if (!truck.g.visible && M.departT > 1) M.departT = -1; }
   for (const [x, z, r] of NET.hz || []) for (let k = 0; k < 3; k++) { const a = rand(0, 6.28), d = Math.sqrt(Math.random()) * r / 10; burst(new V3(x / 10 + Math.sin(a) * d, .1, z / 10 + Math.cos(a) * d), Math.random() < .5 ? 0xff6a1a : 0xffc04a, 1, 1.4, .5); }
   stats.bestThreat = Math.max(stats.bestThreat, round);

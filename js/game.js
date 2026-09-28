@@ -122,12 +122,34 @@ function updateIntro(dt) {
   $('flash').style.background = '#000'; $('flash').style.opacity = clamp(1 - M.intro / 1.2, 0, 1);
   $('intro').style.opacity = clamp(Math.min(M.intro / .8, M.goT < 0 ? 1 : (rideLen() - .8 - M.goT) / .6), 0, 1);
 }
+// the ride out: walk to the tailgate, climb in, sit facing out the back, and the van pulls away (left behind: you watch it go)
+const OUTRO_T = 6;
+function updateOutro(M, dt, ok) { // true when it's over
+  const t = M.leaving += dt;
+  if (!ok) { truck.g.position.x += truck.dir * dt * (4 + t * 6); $('flash').style.background = '#000'; $('flash').style.opacity = clamp((t - .8) / 1.4, 0, 1); return t > 2.4; }
+  if (!M.out) { setVanAt(0); truck.g.rotation.y = truck.dir > 0 ? 0 : Math.PI; truck.g.updateMatrixWorld(); M.out = { seat: SEATS[mySeat()], from: camera.position.clone(), yaw0: player.yaw, pitch0: player.pitch }; }
+  const O = M.out, s = O.seat, rot = truck.g.rotation.y, vt = Math.max(0, t - 1.9), off = 1.8 * vt * vt;
+  truck.g.position.set(truck.pos.x + truck.dir * off, vt > 0 ? .025 * Math.sin(now * 11) : 0, truck.pos.z); truck.g.visible = true; truck.g.updateMatrixWorld();
+  if (vt > 0 && !M.out.go) { M.out.go = 1; nz(OUTRO_T - 1.9, 150, .3, 'lowpass', .6); }
+  const W = (x, y, z) => new V3(x, y, z).applyMatrix4(truck.g.matrixWorld), back = W(-3.4, 1.65, s[1]), edge = W(-2.1, BED_Y + 1.55, s[1]), sit = W(s[0], BED_Y + .85, s[1]);
+  let cam;
+  if (t < .7) cam = O.from.clone().lerp(back, smooth(t / .7));
+  else if (t < 1.2) { const k = (t - .7) / .5; cam = back.clone().lerp(edge, k); cam.y += Math.sin(k * Math.PI) * .35; if (!O.hop) { O.hop = 1; nz(.15, 300, .25, 'lowpass', 1); } }
+  else cam = edge.clone().lerp(sit, smooth(clamp((t - 1.2) / .5, 0, 1)));
+  const toVan = rot - Math.PI / 2, outBack = rot + Math.PI / 2; // facing the van while climbing, then out over the tailgate
+  player.yaw = t < 1.2 ? O.yaw0 + angDiff(toVan - O.yaw0) * smooth(clamp(t / .6, 0, 1)) : toVan + angDiff(outBack - toVan) * smooth(clamp((t - 1.2) / .8, 0, 1));
+  player.pitch = lerp(O.pitch0, t < 1.2 ? 0 : -.08, smooth(clamp(t / .8, 0, 1)));
+  camera.position.copy(cam); camera.quaternion.setFromEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
+  player.pos.set(cam.x, Math.max(0, cam.y - 1.65), cam.z); vmRoot.visible = false; $('hud').classList.add('outro');
+  $('flash').style.background = '#000'; $('flash').style.opacity = clamp((t - (OUTRO_T - 1.3)) / 1.1, 0, 1);
+  return t > OUTRO_T;
+}
 function markCarry(ext) { // what you carry right now, saved with the in-job marker: a quit is settled from this, so nothing exists twice
   const IM = profile.inMission; if (!IM || !mission) return;
   IM.live = 1; if (ext) IM.ext = 1; IM.hands = player.slots.filter(Boolean).map(packW); IM.bag = player.bag.map(packW); IM.mg = mission.gear.filter(it => IM.ext || !it.found); saveProfile();
 }
 function endIntro() {
-  const M = mission; markCarry();
+  const M = mission; markCarry(); vmRoot.visible = true; $('hud').classList.remove('outro');
   if (!M.landed) { setVanAt(0); truck.g.rotation.y = truck.dir > 0 ? 0 : Math.PI; truck.g.visible = true; if (M.goT >= 0) { player.pos.set(truck.pos.x - truck.dir * 3.6, 0, truck.pos.z); collide(player.pos, .4); } } // skipped the ride: stand behind the van
   M.intro = -1; M.departT = 0; state = 'playing';
   $('intro').hidden = true; $('hud').hidden = false; $('flash').style.opacity = 0; $('flash').style.background = '';
@@ -141,13 +163,7 @@ function updateMission(dt) {
   if (M.dead) return finishJob(false);
   if (NET.mode && netAllDown()) { banner('A CSAPAT ELESETT', 'Senki nem maradt talpon.'); return finishJob(false); }
   if (M.job.test) return updateTestGround(M, dt);
-  if (M.leaving) { // driving off
-    M.leaving += dt;
-    truck.g.position.x += truck.dir * dt * (4 + M.leaving * 6);
-    $('flash').style.background = '#000'; $('flash').style.opacity = clamp((M.leaving - .8) / 1.4, 0, 1);
-    if (M.leaving > 2.4) finishJob(netExtractOk());
-    return;
-  }
+  if (M.leaving) { if (updateOutro(M, dt, netExtractOk())) finishJob(netExtractOk()); return; } // driving off
   if (M.departT >= 0) { // the van leaves after dropping you off
     M.departT += dt; setVanAt(M.departT * M.departT * 2.5);
     if (!truck.g.visible && M.departT > 1) M.departT = -1;
@@ -753,7 +769,7 @@ function step(t) {
     now += dt; updateIntro(dt); updateMapFx(dt);
   } else if (state === 'playing' || netLive()) {
     now += dt;
-    if (state === 'playing') updatePlayer(dt);
+    if (state === 'playing' && !(mission && mission.leaving)) updatePlayer(dt); // the ride out moves the camera itself
     NET.client ? updateProxies(dt) : updateZombies(dt);
     scene.updateMatrixWorld();
     if (state === 'playing') updateWeapon(dt);

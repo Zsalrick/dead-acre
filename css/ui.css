@@ -849,3 +849,4 @@ kbd,.kc{font-family:var(--fm);font-weight:500;font-size:11px;display:inline-grid
 #aurafx{background:radial-gradient(ellipse at center,transparent 58%,rgba(242,210,122,.38) 100%);box-shadow:inset 0 0 60px rgba(242,210,122,.35)}
 #aurafx.on{opacity:1;animation:aurapulse 2.4s ease-in-out infinite}
 @keyframes aurapulse{50%{opacity:.65}}
+#hud.outro>*:not(#flash):not(#vig){visibility:hidden}
