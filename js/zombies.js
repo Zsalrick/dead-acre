@@ -792,16 +792,17 @@ function talentHit(z, amt, o, w) { // the extra damage lands as a chained hit, s
   if (w.tal === 'ranger' && d > 25) extra(.25);
   if (w.tal === 'frost' && (player.frostN = (player.frostN || 0) + 1) % 5 === 0) z.slowT = Math.max(z.slowT || 0, 2);
 }
+const eyeKill = () => { if (player.eyeT > 0 && (player.eyeExt || 0) < 20) { const a = Math.min(1.5, 20 - (player.eyeExt || 0)); player.eyeExt = (player.eyeExt || 0) + a; player.eyeT += a; } }; // Halálszem: every kill +1.5 s, +20 s at most
 function weaponOnKill(z, o) {
   const w = o.w;
   if (z.markT > 0 && augOn('plague')) for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 8) q.markT = Math.max(q.markT || 0, 6);
+  eyeKill();
   if (!w) return;
   if (w.unique === 'granny') { const t = Math.min(w.mag - w.ammo, w.reserve); w.ammo += t; w.reserve -= t; } // the refill comes out of the reserve
   if (w.unique === 'hydra') player.hydraUntil = now + 3;
   if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }
   if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
   if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
-  if (player.eyeT > 0 && z.markT > 0) player.eyeT = Math.min(20, player.eyeT + 1.5); // a marked kill keeps Deadeye going
   if (w.tal === 'frenzy') player.frenzyT = now + 5;
   if (w.tal === 'feast' && o.head) player.hp = Math.min(maxHp(), player.hp + maxHp() * .04);
   if (w.tal === 'scav') { const t = Math.min(w.mag - w.ammo, Math.ceil(w.mag * .15), w.reserve); w.ammo += t; w.reserve -= t; }

@@ -41,6 +41,16 @@ function nz(dur, freq, vol, type = 'lowpass', q = .7, delay = 0) {
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
   s.connect(f).connect(g).connect(master); s.start(t, Math.random() * .5); s.stop(t + dur);
 }
+function grunt() { // a short, low "uhh": a buzzing voice through two vowel formants, pitch falling
+  if (!ac || sndVol < .02) return;
+  const t = ac.currentTime, f0 = rand(105, 135), dur = rand(.2, .28), o = ac.createOscillator(), g = ac.createGain(), out = ac.createGain();
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * 1.15, t); o.frequency.exponentialRampToValueAtTime(f0 * .8, t + dur);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.5 * sndVol, t + .03); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(g);
+  for (const [fr, q, v] of [[600, 5, 1], [1000, 6, .6], [2400, 8, .15]]) { const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = fr * rand(.95, 1.05); f.Q.value = q; const fg = ac.createGain(); fg.gain.value = v; g.connect(f).connect(fg).connect(out); }
+  out.gain.value = .9; out.connect(master); o.start(t); o.stop(t + dur + .02);
+  nz(dur * .8, 900, .06 * sndVol, 'bandpass', 1.5); // breath
+}
 function tn(freq, dur, vol, type = 'square', freqEnd = 0, delay = 0) {
   if (!ac || sndVol < .02) return; vol *= sndVol;
   const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
@@ -61,7 +71,8 @@ const SND = {
   kill() { nz(.18, 320, .4, 'lowpass', 1.5); tn(900, .08, .05, 'triangle', 300); },
   step(run) { nz(.05, run ? 500 : 380, run ? .16 : .1, 'lowpass', 1.2); nz(.025, 2600, .035, 'bandpass', 2, .01); },
   down() { tn(220, 1.2, .18, 'sine', 70); nz(1.2, 200, .3, 'lowpass', 1); },
-  hurt() { nz(.2, 300, .6, 'lowpass', 1); tn(80, .2, .4, 'sine', 40); },
+  hurt() { nz(.2, 300, .6, 'lowpass', 1); tn(80, .2, .4, 'sine', 40); if (now - (SND.gruntT || -9) > .35) { SND.gruntT = now; grunt(); } }, // a thud, and your own grunt
+  shieldHit() { tn(2200 + Math.random() * 400, .14, .07, 'sine', 1500); nz(.1, 3800, .18, 'bandpass', 5); tn(420, .12, .08, 'triangle', 300); }, // a glassy crack
   dry() { tn(1200, .02, .08); },
   reload() { nz(.05, 3000, .3, 'bandpass', 2); nz(.05, 2200, .3, 'bandpass', 2, .35); },
   knife() { nz(.12, 4000, .3, 'highpass', 1); },

@@ -317,10 +317,10 @@ function hurtAt(pos, r, d) {
   if (NET.mode === 'host') for (const [peer, a] of NET.avatars) if (!a.down && Math.hypot(a.pos.x - pos.x, a.pos.z - pos.z) < r) pushRoll(NET.dmgs, [++NET.seq, peer, Math.round(d * 10) / 10], 16);
 }
 let hurtSrc = null;
-function hitFx(d, shieldOnly) { // blood (or a blue flash on the shield) at the screen's edges, and the health bar jolts
-  const f = $('hitfx'), s = clamp(.35 + d / Math.max(1, maxHp()) * 4, .35, 1);
-  f.className = shieldOnly ? 'sh' : ''; f.style.transition = 'none'; f.style.opacity = shieldOnly ? s * .6 : s;
-  requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = ''; f.style.opacity = 0; }));
+function hitFx(d, absorbed) { // blood where your health was hit, a blue flash where the shield took it; the bars jolt
+  const flash = (f, s) => { f.style.transition = 'none'; f.style.opacity = s; requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = ''; f.style.opacity = 0; })); };
+  if (d > 0) flash($('hitfx'), clamp(.35 + d / Math.max(1, maxHp()) * 4, .35, 1));
+  if (absorbed > 0) flash($('shfx'), clamp(.55 + absorbed / Math.max(1, maxShield()) * 3, .55, 1));
   const b = $('bl'); b.classList.remove('hit'); void b.offsetWidth; b.classList.add('hit');
 }
 function hurtPlayer(d, quiet) {
@@ -329,12 +329,12 @@ function hurtPlayer(d, quiet) {
   if (player.ffyl > 0) { player.ffyl = Math.max(.05, player.ffyl - .4); return; } // hits on the ground eat into the clock
   d *= SK.taken();
   const hadShield = player.shield > 0;
-  if (player.shield > 0) { const a = Math.min(player.shield, d); player.shield -= a; d -= a; }
+  let absorbed = 0; if (player.shield > 0) { absorbed = Math.min(player.shield, d); player.shield -= absorbed; d -= absorbed; }
   if (hadShield && player.shield <= 0 && (rk('m_burst') || exoOn('nova'))) explode(player.pos.clone().setY(1), { r: 5, zdmg: 150 + zombieHp(), pr: .01, pdmg: .001, color: 0xf2d27a });
   player.hp -= d; player.lastHurt = now; if (d > 0) player.bloodN = 0;
   if (player.hp <= 0 && rk('s_wind') && !mission.wind) { mission.wind = true; player.hp = 1; banner('MÁSODIK SZÉL', 'Még nem most.'); }
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }
-  if (!quiet) { player.shake = .25; SND.hurt(); hitFx(d, hadShield && player.shield > 0); }
+  if (!quiet) { player.shake = .25; hitFx(d, absorbed); if (d > 0) SND.hurt(); else SND.shieldHit(); }
   if (player.hp <= 0 && perk('second')) { player.perks.second = false; player.hp = maxHp() * .5; banner('MÁSODIK ESÉLY', 'Még egyszer.'); SND.power(); }
   if (player.hp <= 0) { player.hp = 0; player.downBy = hurtSrc || 'a horda'; killFeed(player.downBy, '#c9c1a8', '', '', 'Te', '#ff4a3a'); startFFYL(); } // on the ground: kill something before the clock runs out
 }

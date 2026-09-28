@@ -27,7 +27,7 @@ const CLASSES = {
   hunter: {
     name: 'Vadász', tag: 'Hideg szem', color: '#7fd0a0', desc: 'Messziről, egy lövéssel. Fejre céloz, és kiszúrja a legjobb zsákmányt.',
     passive: '+10% fejlövés-sebzés.',
-    ability: { name: 'Halálszem', cd: 40, desc: '8 mp-ig élesebben látsz: minden zombi pirosan világít, a fejlövéseid +50%-ot sebeznek, és akit eltalálsz, megjelölődik (mindenkitől 50%-kal több sebzést kap). Jelölt zombi megölése +1,5 mp-et ad (legfeljebb 20 mp).' },
+    ability: { name: 'Halálszem', cd: 40, desc: '8 mp-ig élesebben látsz: minden zombi pirosan világít, a fejlövéseid +50%-ot sebeznek, és akit eltalálsz, megjelölődik (mindenkitől 50%-kal több sebzést kap). Minden ölés +1,5 mp-et ad, összesen legfeljebb +20 mp-et.' },
     tree: [
       ['h_marks', 'Mesterlövész', 3, r => `+${6 * r}% sebzés pisztollyal, revolverrel, karos és távcsöves fegyverrel`],
       ['h_head', 'Fejvadász', 3, r => `+${12 * r}% fejlövés-sebzés`],
@@ -199,7 +199,7 @@ function useAbility() {
     if (augOn('resupply')) { player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 2); [...player.slots, ...player.bag].forEach(w => { if (w) w.ammo = w.mag; }); renderInv(); }
     banner('TŰZVIHAR', `${Math.round(player.stormT)} mp végtelen tár`);
   } else if (c === 'hunter') {
-    player.eyeT = 8 + 2 * rk('h_mark'); // Deadeye: see weaponOnHit / weaponOnKill
+    player.eyeT = 8 + 2 * rk('h_mark'); player.eyeExt = 0; // Deadeye: see weaponOnHit / weaponOnKill
     banner('HALÁLSZEM', `${player.eyeT} mp · a zombik pirosan látszanak, fejlövés +50%`); SND.threat(1);
   } else if (c === 'engineer') {
     const twin = augOn('twin'), first = twin && !(player.twinWait > 0);
