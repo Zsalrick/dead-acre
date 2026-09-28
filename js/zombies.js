@@ -117,7 +117,8 @@ function mkZombie(kind) {
   head.userData.head = true;
   const mats = [skin, cloth, pants];
   if (K.ghost) mats.forEach(m => { m.transparent = true; m.opacity = .12; m.depthWrite = false; });
-  return { decos, g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
+  const merged = mergeZombieBits([upper, armL, armR, legL, legR], parts); // fewer draw calls: one mesh per material per limb
+  return { decos: merged, g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
 }
 // ×1.12 per threat level: guns (+7.5% per level, rarity, upgrades, gear) can keep up instead of falling hopelessly behind
 function zombieHp() { return 100 * Math.pow(1.1, round - 1) * Math.pow(1.08, jobLvl() - 1) * (1 + .08 * jobTier()); }
@@ -343,7 +344,7 @@ function updateZProjs(dt) {
   else player.acid = 0;
 }
 function clearZombieStuff() {
-  zombies.forEach(z => scene.remove(z.g)); zombies.length = 0;
+  zombies.forEach(z => { scene.remove(z.g); freeZombie(z); }); zombies.length = 0;
   zProjs.forEach(p => scene.remove(p.m)); zProjs.length = 0;
   puddles.forEach(p => scene.remove(p.m)); puddles.length = 0;
   seenKinds.clear();
@@ -359,7 +360,7 @@ function updateZombies(dt) {
       z.upper.rotation.x = lerp(z.upper.rotation.x, K.crawl ? 1.5 : -1.4, dt * 6);
       z.g.rotation.z = lerp(z.g.rotation.z, (K.crawl ? .3 : 1.45) * z.fallDir, Math.min(1, dt * 5));
       z.g.position.y = z.deathT > 1.4 ? -(z.deathT - 1.4) * 1.2 : .2 * z.scale * Math.min(1, z.deathT * 4);
-      if (z.deathT > 3) { scene.remove(z.g); z.mats.forEach(m => m.dispose()); zombies.splice(i, 1); NET.zById.delete(z.id); }
+      if (z.deathT > 3) { scene.remove(z.g); freeZombie(z); zombies.splice(i, 1); NET.zById.delete(z.id); }
       continue;
     }
     netAim(z); // in a party the host's zombies chase the nearest living player
@@ -413,7 +414,7 @@ function updateZombies(dt) {
       if (move && moved < .3) z.side *= -1;
       z.stuckT = moved < .5 && dist > 25 && !K.boss ? (z.stuckT || 0) + z.chkT : 0;
       z.chkT = 0; z.chkX = z.pos.x; z.chkZ = z.pos.z;
-      if (z.stuckT >= 6) { scene.remove(z.g); z.mats.forEach(m => m.dispose()); zombies.splice(i, 1); NET.zById.delete(z.id); netAimEnd(); spawnZombie(z.kind); continue; }
+      if (z.stuckT >= 6) { scene.remove(z.g); freeZombie(z); zombies.splice(i, 1); NET.zById.delete(z.id); netAimEnd(); spawnZombie(z.kind); continue; }
     }
     let dh = ((ang - z.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     z.heading += dh * Math.min(1, dt * 7);
@@ -806,3 +807,26 @@ function hitPerks(z, amt, o) {
   if (!o.dot && rk('m_steal')) { if (now - (player.stealT || 0) > 1) { player.stealT = now; player.stealN = 0; } const h = Math.min(amt * .01 * rk('m_steal'), maxHp() * .02, maxHp() * .06 - (player.stealN || 0)); if (h > 0) { player.stealN = (player.stealN || 0) + h; player.hp = Math.min(maxHp(), player.hp + h); } }
   if (o.crit && o.w && !o.chain && rk('s_blast') && Math.random() < .1 * rk('s_blast')) setTimeout(() => explode(new V3(z.pos.x, 1, z.pos.z), { r: 3, zdmg: amt * .6, pr: .01, pdmg: .001, color: 0xffb04a }), 0);
 }
+
+// merge a zombie's decorations and eyes: per limb, per material, head-level bits apart from body bits (headshots hide the former)
+function mergeZombieBits(pivots, hitParts) {
+  const BU = THREE.BufferGeometryUtils, out = []; if (!BU) return out;
+  const keep = new Set(hitParts);
+  for (const pv of pivots) {
+    const groups = new Map();
+    for (const c of pv.children) {
+      if (!c.isMesh || keep.has(c) || c.children.length || Array.isArray(c.material)) continue;
+      const k = c.material.uuid + (c.position.y > .85 ? 'h' : 'b'); let l = groups.get(k); if (!l) groups.set(k, l = []); l.push(c);
+    }
+    for (const list of groups.values()) {
+      if (list.length < 2) { out.push(...list); continue; }
+      const head = list[0].position.y > .85, oy = head ? 1 : 0, geos = list.map(m => { m.updateMatrix(); const g2 = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()); for (const k of Object.keys(g2.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g2.deleteAttribute(k); g2.applyMatrix4(m.matrix); g2.translate(0, -oy, 0); return g2; });
+      const mg = geos.every(g2 => g2.attributes.uv) ? BU.mergeBufferGeometries(geos) : null; geos.forEach(g2 => g2.dispose());
+      if (!mg) { out.push(...list); continue; }
+      mg.userData.own = true; const mm = new THREE.Mesh(mg, list[0].material); mm.position.y = oy; mm.castShadow = false;
+      list.forEach(m => pv.remove(m)); pv.add(mm); out.push(mm);
+    }
+  }
+  return out;
+}
+function freeZombie(z) { z.mats.forEach(m => m.dispose()); z.g.traverse(o => { if (o.geometry && o.geometry.userData.own) o.geometry.dispose(); }); }

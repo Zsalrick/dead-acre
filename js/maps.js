@@ -364,17 +364,18 @@ const MAPS = {
     build() {
       const rng = mulberry(91), M = this.main, cliff = matStd({ color: 0x77716a, flatShading: true });
       // the rim: boulders along the fence, with openings for the gates, the van lanes and the spawn ramps
-      const open = { w: [0, -22, 27, -9, 13], e: [12, -24, 28, -11, 22], s: [0, -22, 22] };
+      const k = M.maxZ / 38, open = { w: [0, -22, 27, -9, 13], e: [12, -24, 28, -11, 22], s: [0, -22, 22] }; // openings follow the map's scale
+      for (const sd in open) open[sd] = open[sd].map(v => v * k);
       const edge = (side, from, to, at) => {
         for (let t = from; t <= to; t += 3.5 + rng() * 1.5) {
-          if (open[side].some((o, i) => Math.abs(t - o) < (i ? 5 : 6))) continue;
+          if (open[side].some((o, i) => Math.abs(t - o) < (i ? 5.5 : 6.5) * k)) continue;
           const r = 3 + rng() * 1.3, off = 1.2 + rng();
           if (side === 'w') rock(M.minX - off, t, r, r * (.8 + rng() * .5), rng);
           if (side === 'e') rock(M.maxX + off, t, r, r * (.8 + rng() * .5), rng);
           if (side === 's') rock(t, M.maxZ + off, r, r * (.8 + rng() * .5), rng);
         }
       };
-      edge('w', -32, 36); edge('e', -32, 36); edge('s', -36, 36);
+      edge('w', -32 * k, 36 * k); edge('e', -32 * k, 36 * k); edge('s', -36 * k, 36 * k);
       // the north face: two stepped cliffs with a ramp between them
       [-1, 1].forEach(s => {
         addBox(s * 15, -34.5, 22, 7, 8, cliff); addBox(s * 15, -29.5, 22, 3, 3.5, cliff);
@@ -604,9 +605,9 @@ function loadMap(id, seed) {
     if (d.side === 'n') rect.maxZ += 2; if (d.side === 's') rect.minZ -= 2; if (d.side === 'e') rect.minX -= 2; if (d.side === 'w') rect.maxX += 2;
     AREAS[k] = Object.assign({}, d, { core: c, rect, gate, out: new V3(ox, 0, oz), unlocked: false, desc: STATION_INFO[d.station[0]] });
   }
-  buildFences(); buildVanGates();
   MAP.build();
-  MAP.lamps.forEach(([x, z]) => lamp(x, z));
+  resolveVanLanes(); buildFences(); buildVanGates(); // lanes are checked against what the map built, then the fence gets its gaps
+  MAP.lamps.filter(([x, z]) => !inVanLane(x, z, 1.5)).forEach(([x, z]) => lamp(x, z));
   SPAWNS.forEach(([x, z]) => { const m = put(new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.1, .12, 10), new THREE.MeshLambertMaterial({ color: 0x2a2116 }))); m.position.set(x, .06, z); });
   for (const k in AREAS) buildArea(AREAS[k]);
   buildBoxAndAmmo(); buildTruck();
@@ -615,7 +616,7 @@ function loadMap(id, seed) {
   for (let i = 0; i < 60; i++) {
     const a = Math.random() * Math.PI * 2, r = rand(8, 30);
     const x = clamp(Math.cos(a), -1, 1) * (Math.max(Math.abs(ext.minX), ext.maxX) + r), z = Math.sin(a) * (Math.max(Math.abs(ext.minZ), ext.maxZ) + r);
-    if (Object.values(AREAS).some(A => inRect({ minX: A.core.minX - 4, maxX: A.core.maxX + 4, minZ: A.core.minZ - 4, maxZ: A.core.maxZ + 4 }, x, z))) continue;
+    if (Object.values(AREAS).some(A => inRect({ minX: A.core.minX - 4, maxX: A.core.maxX + 4, minZ: A.core.minZ - 4, maxZ: A.core.maxZ + 4 }, x, z)) || inVanLane(x, z, 3)) continue;
     id === 'mill' ? pine(x, z) : deadTree(x, z);
   }
   generateProps(seed);
@@ -1174,8 +1175,34 @@ function buildVanGates() {
 }
 function updateVanGates(dt) { // open while the van is close to its gate, closed otherwise
   for (const G of vanGates) {
-    const near = truck.g.visible && Math.abs(truck.g.position.z - G.z) < 1 && Math.abs(truck.g.position.x - G.x) < 11;
-    G.open += ((near ? 1 : 0) - G.open) * Math.min(1, dt * 3);
+    const near = truck.g.visible && !truck.parked && Math.abs(truck.g.position.z - G.z) < 1 && Math.abs(truck.g.position.x - G.x) < 24;
+    G.open += ((near ? 1 : 0) - G.open) * Math.min(1, dt * 5);
     for (const { hinge, s } of G.leaves) hinge.rotation.y = -s * G.d * G.open * 1.7;
   }
 }
+
+// every van needs a clear lane: from its spot to the fence and 44 m of road beyond, clear of buildings, rocks and locked areas.
+// A blocked lane slides along the fence until it finds room.
+function laneRect(x, z) { const d = vanDir(x), edge = d < 0 ? MAIN_RECT.minX : MAIN_RECT.maxX, a = x - d * 3, b = edge + d * 44; return { minX: Math.min(a, b), maxX: Math.max(a, b), minZ: z - VAN_HALF - .4, maxZ: z + VAN_HALF + .4 }; }
+const rectsHit = (R, S) => R.minX < S.maxX && R.maxX > S.minX && R.minZ < S.maxZ && R.maxZ > S.minZ;
+function laneClear(x, z) {
+  const R = laneRect(x, z);
+  if (z - VAN_HALF < MAIN_RECT.minZ + 2 || z + VAN_HALF > MAIN_RECT.maxZ - 2) return false;
+  if (obstacles.some(o => !o.gate && rectsHit(R, o))) return false;
+  return !Object.values(AREAS).some(A => rectsHit(R, { minX: A.core.minX - 2, maxX: A.core.maxX + 2, minZ: A.core.minZ - 2, maxZ: A.core.maxZ + 2 }));
+}
+function resolveVanLanes() {
+  MAP.vans = MAP.vans.map(([x, z]) => {
+    for (const dz of [0, 2, -2, 4, -4, 6, -6, 8, -8, 10, -10, 12, -12, 15, -15, 18, -18]) if (laneClear(x, z + dz)) return [x, z + dz];
+    return [x, z];
+  });
+  // then clear the road outside the fence of anything the map put there for looks (rocks, rubble): the van drives on it
+  const box = new THREE.Box3();
+  for (const [x, z] of MAP.vans) {
+    const d = vanDir(x), edge = d < 0 ? MAIN_RECT.minX : MAIN_RECT.maxX, R = { minX: Math.min(edge, edge + d * 44), maxX: Math.max(edge, edge + d * 44), minZ: z - VAN_HALF - .6, maxZ: z + VAN_HALF + .6 };
+    mapGroup.updateMatrixWorld(true);
+    for (const c of [...mapGroup.children]) { if (!c.isMesh) continue; box.setFromObject(c); if (box.max.x > R.minX && box.min.x < R.maxX && box.max.z > R.minZ && box.min.z < R.maxZ && (d < 0 ? box.min.x + box.max.x < 2 * edge : box.min.x + box.max.x > 2 * edge)) { mapGroup.remove(c); const i = rayBlockers.indexOf(c); if (i >= 0) rayBlockers.splice(i, 1); } }
+    for (let i = obstacles.length - 1; i >= 0; i--) if (rectsHit(R, obstacles[i]) && (d < 0 ? obstacles[i].minX + obstacles[i].maxX < 2 * edge : obstacles[i].minX + obstacles[i].maxX > 2 * edge)) obstacles.splice(i, 1);
+  }
+}
+const inVanLane = (x, z, pad) => (MAP.vans || []).some(([vx, vz]) => { const R = laneRect(vx, vz); return x > R.minX - pad && x < R.maxX + pad && z > R.minZ - pad && z < R.maxZ + pad; });

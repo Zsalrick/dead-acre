@@ -491,7 +491,7 @@ function updateProxies(dt) {
       z.upper.rotation.x = lerp(z.upper.rotation.x, K.crawl ? 1.5 : -1.4, dt * 6);
       z.g.rotation.z = lerp(z.g.rotation.z, (K.crawl ? .3 : 1.45) * z.fallDir, Math.min(1, dt * 5));
       z.g.position.y = z.deathT > 1.4 ? -(z.deathT - 1.4) * 1.2 : .2 * z.scale * Math.min(1, z.deathT * 4);
-      if (z.deathT > 3) { scene.remove(z.g); z.mats.forEach(m => m.dispose()); zombies.splice(i, 1); }
+      if (z.deathT > 3) { scene.remove(z.g); freeZombie(z); zombies.splice(i, 1); }
       continue;
     }
     if (!s) continue;
