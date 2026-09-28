@@ -145,6 +145,24 @@ function trashBar(kind) { // bulk sell / salvage everything marked as trash
   const cash = items.reduce((a, x) => a + (kind === 'w' ? sellValue(x) : gearValue(x)), 0), parts = items.reduce((a, x) => a + salvageGain(x), 0);
   return `<div class="trashbar"><b>🗑 Kukában: ${items.length} db</b>${hbtn(`Összes eladása · $${cash}`, `trashsell:${kind}`)}${hbtn(`Összes szétszedése · +${parts} ⚙`, `trashsalv:${kind}`)}</div>`;
 }
+// calibration: roll new stats, show old against new, keep whichever the player picks
+function showRecal(w, list, i) {
+  const c = unpackW(packW(w)), b = BASES.find(x => x.id === w.base.id) || w.base, n = makeWeapon(b, Math.min(4, w.q), w.level, w.mk), k = w.unique ? 1.12 : 1;
+  ocStrip(c); Object.assign(c, { dmg: Math.round(n.dmg * k), rpm: n.rpm, mag: n.mag, reload: n.reload, spread: n.spread, roll: n.roll, crit: n.crit, cdmg: n.cdmg }); ocApply(c);
+  const rows = [['DPS', x => dps(x)], ['Sebzés', x => x.dmg], ['Tűzgyorsaság', x => x.rpm, '/p'], ['Tár', x => x.mag], ['Újratöltés', x => x.reload, ' mp', true, 2], ['Pontosság', x => accuracy(x), '%'],
+    ['Kritikus esély', x => Math.round(wCrit(x) * 1000) / 10, '%', false, 1], ['Kritikus szorzó', x => wCdmg(x), '×', false, 2], ['Dobás minősége', x => x.roll, '%']];
+  const fmt = (v, u = '', dg = 0) => u === '×' ? `×${v.toFixed(dg)}` : `${+v.toFixed(dg)}${u}`;
+  const tr = rows.map(([name, f, u, low, dg]) => { const a = f(w), z = f(c), d = z - a, good = low ? d < 0 : d > 0;
+    return `<tr><td>${name}</td><td>${fmt(a, u, dg)}</td><td class="${Math.abs(d) < 1e-6 ? '' : good ? 'up' : 'down'}">${fmt(z, u, dg)}${Math.abs(d) < 1e-6 ? '' : good ? ' ▲' : ' ▼'}</td></tr>`; }).join('');
+  const box = $('confirm'); box.classList.add('recal');
+  box.querySelector('p').innerHTML = `<b>Kalibrálás · ${w.name}</b><table class="rtab"><tr><th></th><th>Régi</th><th>Új</th></tr>${tr}</table><small>OK: az új értékek maradnak · X: marad a régi (az alkatrész elfogyott)</small>`;
+  const yes = box.querySelector('[data-yes]'), no = box.querySelector('[data-no]'), labels = [yes.innerHTML, no.innerHTML];
+  yes.innerHTML = '<kbd>Enter</kbd>OK'; no.innerHTML = '<kbd>Esc</kbd>✕ Régi marad'; box.hidden = false;
+  const done = ok => { box.hidden = true; box.classList.remove('recal'); yes.innerHTML = labels[0]; no.innerHTML = labels[1]; removeEventListener('keydown', key, true);
+    if (ok) { list[i] = packW(c); SND.explode(); } saveProfile(); renderHub(); };
+  const key = e => { e.stopPropagation(); e.preventDefault(); if (e.code === 'Enter') done(true); else if (e.code === 'Escape') done(false); };
+  addEventListener('keydown', key, true); yes.onclick = () => done(true); no.onclick = () => done(false);
+}
 const CONFIRM_ACTS = ['trashsell', 'trashsalv']; // single items are held instead
 let confirmOk = false;
 function askConfirm(b) { // "are you sure?" before anything is sold or taken apart
@@ -163,7 +181,7 @@ const TIPS = {
   trash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.', gtrash: 'Kukába jelölöd: a lista fölötti gombbal az összes kukás tárgyat egyszerre eladhatod vagy szétszedheted.',
   trashsell: 'Eladja az összes kukába jelölt tárgyat (kézben lévőt nem).', trashsalv: 'Szétszedi az összes kukába jelölt tárgyat (kézben lévőt nem).', salvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.', gsalvage: 'Szétszeded alkatrészre (⚙). A szakértelemre költött alkatrész fele visszajár.',
   'hforge:anoint': 'Dob egy új, véletlen felkenést: utána elfogadod, vagy megtartod a régit. Minden újradobás drágább ezen a fegyveren.',
-  'hforge:recal': 'Újradobja a fegyver véletlen értékeit (sebzés, tűzgyorsaság, tár, újratöltés, pontosság), és a dobás minőségét (%).',
+  'hforge:recal': 'Újradobja a fegyver véletlen értékeit (sebzés, tűzgyorsaság, tár, újratöltés, pontosság, kritikus esély és szorzó). Egy ablakban látod a régit és az újat: OK-ra az új marad, X-re a régi.',
   goforge: 'A Kovácshoz: felkenés, kalibrálás, szakértelem és túlhajtás.',
   wear: 'Felveszed ezt a páncélt.', unwear: 'Leveszed: a páncélraktárba kerül.', gshare: 'A karakterek közti ládába teszed.', gunshare: 'A páncélraktáradba teszed.',
   gun: 'Megveszed: a raktárba kerül.', gbuy: 'Megveszed: a páncélraktárba kerül.', item: 'Megveszed a munkákra.', drop: 'Eldobod a földre: a csapattársad felveheti.',
@@ -254,6 +272,8 @@ const HUB = {
       const pp = P.parts || 0;
       return (w.q >= 2 && !w.anoPend ? hbtn(`Felkenés újradobása · ${HFORGE.anoint(w)} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(w), 'KeyN') : '') +
       (w.anoPend ? `<div class="anopend"><small>Új felkenés dobva</small><b>${ANOINTS[w.anoPend]}</b><span>Most: ${ANOINTS[w.anoint] || 'nincs'}</span>${hbtn('Elfogadom', `anoacc:${sl}:${i}`, false, null, 'Az új felkenés kerül a fegyverre.')}${hbtn('Elutasítom', `anorej:${sl}:${i}`, false, null, 'Marad a régi felkenés. Az alkatrész nem jár vissza.')}</div>` : '') +
+      `<div class="optbox"><small>Optimalizálás · egy véletlen érték +10%-kal feljebb a tartományában, a tökéletesig</small>${OPT_STATS.map(([k, n]) => { const pr = rollOf(w, k); if (pr == null) return ''; const C = optCost(w, pr), max = pr >= .999;
+        return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="opt:${sl}:${i}:${k}" data-tip="${n}: a dobás ${Math.round(pr * 100)}% → ${Math.round(Math.min(1, pr + OPT_STEP) * 100)}%"${max || pp < C.parts || P.cash < C.cash ? ' disabled' : ''}>${max ? 'Tökéletes' : `+10% · ${C.parts} ⚙ · $${C.cash}`}</button></div>`; }).join('')}</div>` +
       hbtn(`Kalibrálás (új dobás) · ${HFORGE.recal(w)} ⚙`, `hforge:recal:${sl}:${i}`, pp < HFORGE.recal(w), 'KeyC') +
       hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w)) +
       ((P.oc || 0) < 1 && !w.oc ? `<div class="ocrow"><small>Túlhajtás: maggal szerelhető be. Magot ad: fejvadász első legyőzése, heti kontrakt, Mélyfúrás.</small></div>` : `<div class="ocrow"><small>Túlhajtás · első beszerelés 1 mag + 20 ⚙, csere 20 ⚙ (van: ${P.oc || 0} mag)</small>${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" title="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`);
@@ -262,7 +282,7 @@ const HUB = {
     const sec = (t, x) => x ? `<h3>${t}</h3><div class="tiles">${x}</div>` : '';
     const left = sec('Kézben', lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : '').join('')) + sec('Táska', lists.B.map((x, k) => wTile(`B:${k}`, x)).join('')) + sec('Raktár', lists.S.map((x, k) => wTile(`S:${k}`, x)).join('')) +
       sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
-    return `<p class="lede">Kovács: felkenés, kalibrálás, szakértelem és túlhajtás alkatrészért (⚙ ${P.parts || 0} · mag: ${P.oc || 0}). Válassz egy fegyvert vagy páncélt.</p>
+    return `<p class="lede">Kovács: optimalizálás, felkenés, kalibrálás, szakértelem és túlhajtás (⚙ ${P.parts || 0} · mag: ${P.oc || 0}). Válassz egy fegyvert vagy páncélt.</p>
       ${invLayout(left, w ? weaponDetail(w, null, wActs) : it ? gearDetail(it, null, gActs) : noDetail('Nincs mit fejleszteni.'))}`;
   },
   stats() {
@@ -347,6 +367,10 @@ $('hubBody').addEventListener('click', e => {
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy', 'pready'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetAvail() > 0) { P.vet[a] = (P.vet[a] || 0) + 1; gearChanged(); }
   if (kind === 'reroll' && pay(reroll())) rollBoard();
+  if (kind === 'opt') { // opt:list:i:stat
+    const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]), pr = w && rollOf(w, k);
+    if (w && pr != null && pr < .999) { const C = optCost(w, pr); if ((P.parts || 0) >= C.parts && P.cash >= C.cash && optimize(w, k)) { P.parts -= C.parts; P.cash -= C.cash; list[+i] = packW(w); SND.explode(); } }
+  }
   if (kind === 'anoacc' || kind === 'anorej') { // the rolled anointment: keep it or keep the old one
     const list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[a], w = list && list[+c] && unpackW(list[+c]);
     if (w && w.anoPend) { if (kind === 'anoacc') w.anoint = w.anoPend; delete w.anoPend; list[+c] = packW(w); }
@@ -354,7 +378,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'hforge') { // hforge:level|rarity:L|B|S:i
     const [, what, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]);
     const ok = what === 'recal' ? !!w : what === 'exp' ? w && (w.exp || 0) < 10 : w && w.q >= 2 && !w.anoPend, cost = w && what === 'exp' ? expCost(w) : w && HFORGE[what] ? HFORGE[what](w) : 1e9;
-    if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'recal') recalWeapon(w); else if (what === 'exp') w.exp = (w.exp || 0) + 1; else { w.anoPend = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); w.anoN = (w.anoN || 0) + 1; } list[+i] = packW(w); SND.explode(); }
+    if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'recal') { list[+i] = packW(w); return showRecal(w, list, +i); } else if (what === 'exp') w.exp = (w.exp || 0) + 1; else { w.anoPend = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); w.anoN = (w.anoN || 0) + 1; } list[+i] = packW(w); SND.explode(); }
   }
   if (kind === 'up' && U(a) < UPGRADES[a].max && pay(upCost(a))) P.up[a] = U(a) + 1;
   if (kind === 'item') { const n = a === 'knife' ? 3 : 1; if (P.inv[a] < itemMax(a) && pay(ITEM_PRICE[a])) P.inv[a] = Math.min(itemMax(a), P.inv[a] + n); }

@@ -88,9 +88,43 @@ function wCalc(w) { // everything this gun does with your current upgrades, skil
 const MAKER_COL = { xfcv: '#6fb4ff', kessler: '#e0a040', voss: '#9fd36a', harrow: '#e05a5a', ironmark: '#a8b0b8', novak: '#c77dff', crane: '#f2d27a', bellwether: '#5ad0c0', ostrava: '#ff8c5a' };
 const makerLogo = mk => { const M = MAKERS[mk] || {}, n = (M.name || '?').split(/[\s&]+/).filter(Boolean); return `<span class="mlogo" style="--mc:${MAKER_COL[mk] || '#aaa'}">${(n.length > 1 ? n[0][0] + n[1][0] : n[0].slice(0, 2)).toUpperCase()}</span>`; };
 const dtal = (kind, name, text, col) => `<div class="dtal"${col ? ` style="--tc:${col}"` : ''}><small>${kind}</small>${name ? `<b>${name}</b>` : ''}<span>${text}</span></div>`;
+// where each random roll landed, 0..1 (worst..best): worked back from the stats, the gun only stores the totals
+function rollsOf(w) {
+  const c = unpackW(packW(w)); ocStrip(c); const b = BASES.find(x => x.id === w.base.id) || w.base, M = mkOf(w), q = Math.min(4, w.q), p = r => clamp((r + 1) / 2, 0, 1);
+  return {
+    dmg: p(c.dmg / (w.unique ? 1.12 : 1) / (b.dmg * Math.pow(1.08, w.level - 1) * (1 + q * .14)) / .15 - 1 / .15),
+    rate: p((c.rpm / (b.rpm * (1 + q * .04) * (1 + (M.rpm || 0))) - 1) / .12),
+    mag: b.fixedMag ? null : p((c.mag / (b.mag * (1 + q * .08) * (1 + (M.mag || 0))) - 1) / .2),
+    reload: p((1 - c.reload / (b.reload * (1 - q * .05) * (1 - (M.reload || 0)))) / .15),
+    acc: p((1 - c.spread / (b.spread * (1 - q * .06) * (1 - (M.acc || 0)))) / .22),
+  };
+}
+// optimization (the forge): push one roll up the range; the stat is rebuilt from the base as if it had rolled that high
+const OPT_STATS = [['dmg', 'Sebzés'], ['rate', 'Tűzgyorsaság'], ['mag', 'Tár'], ['reload', 'Újratöltés'], ['acc', 'Pontosság'], ['crit', 'Kritikus esély'], ['cdmg', 'Kritikus szorzó']];
+const OPT_STEP = .1;
+function critRoll(w) { const R = critRange(w); return clamp((wCrit(w) - Math.min(4, w.q) * .004 - R[0]) / (R[1] - R[0]), 0, 1); }
+const cdmgRoll = w => { const R = critRange(w); return clamp((wCdmg(w) - R[2]) / (R[3] - R[2]), 0, 1); };
+const rollOf = (w, k) => k === 'crit' ? critRoll(w) : k === 'cdmg' ? cdmgRoll(w) : rollsOf(w)[k];
+const optCost = (w, p) => ({ parts: Math.round((4 + 12 * p) * (1 + Math.min(4, w.q) * .5)), cash: Math.round(150 * (1 + w.level / 5) * (1 + 2 * p) / 10) * 10 });
+function optimize(w, k) {
+  const p = rollOf(w, k); if (p == null || p >= .999) return false;
+  const np = Math.min(1, p + OPT_STEP), r = 2 * np - 1, b = BASES.find(x => x.id === w.base.id) || w.base, M = mkOf(w), q = Math.min(4, w.q), R = critRange(w);
+  ocStrip(w);
+  if (k === 'dmg') w.dmg = Math.max(w.dmg + 1, Math.round(b.dmg * Math.pow(1.08, w.level - 1) * (1 + q * .14) * (1 + r * .15) * (w.unique ? 1.12 : 1)));
+  if (k === 'rate') w.rpm = Math.max(w.rpm + 1, Math.round(b.rpm * (1 + q * .04) * (1 + r * .12) * (1 + (M.rpm || 0))));
+  if (k === 'mag') w.mag = Math.max(w.mag + (np < 1 || w.mag < Math.round(b.mag * (1 + q * .08) * 1.2 * (1 + (M.mag || 0))) ? 1 : 0), Math.round(b.mag * (1 + q * .08) * (1 + r * .2) * (1 + (M.mag || 0))));
+  if (k === 'reload') w.reload = Math.min(w.reload - .01, +(b.reload * (1 - q * .05) * (1 - r * .15) * (1 - (M.reload || 0))).toFixed(2));
+  if (k === 'acc') w.spread = b.spread * (1 - q * .06) * (1 - r * .22) * (1 - (M.acc || 0));
+  if (k === 'crit') w.crit = +(R[0] + np * (R[1] - R[0]) + q * .004).toFixed(3);
+  if (k === 'cdmg') w.cdmg = +(R[2] + np * (R[3] - R[2])).toFixed(2);
+  ocApply(w);
+  const RL = rollsOf(w); w.roll = Math.round(['dmg', 'rate', 'mag', 'reload', 'acc'].reduce((a, s) => a + (RL[s] == null ? .5 : RL[s]), 0) / 5 * 100);
+  return true;
+}
+const rbarP = p => p == null ? '' : `<i class="rbar roll" title="Véletlen dobás: ${Math.round(p * 100)}% a lehetséges tartományban" style="--p:${Math.round(p * 100)}%"></i>`;
 function weaponDetail(w, cmp, actions) {
   const b = w.base, A = wCalc(w), C = cmp && cmp !== w ? wCalc(cmp) : null, c = C && cmp, el = w.element && ELEMENTS[w.element];
-  const x = (k, low, dg) => C ? arrow(A[k], C[k], low, dg) : '';
+  const x = (k, low, dg) => C ? arrow(A[k], C[k], low, dg) : '', RL = rollsOf(w);
   return `<div class="dhead" style="--rc:${rarColor(w)}"><div class="dband"><span class="rar">${RARITIES[w.q].name}</span> ${b.name}<i class="dlv">Lv ${w.level}</i></div>
       <div class="dname">${w.name}</div><img src="${wPic(w)}" alt="">
       <div class="dsub">${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''}</div></div>
@@ -104,20 +138,20 @@ function weaponDetail(w, cmp, actions) {
       ${w.oc && OVERCLOCKS[w.oc] ? dtal('Túlhajtás', OVERCLOCKS[w.oc].name, OVERCLOCKS[w.oc].desc, '#b48cff') : ''}
       ${el ? dtal('Elem', el.name, el.desc, el.color) : ''}
     </div>
-    <h4 class="dsec">Fő értékek</h4>
+    <h4 class="dsec">Fő értékek <small>a csík: hol áll a véletlen dobás (bal: legrosszabb, jobb: legjobb)</small></h4>
     <table class="dtab">
       ${drow('DPS', A.dps, x('dps'))}
-      ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · egyedi ${pctS(A.roll)}`)}
+      ${drow('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · egyedi ${pctS(A.roll)}`, '', rbarP(RL.dmg))}
       ${drow('Szakértelem', `${w.exp || 0}/10`, c ? arrow(w.exp || 0, c.exp || 0) : '', `+${2 * (w.exp || 0)}% sebzés ezzel a fegyverrel${(w.exp || 0) < 10 ? ' · a kovácsnál fejleszthető' : ''}`, w.exp ? 'core' : '', `<i class="rbar" style="--p:${(w.exp || 0) * 10}%"></i>`)}
       ${drow('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), 'kaszt, képességek, páncél, gyártó, szakértelem')}
-      ${drow('Tűzgyorsaság', `${w.rpm}/p`, c ? arrow(w.rpm, c.rpm) : '')}
-      ${drow('Tár', w.mag, c ? arrow(w.mag, c.mag) : '')}
-      ${drow(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? arrow(w.reload, c.reload, true, 2) : '', `gyorsaság ${pctS(reloadMul() - 1)}`)}
+      ${drow('Tűzgyorsaság', `${w.rpm}/p`, c ? arrow(w.rpm, c.rpm) : '', '', '', rbarP(RL.rate))}
+      ${drow('Tár', w.mag, c ? arrow(w.mag, c.mag) : '', '', '', rbarP(RL.mag))}
+      ${drow(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? arrow(w.reload, c.reload, true, 2) : '', `gyorsaság ${pctS(reloadMul() - 1)}`, '', rbarP(RL.reload))}
       ${drow('Hatótáv', `${b.range} m`, c ? arrow(b.range, c.base.range) : '')}
     </table>
     <h4 class="dsec">Pontosság és kritikus</h4>
     <table class="dtab">
-      ${drow('Pontosság', `${A.acc}%`, x('acc'))}
+      ${drow('Pontosság', `${A.acc}%`, x('acc'), '', '', rbarP(RL.acc))}
       ${drow('Kritikus esély', `${Math.round(A.crit * 100)}%`, x('crit', false, 2), `fegyver ${Math.round(wCrit(w) * 1000) / 10}% · a többi: felszerelés, képességek, gyártó`, '', rbarOf(wCrit(w), critRange(w)[0], critRange(w)[1] + .016))}
       ${drow('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2), `fegyver ×${wCdmg(w).toFixed(2)}`, '', rbarOf(wCdmg(w), critRange(w)[2], critRange(w)[3]))}
       ${drow('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2))}
