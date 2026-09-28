@@ -670,7 +670,7 @@ function loadMap(id, seed) {
   generateProps(seed);
   baseFog = lerp(L.fogD[0], L.fogD[1], mulberry(seed + 1)());
   lamps.forEach((l, i) => { l.flicker = mulberry(seed + 7 + i)() < .35; });
-  clearRideCorridor(); clearMod(); mergeStatic();
+  clearRideCorridor(); clearMod(); mergeStatic(); dressMap(id, seed);
 }
 function allRectsBound() {
   const all = [MAIN_RECT, ...Object.values(AREAS).map(a => a.core)];
@@ -1185,6 +1185,7 @@ function applyMod(key) {
   rain.visible = key === 'storm';
 }
 function updateMapFx(dt) {
+  for (const m of mist) { m.position.x += m.userData.v * dt; if (m.position.x > m.userData.hi) m.position.x = m.userData.lo; } // the ground mist drifts
   mapSpin.forEach(m => m.rotation.z += dt * .4);
   updateVanGates(dt);
   if (rain.visible) updateRain(dt);
@@ -1300,3 +1301,50 @@ function clearRideCorridor() {
     if ((cx < MAIN_RECT.minX - 1 || cx > MAIN_RECT.maxX + 1 || cz < MAIN_RECT.minZ - 1 || cz > MAIN_RECT.maxZ + 1) && rects.some(q => rectsHit(q, o))) obstacles.splice(i, 1); }
 }
 const inVanLane = (x, z, pad) => (MAP.vans || []).some(([vx, vz]) => { const R = laneRect(vx, vz); return x > R.minX - pad && x < R.maxX + pad && z > R.minZ - pad && z < R.maxZ + pad; });
+
+// ---------- set dressing: grass and gravel underfoot, a treeline (or a far town) on the horizon, mist drifting low ----------
+// all instanced, all for looks: nothing here blocks, and it is added after mergeStatic so it stays instanced
+const mist = [];
+const mistTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 4, 64, 64, 64);
+  r.addColorStop(0, 'rgba(255,255,255,.9)'); r.addColorStop(.5, 'rgba(255,255,255,.35)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+function tuftGeo(blades, h, w) { // a clump of thin triangles, darker at the root
+  const pos = [], col = [];
+  for (let i = 0; i < blades; i++) { const a = i / blades * Math.PI + Math.random() * .5, lean = (Math.random() - .5) * .25, hh = h * (.7 + Math.random() * .5), dx = Math.cos(a) * w, dz = Math.sin(a) * w;
+    pos.push(-dx, 0, -dz, dx, 0, dz, lean * Math.cos(a + 1.57), hh, lean * Math.sin(a + 1.57)); col.push(.35, .35, .35, .35, .35, .35, 1, 1, 1); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
+}
+function scatter(geo, mat, n, place, scale) {
+  if (!geo.attributes.color) { geo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(geo.attributes.position.count * 3).fill(1), 3)); } mat.vertexColors = true; // r128 only tints instances through vertex colours
+  const im = new THREE.InstancedMesh(geo, mat, n), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new V3(), s = new V3(); let k = 0;
+  for (let tries = 0; k < n && tries < n * 4; tries++) { const at = place(); if (!at) continue; e.set(at.rx || 0, Math.random() * 6.28, at.rz || 0, 'YXZ'); q.setFromEuler(e); const sc = scale(); s.set(sc, sc * (at.sy || 1), sc); p.set(at.x, at.y || 0, at.z); m.compose(p, q, s); im.setMatrixAt(k++, m); if (at.c && im.setColorAt) im.setColorAt(k - 1, at.c); }
+  im.count = k; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.frustumCulled = false; mapGroup.add(im); return im;
+}
+function dressMap(id, seed) {
+  mist.length = 0;
+  const L = MAP.look, R = MAIN_RECT, rng = mulberry(seed + 4242), rr = (a, b) => a + rng() * (b - a), ext = allRectsBound(), hard = L.tex === 'asphalt';
+  const inside = () => { const x = rr(ext.minX - 6, ext.maxX + 6), z = rr(ext.minZ - 6, ext.maxZ + 6); if (blockedAt(x, z, .35) || inVanLane(x, z, 1)) return null; return { x, z }; };
+  const base = new THREE.Color(L.ground), tint = (lo, hi) => base.clone().lerp(new THREE.Color(lo), .55).offsetHSL(0, 0, rr(-.05, hi));
+  // grass (not on the asphalt maps): a few thousand clumps, the map's own green-brown
+  if (!hard && id !== 'quarry') {
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    scatter(tuftGeo(5, .42, .07), mat, id === 'town' ? 1600 : 4200, () => { const a = inside(); if (a) a.c = tint(id === 'town' ? 0x6a5a30 : 0x3f5a26, .06); return a; }, () => rr(.6, 1.5));
+  }
+  // gravel, stones and litter everywhere
+  const stone = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  scatter(new THREE.DodecahedronGeometry(.12, 0), stone, hard ? 500 : id === 'quarry' ? 1400 : 700, () => { const a = inside(); if (a) { a.c = new THREE.Color(hard ? 0x3a3c40 : id === 'quarry' ? 0x8a8a90 : 0x5a554a).offsetHSL(0, 0, rr(-.06, .08)); a.sy = rr(.4, .8); a.y = .02; } return a; }, () => rr(.5, 2.2));
+  // puddles on the hard ground: dark, glossy, catching the lamps
+  if (hard) { const pm = new THREE.MeshStandardMaterial({ color: 0x0c0e12, roughness: .08, metalness: .7, transparent: true, opacity: .85 });
+    scatter(new THREE.CircleGeometry(1, 16), pm, 40, () => { const a = inside(); if (a) { a.rx = -Math.PI / 2; a.y = .018; a.sy = rr(.4, .9); } return a; }, () => rr(.6, 2)); }
+  // the horizon: pines (or dead trees) round the whole yard, far town blocks behind the asphalt maps
+  const far = (lo, hi) => { const a = rng() * 6.28, d = rr(lo, hi), cx = (ext.minX + ext.maxX) / 2, cz = (ext.minZ + ext.maxZ) / 2, rx = (ext.maxX - ext.minX) / 2, rz = (ext.maxZ - ext.minZ) / 2;
+    const x = cx + Math.cos(a) * (rx + d), z = cz + Math.sin(a) * (rz + d); return inVanLane(x, z, 6) ? null : { x, z }; };
+  const dark = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  if (id === 'gas' || id === 'hospital' || id === 'town') scatter(new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0), dark, 90, () => { const a = far(55, 120); if (a) { a.sy = rr(.4, 1.6); a.c = new THREE.Color(0x15161a).offsetHSL(0, 0, rr(-.02, .03)); } return a; }, () => rr(8, 16));
+  const pine = new THREE.ConeGeometry(1, 3.2, 7).translate(0, 2.2, 0), trunk = new THREE.CylinderGeometry(.18, .22, .9, 6).translate(0, .45, 0);
+  const treeGeo = THREE.BufferGeometryUtils ? THREE.BufferGeometryUtils.mergeBufferGeometries([pine.toNonIndexed(), trunk.toNonIndexed()]) : pine;
+  scatter(treeGeo, dark, id === 'quarry' ? 120 : 320, () => { const a = far(40, 110); if (a) a.c = new THREE.Color(id === 'fair' ? 0x121a14 : 0x0f1612).offsetHSL(0, 0, rr(-.02, .03)); return a; }, () => rr(2.2, 5));
+  // low mist: a few big soft sheets, drifting slowly across
+  const mm = new THREE.MeshBasicMaterial({ map: mistTex, color: new THREE.Color(L.fog).lerp(new THREE.Color(0x9aa4b4), .5), transparent: true, opacity: .07, depthWrite: false });
+  for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mm); m.rotation.x = -Math.PI / 2; const w = rr(22, 40); m.scale.set(w, w * rr(.4, .7), 1);
+    m.position.set(rr(ext.minX, ext.maxX), rr(.4, 1.4), rr(ext.minZ, ext.maxZ)); m.userData = { v: rr(.25, .7), lo: ext.minX - 25, hi: ext.maxX + 25 }; m.renderOrder = 2; mapGroup.add(m); mist.push(m); }
+}
