@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>Dead Acre</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<style>
+  :root{--bg:#0e0d0a;--pan:#1a1813;--ln:#2c2a22;--tx:#ece6d4;--tx3:#8a867c;--amb:#f0a024;--pos:#6fd08a;--red:#ff5a4a}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 "Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;height:100vh;padding:28px 32px;user-select:none}
+  .logo{font:900 54px/1 Impact,"Arial Black",sans-serif;letter-spacing:.02em;color:#e03a2e;text-transform:uppercase;text-shadow:0 0 30px rgba(224,58,46,.35)}
+  .sub{color:var(--tx3);font-size:12px;letter-spacing:.3em;text-transform:uppercase;margin:6px 0 22px}
+  .bar{height:6px;background:var(--pan);border:1px solid var(--ln);overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--amb);transition:width .35s}
+  .st{color:var(--tx3);font-size:13px;margin:8px 0 18px;min-height:18px}
+  h3{font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--tx3);margin:14px 0 8px}
+  .list{display:grid;gap:6px;overflow:auto;flex:1;min-height:0}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--pan);border:1px solid var(--ln)}
+  .row b{flex:1;font-size:16px}.row small{color:var(--tx3)}
+  button{font:700 13px "Segoe UI",sans-serif;letter-spacing:.12em;text-transform:uppercase;height:36px;padding:0 16px;background:transparent;color:var(--tx);border:1px solid #4a473c;cursor:pointer}
+  button:hover{border-color:var(--amb)}button:disabled{opacity:.4;cursor:default}button.go{background:var(--amb);color:#15130e;border:0}
+  .new{display:flex;gap:6px;margin-top:10px}input{flex:1;height:36px;background:var(--pan);border:1px solid var(--ln);color:var(--tx);padding:0 10px;font:15px "Segoe UI",sans-serif}
+  .rep{font-size:13px;padding:8px 12px;border-left:3px solid var(--pos);background:rgba(111,208,138,.07);margin-bottom:6px}.rep.bad{border-color:var(--red);background:rgba(255,90,74,.07)}
+  .foot{color:var(--tx3);font-size:12px;margin-top:10px;word-break:break-all}
+</style></head>
+<body>
+  <div class="logo">Dead Acre</div><div class="sub">Asztali változat</div>
+  <div class="bar"><i id="bar"></i></div><div class="st" id="st">Indítás…</div>
+  <div id="rep"></div>
+  <h3>Profilok</h3>
+  <div class="list" id="list"></div>
+  <div class="new"><input id="nm" placeholder="Új profil neve (pl. teszt)" maxlength="24"><button id="mk">Létrehozás</button></div>
+  <div class="foot" id="foot"></div>
+<script>
+  const $ = id => document.getElementById(id); let open = [];
+  da.onProgress((p, t) => { $('bar').style.width = Math.round(p * 100) + '%'; $('st').textContent = t; });
+  da.onOpen(list => { open = list; render(); });
+  let profiles = [];
+  function render() {
+    $('list').innerHTML = profiles.length ? '' : '<div class="st">Még nincs profil. Hozz létre egyet lent.</div>';
+    for (const { p, n } of profiles) {
+      const r = document.createElement('div'); r.className = 'row';
+      r.innerHTML = `<b></b><small>${n} karakter</small><button class="go">${open.includes(p) ? 'Nyitva' : 'Játék'}</button>`;
+      r.querySelector('b').textContent = p; const b = r.querySelector('button'); b.disabled = open.includes(p);
+      b.onclick = () => go(p); $('list').appendChild(r);
+    }
+  }
+  async function go(p) {
+    const r = await da.open(p);
+    if (r.error) { $('st').textContent = r.error; return; }
+    open = r.open; if (!profiles.some(x => x.p === p)) profiles.push({ p, n: r.chars });
+    $('st').textContent = r.tampered ? (r.fromBackup ? 'A mentés módosított vagy sérült volt: az utolsó jó másolat töltődött be.' : 'A mentés sérült volt, és nem volt jó másolat: üres profil indult.') : `${p}: betöltve, ellenőrizve.`;
+    render();
+  }
+  $('mk').onclick = () => { const v = $('nm').value.trim(); if (v) { go(v); $('nm').value = ''; } };
+  $('nm').onkeydown = e => { if (e.key === 'Enter') $('mk').click(); };
+  (async () => {
+    const r = await da.start(); profiles = r.profiles; open = r.open; $('bar').style.width = '100%';
+    $('rep').innerHTML = r.report.map(x => `<div class="rep${x.ok ? '' : ' bad'}"></div>`).join('');
+    [...$('rep').children].forEach((d, i) => { const x = r.report[i];
+      d.textContent = x.ok ? `Átvéve: ${x.from} → „${x.profile}” profil, ${x.n} karakter, ellenőrizve. A böngészőből most már kézzel törölheted.` : `Nem sikerült átvenni: ${x.from}${x.err ? ' (' + x.err + ')' : ''}. A böngészőben semmi nem változott.`; });
+    $('st').textContent = r.report.length ? 'Böngésző-mentések átvéve.' : 'Válassz profilt. Több profil egyszerre is futhat, külön ablakban.';
+    $('foot').textContent = 'Mentések helye: ' + await da.folder();
+    render();
+  })();
+</script>
+</body></html>

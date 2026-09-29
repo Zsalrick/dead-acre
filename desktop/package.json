@@ -1,0 +1,23 @@
+{
+  "name": "dead-acre",
+  "productName": "Dead Acre",
+  "version": "1.0.0",
+  "description": "Dead Acre asztali változat",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "io.github.zsalrick.deadacre",
+    "productName": "Dead Acre",
+    "files": ["main.js", "preload.js", "lpreload.js", "launcher.html"],
+    "directories": { "output": "dist" },
+    "win": { "target": "portable", "signAndEditExecutable": false },
+    "portable": { "artifactName": "DeadAcre.exe" }
+  }
+}
