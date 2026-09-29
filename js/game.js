@@ -32,7 +32,7 @@ function startJob(job, opts = {}) {
     ffyl: 0, shotsN: 0, hitsN: 0, dmgDone: 0, stepD: 0, fireCd: 0, burstLeft: 0, switchT: 0, knifeT: 0, knifeCd: 0, best: null, yaw: 0, pitch: 0, vy: 0, lastHurt: -99,
     inv: P.inv, up: P.up, stam: maxStam(), stamT: 0, adrenT: 0, stimK: null, regenT: 0, guardT: 0, itemCd: 0, perks: {}, buf: {}, uHeat: 0, uStack: 0 });
   player.hp = maxHp(); player.shield = maxShield(); endFFYLView();
-  resetSkillsRun();
+  resetSkillsRun(); applyLookFP();
   const extraGren = (isCls('engineer') ? 1 : 0) + rk('e_belt');
   P.inv.gren = Math.min(itemMax('gren') + (isCls('engineer') ? 1 : 0), P.inv.gren + extraGren);
   if (rk('m_plenty')) P.inv.med = itemMax('med');

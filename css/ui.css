@@ -919,3 +919,18 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .jsec small{font-family:var(--fc);font-weight:700;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#9dff6a}
 .jsec span{font-size:14px;color:var(--tx)}
 #objL li.sec span,.pmobj li.sec span{color:var(--tx2)}#objL li.sec.done span,#objL li.sec.done b,.pmobj li.sec.done b{color:#9dff6a}
+
+/* the Karakter tab: options left, the turning model right */
+.looktab{display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:28px;height:100%;min-height:0}
+.lleft{overflow:auto;min-height:0;padding-right:6px}
+.lleft h3{margin-top:0}
+.lrow{margin:0 0 16px}.lrow h4{font-family:var(--fc);font-weight:700;font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:var(--tx2);margin:0 0 8px}
+.lopts{display:flex;flex-wrap:wrap;gap:8px}
+.lsw{min-height:40px;padding:0 14px;background:var(--pan);border:1px solid var(--ln);color:var(--tx);font:inherit;font-size:15px;cursor:pointer}
+.lsw:hover{background:var(--hov)}.lsw.on{border-color:var(--amb);box-shadow:inset 0 0 0 1px var(--amb)}
+.lopts.col .lsw,.lsw[style]{width:44px;height:44px;padding:0;background:var(--sw);border:2px solid rgba(0,0,0,.4)}
+.lopts.col .lsw.on,.lsw[style].on{outline:2px solid var(--amb);outline-offset:2px}
+.lview{position:relative;min-height:0;background:radial-gradient(ellipse at 50% 60%,#23261f 0%,#0c0d0b 70%);border:1px solid var(--ln);display:flex;flex-direction:column}
+#lookCv{flex:1;min-height:0}#lookCv canvas{width:100%!important;height:100%!important;display:block;cursor:grab}
+.lview small{position:absolute;left:0;right:0;bottom:12px;text-align:center;color:var(--tx3);font-size:13px}
+@container (max-width:900px){.looktab{grid-template-columns:1fr}}

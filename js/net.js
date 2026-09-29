@@ -88,7 +88,7 @@ function onPartyChange() {
 function publishMember() {
   if (!NET.pr) return;
   NET.uid = NET.uid || Math.random().toString(36).slice(2, 10);
-  NET.pr.presence({ m: { u: NET.uid, n: myName().slice(0, 24), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, bd: NET.host && profile ? profile.jobs : null, dr: NET.host && profile ? profile.dirs || [] : null, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
+  NET.pr.presence({ m: { u: NET.uid, n: myName().slice(0, 24), lk: lookPack(myLook()), gv: gearVis(), lv: profile ? profile.level : 1, c: profile && profile.cls, h: NET.host ? 1 : 0, st: mission ? 'job' : 'base', rdy: NET.ready ? 1 : 0, ch: NET.chat, bd: NET.host && profile ? profile.jobs : null, dr: NET.host && profile ? profile.dirs || [] : null, sel: NET.host && typeof jobSel !== 'undefined' && profile && profile.jobs[jobSel] ? (j => ({ t: j.title, m: j.map, d: j.diff, tr: j.tier || 0, r: j.reward }))(profile.jobs[jobSel]) : null }, job: NET.host ? NET.job : null }).catch(() => {});
 }
 function partyPanel() {
   if (!NET.room) return `<div class="party off"><b>Többjátékos</b><span>A csapatjáték a claude.ai-on, bejelentkezve működik: oszd meg a játékot a barátaiddal, és ők is megnyithatják.</span></div>`;
@@ -150,25 +150,8 @@ function avMat(col) { return avMats[col] || (avMats[col] = new THREE.MeshStandar
 const avDark = new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: .9 }), avBoot = new THREE.MeshStandardMaterial({ color: 0x1a1612, roughness: .8 });
 const avFlashMat = new THREE.SpriteMaterial({ map: glowTex, color: 0xffc080, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
 function makeAvatar(m) {
-  const col = CLASSES[m && m.c] ? CLASSES[m.c].color : '#9aa0a6', cloth = avMat(col), pants = avMat('#3a3f36');
-  const g = new THREE.Group();
-  const box = (parent, mt, sx, sy, sz, x, y, z) => { const b = new THREE.Mesh(unitBox, mt); b.scale.set(sx, sy, sz); b.position.set(x, y, z); b.castShadow = true; parent.add(b); return b; };
-  const hips = new THREE.Group(); hips.position.y = .92; g.add(hips);
-  const leg = x => { const L = new THREE.Group(); L.position.set(x, 0, 0); hips.add(L); box(L, pants, .19, .5, .21, 0, -.25, 0); box(L, pants, .17, .42, .19, 0, -.68, 0); box(L, avBoot, .2, .12, .3, 0, -.88, -.04); return L; };
-  const legL = leg(-.13), legR = leg(.13);
-  box(hips, avDark, .44, .14, .26, 0, .02, 0); // belt
-  const torso = new THREE.Group(); torso.position.y = .95; g.add(torso);
-  box(torso, cloth, .46, .56, .26, 0, .3, 0);
-  box(torso, avDark, .5, .34, .3, 0, .34, 0); // plate carrier
-  box(torso, avDark, .1, .12, .08, -.14, .22, -.17); box(torso, avDark, .1, .12, .08, .02, .22, -.17); // pouches
-  const head = new THREE.Group(); head.position.set(0, .66, 0); torso.add(head);
-  const face = new THREE.Mesh(new THREE.SphereGeometry(.14, 14, 12), skinMat); face.position.y = .1; face.castShadow = true; head.add(face);
-  const helm = new THREE.Mesh(new THREE.SphereGeometry(.165, 14, 10, 0, Math.PI * 2, 0, Math.PI / 1.9), cloth); helm.position.y = .13; head.add(helm);
-  box(head, avDark, .2, .04, .05, 0, .12, -.13); // goggles
-  const arm = x => { const A = new THREE.Group(); A.position.set(x, .5, 0); torso.add(A); box(A, cloth, .13, .13, .34, 0, 0, -.15); box(A, skinMat, .1, .1, .3, 0, -.02, -.44); return A; };
-  const armR = arm(.27), armL = arm(-.27);
-  armR.rotation.y = .25; armL.rotation.y = -.45;
-  const gunG = new THREE.Group(); gunG.position.set(.12, .46, -.5); torso.add(gunG);
+  const col = CLASSES[m && m.c] ? CLASSES[m.c].color : '#9aa0a6';
+  const { g, hips, legL, legR, torso, head, armL, armR, gunG } = buildRig(lookUnpack(m && m.lk), (m && Array.isArray(m.gv) ? m.gv : []).slice(0, 6), col); // their look and their armor (avatar.js)
   const flash = new THREE.Sprite(avFlashMat); flash.scale.set(.5, .5, 1); flash.visible = false; gunG.add(flash);
   const label = textSprite([String((m && m.n) || 'Társ').slice(0, 24)], col, .42); label.position.y = 2.25; g.add(label);
   scene.add(g);
@@ -203,6 +186,7 @@ function updateAvatars(dt, peers) {
     let a = NET.avatars.get(p.peer); if (a) { a.bk = bkNow; a.seenAt = performance.now(); } if (!a && NET.host) for (const L of [drops, gearDrops, resDrops]) for (const d of L.filter(d => d.bkOf === p.peer)) { netTookDrop(d); (L === drops ? removeDrop : L === gearDrops ? removeGearDrop : removeResDrop)(d); } // they're back: their backpack goes back to them
     if (!a) { const u = p.presence.m && p.presence.m.u; if (u) for (const [pid, o] of NET.avatars) if (o.uid === u) { scene.remove(o.g); if (o.ring) scene.remove(o.ring); if (o.tag) o.tag.remove(); (o.tus || []).forEach(t => scene.remove(t.g)); dropRemoteMinions(o); NET.avatars.delete(pid); } } // the same player under a new id (P2P reconnect): the old figure goes, nothing is dropped
     if (!a) { a = makeAvatar(p.presence.m); a.uid = p.presence.m && p.presence.m.u; a.seenAt = performance.now(); NET.avatars.set(p.peer, a); a.pos.set(+P.x || 0, 0, +P.z || 0); a.yaw = +P.yw || 0; a.lastPing = Array.isArray(P.pg) ? P.pg[0] : 0; } // pings made before we met are old news
+    { const m = p.presence.m || {}, lk = JSON.stringify([m.lk, m.gv, m.c]); if (a.lookKey == null) a.lookKey = lk; else if (a.lookKey !== lk) { a.lookKey = lk; const n = makeAvatar(m); scene.remove(a.g); for (const k of ['g', 'hips', 'legL', 'legR', 'torso', 'head', 'armL', 'armR', 'gunG', 'flash']) a[k] = n[k]; a.gunKey = ''; a.gun = null; } }
     const px = a.pos.x, pz = a.pos.z, k = 1 - Math.exp(-dt * 12), tr = performance.now();
     if (P !== a.lastP) { a.lastP = P; (a.buf || (a.buf = [])).push({ t: tr, x: +P.x || 0, z: +P.z || 0, y: +P.y || 0, yw: +P.yw || 0, pt: clamp(+P.pt || 0, -1.4, 1.4) }); if (a.buf.length > 8) a.buf.shift(); }
     { const T = Array.isArray(P.tu) ? P.tu : [], key = T.map(t => `${t[0]},${t[1]},${t[2]}`).join('|'); // a teammate's turrets: stand-ins where theirs stand

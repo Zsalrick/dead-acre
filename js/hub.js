@@ -162,6 +162,7 @@ function showHub() {
 }
 function renderHub() {
   if (profile) { topUpShop(); fixBoard(); }
+  setTimeout(() => { if (hubTab === 'look') lookPreview(); });
   const P = profile;
   $('hubSlot').textContent = P.name; $('hubJobs').textContent = `${stats.jobs} kész munka${NET.code ? ` · csapat ${partyMembers().length} fő` : ''}`;
   $('hubLvl').textContent = P.level;
@@ -458,7 +459,7 @@ const HUB = {
 };
 enableDrag($('hubBody'));
 // five tabs; Felszerelés and Fejlődés have sub-tabs
-const HUB_GROUPS = { kit: [['arsenal', 'Fegyverek'], ['gear', 'Páncél'], ['forge', 'Kovács'], ['stats', 'Statisztika']], grow: [['skills', 'Képességek'], ['upgrades', 'Fejlesztések'], ['vet', 'Veterán'], ['coll', 'Gyűjtemény']], shop: [['shop', 'Fegyverek'], ['sgear', 'Páncél'], ['skit', 'Felszerelés'], ['swheel', 'Szerencsekerék'], ['slost', 'Elveszett bolt']],
+const HUB_GROUPS = { kit: [['arsenal', 'Fegyverek'], ['gear', 'Páncél'], ['look', 'Karakter'], ['forge', 'Kovács'], ['stats', 'Statisztika']], grow: [['skills', 'Képességek'], ['upgrades', 'Fejlesztések'], ['vet', 'Veterán'], ['coll', 'Gyűjtemény']], shop: [['shop', 'Fegyverek'], ['sgear', 'Páncél'], ['skit', 'Felszerelés'], ['swheel', 'Szerencsekerék'], ['slost', 'Elveszett bolt']],
   book: [['bweap', 'Fegyverek'], ['btal', 'Tehetségek'], ['bgear', 'Páncél'], ['bzomb', 'Zombik'], ['bboss', 'Fejvadászok'], ['bjobs', 'Munkák és pályák']] };
 document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.onclick = () => { hubTab = b.dataset.hub; renderHub(); });
 $('hubSub').addEventListener('click', e => { const t = e.target.closest('[data-sub]'); if (t) { hubTab = t.dataset.sub; renderHub(); } });
@@ -485,6 +486,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'bsave') saveBuild(+a);
   if (kind === 'bload') loadBuild(+a);
   if (kind === 'slot' && !wheelBusy && P.stash.length < stashMax()) { slotCostPaid = slotCost() * (a === 'gold' ? 4 : 1); if (pay(slotCostPaid)) spinSlot(a === 'gold'); }
+  if (kind === 'look') { P.look = Object.assign(myLook(), { [a]: +c }); saveProfile(); applyLookFP(); publishMember(); return renderHub(); }
   if (kind === 'jdiff') { const j = P.jobs[+a]; if (j && !j.bounty && !j.tier && !j.deep) setDiff(j, j.diff + +c); }
   if (kind === 'tier') { const j = P.jobs[+a]; if (j && j.tier && j.base) { const T = clamp(j.tier + +c, 1, (P.tier || 0) + 1); setTier(j, T); P.tierSel = T; } }
   if (kind === 'junk') P.junkQ = clamp(+a, -1, 2);
