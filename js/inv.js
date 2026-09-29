@@ -186,12 +186,13 @@ const srw = (label, val, cmpHTML = '', bar = null, tip = '', cls = '') => `<div 
 const dlt = (v, c, lowBetter, dg = 0) => { if (c == null) return ''; const d = v - c; if (Math.abs(d) < 1e-6) return '<em class="eq">=</em>'; return `<em class="${(lowBetter ? d < 0 : d > 0) ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${Math.abs(+d.toFixed(dg))}</em>`; };
 const dbox = (kind, name, text, col) => `<div class="dbox"${col ? ` style="--tc:${col}"` : ''}><small>${kind}</small>${name ? `<b>${name}</b>` : ''}${text ? `<span>${text}</span>` : ''}</div>`;
 const expPips = n => `<span class="pips">${Array.from({ length: 10 }, (_, k) => `<i class="${k < n ? 'on' : ''}"></i>`).join('')}</span>`;
+const rollTag = w => w.roll == null ? '' : `<span class="rtag ${w.roll >= 90 ? 'r4' : w.roll >= 75 ? 'r3' : w.roll >= 50 ? 'r2' : 'r1'}">${w.roll}%</span>`; // the gun's roll at a glance
 function weaponDetail(w, cmp, actions) {
   const b = w.base, A = wCalc(w), C = cmp && cmp !== w ? wCalc(cmp) : null, c = C && cmp, el = w.element && ELEMENTS[w.element], RL = rollsOf(w), R = critRange(w);
   const x = (k, low, dg) => C ? dlt(A[k], C[k], low, dg) : '';
   return `<div class="dscroll" style="--rc:${rarColor(w)}">
     <div class="dvimg"><img src="${wPic(w)}" alt=""><div class="dammo" data-tip="${CAT_NAMES[CAT[b.id]] || ''} lőszert használ"><img src="${ammoURL(CAT[b.id])}" alt=""><small>${CAT_NAMES[CAT[b.id]] || ''}</small></div></div>
-    <div class="dvhead"><div class="dk">${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · Lv ${w.level}</div><div class="dname">${w.name}</div>
+    <div class="dvhead"><div class="dk">${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · Lv ${w.level}</div><div class="dname">${w.name}${rollTag(w)}</div>
       <div class="dsub">${b.name} · ${modeName(b)}${baseSpecial(b) ? ' · ' + baseSpecial(b) : ''} · ${w.maker}</div>${mkOf(w).perk ? `<div class="dperk">${w.maker}: ${mkOf(w).perk}</div>` : ''}</div>
     <div class="dvbody">
       ${!canUse(w) ? `<div class="dlock">Csak ${w.level}. szinttől használható. Addig viheted a táskában.</div>` : ''}

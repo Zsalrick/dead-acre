@@ -1044,3 +1044,7 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 #station.wide .invl h3{font-family:var(--fc);font-weight:700;font-size:15px;letter-spacing:.16em;text-transform:uppercase;color:var(--tx);margin:14px 0 8px}
 #station.wide .invl .tiles{grid-template-columns:1fr}
 #station.wide .fgrid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+
+/* a gun's roll next to its name */
+.rtag{display:inline-block;margin-left:10px;padding:1px 7px;font-family:var(--fd);font-weight:900;font-size:.62em;vertical-align:middle;border:1px solid currentColor;letter-spacing:0}
+.rtag.r1{color:var(--tx3)}.rtag.r2{color:var(--tx)}.rtag.r3{color:#6fd08a}.rtag.r4{color:#ffd23f}
