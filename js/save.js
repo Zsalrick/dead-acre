@@ -58,15 +58,15 @@ function openProfile(n) {
     if (!IM.live && !(IM.coop && !IM.alone)) { } // closed during the intro: nothing happened yet
     else if (IM.ext) { // closed while the van drove off: you made it (the job's pay is lost, the kit isn't)
       profile.loadout = [...(IM.hands || profile.loadout), null, null].slice(0, 2).map(o => o ? Object.assign(o, { owned: true }) : null); profile.bag = (IM.bag || profile.bag).map(o => Object.assign(o, { owned: true }));
-      for (const k of GEAR_KEYS) if (profile.gear[k]) delete profile.gear[k].found; mg.forEach(it => delete it.found); profile.gearStash.push(...mg);
+      for (const k of GEAR_KEYS) if (profile.gear[k]) delete profile.gear[k].found; mg.forEach(it => delete it.found); profile.gearBag = mg; // the armour bag as you carried it out (it was the bag's own pieces plus what you found)
     } else if (IM.coop && !IM.alone) { // the backpack (bag and armor bag) stayed with the party; your hands and worn armor come home
       profile.loadout = [...hands, null, null].slice(0, 2); if (!profile.loadout[0] && !profile.loadout[1]) profile.loadout[0] = starter();
-      profile.bag = []; unfound(); profile.rejoin = IM.code ? { code: IM.code, until: Date.now() + 15 * 60e3 } : null; profile.abandonNote = 'coop';
+      profile.bag = []; profile.gearBag = []; unfound(); profile.rejoin = IM.code ? { code: IM.code, until: Date.now() + 15 * 60e3 } : null; profile.abandonNote = 'coop';
     } else { // solo, or the last one out: everything you carried goes to the lost-and-found, to buy back dearly (a newer loss replaces an older one)
       unfound();
       const w = [...hands, ...bag].filter(o => !(o.base === BASES[0].id && !o.q)), g = [...GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean), ...mg]; // the free starter pistol isn't worth a slot
       addLost(w, g); // alongside the other recent losses
-      profile.loadout = [starter(), null]; profile.bag = []; for (const k of GEAR_KEYS) profile.gear[k] = null;
+      profile.loadout = [starter(), null]; profile.bag = []; profile.gearBag = []; for (const k of GEAR_KEYS) profile.gear[k] = null; // the armour bag's pieces are in the lost list (they were in mg)
       profile.abandonNote = 'lost';
     }
     gearChanged();
