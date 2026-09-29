@@ -256,12 +256,12 @@ function hubToast(kind, B, act) {
   if (kind === 'up' && UPGRADES[x1]) D.push(`${UPGRADES[x1].name} ${U(x1)}/${UPGRADES[x1].max} · ${UPGRADES[x1].val(U(x1))}`);
   if (kind === 'sk' && P.cls) { const d = CLASSES[P.cls].tree.find(t => t[0] === x1); if (d) D.push(`${d[1]} ${rk(x1)}/${d[2]}`); }
   if (kind === 'aug') { const d = (AUGMENTS[P.cls] || []).find(t => t[0] === x1); if (d) D.push(d[1]); }
-  if (kind === 'opt') { const w = wAt(x1, x2), st = OPT_STATS.find(o => o[0] === x3); if (w && st) D.push(`${st[1]}: dobás ${Math.round(rollOf(w, x3) * 100)}%`); }
-  if (kind === 'gopt') { const it = gearAt(x1, x2), r = it && gRolls(it).find(o => o[0] === x3); if (r) D.push(`${r[1]}: dobás ${Math.round(r[2] * 100)}%`); }
+  if (kind === 'opt') { const w = wAt(x1, x2), st = OPT_STATS.find(o => o[0] === x3); if (w && st) D.push(`${st[1]}: ${Math.round(rollOf(w, x3) * 100)}%`); }
+  if (kind === 'gopt') { const it = gearAt(x1, x2), r = it && gRolls(it).find(o => o[0] === x3); if (r) D.push(`${r[1]}: ${Math.round(r[2] * 100)}%`); }
   if (kind === 'hforge' && x1 === 'exp') { const w = wAt(x2, x3); if (w) D.push(`Szakértelem ${w.exp}/10 · +${2 * w.exp}% sebzés`); }
   if (kind === 'hforge' && x1 === 'anoint') D.push('Új felkenés dobva: döntsd el a kovácsnál');
   if (kind === 'gexp') { const it = gearAt(x1, x2); if (it) D.push(`Szakértelem ${it.exp}/10 · +${3 * it.exp}% minden értékre`); }
-  if (kind === 'ocset' && OVERCLOCKS[x3]) D.push(`${OVERCLOCKS[x3].name}: ${OVERCLOCKS[x3].desc}`);
+  if (kind === 'ocset') { const w = wAt(x1, x2), O = w && OVERCLOCKS[w.oc]; if (O) D.push(`${O.name}: ${O.desc}`); }
   if (kind === 'ttype') { const T = TYPE_LISTS[x1] && TYPE_LISTS[x1][x2]; if (T) D.push(T.name); }
   if (kind === 'wear') { const it = GEAR_KEYS.map(k => P.gear[k]).find(g => g && !B.st.includes(g) && B.gs.includes(g)); if (it) D.push(`<i style="color:${gCol(it)}">${it.name}</i> rajtad`); }
   if (kind === 'vet' && GSTATS[x1]) D.push(`${GSTATS[x1].name}: ${SH.vet.ranks[x1]}. rang`);
@@ -401,7 +401,7 @@ const HUB = {
     const i = +si, w = lists[sl] && lists[sl][i], it = !w && (sl === 'W' ? P.gear[si] : st[i]), pp = P.parts || 0;
     const card = (t, sm, body, cls = '') => `<section class="fcard${cls ? ' ' + cls : ''}"><h4>${t}${sm ? `<small>${sm}</small>` : ''}</h4>${body}</section>`;
     const optRows = (rows, key, costTxt, can) => rows.map(([k, n, pr]) => { const max = pr >= .999;
-      return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="${key}:${sl}:${si}:${k}" data-tip="${n}: a dobás ${Math.round(pr * 100)}% → ${Math.round(Math.min(1, pr + OPT_STEP) * 100)}%"${max || !can(pr) ? ' disabled' : ''}>${max ? 'Tökéletes' : costTxt(pr)}</button></div>`; }).join('');
+      return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="${key}:${sl}:${si}:${k}" data-tip="${n}: ${Math.round(pr * 100)}% → ${Math.round(Math.min(1, pr + OPT_STEP) * 100)}%"${max || !can(pr) ? ' disabled' : ''}>${max ? 'Tökéletes' : costTxt(pr)}</button></div>`; }).join('');
     let bench = '';
     if (w) {
       const rows = OPT_STATS.map(([k, n]) => [k, n, rollOf(w, k)]).filter(r => r[2] != null);
@@ -414,7 +414,7 @@ const HUB = {
             : `<p class="amb">${w.anoint ? `${anoName(w.anoint)}: ${ANOINTS[w.anoint]}` : 'Nincs felkenése.'}</p>${hbtn(`Újradobás · ${HFORGE.anoint(w)} ⚙`, `hforge:anoint:${sl}:${i}`, pp < HFORGE.anoint(w), 'KeyN')}`) : ''}
           ${card('Szakértelem', `${w.exp || 0}/10 · most +${2 * (w.exp || 0)}% sebzés`, `${expP}${hbtn((w.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(w.exp || 0) + 1}/10 · ${expCost(w)} ⚙`, `hforge:exp:${sl}:${i}`, (w.exp || 0) >= 10 || pp < expCost(w), 'KeyM', expTip(w))}`)}
         </div>
-        ${card('Túlhajtás', `első beszerelés 1 ◆ + 20 ⚙ · csere 20 ⚙ · van ${P.oc || 0} ◆`, `<div class="ocrow">${Object.entries(OVERCLOCKS).map(([k, O]) => `<button class="chip${w.oc === k ? ' on' : ''}" data-act="ocset:${sl}:${i}:${k}" data-tip="${O.desc}${ocFits(w, k) ? '' : ' (erre a fegyverre nem jó)'}"${w.oc === k || !ocFits(w, k) || (!w.oc && (P.oc || 0) < 1) || pp < 20 ? ' disabled' : ''}>${O.name}</button>`).join('')}</div>`, 'wide')}
+        ${card('Túlhajtás', `első beszerelés 1 ◆ + 20 ⚙ · csere 20 ⚙ · van ${P.oc || 0} ◆`, `<div class="ocrow">${Object.entries(OVERCLOCKS).filter(([k]) => ocFits(w, k)).map(([k, O]) => `<span class="chip${w.oc === k ? ' on' : ''}" data-tip="${O.desc}">${O.name}</span>`).join('')}</div>${hbtn(w.oc ? 'Újradobás · 20 ⚙' : 'Beszerelés · 1 ◆ + 20 ⚙', `ocset:${sl}:${i}:rand`, (!w.oc && (P.oc || 0) < 1) || pp < 20, 'KeyO')}`, 'wide')}
       </div>`;
     } else if (it) {
       bench = `<div class="fgrid">
@@ -489,7 +489,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'jsel') { jobSel = a === 'range' ? 'range' : +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
   if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.parts || 0) >= expCost(it)) { P.parts -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
-  if (kind === 'ocset') { const [, l, i, k] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]); if (w && OVERCLOCKS[k] && ocFits(w, k) && (w.oc || (P.oc || 0) >= 1) && (P.parts || 0) >= 20 && w.oc !== k) { if (!w.oc) P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } }
+  if (kind === 'ocset') { const [, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]), k = w && pick(Object.keys(OVERCLOCKS).filter(o => ocFits(w, o) && o !== w.oc)); if (w && k && (w.oc || (P.oc || 0) >= 1) && (P.parts || 0) >= 20) { if (!w.oc) P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } } // a random one, never the one it already has
   if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; return startJob(deepJob(clamp(+a, 0, 2))); }
   if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); if (NET.host) publishMember(); }
   if (kind === 'bsave') saveBuild(+a);

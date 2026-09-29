@@ -131,7 +131,7 @@ function arrow(v, c, lowBetter, digits = 0) {
   return `<span class="${good ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(+d.toFixed(digits))}</span>`;
 }
 const drow = (label, shown, cmpHTML = '', note = '', cls = '', bar = '') => `<tr class="${cls}"><td>${label}${bar}${note ? `<small>${note}</small>` : ''}</td><td>${shown}</td><td>${cmpHTML}</td></tr>`;
-const rbarOf = (v, a, b) => `<i class="rbar" title="A dobás a tartományon belül" style="--p:${Math.round(clamp((v - a) / Math.max(1e-6, b - a), 0, 1) * 100)}%"></i>`;
+const rbarOf = (v, a, b) => `<i class="rbar" style="--p:${Math.round(clamp((v - a) / Math.max(1e-6, b - a), 0, 1) * 100)}%"></i>`;
 const pctS = v => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
 function wCalc(w) { // everything this gun does with your current upgrades, skills and gear
   const b = w.base, M = mkOf(w), lv = Math.pow(1.08, w.level - 1), rq = 1 + w.q * .14;
@@ -180,7 +180,7 @@ function optimize(w, k) {
   const RL = rollsOf(w); w.roll = Math.round(['dmg', 'rate', 'mag', 'reload', 'acc'].reduce((a, s) => a + (RL[s] == null ? .5 : RL[s]), 0) / 5 * 100);
   return true;
 }
-const rbarP = p => p == null ? '' : `<i class="rbar roll" title="Véletlen dobás: ${Math.round(p * 100)}% a lehetséges tartományban" style="--p:${Math.round(p * 100)}%"></i>`;
+const rbarP = p => p == null ? '' : `<i class="rbar roll" style="--p:${Math.round(p * 100)}%"></i>`;
 // one stat row: name · roll bar (null: none) · value · change against the compared item
 const srw = (label, val, cmpHTML = '', bar = null, tip = '', cls = '') => `<div class="srw${cls ? ' ' + cls : ''}"${tip ? ` data-tip="${String(tip).replace(/"/g, '&quot;')}"` : ''}><span>${label}</span>${bar == null ? (cls.includes('minor') ? '' : '<span></span>') : `<i class="sb"><i style="width:${Math.round(clamp(bar, 0, 1) * 100)}%"></i></i>`}<b>${val}</b>${cmpHTML || '<em></em>'}</div>`;
 const dlt = (v, c, lowBetter, dg = 0) => { if (c == null) return ''; const d = v - c; if (Math.abs(d) < 1e-6) return '<em class="eq">=</em>'; return `<em class="${(lowBetter ? d < 0 : d > 0) ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${Math.abs(+d.toFixed(dg))}</em>`; };
@@ -198,7 +198,7 @@ function weaponDetail(w, cmp, actions) {
       ${c ? `<div class="dcmp">összevetve: <span style="color:${rarColor(c)}">${c.name}</span></div>` : ''}
       <div class="srows">
         ${srw('DPS', A.dps, x('dps'), w.roll != null ? w.roll / 100 : null, 'Másodpercenkénti sebzés egy teljes tárral és újratöltéssel. A csík: a véletlen értékek összesített minősége.')}
-        ${srw('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), RL.dmg, `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · dobás ${pctS(A.roll)}`)}
+        ${srw('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), RL.dmg, `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · véletlen ${pctS(A.roll)}`)}
         ${srw('Tűzgyorsaság', `${w.rpm}/p`, c ? dlt(w.rpm, c.rpm) : '', RL.rate)}
         ${srw('Tár', w.mag, c ? dlt(w.mag, c.mag) : '', RL.mag)}
         ${srw(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? dlt(w.reload, c.reload, true, 2) : '', RL.reload, `gyorsaság ${pctS(reloadMul() - 1)}`)}
@@ -211,7 +211,6 @@ function weaponDetail(w, cmp, actions) {
         ${srw('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), null, 'kaszt, képességek, páncél, gyártó, szakértelem', 'minor')}
         ${srw('Hatótáv', `${b.range} m`, c ? dlt(b.range, c.base.range) : '', null, '', 'minor')}
         ${srw('Tartalék lőszer', A.res, x('res'), null, '', 'minor')}
-        ${w.roll != null ? srw('Dobás minősége', `${w.roll}%`, c && c.roll != null ? dlt(w.roll, c.roll) : '', null, w.roll >= 90 ? 'szinte tökéletes' : w.roll >= 70 ? 'jó dobás' : 'kalibrálható a kovácsnál', 'minor') : ''}
       </div>
       <div class="dboxes">
         ${w.unique && UNIQUES[w.unique] ? dbox('Egzotikus tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff5a4a') : ''}
@@ -237,7 +236,7 @@ function gearDetail(it, cmp, actions) {
     if (k === 'armor') parts.push(`alap +${it.armor}`); else if (it.stats[k]) parts.push(`tulajdonság ${fmtG(k, it.stats[k])}`);
     if (!it.exo && B.core[0] === k) parts.push(`márka ${fmtG(k, coreVal(it))}`);
     const d = c ? v - val(c, k) : 0, p = it.stats[k] ? Math.min(1, it.stats[k] / rollMax(k)) : null;
-    const cmpH = c ? (Math.abs(d) < 1e-6 ? '<em class="eq">=</em>' : `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmtG(k, Math.abs(d)).slice(1)}</em>`) : p != null ? `<em class="eq">${Math.round(p * 100)}% dobás</em>` : '';
+    const cmpH = c ? (Math.abs(d) < 1e-6 ? '<em class="eq">=</em>' : `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmtG(k, Math.abs(d)).slice(1)}</em>`) : '';
     return srw(k === 'armor' ? 'Páncél' : GSTATS[k].name, v ? (k === 'armor' ? Math.round(v) : fmtG(k, v)) : '—', cmpH, k === 'armor' ? null : p, parts.join(' · '), !it.exo && B.core[0] === k ? 'core' : '');
   }).join('');
   const next = B.sets.find(([n]) => n > cnt), sets = B.sets.map(([n, k, v]) => `${n} db: ${GSTATS[k].name} ${fmtG(k, v)}`).join(' · ');
