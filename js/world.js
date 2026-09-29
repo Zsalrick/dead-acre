@@ -3,8 +3,8 @@
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 // filmic curve: deep blacks, lamps and fire roll off instead of clipping (gfx.js may lower the pixel ratio / shadows per quality)
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.25;
+renderer.toneMapping = THREE.AgXToneMapping;
+renderer.toneMappingExposure = .75;
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

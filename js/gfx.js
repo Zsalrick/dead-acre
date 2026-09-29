@@ -24,7 +24,7 @@ function gfxInit() {
   if (!(T.EffectComposer && T.RenderPass && T.ShaderPass && T.UnrealBloomPass)) return;
   try {
     const s = renderer.getDrawingBufferSize(new T.Vector2());
-    const rt = renderer.capabilities.isWebGL2 && T.WebGLMultisampleRenderTarget
+    const rt = T.WebGLMultisampleRenderTarget
       ? Object.assign(new T.WebGLMultisampleRenderTarget(s.x, s.y, { format: T.RGBAFormat }), { samples: 4 })
       : new T.WebGLRenderTarget(s.x, s.y, { format: T.RGBAFormat, minFilter: T.LinearFilter, magFilter: T.LinearFilter });
     const c = new T.EffectComposer(renderer, rt);
@@ -32,6 +32,7 @@ function gfxInit() {
     const vp = new T.RenderPass(vmScene, vmCamera); vp.clear = false; vp.clearDepth = true; c.addPass(vp);
     const bloom = new T.UnrealBloomPass(new T.Vector2(s.x, s.y), .6, .45, .8); c.addPass(bloom);
     const setSize = bloom.setSize.bind(bloom); bloom.setSize = (w, h) => { const k = GFX.q === 1 ? .5 : 1; setSize(Math.round(w * k), Math.round(h * k)); };
+    c.addPass(new T.OutputPass()); // tone mapping and colour space happen here (r153+ only tone-maps on the way to the screen)
     const grade = new T.ShaderPass(GRADE_SHADER); c.addPass(grade);
     Object.assign(GFX, { composer: c, bloom, grade, vmPass: vp });
   } catch (e) { console.warn('Utófeldolgozás kikapcsolva:', e); GFX.composer = null; }

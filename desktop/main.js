@@ -4,7 +4,8 @@ const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 
 const ORIGIN = 'https://zsalrick.github.io', GAME = ORIGIN + '/dead-acre/';
-if (process.env.DA_USERDATA) app.setPath('userData', process.env.DA_USERDATA); // tests run in a scratch folder
+const TEST = !!process.env.DA_USERDATA; // tests: a scratch folder and hidden windows (a shown one would grab the real mouse for pointer lock)
+if (TEST) app.setPath('userData', process.env.DA_USERDATA);
 Menu.setApplicationMenu(null); // no menu, no accelerators: Ctrl+W, Ctrl+R, F5, Ctrl+Shift+I do nothing
 
 // ---------- sealed save files ----------
@@ -95,14 +96,14 @@ async function importBrowsers(progress) {
 const games = new Map(); // webContents id -> { p, data, win }
 let launcher = null;
 function openLauncher() {
-  launcher = new BrowserWindow({ width: 560, height: 620, resizable: false, title: 'Dead Acre', backgroundColor: '#0e0d0a', webPreferences: { preload: path.join(__dirname, 'lpreload.js'), contextIsolation: true } });
+  launcher = new BrowserWindow({ show: !TEST, width: 560, height: 620, resizable: false, title: 'Dead Acre', backgroundColor: '#0e0d0a', webPreferences: { preload: path.join(__dirname, 'lpreload.js'), contextIsolation: true } });
   launcher.loadFile(path.join(__dirname, 'launcher.html'));
   launcher.on('closed', () => { launcher = null; });
 }
 function openGame(p) {
   if ([...games.values()].some(g => g.p === p)) return { error: 'Ez a profil már nyitva van.' };
   const R = readProfile(p);
-  const win = new BrowserWindow({ width: 1600, height: 900, title: `Dead Acre · ${p}`, backgroundColor: '#0e0d0a',
+  const win = new BrowserWindow({ show: !TEST, width: 1600, height: 900, title: `Dead Acre · ${p}`, backgroundColor: '#0e0d0a',
     webPreferences: { partition: `game-${p}-${Date.now()}`, preload: path.join(__dirname, 'preload.js'), contextIsolation: true } }); // an in-memory session: the file is the only copy on disk
   const G = { p, data: R.data, win, quitOk: false }; games.set(win.webContents.id, G);
   win.webContents.setUserAgent(win.webContents.getUserAgent() + ' DeadAcreApp');
