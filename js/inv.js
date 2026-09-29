@@ -70,10 +70,11 @@ const tBadge = x => x.isNew ? ['ÚJ', ''] : x.fav ? ['★ Kedvenc', 'fav'] : x.j
 const wTile = (sel, w, o = {}) => { const [bg, bc] = tBadge(w), d = o.cmp && o.cmp !== w ? dps(w) - dps(o.cmp) : 0;
   return tile(sel, wPic(w), w.name, o.price ? `DPS ${dps(w)}` : o.sub || `${w.base.name}${o.n ? '' : ' · ' + w.maker}`, rarColor(w),
     Object.assign({ rar: w.unique ? 'Egzotikus' : RARITIES[w.q].name, badge: bg, badgeCls: bc, exp: w.exp, lv: `Lv ${w.level}`, lockLv: !canUse(w) && w.level, val: o.price ? `<span class="tp">${o.price}</span>${delta(d)}` : `DPS ${dps(w)}${delta(d)}` }, o)); };
+const gExp = it => 1 + .03 * ((it && it.exp) || 0), gArmor = it => Math.round(it.armor * gExp(it)); // what a piece really gives
 const gearScore = it => it ? it.armor + 6 * Object.keys(it.stats).length : -1;
-const gTile = (sel, it, o = {}) => { const [bg, bc] = tBadge(it), d = o.cmp && o.cmp !== it ? it.armor - o.cmp.armor : 0;
+const gTile = (sel, it, o = {}) => { const [bg, bc] = tBadge(it), d = o.cmp && o.cmp !== it ? gArmor(it) - gArmor(o.cmp) : 0;
   return tile(sel, gPic(it), it.name, it.exo ? `${GEAR_SLOTS[it.slot]} · bármely márka` : `${GEAR_SLOTS[it.slot]} · ${BRANDS[it.brand].name}`, gCol(it),
-    Object.assign({ rar: it.exo ? 'Egzotikus' : RARITIES[it.q].name, badge: bg, badgeCls: bc, exp: it.exp, lv: `Lv ${it.level}`, lockLv: !canUse(it) && it.level, bc: BRANDS[it.brand].color, val: o.price ? `<span class="tp">${o.price}</span>${delta(d)}` : `Páncél ${it.armor}${delta(d)}` }, o)); };
+    Object.assign({ rar: it.exo ? 'Egzotikus' : RARITIES[it.q].name, badge: bg, badgeCls: bc, exp: it.exp, lv: `Lv ${it.level}`, lockLv: !canUse(it) && it.level, bc: BRANDS[it.brand].color, val: o.price ? `<span class="tp">${o.price}</span>${delta(d)}` : `Páncél ${gArmor(it)}${delta(d)}` }, o)); };
 const emptyTile = (label, sub, pic, drop) => `<div class="tile empty"${drop ? ` data-drop="${drop}"` : ''} data-tip="${[label, sub].filter(Boolean).join(' · ').replace(/"/g, '&quot;')}"></div>`;
 // double-click a tile: its main [F] action (buy, equip); a tile already on you does nothing
 let lastSel = { s: '', t: 0 };
@@ -231,13 +232,14 @@ function weaponDetail(w, cmp, actions) {
 // ---------- detail: armor ----------
 function gearDetail(it, cmp, actions) {
   const tb = it.exo ? exoTarget() : it.brand, B = BRANDS[tb || it.brand], cnt = tb ? brandCounts()[tb] || 0 : 0, c = cmp && cmp !== it ? cmp : null; // an exotic shows the set it counts toward now
-  const val = (g, k) => { if (!g) return 0; let v = k === 'armor' ? g.armor : g.stats[k] || 0; if (!g.exo && BRANDS[g.brand].core[0] === k) v += coreVal(g); return v; };
+  const val = (g, k) => { if (!g) return 0; let v = k === 'armor' ? g.armor : g.stats[k] || 0; if (!g.exo && BRANDS[g.brand].core[0] === k) v += coreVal(g); return v * gExp(g); }; // expertise included
   const keys = [...new Set(['armor', ...(it.exo ? [] : [B.core[0]]), ...Object.keys(it.stats), ...(c ? [...(c.exo ? [] : [BRANDS[c.brand].core[0]]), ...Object.keys(c.stats)] : [])])];
   const rollMax = k => { const S = GSTATS[k]; return S.roll[1] * (1 + it.q * .12) * (S.flat ? 1 + .06 * (it.level - 1) : 1); };
   const rows = keys.map(k => {
     const v = val(it, k), parts = [];
     if (k === 'armor') parts.push(`alap +${it.armor}`); else if (it.stats[k]) parts.push(`tulajdonság ${fmtG(k, it.stats[k])}`);
     if (!it.exo && B.core[0] === k) parts.push(`márka ${fmtG(k, coreVal(it))}`);
+    if (it.exp) parts.push(`szakértelem +${3 * it.exp}%`);
     const d = c ? v - val(c, k) : 0, p = it.stats[k] ? Math.min(1, it.stats[k] / rollMax(k)) : null;
     const cmpH = c ? (Math.abs(d) < 1e-6 ? '<em class="eq">=</em>' : `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${fmtG(k, Math.abs(d)).slice(1)}</em>`) : '';
     return srw(k === 'armor' ? 'Páncél' : GSTATS[k].name, v ? (k === 'armor' ? Math.round(v) : fmtG(k, v)) : '—', cmpH, k === 'armor' ? null : p, parts.join(' · '), !it.exo && B.core[0] === k ? 'core' : '');

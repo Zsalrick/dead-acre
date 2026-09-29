@@ -98,7 +98,7 @@ function fieldForge() {
   } else if (it) {
     const ex = it.exp || 0;
     bench = `<div class="fgrid">${card('Optimalizálás', '', opt(gRolls(it), 'fgopt', pr => fpts(gOptCost(it, pr), it)))}
-      <div class="fcol">${card('Szakértelem', `${ex}/10 · most +${3 * ex}% minden értékre`, `<div class="fexp">${expPips(ex)}</div>${ex >= 10 ? '<button class="sbtn" disabled>Szakértelem: max</button>' : btn(`Szakértelem ${ex + 1}/10`, 'fgexp', fpts({ parts: expCost(it) }, it))}`)}</div></div>`;
+      <div class="fcol">${card('Szakértelem', `${ex}/10 · most +${3 * ex}% minden értékre`, `<div class="fexp">${expPips(ex)}</div>${ex >= 10 ? '<button class="sbtn" disabled>Szakértelem: max</button>' : btn(`Szakértelem ${ex + 1}/10`, 'fgexp', fpts({ fab: expCost(it) }, it))}`)}</div></div>`;
   }
   const left = `<h3>Kézben</h3><div class="tiles">${P.slots.map((q, k) => q ? wTile(`L:${k}`, q, { n: `${k + 1}` }) : '').join('')}</div>
     ${P.bag.length ? `<h3>Táska</h3><div class="tiles">${P.bag.map((q, k) => wTile(`B:${k}`, q, { sub: q.base.name })).join('')}</div>` : ''}
@@ -117,7 +117,7 @@ function forgeAct(kind, key, pay) { // true: handled (and re-rendered, or a dial
   }
   if (kind === 'fexp' && w && (w.exp || 0) < 10 && pay(fpts({ parts: expCost(w) }, w))) { w.exp = (w.exp || 0) + 1; return done(); }
   if (kind === 'fgopt' && it) { const r = gRolls(it).find(q => q[0] === key); if (r && r[2] < .999 && player.points >= fpts(gOptCost(it, r[2]), it) && gOptimize(it, key)) { pay(fpts(gOptCost(it, r[2]), it)); return done(); } }
-  if (kind === 'fgexp' && it && (it.exp || 0) < 10 && pay(fpts({ parts: expCost(it) }, it))) { it.exp = (it.exp || 0) + 1; return done(); }
+  if (kind === 'fgexp' && it && (it.exp || 0) < 10 && pay(fpts({ fab: expCost(it) }, it))) { it.exp = (it.exp || 0) + 1; return done(); }
   if (kind === 'forge' && key === 'elem' && w && !w.element && !forgedOn(w, 'elem') && pay(Math.round(FORGE.elem() * forgeMul(w) / 50) * 50)) { w.element = pick(Object.keys(ELEMENTS)); markForged(w, 'elem'); return done(); }
   return false;
 }

@@ -216,12 +216,12 @@ function gRemove(sl, k) { if (sl === 'W') { profile.gear[k] = null; gearChanged(
 const salvageGain = x => PARTS[x.q] + expRefund(x);
 const wSellBtns = (w, sl, i, lone) => hhold(`Eladás (tartsd) $${sellValue(w)}`, `sell:${sl}:${i}`, w.fav || lone, 'KeyX') + hhold(`Szétszedés (tartsd) +${salvageGain(w)} ⚙`, `salvage:${sl}:${i}`, w.fav || lone, 'KeyB') +
   hbtn(w.fav ? '★ Kedvenc' : 'Kedvenc', `fav:${sl}:${i}`, false, 'KeyV') + hbtn(w.junk ? '🗑 Kukában' : 'Kukába', `trash:${sl}:${i}`, w.fav, 'KeyJ');
-const gSellBtns = (it, sl, k) => hhold(`Eladás (tartsd) $${gearValue(it)}`, `gsell:${sl}:${k}`, it.fav, 'KeyX') + hhold(`Szétszedés (tartsd) +${PARTS[it.q]} ${FAB}${expRefund(it) ? ` +${expRefund(it)} ⚙` : ''}`, `gsalvage:${sl}:${k}`, it.fav, 'KeyB') +
+const gSellBtns = (it, sl, k) => hhold(`Eladás (tartsd) $${gearValue(it)}`, `gsell:${sl}:${k}`, it.fav, 'KeyX') + hhold(`Szétszedés (tartsd) +${PARTS[it.q] + expRefund(it)} ${FAB}`, `gsalvage:${sl}:${k}`, it.fav, 'KeyB') +
   hbtn(it.fav ? '★ Kedvenc' : 'Kedvenc', `gfav:${sl}:${k}`, false, 'KeyV') + hbtn(it.junk ? '🗑 Kukában' : 'Kukába', `gtrash:${sl}:${k}`, it.fav, 'KeyJ');
 function trashBar(kind) { // bulk sell / salvage everything marked as trash
   const P = profile, items = kind === 'w' ? [...P.bag, ...P.stash].map(unpackW).filter(w => w && w.junk && !w.fav) : P.gearStash.filter(it => it.junk && !it.fav);
   if (!items.length) return '';
-  const cash = items.reduce((a, x) => a + (kind === 'w' ? sellValue(x) : gearValue(x)), 0), parts = items.reduce((a, x) => a + (kind === 'w' ? salvageGain(x) : PARTS[x.q]), 0);
+  const cash = items.reduce((a, x) => a + (kind === 'w' ? sellValue(x) : gearValue(x)), 0), parts = items.reduce((a, x) => a + (kind === 'w' ? salvageGain(x) : PARTS[x.q] + expRefund(x)), 0);
   return `<div class="trashbar"><b>🗑 Kukában: ${items.length} db</b>${hbtn(`Összes eladása · $${cash}`, `trashsell:${kind}`)}${hbtn(`Összes szétszedése · +${parts} ${kind === 'w' ? '⚙' : FAB}`, `trashsalv:${kind}`)}</div>`;
 }
 // calibration: roll new stats, show old against new, keep whichever the player picks
@@ -452,7 +452,7 @@ const HUB = {
     } else if (it) {
       bench = `<div class="fgrid">
         ${card('Optimalizálás', '', optRows(gRolls(it), 'gopt', pr => { const C = gOptCost(it, pr); return `+10% · ${C.fab} ${FAB} · $${C.cash}`; }, pr => { const C = gOptCost(it, pr); return (P.fabric || 0) >= C.fab && P.cash >= C.cash; }))}
-        <div class="fcol">${card('Szakértelem', `${it.exp || 0}/10 · most +${3 * (it.exp || 0)}% minden értékre`, `<div class="fexp">${expPips(it.exp || 0)}</div>${hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ⚙`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || pp < expCost(it), 'KeyM', expTip(it, true))}`)}</div>
+        <div class="fcol">${card('Szakértelem', `${it.exp || 0}/10 · most +${3 * (it.exp || 0)}% minden értékre`, `<div class="fexp">${expPips(it.exp || 0)}</div>${hbtn((it.exp || 0) >= 10 ? 'Szakértelem: max' : `Szakértelem ${(it.exp || 0) + 1}/10 · ${expCost(it)} ${FAB}`, `gexp:${sl}:${si}`, (it.exp || 0) >= 10 || (P.fabric || 0) < expCost(it), 'KeyM', expTip(it, true))}`)}</div>
       </div>`;
     }
     const x = w || it, head = `<div class="fhead"><h2>Kovács</h2>${x ? `<b style="color:${w ? rarColor(w) : gCol(it)}">${x.name}</b>` : ''}<small>${pp} ⚙ · ${P.fabric || 0} ${FAB} · ${P.oc || 0} ◆</small></div>`;
@@ -521,7 +521,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); clearNew(invSel); renderHub(); return selDbl($('hubBody'), invSel); } // seen: no longer new
   if (kind === 'jsel') { jobSel = a === 'range' ? 'range' : +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
-  if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.parts || 0) >= expCost(it)) { P.parts -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
+  if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.fabric || 0) >= expCost(it)) { P.fabric -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
   if (kind === 'ocset') { const [, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]), k = w && pick(Object.keys(OVERCLOCKS).filter(o => ocFits(w, o) && o !== w.oc)); if (w && k && (w.oc || (P.oc || 0) >= 1) && (P.parts || 0) >= 20) { if (!w.oc) P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } } // a random one, never the one it already has
   if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; deepState().run = true; invSel = ''; saveProfile(); } // into the Hétvégi Meló hub first
   if (kind === 'deepgo') { if (NET.code && !NET.host) return; return startJob(deepJob(deepState().stage)); }
@@ -584,13 +584,13 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'gsell') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.cash += gearValue(it); } }
   if (kind === 'gbuy') { const it = P.gshop[+a]; if (it && P.gearStash.length < gearMax() && pay(gearPrice(it))) { P.gearStash.push(it); P.gshop[+a] = null; } }
   if (kind === 'salvage') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.parts = (P.parts || 0) + salvageGain(w); SND.salvage('w'); } } // expertise half back; the core is spent
-  if (kind === 'gsalvage') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.fabric = (P.fabric || 0) + PARTS[it.q]; P.parts = (P.parts || 0) + expRefund(it); SND.salvage('g'); } } // armor: fabric, the expertise half back in parts
+  if (kind === 'gsalvage') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.fabric = (P.fabric || 0) + PARTS[it.q] + expRefund(it); SND.salvage('g'); } } // armor: fabric, the expertise half back in fabric too
   if (kind === 'fav' || kind === 'trash') { const w = wAt(a, c); if (w) { if (kind === 'fav') { w.fav = !w.fav; if (w.fav) w.junk = false; } else if (!w.fav) w.junk = !w.junk; wList(a)[+c] = packW(w); } }
   if (kind === 'gfav' || kind === 'gtrash') { const it = gearAt(a, c); if (it) { if (kind === 'gfav') { it.fav = !it.fav; if (it.fav) it.junk = false; } else if (!it.fav) it.junk = !it.junk; } }
   if (kind === 'trashsell' || kind === 'trashsalv') { // every trash-marked piece in the bag and stash (weapons) or the armor stash
     const sell = kind === 'trashsell';
     if (a === 'w') for (const sl of ['S', 'B']) { const L = wList(sl); for (let k = L.length - 1; k >= 0; k--) { const w = unpackW(L[k]); if (w && w.junk && !w.fav) { L.splice(k, 1); if (sell) P.cash += sellValue(w); else P.parts = (P.parts || 0) + salvageGain(w); } } }
-    else for (let k = P.gearStash.length - 1; k >= 0; k--) { const it = P.gearStash[k]; if (it.junk && !it.fav) { P.gearStash.splice(k, 1); if (sell) P.cash += gearValue(it); else { P.fabric = (P.fabric || 0) + PARTS[it.q]; P.parts = (P.parts || 0) + expRefund(it); } } }
+    else for (let k = P.gearStash.length - 1; k >= 0; k--) { const it = P.gearStash[k]; if (it.junk && !it.fav) { P.gearStash.splice(k, 1); if (sell) P.cash += gearValue(it); else { P.fabric = (P.fabric || 0) + PARTS[it.q] + expRefund(it); } } }
   }
   if (kind === 'sell') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.cash += sellValue(w); } }
   hubToast(kind, before, b.dataset.act);

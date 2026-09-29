@@ -693,10 +693,10 @@ function renderSlots() {
     : `<div class="slot"><b>${i + 1}</b>üres</div>`).join('');
 }
 function gearGroundCard(it, act) { // armor on the ground: the same card as a gun, with its armor against what you wear
-  const B = BRANDS[it.brand], worn = profile.gear[it.slot], d = worn ? it.armor - worn.armor : 0;
+  const B = BRANDS[it.brand], worn = profile.gear[it.slot], d = worn ? gArmor(it) - gArmor(worn) : 0;
   return `<div class="gck" style="color:${gCol(it)}">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level} · a földön${rollTagP(gRoll(it))}</div><div class="gcn">${it.name}</div>
     <div class="gcs">${GEAR_SLOTS[it.slot]} · ${it.exo ? 'egzotikus, bármely márkához számít' : `<span style="color:${B.color}">${B.name}</span> · ${B.tag}`}</div>
-    <div class="gcst"><div><small>Páncél</small><b>${it.armor}${d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</b></div>${it.exo ? '' : `<div><small>${GSTATS[B.core[0]].name}</small><b>${fmtG(B.core[0], coreVal(it))}</b></div>`}${Object.entries(it.stats).slice(0, 1).map(([k, v]) => `<div><small>${GSTATS[k].name}</small><b>${fmtG(k, v)}</b></div>`).join('')}</div>
+    <div class="gcst"><div><small>Páncél</small><b>${gArmor(it)}${d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</b></div>${it.exo ? '' : `<div><small>${GSTATS[B.core[0]].name}</small><b>${fmtG(B.core[0], coreVal(it))}</b></div>`}${Object.entries(it.stats).slice(0, 1).map(([k, v]) => `<div><small>${GSTATS[k].name}</small><b>${fmtG(k, v)}</b></div>`).join('')}</div>
     ${it.exo && EXOTICS[it.exo] ? `<div class="gcx" style="color:${EXO_COL}">${EXOTICS[it.exo].talent}</div>` : ''}
     <div class="act">${act}</div>`;
 }
@@ -780,7 +780,7 @@ function updateHUD() {
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot], full = mission.gear.length >= gearBagMax(), out = full && gearSwapOut(focus.it);
       card = gearGroundCard(focus.it, (full ? `<span class="bagfull"><b>TELE A PÁNCÉLZSÁK ${mission.gear.length}/${gearBagMax()}</b><span><kbd>F</kbd>Csere: <i style="color:${RARITIES[out.q].color}">${out.name}</i> a földre kerül</span></span>`
-        : `<span><kbd>F</kbd>A zsákba ${mission.gear.length}/${gearBagMax()}</span>`) + `<span>Viselt: ${worn ? `${worn.name} · ${worn.armor} páncél` : 'semmi'}</span>` + scrapHint(focus.it.q, true), true); }
+        : `<span><kbd>F</kbd>A zsákba ${mission.gear.length}/${gearBagMax()}</span>`) + `<span>Viselt: ${worn ? `${worn.name} · ${gArmor(worn)} páncél` : 'semmi'}</span>` + scrapHint(focus.it.q, true), true); }
     else if (focus.w) { const ok = canUse(focus.w), bagTxt = player.bag.length < bagMax() ? `Táskába ${player.bag.length}/${bagMax()}` : 'Tele a táska';
       card = cardHTML(focus.w, (ok ? `<span><kbd>F</kbd>${player.slots.includes(null) ? 'Kézbe' : bagTxt}</span><span><kbd>F</kbd>tartsd: Csere</span>` : `<span class="lvlock"><kbd>F</kbd>${bagTxt} · ${focus.w.level}. szinttől használhatod</span>`) + scrapHint(focus.w.q), curW()); }
     else if (focus.type === 'cache') prompt = '<b>[E]</b> Utánpótlás-láda kinyitása';
