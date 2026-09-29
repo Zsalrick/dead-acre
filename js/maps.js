@@ -218,34 +218,55 @@ const STATION_INFO = {
   tower: 'Automata lövegtorony telepíthető.',
 };
 const MAPS = {
-  farm: {
-    name: 'Holloway-farm', desc: 'Nagy tanya csűrrel, silókkal és kukoricással. Hátul, az északi kerítésen három megnyitható rész.', minLevel: 1,
-    main: { minX: -54, maxX: 54, minZ: -42, maxZ: 42 }, look: { tex: 'dirt', ground: 0x9a9a88, fog: 0x0a0f18, fogD: [.022, .031], fence: 0xffffff },
-    vans: [[-24, 37], [24, 38], [-44, -33], [44, 2]], ammo: [-4, 8], boxSpots: [[4, -6], [-30, 4], [30, -6], [-12, 26], [16, 8], [-40, -8]],
-    spawns: [[-51, 14], [-51, -12], [51, -16], [51, 22], [0, 40], [-44, 40], [40, 40], [-17, -40], [17, -40]],
-    lamps: [[-14, -4], [14, 4], [-6, 24], [22, -14], [-36, 2], [40, 12], [0, -30], [-30, 30]],
-    clear: [[-28, -22, 11], [28, -24, 8], [-46, 14, 6], [6, -14, 2.6], [18, 22, 11], [38, 22, 11]],
-    props: [['crate', 4], ['stack', 2], ['hay', 4], ['barrel', 2], ['boom', 1.5], ['car', 1.2], ['logs', 1.5]], propN: [30, 38],
+  farm: { // core + three wings: a tight farmyard to start in; the barn, the cornfield and the graveyard open it up, each with its own spawns
+    name: 'Holloway-farm', desc: 'Tanyaudvar a lakóházzal és a gépszínnel. Északra, szögesdróton túl három nagy rész nyitható: a csűr, a kukoricás és a temető.', minLevel: 1,
+    noScale: true, innerFence: 'rail',
+    main: { minX: -66, maxX: 66, minZ: -6, maxZ: 42 }, look: { tex: 'dirt', ground: 0x9a9a88, fog: 0x0a0f18, fogD: [.022, .031], fence: 0xffffff },
+    vans: [[-46, 32], [46, 32], [-58, 10], [58, 18]], ammo: [-10, 8], boxSpots: [[14, 30], [-28, 10], [26, 4], [-8, 36]],
+    spawns: [[-63, 22], [63, 26], [-22, 40], [24, 40]],
+    lamps: [[-22, 14], [22, 14], [-40, 36], [40, 4]],
+    clear: [[40, 24, 11], [-38, 24, 10], [0, 16, 6.5], [-12, 32, 5], [56, 2, 3], [18, 2, 3.5]],
+    props: [['crate', 3], ['stack', 1.5], ['hay', 3], ['barrel', 2], ['boom', 1.2], ['car', .8], ['logs', 1]], propN: [18, 24],
+    power: { turret: [0, 16], gens: [[-62, -12], [16, -58], [62, -30], [-62, 2]], boxes: [[-50, 38], [34, 38], [60, 36], [-30, 2], [10, 2], [-40, -52], [0, -20], [50, -16], [-56, -30], [34, -54]] },
+    quest: { radio: [40, 17.6], parts: [[-56, -44], [-36, -36], [-14, -30], [14, -48], [34, -30], [58, -52], [-60, 40], [60, 40]] },
     build() {
-      house(-28, -22, 18, 12, 7, barnMat, 0x2b2a2c, 's');
-      house(28, -24, 12, 9, 5, matStd({ color: 0xcfc6b0 }), 0x3a2420, 's');
-      addBox(28, -18.6, 12, 2.4, .2, matStd({ color: 0x3a2420 }), 2.8, false); // porch roof
-      [[22.5, -17.6], [33.5, -17.6]].forEach(([x, z]) => addBox(x, z, .2, .2, 2.8, poleMat));
+      // the yard: farmhouse (the radio is on its porch), machine shed with a tractor, hay, the gun emplacement in the middle
+      house(40, 24, 16, 10, 6, matStd({ color: 0xcfc6b0 }), 0x3a2420, 'n');
+      addBox(40, 18.4, 16, 2.4, .2, matStd({ color: 0x3a2420 }), 2.8, false);
+      [[32.5, 17.4], [47.5, 17.4]].forEach(([x, z]) => addBox(x, z, .2, .2, 2.8, poleMat));
+      addBox(40, 17.6, 1.6, .8, .9, matStd({ color: 0x5a3a24 })); // the porch table
+      shed(-38, 24, 16, 9, 4.2); tractor(-41, 24); tractor(-33, 25.5, .5);
+      { const r = mulberry(11); for (const [x, z] of [[-14, 30], [-11, 33], [-15, 34], [-9, 29], [12, 36]]) makeProp('hay', x, z, r); wagon(-6, 33, .3); }
+      cylinderSolid(18, 2, 1.6, 2.2, matStd({ color: 0x7a7c78, metalness: .4, roughness: .6 })); addBox(22, 2, 3, 1.2, .8, matStd({ color: 0x4a4a44 })); // fuel tank, water trough
+      addBox(56, 2, .5, .5, 10, poleMat); { const hub = put(new THREE.Group()); hub.position.set(56, 10, 2.4); // windmill
+        for (let k = 0; k < 6; k++) { const b = new THREE.Mesh(unitBox, matStd({ color: 0x8a8378 })); b.scale.set(.35, 3.2, .06); b.position.y = 1.6; const arm = new THREE.Group(); arm.rotation.z = k * Math.PI / 3; arm.add(b); hub.add(arm); }
+        mapSpin.push(hub); }
+      // west wing, A csűr: a big barn you can walk through (doors at both ends and one to the yard), silos behind it
+      hollow(-45, -32, 26, 14, 7, barnMat, { w: [[0, 6]], e: [[0, 6]], s: [[0, 3.2]] }, 0x2b2a2c);
+      { const r = mulberry(12); for (const [x, z] of [[-55, -37], [-54, -27], [-36, -37.5], [-50, -38]]) makeProp('hay', x, z, r); }
+      pointLight(0xffb060, 1.6, 16, -45, 5.5, -32);
       const siloM = matStd({ color: 0x8a8e90, metalness: .3, roughness: .6 }), capM = matStd({ color: 0x5a5e60 });
-      [[-46, 10, 2.4, 11], [-46, 18, 2, 9]].forEach(([x, z, r, h]) => { cylinderSolid(x, z, r, h, siloM); put(new THREE.Mesh(new THREE.ConeGeometry(r + .2, 2, 16), capM)).position.set(x, h + 1, z); });
-      cylinderSolid(6, -14, 1.25, 1, matStd({ color: 0x55544f }));
-      // corn: short rows you can walk between, tall enough to hide a crawler
-      for (let r = 0; r < 5; r++) for (const x0 of [10, 19, 28, 37]) for (const dx of [1.3, 5.7]) addBox(x0 + dx + (r % 2 ? .8 : -.8), 14 + r * 3.4, 2.4, .7, 2.1, cornMat);
-      // windmill
-      addBox(-12, -32, .5, .5, 10, poleMat);
-      const hub = put(new THREE.Group()); hub.position.set(-12, 10, -31.6);
-      for (let k = 0; k < 6; k++) { const b = new THREE.Mesh(unitBox, matStd({ color: 0x8a8378 })); b.scale.set(.35, 3.2, .06); b.position.y = 1.6; const arm = new THREE.Group(); arm.rotation.z = k * Math.PI / 3; arm.add(b); hub.add(arm); }
-      mapSpin.push(hub);
+      [[-60, -50, 2.6, 12], [-53, -55, 2.1, 10]].forEach(([x, z, r, h]) => { cylinderSolid(x, z, r, h, siloM); put(new THREE.Mesh(new THREE.ConeGeometry(r + .2, 2, 16), capM)).position.set(x, h + 1, z); });
+      logPile(-30, -50, 12);
+      // middle wing, A kukoricás: a maze of corn, loops round a clearing with the holy well
+      { const r = mulberry(13), clearing = (x, z) => Math.hypot(x, z + 36) < 8;
+        for (const zr of [-13, -21, -29, -43, -51]) {
+          const skip = new Set([Math.floor(r() * 9), Math.floor(r() * 9), zr === -13 ? 4 : Math.floor(r() * 9)]); // a few gaps a row; the first row always opens by the gate
+          for (let k = 0; k < 9; k++) { const x = -18 + k * 4.5; if (skip.has(k) || clearing(x, zr)) continue; addBox(x, zr, 4.2, 1.2, 2.2, cornMat); }
+        }
+        for (const [x, z] of [[-10, -17], [10, -25], [-10, -47], [10, -47], [-14, -36], [14, -36]]) if (!clearing(x, z)) addBox(x, z, 1.2, 5, 2.2, cornMat);
+        scarecrow(7, -25); scarecrow(-9, -52); }
+      // east wing, A temető: graves in two fields, a ruined chapel you can go into, a crypt
+      for (const [x0, x1] of [[30, 42], [52, 64]]) for (let x = x0; x <= x1; x += 3) for (let z = -14; z >= -34; z -= 4) grave(x + rand(-.4, .4), z + rand(-.4, .4));
+      hollow(45, -46, 11, 14, 6, matStd({ map: stoneTex }), { s: [[0, 3.4]], e: [[-2, 4.5]], n: [[3, 2.5]] }, 0x2a2224, true);
+      addBox(45, -52, 2.4, 1, 1, matStd({ map: stoneTex })); // the altar
+      house(60, -24, 6, 6, 4, matStd({ map: stoneTex }), 0x2a2224, 'w');
+      for (const [x, z] of [[30, -44], [36, -56], [62, -44], [56, -58]]) deadTree(x, z);
     },
     areas: {
-      north: { side: 'n', at: 0, name: 'Szent kút', cost: 750, core: { minX: -12, maxX: 12, minZ: -66, maxZ: -42 }, spawns: [[-8, -62], [8, -62]], station: ['well', 0, -54] },
-      west:  { side: 'n', at: -34, name: 'Kovácsműhely', cost: 1000, core: { minX: -50, maxX: -18, minZ: -68, maxZ: -42 }, spawns: [[-46, -64], [-22, -64]], station: ['forge', -34, -56] },
-      east:  { side: 'n', at: 34, name: 'Temető', cost: 1250, core: { minX: 18, maxX: 50, minZ: -68, maxZ: -42 }, spawns: [[46, -64], [22, -64]], station: ['trap', 25, -50], graves: true },
+      west:   { side: 'n', at: -45, name: 'A csűr', cost: 1000, core: { minX: -66, maxX: -24, minZ: -62, maxZ: -6 }, spawns: [[-64, -40], [-36, -60]], station: ['forge', -45, -29] },
+      middle: { side: 'n', at: 0, name: 'A kukoricás', cost: 750, core: { minX: -21, maxX: 21, minZ: -62, maxZ: -6 }, spawns: [[-8, -60], [8, -60]], station: ['well', 0, -36] },
+      east:   { side: 'n', at: 45, name: 'A temető', cost: 1250, core: { minX: 24, maxX: 66, minZ: -62, maxZ: -6 }, spawns: [[40, -60], [64, -40]], station: ['trap', 30, -10] },
     },
   },
   chapel: {
@@ -664,8 +685,9 @@ function activeSpawns() {
 
 // ---------- loading ----------
 const MAP_SCALE = 1.3;
+// noScale: a map laid out in real metres isn't stretched
 function bigMap(B) {
-  const s = MAP_SCALE, sc = ([x, z]) => [x * s, z * s], m = B.main, main = { minX: m.minX * s, maxX: m.maxX * s, minZ: m.minZ * s, maxZ: m.maxZ * s }, areas = {};
+  const s = B.noScale ? 1 : MAP_SCALE, sc = ([x, z]) => [x * s, z * s], m = B.main, main = { minX: m.minX * s, maxX: m.maxX * s, minZ: m.minZ * s, maxZ: m.maxZ * s }, areas = {};
   for (const k in B.areas) { // each unlockable area slides out with its fence
     const d = B.areas[k], [ox, oz] = SIDE[d.side];
     const dx = ox > 0 ? main.maxX - m.maxX : ox < 0 ? main.minX - m.minX : 0, dz = oz > 0 ? main.maxZ - m.maxZ : oz < 0 ? main.minZ - m.minZ : 0, mv = ([x, z]) => [x + dx, z + dz];
@@ -700,6 +722,7 @@ function loadMap(id, seed) {
   MAP.lamps.filter(([x, z]) => !inVanLane(x, z, 1.5)).forEach(([x, z]) => lamp(x, z));
   SPAWNS.forEach(([x, z]) => { const m = put(new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.1, .12, 10), new THREE.MeshLambertMaterial({ color: 0x2a2116 }))); m.position.set(x, .06, z); });
   for (const k in AREAS) buildArea(AREAS[k]);
+  buildPower(); buildQuest();
   buildBoxAndAmmo(); buildTruck();
   // dead trees beyond the fences
   const ext = allRectsBound();
@@ -727,14 +750,15 @@ function buildFences() {
     for (const [g, h] of gapList) { if (g - h > a) place(a, g - h); a = Math.max(a, g + h); }
     if (to > a) place(a, to);
   };
-  run(R.minX - e, R.maxX + e, gaps('n'), (a, b) => addBox((a + b) / 2, R.minZ - e, b - a, T, H, fenceMat));
+  const rail = MAP.innerFence === 'rail' && Object.values(AREAS).some(a => a.side === 'n');
+  run(R.minX - e, R.maxX + e, gaps('n'), (a, b) => rail ? railFence(a, R.minZ - e, b, R.minZ - e) : addBox((a + b) / 2, R.minZ - e, b - a, T, H, fenceMat));
   run(R.minX - e, R.maxX + e, gaps('s'), (a, b) => addBox((a + b) / 2, R.maxZ + e, b - a, T, H, fenceMat));
   run(R.minZ - e, R.maxZ + e, gaps('w'), (a, b) => addBox(R.minX - e, (a + b) / 2, T, b - a, H, fenceMat));
   run(R.minZ - e, R.maxZ + e, gaps('e'), (a, b) => addBox(R.maxX + e, (a + b) / 2, T, b - a, H, fenceMat));
   if (fenceMat.map === plankTex) { fenceMat.map = plankTex.clone(); fenceMat.map.needsUpdate = true; } // its own tiling, not every plank's
   fenceMat.map.repeat.set(20, 1);
   for (const k in AREAS) { // outer fences of each area: visual + stop bullets (bounds already stop walking)
-    const a = AREAS[k], c = a.core, o = .2, vis = (x, z, w, d) => addBox(x, z, w, d, H, fenceMat, 0, false);
+    const a = AREAS[k], c = a.core, o = .2, vis = (x, z, w, d) => MAP.innerFence === 'rail' ? (w > d ? railFence(x - w / 2, z, x + w / 2, z) : railFence(x, z - d / 2, x, z + d / 2)) : addBox(x, z, w, d, H, fenceMat, 0, false);
     const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2, w = c.maxX - c.minX, d = c.maxZ - c.minZ;
     if (a.side !== 's') vis(cx, c.minZ - o, w, T); if (a.side !== 'n') vis(cx, c.maxZ + o, w, T);
     if (a.side !== 'e') vis(c.minX - o, cz, T, d); if (a.side !== 'w') vis(c.maxX + o, cz, T, d);
@@ -750,7 +774,7 @@ function buildArea(a) {
     b.castShadow = true; g.add(b); rayBlockers.push(b);
   }
   g.position.copy(a.gate); if (!alongX) g.rotation.y = Math.PI / 2;
-  a.barricade = put(g);
+  a.barricade = put(MAP.innerFence === 'rail' ? (g.children.forEach(b => { const i = rayBlockers.indexOf(b); if (i >= 0) rayBlockers.splice(i, 1); }), barbGate(a)) : g); // the farm: a steel gate and barbed wire, not boards
   a.sign = label([a.name.toUpperCase(), `${SK.gate(a.cost)} PONT`], '#f2a33a', 3.2, a.gate.x, 3.3, a.gate.z);
   if (a.graves) for (let x = a.core.minX + 5; x <= a.core.maxX - 4; x += 3) for (let z = a.core.minZ + 3; z <= a.core.maxZ - 3; z += 4) grave(x + rand(-.5, .5), z + rand(-.5, .5));
   // the unique station
@@ -965,7 +989,7 @@ function updateTurret(dt) {
   for (let i = turrets.length - 1; i >= 0; i--) {
     const turret = turrets[i];
     turret.t -= dt; turret.cd -= dt;
-    if (turret.t <= 0) { scene.remove(turret.g); turrets.splice(i, 1); continue; }
+    if (turret.t <= 0) { if (turret.fixed) { turret.head.rotation.x = .35; if (turret === PWR.run) PWR.run = null; banner('A LÖVEGÁLLÁS LEÁLLT', 'Keresd meg az áramdobozt, ha újra kell.'); } else scene.remove(turret.g); turrets.splice(i, 1); continue; }
     fireTurret(turret);
   }
 }
@@ -1008,7 +1032,8 @@ function activateTrap(T) {
   banner('TŰZCSAPDA', '20 másodpercig lángokban áll a kapu.');
 }
 function updateAreas(dt) {
-  updateTurret(dt); updateTraps(dt);
+  updateTurret(dt); updateTraps(dt); updateQuest();
+  if (PWR.run && PWR.run.remote && (PWR.run.t -= dt) <= 0) PWR.run = null;
   for (const k in AREAS) {
     const a = AREAS[k];
     if (a.unlocked && a.st.type === 'well' && Math.hypot(player.pos.x - a.st.pos.x, player.pos.z - a.st.pos.z) < 3.4) {
@@ -1026,6 +1051,10 @@ function areaFocus() {
     if (a.unlocked && a.perk && near(a.perk.pos, 2)) return { type: 'perk', area: k };
     if (a.unlocked && a.chest && !a.chest.open && near(a.chest.pos, 2)) return { type: 'chest', area: k };
   }
+  if (PWR.gen && !PWR.on && near(PWR.gen.pos, 2.2)) return { type: 'gen' };
+  if (PWR.box && near(PWR.box.pos, 2)) return { type: 'pbox' };
+  { const i = QST.parts.findIndex(q => !q.got && near(q.pos, 1.8)); if (i >= 0) return { type: 'rpart', i }; }
+  if (QST.radio && QST.stage === 0 && near(QST.radio.pos, 2.4)) return { type: 'radio' };
   if (mission && mission.phase === 'evac' && truck.parked && !(mission.boardT > 0) && !mission.leaving && near(truck.pos, 4)) return { type: 'truck' }; // once someone has started boarding, nobody else presses it
   return null;
 }
@@ -1040,12 +1069,20 @@ function areaPrompt(f) {
     case 'truck': return '<b>[E]</b> Beszállás és indulás';
     case 'perk': { const P = PERKS[a.perk.key]; return player.perks && player.perks[a.perk.key] ? `${P.name} · már megvan` : `<b>[E]</b> ${P.name} · ${P.desc} · ${SK.cost(P.cost)} pont${lack(SK.cost(P.cost))}`; }
     case 'chest': return '<b>[E]</b> Zsákmányláda kinyitása';
+    case 'gen': return '<b>[E]</b> Generátor · áram bekapcsolása';
+    case 'pbox': return PWR.run ? `Lövegállás aktív · ${Math.ceil(PWR.run.t)} mp` : `<b>[E]</b> Áramdoboz · lövegállás 45 mp · ${pwCost()} pont${lack(pwCost())}`;
+    case 'rpart': return `<b>[E]</b> ${QST.parts[f.i].name} felvétele (rádióalkatrész)`;
+    case 'radio': { const n = QST.parts.filter(q => q.got).length; return n < 3 ? `Rossz rádió · hiányzik ${3 - n} alkatrész` : '<b>[E]</b> Rádió megjavítása'; }
   }
   return '';
 }
 function areaInteract(f) {
   const st = f.area && AREAS[f.area].st;
   switch (f.type) {
+    case 'gen': if (NET.client) return netAct('pw', 'gen'); return powerOn();
+    case 'pbox': return powerBoxUse();
+    case 'rpart': return questTake(f.i);
+    case 'radio': return questRadio();
     case 'gate': return unlockArea(f.area);
     case 'forge': return openStation('forge');
     case 'well': return openStation('well');
@@ -1068,6 +1105,173 @@ function areaInteract(f) {
       return;
     }
   }
+}
+
+// ---------- buildings you can walk into, and farm dressing ----------
+// four walls with openings (holes: side -> [[offset from the middle, width]]), a pitched roof overhead (not a wall to bullets); ruin: no roof
+function hollow(x, z, w, d, h, mat, holes = {}, roofCol = 0x2b2a2c, ruin = false) {
+  const t = .4, wall = (cx, cz, len, alongX, gaps) => {
+    let a = -len / 2; const segs = [];
+    for (const [o, gw] of (gaps || []).slice().sort((p, q) => p[0] - q[0])) { if (o - gw / 2 > a) segs.push([a, o - gw / 2]); a = o + gw / 2; }
+    if (len / 2 > a) segs.push([a, len / 2]);
+    for (const [s0, s1] of segs) { const m = (s0 + s1) / 2, L = s1 - s0; if (L < .2) continue; if (alongX) addBox(cx + m, cz, L, t, h, mat); else addBox(cx, cz + m, t, L, h, mat); }
+    for (const [o, gw] of gaps || []) if (!ruin) { if (alongX) addBox(cx + o, cz, gw, t, h * .22, mat, h * .78, false); else addBox(cx, cz + o, t, gw, h * .22, mat, h * .78, false); } // the lintel over each opening
+  };
+  wall(x, z - d / 2, w, true, holes.n); wall(x, z + d / 2, w, true, holes.s);
+  wall(x - w / 2, z, d, false, holes.w); wall(x + w / 2, z, d, false, holes.e);
+  if (ruin) { const r = put(new THREE.Mesh(unitBox, matStd({ color: roofCol }))); r.scale.set(w * .45, .25, d * .5); r.position.set(x - w * .2, h + .2, z - d * .2); r.rotation.z = .25; return; } // half a roof left
+  const rm = matStd({ color: roofCol, roughness: .8 }), alongX = w >= d, span = alongX ? d : w, len = (alongX ? w : d) + .6;
+  [-1, 1].forEach(sd => {
+    const r = put(new THREE.Mesh(unitBox, rm)), slope = span / 2 / Math.cos(.55) + .3;
+    if (alongX) { r.scale.set(len, .25, slope); r.position.set(x, h + span * .22, z + sd * span / 4); r.rotation.x = sd * .55; }
+    else { r.scale.set(slope, .25, len); r.position.set(x + sd * span / 4, h + span * .22, z); r.rotation.z = -sd * .55; }
+    r.castShadow = true;
+  });
+}
+function tractor(x, z, turn = 0) {
+  const g = new THREE.Group(), red = matStd({ color: 0x8a2a1c, roughness: .7 }), dark = matStd({ color: 0x1a1a1a });
+  const b = (m, sx, sy, sz, px, py, pz) => { const e = new THREE.Mesh(unitBox, m); e.scale.set(sx, sy, sz); e.position.set(px, py, pz); e.castShadow = true; g.add(e); };
+  b(red, 2.6, .9, 1.1, .3, 1.2, 0); b(red, 1.1, 1.3, 1.2, -.8, 2.1, 0); b(dark, 1, .9, 1.1, -.8, 2.2, 0); b(dark, .12, 1, .12, 1.2, 2, .3); // body, cab, window, exhaust
+  for (const [px, r, s] of [[-.9, .85, 1], [1.2, .5, 1]]) for (const pz of [-.75, .75]) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, .45, 14), dark); wh.rotation.x = Math.PI / 2; wh.position.set(px, r, pz * s); g.add(wh); }
+  g.position.set(x, 0, z); g.rotation.y = turn; put(g);
+  obstacles.push({ minX: x - 1.8, maxX: x + 1.8, minZ: z - 1.2, maxZ: z + 1.2, h: 2.6 });
+}
+function scarecrow(x, z) {
+  addBox(x, z, .12, .12, 2.6, poleMat);
+  const cloth = matStd({ color: 0x5a4a2a }), sack = matStd({ color: 0xa89868 });
+  deco(unitBox, poleMat, x, 2, z, 1.8, .1, .1); deco(unitBox, cloth, x, 1.75, z, .7, .8, .3);
+  deco(new THREE.SphereGeometry(.26, 10, 8), sack, x, 2.55, z); deco(new THREE.ConeGeometry(.42, .35, 10), matStd({ color: 0x3a2a1a }), x, 2.8, z);
+}
+// a rail fence with barbed wire along the top: what closes off a farm's wings (see-through; the invisible bounds do the stopping)
+const railWood = matStd({ color: 0x5a4632, roughness: .9 }), wireMat = new THREE.LineBasicMaterial({ color: 0x2a2a2a });
+function railFence(x0, z0, x1, z1) {
+  const len = Math.hypot(x1 - x0, z1 - z0), ux = (x1 - x0) / len, uz = (z1 - z0) / len, n = Math.max(1, Math.round(len / 3)), ang = Math.atan2(-uz, ux);
+  for (let k = 0; k <= n; k++) { const x = x0 + ux * len * k / n, z = z0 + uz * len * k / n; deco(unitBox, railWood, x, .8, z, .16, 1.6, .16); }
+  for (const y of [.45, .95]) { const r = deco(unitBox, railWood, (x0 + x1) / 2, y, (z0 + z1) / 2, len, .1, .06); r.rotation.y = ang; }
+  const pts = []; for (const y of [1.35, 1.55]) for (let k = 0; k < n; k++) { // two strands of wire, sagging a little between posts
+    for (let s = 0; s <= 6; s++) { const f = (k + s / 6) / n, sag = Math.sin(s / 6 * Math.PI) * .06; pts.push(new V3(x0 + ux * len * f, y - sag, z0 + uz * len * f)); if (s > 0 && s < 6) pts.push(pts[pts.length - 1].clone()); }
+  }
+  put(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), wireMat));
+}
+function barbGate(a) { // the locked way in: a steel farm gate with a coil of barbed wire in front
+  const g = new THREE.Group(), steel = matStd({ color: 0x7a7e80, metalness: .6, roughness: .5 }), alongX = a.side === 'n' || a.side === 's', W = GATE_HALF * 2;
+  const b = (sx, sy, sz, px, py, pz) => { const e = new THREE.Mesh(unitBox, steel); e.scale.set(sx, sy, sz); e.position.set(px, py, pz); g.add(e); rayBlockers.push(e); };
+  for (const y of [.3, .75, 1.2]) b(W, .07, .07, 0, y, 0); for (const x of [-W / 2, 0, W / 2]) b(.09, 1.3, .09, x, .65, 0); // tube gate
+  const coil = new THREE.Mesh(new THREE.TorusGeometry(.42, .015, 4, 90, Math.PI * 16), new THREE.MeshBasicMaterial({ color: 0x3a3a3a })); // a spring of wire, stretched along the gate
+  coil.scale.set(1, 1, W * 1.2); coil.rotation.y = Math.PI / 2; coil.position.set(0, .42, .7); g.add(coil);
+  g.position.copy(a.gate); if (!alongX) g.rotation.y = Math.PI / 2;
+  return g;
+}
+
+// ---------- power and the yard gun: a hidden generator turns the power on; then a power box turns up somewhere, and for points it runs the gun ----------
+const PWR = { on: false, gen: null, box: null, bi: -1, uses: 0, mount: null, run: null };
+const pwCost = () => SK.cost(2000 + 750 * PWR.uses); // dearer every time
+function buildPower() {
+  Object.assign(PWR, { on: false, gen: null, box: null, bi: -1, uses: 0, mount: null, run: null });
+  const P = MAP.power; if (!P) return;
+  const rng = mulberry(mapSeed + 5150), [tx, tz] = P.turret;
+  for (let k = 0; k < 18; k++) { if (k === 4 || k === 13) continue; const q = k / 18 * Math.PI * 2, bx = tx + Math.cos(q) * 4.4, bz = tz + Math.sin(q) * 4.4; // sandbags, a way in north and south
+    deco(unitBox, sandMat, bx, .3 + (k % 2) * .05, bz, 1.4, .55, .6).rotation.y = -q; deco(unitBox, sandMat, bx, .78, bz, 1.2, .45, .55).rotation.y = -q + .1;
+    obstacles.push({ minX: bx - .55, maxX: bx + .55, minZ: bz - .55, maxZ: bz + .55, h: 1 }); }
+  addBox(tx, tz, 1.4, 1.4, .6, matStd({ color: 0x3a3c40, metalness: .5 }));
+  const { g, head } = turretMesh({}, false); g.position.set(tx, .6, tz); g.scale.setScalar(1.4); put(g); head.rotation.x = .35; // sagging while there's no power
+  PWR.mount = { g, head, pos: new V3(tx, 0, tz) }; label(['LÖVEGÁLLÁS'], '#9fc8ff', 1.8, tx, 3.6, tz);
+  const [gx, gz] = P.gens[Math.floor(rng() * P.gens.length)], gm = new THREE.Group(), green = matStd({ color: 0x3a4a2a, roughness: .7 }), dark = matStd({ color: 0x1a1a1a });
+  const gb = (m, sx, sy, sz, px, py, pz) => { const e = new THREE.Mesh(unitBox, m); e.scale.set(sx, sy, sz); e.position.set(px, py, pz); e.castShadow = true; gm.add(e); };
+  gb(green, 1.8, 1.1, 1, 0, .6, 0); gb(dark, 1.9, .12, 1.1, 0, 1.2, 0); gb(dark, .14, .9, .14, .7, 1.6, .3);
+  const lampM = new THREE.MeshBasicMaterial({ color: 0x8a1a12 }), lampO = new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 8), lampM); lampO.position.set(-.7, 1.3, .5); gm.add(lampO);
+  gm.position.set(gx, 0, gz); put(gm); obstacles.push({ minX: gx - 1, maxX: gx + 1, minZ: gz - .6, maxZ: gz + .6, h: 1.3 });
+  PWR.gen = { pos: new V3(gx, 0, gz), lampM };
+}
+function powerOn() { // everyone: lights up, a power box turns up
+  if (PWR.on) return; PWR.on = true; PWR.gen.lampM.color.setHex(0x6aff6a); PWR.mount.head.rotation.x = 0;
+  lamps.forEach(l => { if (l.light && l.light.isLight) l.light.intensity = 2.2; });
+  banner('VAN ÁRAM', 'Valahol megjelent a lövegállás áramdoboza.'); SND.power();
+  if (!NET.client) placePowerBox();
+}
+function placePowerBox(i) { // a random spot (where you can get to, if any), not the last one
+  const S = MAP.power.boxes;
+  if (i == null) { const ok = S.map((s, k) => k).filter(k => k !== PWR.bi && inBounds(S[k][0], S[k][1], 1)), pool = ok.length ? ok : S.map((s, k) => k).filter(k => k !== PWR.bi); i = pool[Math.floor(Math.random() * pool.length)]; }
+  if (PWR.box) mapGroup.remove(PWR.box.g);
+  const [x, z] = S[i], g = new THREE.Group(), grey = matStd({ color: 0x5a5e62, metalness: .5, roughness: .5 });
+  const e = new THREE.Mesh(unitBox, grey); e.scale.set(.8, 1.1, .4); e.position.y = 1.2; g.add(e);
+  const hz = new THREE.Mesh(unitBox, new THREE.MeshLambertMaterial({ map: hazardTex })); hz.scale.set(.82, .14, .42); hz.position.y = 1.55; g.add(hz);
+  const pole = new THREE.Mesh(unitBox, poleMat); pole.scale.set(.12, 1.8, .12); pole.position.set(0, .9, -.3); g.add(pole);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, 16, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: .14, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); beam.position.y = 8; g.add(beam);
+  g.position.set(x, 0, z); put(g);
+  const lab = textSprite(['ÁRAMDOBOZ'], '#ffd23f', .7); lab.position.y = 2.2; g.add(lab);
+  PWR.bi = i; PWR.box = { pos: new V3(x, 0, z), g };
+}
+function powerBoxUse() { // host / solo: pay, the yard gun runs 45 s, the box moves
+  const c = pwCost(); if (PWR.run || player.points < c) return SND.deny();
+  player.points -= c; if (NET.client) return netAct('pw', 'box');
+  runYardGun();
+}
+function runYardGun() {
+  const M = PWR.mount; PWR.uses++;
+  PWR.run = { g: M.g, head: M.head, t: 45, cd: .5, rate: 1.4, station: true, fixed: true, dmgMul: 1.5 }; turrets.push(PWR.run);
+  banner('LÖVEGÁLLÁS AKTÍV', '45 másodpercig lő mindenre a tanyaudvaron.'); SND.buy(); SND.explode();
+  if (!NET.client) placePowerBox();
+}
+
+// ---------- a map's hidden challenge (the farm: the radio). Three parts lie hidden; fix the radio, beat who answers, get the reward ----------
+const QST = { parts: [], stage: 0, wave: [], radio: null };
+function buildQuest() {
+  QST.parts = []; QST.stage = 0; QST.wave = []; QST.radio = null;
+  const Q = MAP.quest; if (!Q) return;
+  const rng = mulberry(mapSeed + 777), spots = Q.parts.slice(), names = ['ELEKTRONCSŐ', 'AKKUMULÁTOR', 'ANTENNA'];
+  const [rx, rz] = Q.radio, radio = new THREE.Group(), brown = matStd({ color: 0x4a3020 });
+  const rb = new THREE.Mesh(unitBox, brown); rb.scale.set(.6, .38, .3); rb.position.y = 1.1; radio.add(rb);
+  const dial = new THREE.Mesh(new THREE.CircleGeometry(.08, 12), new THREE.MeshBasicMaterial({ color: 0xd8b060 })); dial.position.set(.14, 1.12, .16); radio.add(dial);
+  radio.position.set(rx, 0, rz); put(radio); QST.radio = { pos: new V3(rx, 0, rz) };
+  for (let k = 0; k < 3; k++) {
+    const [x, z] = spots.splice(Math.floor(rng() * spots.length), 1)[0], g = new THREE.Group();
+    const m = new THREE.Mesh(k === 2 ? new THREE.CylinderGeometry(.03, .03, .8, 6) : unitBox, matStd({ color: [0x6a8aa0, 0x3a3a30, 0x9a9aa0][k], metalness: .6, roughness: .4 }));
+    if (k !== 2) m.scale.set(.3, .22, .2); m.position.y = .35; g.add(m);
+    g.add(Object.assign(glowSprite(0x9fe8ff, .8, new V3(0, .45, 0)), {})); // a faint glint: hidden, not invisible
+    g.position.set(x, 0, z); put(g);
+    QST.parts.push({ pos: new V3(x, 0, z), g, got: false, name: names[k] });
+  }
+}
+function questTake(i) { // everyone asks, the host decides
+  const p = QST.parts[i]; if (!p || p.got) return;
+  if (NET.client) return netAct('pw', 'part' + i);
+  questGot(i);
+}
+function questGot(i) {
+  const p = QST.parts[i]; if (!p || p.got) return; p.got = true; mapGroup.remove(p.g); SND.pickup(3);
+  const n = QST.parts.filter(q => q.got).length;
+  if (n < 3) popText(`Rádióalkatrész: ${p.name} · ${n}/3`, '#9fe8ff'); else banner('MEGVAN MIND A HÁROM ALKATRÉSZ', 'Javítsd meg a rádiót a lakóház tornácán.');
+}
+function questRadio() {
+  if (QST.stage !== 0 || QST.parts.some(q => !q.got)) return SND.deny();
+  if (NET.client) return netAct('pw', 'radio');
+  QST.stage = 1; const d = (mission && mission.job.diff) || 1, S = activeSpawns().slice().sort((a, b) => Math.hypot(b[0] - QST.radio.pos.x, b[1] - QST.radio.pos.z) - Math.hypot(a[0] - QST.radio.pos.x, a[1] - QST.radio.pos.z));
+  for (let k = 0; k < 5 + 2 * d; k++) { const [sx, sz] = S[k % Math.min(3, S.length)], z = spawnZombieAt(pick(['brute', 'runner', 'walker', 'leaper']), sx + rand(-2, 2), sz + rand(-2, 2)); setZTier(z, 2); QST.wave.push(z); }
+  banner('VALAKI VÁLASZOLT A RÁDIÓN…', 'Egy különleges csapat tart feléd. Öld meg mindet!'); SND.roar();
+}
+function updateQuest() { // host / solo: the answer beaten -> the reward on the porch
+  if (QST.stage !== 1 || NET.client || QST.wave.some(z => !z.dead)) return;
+  QST.stage = 2; const M = mission, d = (M && M.job.diff) || 1, at = QST.radio.pos.clone().add(new V3(0, 0, -2));
+  if (M) { M.parts = (M.parts || 0) + 20 + 8 * d; M.fabric = (M.fabric || 0) + 15 + 6 * d; }
+  if (Math.random() < .5) spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.5)), lootLvl(1)), at); else spawnGearDrop(makeGear(null, Math.max(2, rollRarity(.5)), lootLvl(1)), at);
+  burst(at.clone().setY(1), 0x9fe8ff, 40, 5, .9); SND.legend && SND.legend(false);
+  banner('A RÁDIÓ ELHALLGATOTT', `+${20 + 8 * d} ⚙ és +${15 + 6 * d} ${FAB} (kijutáskor) · egy ritka tárgy a tornácon`);
+}
+// the party: what the host sends, what a member does with it
+const pwState = () => PWR.gen ? [PWR.on ? 1 : 0, PWR.bi, PWR.uses, PWR.run ? Math.round(PWR.run.t) : 0, QST.parts.reduce((m, q, i) => m | (q.got ? 1 << i : 0), 0), QST.stage] : null;
+function pwApply(s) {
+  if (!PWR.gen || !Array.isArray(s)) return;
+  if (+s[0] && !PWR.on) powerOn();
+  if (+s[1] >= 0 && +s[1] !== PWR.bi && MAP.power.boxes[+s[1]]) placePowerBox(+s[1]);
+  PWR.uses = +s[2] || 0; if (+s[3] > 0 && !PWR.run) { PWR.run = { t: +s[3], remote: true }; banner('LÖVEGÁLLÁS AKTÍV', 'Egy társad bekapcsolta.'); } if (PWR.run && PWR.run.remote) PWR.run.t = +s[3]; if (!(+s[3] > 0) && PWR.run && PWR.run.remote) PWR.run = null;
+  QST.parts.forEach((q, i) => { if ((+s[4] & (1 << i)) && !q.got) questGot(i); }); QST.stage = +s[5] || QST.stage;
+}
+function pwAct(a) { // host: a member's request
+  if (a === 'gen') { if (!PWR.on) powerOn(); }
+  else if (a === 'box') { if (!PWR.run) runYardGun(); }
+  else if (a === 'radio') questRadio();
+  else if (/^part\d$/.test(a)) questGot(+a.slice(4));
 }
 
 // ---------- scattered props (seeded) ----------

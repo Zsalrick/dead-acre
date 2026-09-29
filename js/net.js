@@ -375,7 +375,7 @@ function buildSnapshot() {
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
     kc: M.kc || 0, rt: M.rt || 0, be: NET.bev, ca: M.cache && M.cache.t > 0 ? [Math.round(M.cache.x * 10), Math.round(M.cache.z * 10), Math.round(M.cache.t)] : null, tl: NET.tel, gh: M.gens ? M.gens.map(G => Math.round(G.hp / G.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, ESC_PH.indexOf(M.esc.ph), M.esc.aimAt && !M.esc.aimAt.dead ? M.esc.aimAt.id || 0 : 0] : null, cr: M.crates ? M.crates.map(c => [Math.round(c.pos.x * 10), Math.round(c.pos.z * 10), c.st, c.by || '']) : null, dv: M.drop ? [Math.round(M.drop.pos.x * 10), Math.round(M.drop.pos.z * 10)] : null, od: M.objDone ? 1 : 0,
-    tr: trapState.map(T => T.active > 0 ? Math.round(T.active * 10) / 10 : -Math.round((T.cd || 0) * 10) / 10), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
+    pw: pwState(), tr: trapState.map(T => T.active > 0 ? Math.round(T.active * 10) / 10 : -Math.round((T.cd || 0) * 10) / 10), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
     du: M.job.dur, dn: NET.deny || [], iv: M.intro >= 0 ? Math.round(M.goT * 100) / 100 : 99,
@@ -483,6 +483,7 @@ function netHostAct(type, arg, peer) {
   const M = mission; if (!M) return;
   const keys = Object.keys(AREAS);
   if (type === 'gate' && keys[arg] && !AREAS[keys[arg]].unlocked) { openArea(keys[arg]); banner(`${AREAS[keys[arg]].name.toUpperCase()} MEGNYÍLT`, 'Egy társad nyitotta meg.'); }
+  if (type === 'pw' && typeof arg === 'string') pwAct(arg);
   if (type === 'trap' && trapState[arg] && trapState[arg].active <= 0 && trapState[arg].cd <= 0) trapState[arg].active = 20;
   if (type === 'crate' && Array.isArray(arg)) { const [i, act, x, z] = arg; if (act === 't') crateTake(i | 0, peer); else if (act === 'd') crateDrop(i | 0, x / 10, z / 10); else if (act === 'v') crateDeliver(i | 0); }
   if (type === 'conv') { const z = NET.zById.get(arg); if (z && !z.dead && !z.K.boss && !z.bounty) convertZombie(z); } // a necromancer's cross
@@ -526,6 +527,7 @@ function applySnapshot(g, hostPeer) {
   // areas and traps
   const keys = Object.keys(AREAS);
   keys.forEach((k, i) => { if ((g.ar & (1 << i)) && !AREAS[k].unlocked) openArea(k); });
+  if (Array.isArray(g.pw)) pwApply(g.pw);
   if (Array.isArray(g.tr)) g.tr.forEach((v, i) => { const T = trapState[i]; if (!T) return; if (+v < 0) { T.active = 0; T.cd = -v; } else T.active = +v || 0; });
   // zombies
   const live = new Set();
