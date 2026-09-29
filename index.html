@@ -3,9 +3,15 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=141">
-<link rel="stylesheet" href="css/ui.css?v=141">
+<link rel="stylesheet" href="css/legacy.css?v=142">
+<link rel="stylesheet" href="css/ui.css?v=142">
 
+<!-- boot screen: painted before any script, gone once every script is in -->
+<div id="boot" style="position:fixed;inset:0;z-index:9999;background:#0e0f0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s">
+  <div style="font:900 clamp(56px,9vw,120px)/1 'Big Shoulders Display',Impact,sans-serif;color:#e03a2e;letter-spacing:.02em;text-transform:uppercase;text-shadow:0 0 40px rgba(224,58,46,.35)">Dead Acre</div>
+  <div style="width:min(420px,70vw);height:6px;background:rgba(255,255,255,.08)"><i id="bootFill" style="display:block;height:100%;width:6%;background:#e03a2e;transition:width .25s"></i></div>
+  <div id="bootTxt" style="font:700 14px 'Barlow Condensed',sans-serif;letter-spacing:.3em;text-transform:uppercase;color:#8a867c">Betöltés</div>
+</div>
 <div id="game">
   <div class="hud" id="hud" hidden>
     <div id="vig"></div><div id="eyefx"></div><div id="aurafx"></div><div id="hitfx"></div><div id="shfx"></div>
@@ -161,7 +167,12 @@ THREE.WebGLRenderer = class extends T.WebGLRenderer {
 window.THREE = THREE;
 const hold = e => { e.stopImmediatePropagation(); e.preventDefault(); }, HOLD = ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']; // no input until every script is in
 HOLD.forEach(t => addEventListener(t, hold, true));
-for (const src of ["js/icons.js?v=141", "js/data.js?v=141", "js/audio.js?v=141", "js/music.js?v=141", "js/world.js?v=141", "js/maps.js?v=141", "js/fx.js?v=141", "js/gfx.js?v=141", "js/player.js?v=141", "js/zombies.js?v=141", "js/loot.js?v=141", "js/upgrades.js?v=141", "js/gear.js?v=141", "js/vet.js?v=141", "js/inv.js?v=141", "js/save.js?v=141", "js/menu.js?v=141", "js/skills.js?v=141", "js/necro.js?v=141", "js/hub.js?v=141", "js/book.js?v=141", "js/game.js?v=141", "js/jobs.js?v=141", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=141", "js/net.js?v=141", "js/avatar.js?v=141"]) await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = src; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); });
+const LIST =  ["js/icons.js?v=142", "js/data.js?v=142", "js/audio.js?v=142", "js/music.js?v=142", "js/world.js?v=142", "js/maps.js?v=142", "js/fx.js?v=142", "js/gfx.js?v=142", "js/player.js?v=142", "js/zombies.js?v=142", "js/loot.js?v=142", "js/upgrades.js?v=142", "js/gear.js?v=142", "js/vet.js?v=142", "js/inv.js?v=142", "js/save.js?v=142", "js/menu.js?v=142", "js/skills.js?v=142", "js/necro.js?v=142", "js/hub.js?v=142", "js/book.js?v=142", "js/game.js?v=142", "js/jobs.js?v=142", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=142", "js/net.js?v=142", "js/avatar.js?v=142"];
+const bar = p => { const f = document.getElementById('bootFill'); if (f) f.style.width = Math.round(15 + 85 * p) + '%'; };
+try {
+  for (let i = 0; i < LIST.length; i++) { await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = LIST[i]; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); }); bar((i + 1) / LIST.length); }
+} catch (e) { document.getElementById('bootTxt').textContent = 'Hiba a betöltésnél, frissítsd az oldalt'; throw e; }
 document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true })); // it fired before the scripts were here
 HOLD.forEach(t => removeEventListener(t, hold, true)); window.__ready = true;
+{ const B = document.getElementById('boot'); B.style.opacity = 0; B.style.pointerEvents = 'none'; setTimeout(() => B.remove(), 600); }
 </script>
