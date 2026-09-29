@@ -239,7 +239,7 @@ function applyElement(z, w, amt) {
     for (const o of zombies) { if (o === z || o.dead) continue; const d = o.pos.distanceTo(z.pos); if (d < bd) { bd = d; best = o; } }
     if (best) {
       tracer(new V3(z.pos.x, 1.3 * z.scale, z.pos.z), new V3(best.pos.x, 1.3 * best.scale, best.pos.z), ELEMENTS.shock.hex, .03);
-      hurtZombie(best, amt * .5, { chain: true, color: ELEMENTS.shock.color });
+      hurtZombie(best, amt * .5, { chain: true, color: ELEMENTS.shock.color, killW: w }); // killW: an arc's kill still counts for the gun's on-kill trick
     }
   }
 }
@@ -876,12 +876,17 @@ function talentHit(z, amt, o, w) { // the extra damage lands as a chained hit, s
   if (w.tal === 'frost' && (player.frostN = (player.frostN || 0) + 1) % 5 === 0) z.slowT = Math.max(z.slowT || 0, 2);
 }
 const eyeKill = () => { if (player.eyeT > 0 && (player.eyeExt || 0) < 20) { const a = Math.min(1.5, 20 - (player.eyeExt || 0)); player.eyeExt = (player.eyeExt || 0) + a; player.eyeT += a; } }; // Halálszem: every kill +1.5 s, +20 s at most
+function grannyRefill(w) { // Nagyi Mordálya: a kill fills the barrels from the reserve, and a reload already under way stops
+  const t = Math.min(w.mag - w.ammo, w.reserve); w.ammo += t; w.reserve -= t;
+  if (w === curW() && player.reloading && w.ammo >= w.mag) stopReload();
+}
 function weaponOnKill(z, o) {
   const w = o.w;
   if (z.markT > 0 && augOn('plague')) for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 8) q.markT = Math.max(q.markT || 0, 6);
   eyeKill();
+  if (!w && o.killW && o.killW.unique === 'granny') grannyRefill(o.killW);
   if (!w) return;
-  if (w.unique === 'granny') { const t = Math.min(w.mag - w.ammo, w.reserve); w.ammo += t; w.reserve -= t; } // the refill comes out of the reserve
+  if (w.unique === 'granny') grannyRefill(w);
   if (w.unique === 'hydra') player.hydraUntil = now + 3;
   if (w.unique === 'howl') player.howlUntil = now + 4; // Farkasüvöltés
   if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }

@@ -331,7 +331,7 @@ function netHit(z, amt, o) {
     else applyElement(z, o.w, amt); // shock: the arc hits another proxy, which is sent too
   }
   pushRoll(NET.hits, [++NET.seq, z.id, Math.round(amt), fl, burn], 24);
-  if (z.hp <= 0 && !z.K.boss && !z.predDead) { z.predDead = performance.now(); proxyDie(z); if (o.head) headPop(z); hitmarker(true); }
+  if (z.hp <= 0 && !z.K.boss && !z.predDead) { z.predDead = performance.now(); proxyDie(z); if (o.head) headPop(z); hitmarker(true); const gw = o.w || o.killW; if (gw && gw.unique === 'granny') grannyRefill(gw); } // the refill can't wait for the host's word
   if (!o.dot) { addPoints(10); weaponOnHit(z, amt, o); }
 }
 const netAct = (type, arg) => pushRoll(NET.acts, [++NET.seq, type, arg == null ? 0 : arg], 8);
