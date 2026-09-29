@@ -123,6 +123,7 @@ const AUGMENTS = {
   medic: [['revive', 'Feltámasztó kör', 'A körben dupla a gyógyítás, és az elesett társak felállnak benne.'], ['smite', 'Ítélet', 'A kör égeti és erősen lassítja a benne álló zombikat.'], ['bigcircle', 'Nagy szentély', 'A kör sugara 6 helyett 9 méter, és 5 mp-cel tovább tart.']],
 };
 const AUG_COST = 2;
+const augNeed = id => { const k = treeOf(id), i = (AUGMENTS[k] || []).findIndex(x => x[0] === id); return AUG_AT[Math.max(0, i)]; };
 const AUG_AT = [12, 15, 18], augAllowed = (k = profile.cls) => AUG_AT.filter(n => treePts(k) >= n).length; // points in that tree open its 1st, 2nd and 3rd augment // tree points that open the 1st, 2nd and 3rd augment
 const augOwned = cls => (AUGMENTS[cls] || []).filter(x => (profile.augOwn || []).includes(x[0])).length;
 const augOn = id => !!profile && !!profile.aug && profile.aug[profile.cls] === id;
@@ -262,15 +263,15 @@ function skillsTab() {
       C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => { const l = lvOf(id);
         return `<button class="knode${id === skNode ? ' on' : ''}${l ? ' has' : ''}${l >= max ? ' max' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${l}/${max}</em></span>${bars(l, max)}<small>${desc(Math.max(1, l))}</small></button>`; }).join('') + '</div>';
   }).join('');
-  const augRow = augs.length ? `<div class="krow"><div class="klab"><b>Módosítók</b><small><span class="klk"></span>${AUG_AT.join(' / ')}</small></div>${augs.map(([id, name, desc]) => { const own = (P.augOwn || []).includes(id), on = (P.aug || {})[V] === id;
-    return `<button class="knode aug${id === skNode ? ' on' : ''}${own ? ' has' : ''}${on ? ' max' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${on ? 'aktív' : own ? 'megvan' : ''}</em></span><small>${desc}</small></button>`; }).join('')}</div>` : '';
+  const augRow = augs.length ? `<div class="krow"><div class="klab"><b>Módosítók</b></div>${augs.map(([id, name, desc], ai) => { const own = (P.augOwn || []).includes(id), on = (P.aug || {})[V] === id, need = AUG_AT[ai], lock = !own && spent < need;
+    return `<button class="knode aug${id === skNode ? ' on' : ''}${own ? ' has' : ''}${on ? ' max' : ''}${lock ? ' alock' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${on ? 'aktív' : own ? 'megvan' : lock ? `<span class="klk"></span>${spent} / ${need}` : ''}</em></span>${lock ? `<i class="apg"><u style="width:${Math.min(100, spent / need * 100)}%"></u></i>` : ''}<small>${desc}</small></button>`; }).join('')}</div>` : '';
   // the tree's three challenges
   const ch = `<div class="kchal">${(CLASS_CH[V] || []).map(([id, txt, n]) => { const v = Math.min(n, Math.floor(chVal(id))); return `<div class="kcq${v >= n ? ' done' : ''}"><span>${txt}</span><i><em style="width:${v / n * 100}%"></em></i><b>${v >= n ? '' : `${v.toLocaleString('hu-HU')} / ${n.toLocaleString('hu-HU')}`}</b></div>`; }).join('')}<div class="kcrw${chDone(V) ? ' on' : ''}">+2</div></div>`;
   // right: the picked node
   const isAug = augs.some(t => t[0] === skNode), ri = isAug ? -1 : C.tree.indexOf(sel), row = Math.floor(ri / 3), l = isAug ? 0 : lvOf(sel[0]), max = isAug ? 1 : sel[2];
   let cta = '', info = '';
-  if (isAug) { const own = (P.augOwn || []).includes(sel[0]), on = (P.aug || {})[V] === sel[0], can = own || augOwned(V) < augAllowed(V);
-    info = `<div class="kbox"><small>${C.ability.name}</small><span>${sel[2]}</span></div>${!can ? `<p class="klock">${spent} / ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]}</p>` : ''}`;
+  if (isAug) { const own = (P.augOwn || []).includes(sel[0]), on = (P.aug || {})[V] === sel[0], can = own || spent >= augNeed(sel[0]);
+    info = `<div class="kbox"><small>${C.ability.name}</small><span>${sel[2]}</span></div>${!can ? `<p class="klock">${spent} / ${augNeed(sel[0])}</p>` : ''}`;
     cta = hbtn(on ? 'Kiválasztva' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érdemérem`, `aug:${sel[0]}`, on || !can || (!own && tok < AUG_COST));
   } else { const open = spent >= row * 3, maxed = l >= max;
     info = `<div class="kbox"><small>Szintenként</small><span>${sel[3](1)}</span></div>${l && !maxed ? `<div class="kbox"><small>Most → következő</small><span>${sel[3](l)} → ${sel[3](l + 1)}</span></div>` : ''}${!open ? `<p class="klock">${spent} / ${row * 3}</p>` : ''}`;
@@ -354,7 +355,7 @@ function skillAction(kind, a) {
   if (kind === 'aug') {
     const k = treeOf(a); if (!k || !(AUGMENTS[k] || []).some(x => x[0] === a)) return false;
     P.augOwn = P.augOwn || []; P.aug = P.aug || {};
-    if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST || augOwned(k) >= augAllowed(k)) return false; P.augOwn.push(a); }
+    if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST || treePts(k) < augNeed(a)) return false; P.augOwn.push(a); } // in order: the 1st at 12 points in this tree, the 2nd at 15, the 3rd at 18
     P.aug[k] = a; syncTokens(); return true;
   }
   if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.skills = {}; P.augOwn = []; P.aug = {}; syncTokens(); return true; }

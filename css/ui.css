@@ -975,3 +975,8 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .kcq.done{border-color:color-mix(in srgb,var(--pos) 50%,transparent)}.kcq.done em{background:var(--pos)}
 .kcrw{display:grid;place-items:center;font-family:var(--fd);font-weight:900;font-size:26px;color:var(--tx4);border:1px dashed var(--ln2)}
 .kcrw.on{color:#15130e;background:var(--pos);border:0}
+
+/* augments open in order (12 / 15 / 18 points in the tree): locked ones dim, with a lock and a bar */
+.knode.aug.alock{opacity:.5}
+.knode.aug.alock .kh em{display:flex;align-items:center;color:var(--tx3)}
+.knode .apg{display:block;height:3px;background:rgba(255,255,255,.08)}.knode .apg u{display:block;height:100%;background:var(--kc)}
