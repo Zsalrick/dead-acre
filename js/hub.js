@@ -437,7 +437,7 @@ const HUB = {
   },
   upgrades() {
     const bars = (l, m) => `<span class="kbars">${Array.from({ length: m }, (_, k) => `<i class="${k < l ? 'on' : ''}"></i>`).join('')}</span>`;
-    return `<div class="hubhead"><h2>Fejlesztések</h2><p class="lede">Tartós fejlesztések. Minden munkára veled jönnek. A 3. szinttől alkatrész (⚙), az 5. szinttől anyag (${FAB}) is kell hozzájuk.</p></div>
+    return `<div class="hubhead"><h2>Fejlesztések</h2><p class="lede">Tartós fejlesztések. Minden munkára veled jönnek. Útközben alkatrész (⚙), a vége felé anyag (${FAB}) is kell hozzájuk, egyre több.</p></div>
       <div class="upg">${Object.entries(UPGRADES).map(([k, u]) => { const l = U(k), maxed = l >= u.max, c = upPrice(k);
         return `<div class="upc"><div><div class="upn"><b>${u.name}</b>${bars(l, u.max)}<small>${l}/${u.max}</small></div><p>${u.desc}</p><p class="upv">${u.val(l)}${maxed ? '' : ` → <span>${u.val(l + 1)}</span>`}</p></div>${hbtn(maxed ? 'Kész' : `$${c.cash}${c.parts ? ` · ${c.parts} ⚙` : ''}${c.fab ? ` · ${c.fab} ${FAB}` : ''}`, `up:${k}`, maxed || !canPay(c))}</div>`; }).join('')}</div>`;
   },
