@@ -352,7 +352,7 @@ function netOwnKill(e) {
   player.kills++; stats.kills++; stats.killsBy[kind] = (stats.killsBy[kind] || 0) + 1; myKill(curW(), KINDS[kind].name, head); noteBaseKill(curW());
   if (head) { player.heads++; stats.heads++; }
   if (rk('m_vamp')) player.hp = Math.min(maxHp(), player.hp + 3 * rk('m_vamp'));
-  necroOnKill(kind, x / 10, zz / 10, elite); eyeKill(); secKill(kind, !!head, false, !!elite);
+  necroOnKill(kind, x / 10, zz / 10, elite); eyeKill(); secKill(kind, !!head, false, !!elite); chKill({ elite: !!elite }, { head: !!head, w: curW() });
   addPoints(+pts || 60); hitmarker(true); SND.kill();
   const zid = e[8], lh = NET.lastHit.get(zid) || {}, pz = zombies.find(q => q.id === zid) || { pos: new V3(x / 10, 0, zz / 10), burnT: 0 };
   weaponOnKill(pz, { w: lh.w, head: !!head }); killPerks(pz.K ? pz : Object.assign(pz, { K: KINDS[kind] }), { w: lh.w, head: !!head }); NET.lastHit.delete(zid);
@@ -681,7 +681,7 @@ function reviveFocus() {
   for (const [peer, a] of NET.avatars) if (a.down && Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z) < 2.2) return { type: 'revive', peer, name: a.name };
   return null;
 }
-function reviveMate(peer) { NET.revs = (NET.revs || 0) + 1; pushRoll(NET.rv, [++NET.seq, peer, isCls('medic') ? 1 : 0], 6); SND.power(); popText('Felélesztetted a társad', '#6dff9a'); }
+function reviveMate(peer) { NET.revs = (NET.revs || 0) + 1; pushRoll(NET.rv, [++NET.seq, peer, hasPassive('medic') ? 1 : 0], 6); SND.power(); popText('Felélesztetted a társad', '#6dff9a'); }
 // ---------- teammates on screen: name + HP over their head, and a party list ----------
 function updateMatesHud() {
   const box = $('mates'), W = innerWidth, H = innerHeight; if (!box) return;

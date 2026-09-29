@@ -33,8 +33,8 @@ function startJob(job, opts = {}) {
     inv: P.inv, up: P.up, stam: maxStam(), stamT: 0, adrenT: 0, stimK: null, regenT: 0, guardT: 0, itemCd: 0, perks: {}, buf: {}, uHeat: 0, uStack: 0 });
   player.hp = maxHp(); player.shield = maxShield(); endFFYLView();
   resetSkillsRun(); applyLookFP();
-  const extraGren = (isCls('engineer') ? 1 : 0) + rk('e_belt');
-  P.inv.gren = Math.min(itemMax('gren') + (isCls('engineer') ? 1 : 0), P.inv.gren + extraGren);
+  const extraGren = (hasPassive('engineer') ? 1 : 0) + rk('e_belt');
+  P.inv.gren = Math.min(itemMax('gren') + (hasPassive('engineer') ? 1 : 0), P.inv.gren + extraGren);
   if (rk('m_plenty')) P.inv.med = itemMax('med');
   // the loadout comes along, topped up; `owned` marks what goes home even if the job fails
   const own = o => { const w = unpackW(o); if (w) { w.owned = true; w.ammo = w.mag; w.reserve = resMax(w); } return w; };

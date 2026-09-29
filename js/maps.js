@@ -978,8 +978,8 @@ function fireTurret(turret) {
   ray.set(from, dir.normalize()); ray.far = len;
   if (ray.intersectObjects(rayBlockers, false).length) return;
   tracer(from.clone().addScaledVector(dir, .7), aim, turret.rocket ? 0xffa050 : 0x9fc8ff, turret.rocket ? .04 : .015);
-  if (turret.rocket) { explode(aim, { r: 3.5, zdmg: (60 + zombieHp() * .8) * SK.turret(), pr: .01, pdmg: .001 }); return; }
-  hurtZombie(best, (20 + zombieHp() * .09) * SK.turret() * turret.dmgMul, { color: '#9fc8ff' });
+  if (turret.rocket) { explode(aim, { r: 3.5, zdmg: (60 + zombieHp() * .8) * SK.turret(), pr: .01, pdmg: .001, turret: true }); return; }
+  hurtZombie(best, (20 + zombieHp() * .09) * SK.turret() * turret.dmgMul, { color: '#9fc8ff', turret: true });
   if (rk('e_fire')) { best.burnT = 2; best.burnDps = Math.max(best.burnDps, zombieHp() * .15); }
   const s = Math.max(0, 1 - player.pos.distanceTo(from) / 40);
   nz(.08, 2400, .25 * s, 'bandpass', .8); tn(160, .05, .08 * s, 'square', 60);

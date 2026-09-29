@@ -22,7 +22,7 @@ function raiseMinion(kind, x, zz, o = {}) {
   for (const mt of m.mats) { mt.emissive.setHex(0x1c5a2c); mt.transparent = false; mt.opacity = 1; }
   m.g.scale.setScalar(m.scale); m.g.position.set(x, -2.2 * m.rise, zz); scene.add(m.g);
   burst(new V3(x, .3, zz), 0x7dff9a, 18, 3, .8);
-  minions.push(m);
+  minions.push(m); chAdd('necro_use');
   while (minions.filter(q => !q.dead).length > minMax()) minionDie(minions.find(q => !q.dead)); // the oldest goes first
   return m;
 }

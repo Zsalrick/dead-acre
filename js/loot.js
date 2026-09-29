@@ -203,7 +203,7 @@ function explode(p, o = {}) {
   for (const z of zombies) {
     if (z.dead) continue;
     const d = Math.hypot(z.pos.x - p.x, z.pos.z - p.z);
-    if (d < r) hurtZombie(z, dmg * (1 - d / r * .6), { color: '#ffa030' });
+    if (d < r) hurtZombie(z, dmg * (1 - d / r * .6), { color: '#ffa030', turret: o.turret });
   }
   const pd = player.pos.distanceTo(p);
   if (pd < 12) player.shake = Math.max(player.shake, .45 * (1 - pd / 12));

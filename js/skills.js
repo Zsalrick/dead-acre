@@ -123,7 +123,7 @@ const AUGMENTS = {
   medic: [['revive', 'Feltámasztó kör', 'A körben dupla a gyógyítás, és az elesett társak felállnak benne.'], ['smite', 'Ítélet', 'A kör égeti és erősen lassítja a benne álló zombikat.'], ['bigcircle', 'Nagy szentély', 'A kör sugara 6 helyett 9 méter, és 5 mp-cel tovább tart.']],
 };
 const AUG_COST = 2;
-const AUG_AT = [12, 15, 18], augAllowed = () => AUG_AT.filter(n => treeSpent() >= n).length; // tree points that open the 1st, 2nd and 3rd augment
+const AUG_AT = [12, 15, 18], augAllowed = (k = profile.cls) => AUG_AT.filter(n => treePts(k) >= n).length; // points in that tree open its 1st, 2nd and 3rd augment // tree points that open the 1st, 2nd and 3rd augment
 const augOwned = cls => (AUGMENTS[cls] || []).filter(x => (profile.augOwn || []).includes(x[0])).length;
 const augOn = id => !!profile && !!profile.aug && profile.aug[profile.cls] === id;
 const rk = id => (profile && profile.skills && profile.skills[id]) || 0;
@@ -135,36 +135,36 @@ const itemMax = k => ITEMS[k].max + (k === 'gren' ? rk('e_belt') : 0) + (k === '
 const SK = {
   dmg(w) {
     const c = CAT[w.base.id]; let m = 1;
-    if (c === 'rifle' || c === 'heavy') m += (isCls('soldier') ? .1 : 0) + .06 * rk('s_rifle');
+    if (c === 'rifle' || c === 'heavy') m += (hasPassive('soldier') ? .1 : 0) + .06 * rk('s_rifle');
     if (c === 'heavy') m += .15 * rk('s_heavy');
     if (c === 'marks' || c === 'pistol') m += .06 * rk('h_marks');
-    if (c === 'energy') m += .08 * rk('e_cells') + (isCls('engineer') ? .12 : 0);
-    if (c === 'shotgun' || c === 'smg') m += .06 * rk('m_zeal') + (isCls('medic') ? .2 : 0);
+    if (c === 'energy') m += .08 * rk('e_cells') + (hasPassive('engineer') ? .12 : 0);
+    if (c === 'shotgun' || c === 'smg') m += .06 * rk('m_zeal') + (hasPassive('medic') ? .2 : 0);
     if (rk('s_rage') && player.hp < maxHp() * .3) m += .25;
     if (exoOn('berserk')) m += .5 * clamp(1 - player.hp / maxHp(), 0, 1);
     if (player.bloodN && now < player.bloodT) m += .05 * player.bloodN; // Gravetide: Vérszomj
     m += .02 * masteryTier(w.base.id) + .02 * (w.exp || 0); // weapon mastery, expertise
     if (stimOn('berserk')) m += .3; // Berzerker-szérum
     if (inHolyAura()) m += .15; // Szentelt kör
-    if (w.element === 'corrosive') m += (isCls('necro') ? .1 : 0) + .06 * rk('n_toxic');
+    if (w.element === 'corrosive') m += (hasPassive('necro') ? .1 : 0) + .06 * rk('n_toxic');
     if (rk('n_pact') && minions.some(q => !q.dead)) m += .1 * rk('n_pact'); // Vérszerződés
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
   crit: w => (stimOn('focus') ? .2 : 0) + .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
   critDmg: () => .2 * rk('h_deadly') + (exoOn('glass') ? .5 : 0),
-  head: () => (isCls('hunter') ? .1 : 0) + .12 * rk('h_head') + (player.eyeT > 0 ? .5 : 0), // Halálszem: +50% on the head
+  head: () => (hasPassive('hunter') ? .1 : 0) + .12 * rk('h_head') + (player.eyeT > 0 ? .5 : 0), // Halálszem: +50% on the head
   hp: () => 8 * rk('s_hide'),
   shield: () => 15 * rk('m_shield') + 12 * rk('n_shield'),
-  regen: () => 1 + (isCls('medic') ? .2 : 0) + .1 * rk('m_regen'),
+  regen: () => 1 + (hasPassive('medic') ? .2 : 0) + .1 * rk('m_regen'),
   regenDelay: () => .3 * rk('m_rest'),
   speed: () => .04 * rk('h_light') + .04 * rk('n_speed') + (now < (player.howlUntil || 0) ? .3 : 0), // Farkasüvöltés
   reload: () => .08 * rk('s_hands') + (inHolyAura() ? .25 : 0),
   ammo: () => .15 * rk('s_ammo'),
   taken: () => (stimOn('iron') ? .6 : 1) * (now < (player.guardT || 0) ? .5 : 1) * (dirOn('fragile') ? 1.3 : 1) * (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < aura.r ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .04 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
     * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1) * (rk('n_soul') && minions.some(q => !q.dead) ? 1 - .08 * rk('n_soul') : 1),
-  med: () => Math.round((70 + 20 * rk('m_bless')) * (isCls('medic') ? 1.5 : 1)),
+  med: () => Math.round((70 + 20 * rk('m_bless')) * (hasPassive('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),
-  explMul: () => 1 + (isCls('engineer') ? .2 : 0) + .08 * rk('e_boom') + G('expl'),
+  explMul: () => 1 + (hasPassive('engineer') ? .2 : 0) + .08 * rk('e_boom') + G('expl'),
   explRadius: () => 1 + .15 * rk('e_big'),
   turret: () => 1 + .1 * rk('e_tools'),
   cost: n => Math.round(n * (1 - .2 * rk('e_discount'))),
@@ -212,6 +212,7 @@ function useAbility() {
     auraMesh.position.set(aura.pos.x, .04, aura.pos.z); auraMesh.visible = true;
     banner('SZENTELT KÖR', `${Math.round(aura.t)} mp · aki melletted áll, erősebb`);
   } else if (c === 'necro') { if (!useRaise()) return SND.deny(); renderInv(); }
+  if (c !== 'necro') chAdd(c + '_use'); // a class challenge (the necromancer's counts raised minions)
   player.abilCd = abilityCd(); SND.power(); pushFx(['ab', c]); if (c === 'medic' && aura) pushFx(['au', Math.round(aura.pos.x * 10), Math.round(aura.pos.z * 10), Math.round(aura.t)]);
   (player.buf || (player.buf = {})).ability = 8;
 }
@@ -226,7 +227,7 @@ function updateSkills(dt) {
   auraMesh.material.opacity = .35 + Math.sin(now * 6) * .15;
   aura.pos.copy(player.pos); auraMesh.position.set(aura.pos.x, .04, aura.pos.z); // the circle goes with the priest
   const inAura = true;
-  if (inAura) player.hp = Math.min(maxHp(), player.hp + 12 * (1 + .5 * rk('m_circle')) * (augOn('revive') ? 2 : 1) * dt);
+  if (inAura) { const h0 = player.hp; player.hp = Math.min(maxHp(), player.hp + 12 * (1 + .5 * rk('m_circle')) * (augOn('revive') ? 2 : 1) * dt); chAdd('aura_heal', player.hp - h0); }
   for (const z of zombies) {
     if (z.dead || Math.hypot(z.pos.x - aura.pos.x, z.pos.z - aura.pos.z) > aura.r) continue;
     z.slowT = Math.max(z.slowT, augOn('smite') ? 1 : .3);
@@ -243,81 +244,121 @@ function resetSkillsRun() {
 function skillsTab() {
   const P = profile;
   if (!P.cls) {
-    return `<div class="hubhead"><h2>Válassz kasztot</h2></div>
-      
+    return `<div class="hubhead"><h2>Válassz képességet</h2></div>
       <div class="classes">${Object.entries(CLASSES).map(([k, C]) => `<article class="cls" style="--cc:${C.color}">
         <div class="ctag">${C.tag}</div><h3>${C.name}</h3><p>${C.desc}</p>
         <dl><dt>Passzív</dt><dd>${C.passive}</dd><dt>Képesség · ${C.ability.name}</dt><dd>${C.ability.desc} (${C.ability.cd} mp)</dd></dl>
         ${hbtn('Ezt választom', `cls:${k}`)}</article>`).join('')}</div>`;
   }
-  const V = CLASSES[skView] ? skView : P.cls, mine = V === P.cls, C = CLASSES[V], SKV = mine ? P.skills : (P.clsSkills || {})[V] || {};
-  const lvOf = id => SKV[id] || 0, spent = C.tree.reduce((a, [id]) => a + lvOf(id), 0), tok = mine ? P.tokens : clsTokens(V);
+  const V = CLASSES[skView] ? skView : P.cls, C = CLASSES[V], lvOf = id => rk(id), spent = treePts(V), tok = P.tokens;
   const bars = (l, max) => `<span class="kbars">${Array.from({ length: max }, (_, k) => `<i class="${k < l ? 'on' : ''}"></i>`).join('')}</span>`;
   const augs = (AUGMENTS[V] || []), sel = C.tree.find(t => t[0] === skNode) || augs.find(t => t[0] === skNode) || C.tree[0]; skNode = sel[0];
-  const classes = Object.entries(CLASSES).map(([k, c]) => `<button class="kcls${k === V ? ' on' : ''}" data-act="skview:${k}" style="--cc:${c.color}"><b>${c.name}</b><small>${c.tag}</small><em>${k === P.cls ? 'Aktív' : 'Váltás ingyen'}</em></button>`).join('');
+  // left: the trees (points in each, which one gives your ability), the pool, the builds
+  const trees = Object.entries(CLASSES).map(([k, c]) => `<button class="kcls${k === V ? ' on' : ''}${isCls(k) ? ' act' : ''}" data-act="skview:${k}" style="--cc:${c.color}"><b>${c.name}</b><small>${c.ability.name}</small><em>${isCls(k) ? '<kbd>C</kbd>' : ''}<u>${treePts(k)}</u>${chDone(k) ? '<i class="kchk"></i>' : ''}</em></button>`).join('');
+  const builds = [0, 1, 2].map(i => { const B = (P.builds || [])[i]; return `<div class="kbuild"><span><b>${i + 1}.</b> ${buildName(B)}</span>${hbtn('Betölt', `bload:${i}`, !B || state !== 'hub')}${hbtn('Ment', `bsave:${i}`)}</div>`; }).join('');
   const rows = [0, 1, 2, 3, 4].map(r => {
     const need = r * 3, open = spent >= need;
     return `<div class="krow${open ? '' : ' locked'}"><div class="klab"><b>${r + 1}. sor</b><small>${open ? '' : `<span class="klk"></span>${spent} / ${need}`}</small></div>` +
       C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => { const l = lvOf(id);
         return `<button class="knode${id === skNode ? ' on' : ''}${l ? ' has' : ''}${l >= max ? ' max' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${l}/${max}</em></span>${bars(l, max)}<small>${desc(Math.max(1, l))}</small></button>`; }).join('') + '</div>';
   }).join('');
-  const augRow = augs.length ? `<div class="krow"><div class="klab"><b>Módosítók</b><small>${AUG_AT.join(' / ')} elköltöttnél</small></div>${augs.map(([id, name, desc]) => { const own = (P.augOwn || []).includes(id), on = mine && augOn(id);
+  const augRow = augs.length ? `<div class="krow"><div class="klab"><b>Módosítók</b><small><span class="klk"></span>${AUG_AT.join(' / ')}</small></div>${augs.map(([id, name, desc]) => { const own = (P.augOwn || []).includes(id), on = (P.aug || {})[V] === id;
     return `<button class="knode aug${id === skNode ? ' on' : ''}${own ? ' has' : ''}${on ? ' max' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${on ? 'aktív' : own ? 'megvan' : ''}</em></span><small>${desc}</small></button>`; }).join('')}</div>` : '';
-  // the right-hand panel: the selected node and what learning it costs
+  // the tree's three challenges
+  const ch = `<div class="kchal">${(CLASS_CH[V] || []).map(([id, txt, n]) => { const v = Math.min(n, Math.floor(chVal(id))); return `<div class="kcq${v >= n ? ' done' : ''}"><span>${txt}</span><i><em style="width:${v / n * 100}%"></em></i><b>${v >= n ? '' : `${v.toLocaleString('hu-HU')} / ${n.toLocaleString('hu-HU')}`}</b></div>`; }).join('')}<div class="kcrw${chDone(V) ? ' on' : ''}">+2</div></div>`;
+  // right: the picked node
   const isAug = augs.some(t => t[0] === skNode), ri = isAug ? -1 : C.tree.indexOf(sel), row = Math.floor(ri / 3), l = isAug ? 0 : lvOf(sel[0]), max = isAug ? 1 : sel[2];
   let cta = '', info = '';
-  if (isAug) { const own = (P.augOwn || []).includes(sel[0]), on = mine && augOn(sel[0]), can = own || augOwned(V) < augAllowed();
-    info = `<div class="kbox"><small>${C.ability.name} módosítása</small><span>${sel[2]}</span></div>${!can ? `<p class="klock">${spent} / ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]}</p>` : ''}`;
-    cta = mine ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érdemérem`, `aug:${sel[0]}`, on || !can || (!own && P.tokens < AUG_COST)) : '';
+  if (isAug) { const own = (P.augOwn || []).includes(sel[0]), on = (P.aug || {})[V] === sel[0], can = own || augOwned(V) < augAllowed(V);
+    info = `<div class="kbox"><small>${C.ability.name}</small><span>${sel[2]}</span></div>${!can ? `<p class="klock">${spent} / ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]}</p>` : ''}`;
+    cta = hbtn(on ? 'Kiválasztva' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érdemérem`, `aug:${sel[0]}`, on || !can || (!own && tok < AUG_COST));
   } else { const open = spent >= row * 3, maxed = l >= max;
     info = `<div class="kbox"><small>Szintenként</small><span>${sel[3](1)}</span></div>${l && !maxed ? `<div class="kbox"><small>Most → következő</small><span>${sel[3](l)} → ${sel[3](l + 1)}</span></div>` : ''}${!open ? `<p class="klock">${spent} / ${row * 3}</p>` : ''}`;
-    cta = mine ? hbtn(maxed ? 'Kész' : 'Tanul · 1 érdemérem', `sk:${sel[0]}`, maxed || !open || P.tokens < 1) : ''; }
+    cta = hbtn(maxed ? 'Kész' : 'Tanul · 1 érdemérem', `sk:${sel[0]}`, maxed || !open || tok < 1); }
   const side = `<aside class="kside" style="--cc:${C.color}"><div class="kstop"><small>${isAug ? 'Módosító' : `${row + 1}. sor`} · ${C.name}</small><h2>${sel[1]}</h2>${isAug ? '' : `<div class="kmax">${bars(l, max)}<b>${l} / ${max}</b></div>`}${info}</div>
-    <div class="ksfoot"><div class="ktok"><span>${mine ? 'Elérhető érdemérem' : `Érdemérem (${C.name})`}</span><b>${tok}</b></div>${mine ? cta : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></aside>`;
-  return `<div class="ktab" style="--kc:${C.color}"><div class="kleft"><h3>Kasztok</h3>${classes}</div>
-    <div class="kmid"><div class="khead"><div><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2><p><b>Passzív:</b> ${C.passive}</p></div>${mine ? hbtn('Pontok vissza (ingyen)', 'respec', !spent && !augOwned(V)) : ''}</div>
-      <div class="kabil" style="--cc:${C.color}"><kbd>C</kbd><b>${C.ability.name}</b><span>${C.ability.desc}</span><small>töltődés ${mine ? Math.round(abilityCd()) : C.ability.cd} mp</small></div>
-      <div class="ktree">${rows}${augRow}</div></div>
+    <div class="ksfoot"><div class="ktok"><span>Érdemérem</span><b>${tok}</b></div>${cta}</div></aside>`;
+  const pass = hasPassive(V);
+  return `<div class="ktab" style="--kc:${C.color}"><div class="kleft"><h3>Fák <small>${tok} / ${tokEarned()}</small></h3>${trees}<h3>Buildek</h3>${builds}</div>
+    <div class="kmid"><div class="khead"><div><h2 style="color:${C.color}">${C.name}</h2><p class="kpass${pass ? ' on' : ''}"><b>Passzív</b> ${C.passive}${pass ? '' : ` <span class="klk"></span>${spent} / ${PASSIVE_AT}`}</p></div>${hbtn('Pontok vissza', 'respec', !tokSpent())}</div>
+      <div class="kabil${isCls(V) ? ' act' : ''}" style="--cc:${C.color}"><kbd>C</kbd><b>${C.ability.name}</b><span>${C.ability.desc}</span>${isCls(V) ? '<small>aktív</small>' : hbtn('Kiválaszt', `swcls:${V}`, state !== 'hub')}</div>
+      ${ch}<div class="ktree">${rows}${augRow}</div></div>
     ${side}</div>`;
 }
-// every class keeps its own tree and its own tokens: switching is free and nothing is re-bought
-let skView = null, skNode = null; // the class shown, and the node picked in its tree
-// merit tokens: exactly (level - 1) per class, 29 at the cap; each class keeps its own tree
-const tokEarned = () => Math.max(0, profile.level - 1);
-const clsSpent = (k, S) => CLASSES[k].tree.reduce((a, [id]) => a + ((S || {})[id] || 0), 0) + (AUGMENTS[k] || []).filter(x => (profile.augOwn || []).includes(x[0])).length * AUG_COST;
-function syncTokens() { // recount every class from its tree; a class that spent more than its level allows gets its points back to re-spend
-  const P = profile, cap = tokEarned(); P.clsSkills = P.clsSkills || {}; P.clsTok = P.clsTok || {};
-  for (const k in CLASSES) {
-    let S = k === P.cls ? P.skills : P.clsSkills[k] || {};
-    if (clsSpent(k, S) > cap) { S = {}; P.augOwn = (P.augOwn || []).filter(id => !(AUGMENTS[k] || []).some(x => x[0] === id)); if (P.aug) P.aug[k] = null; if (k === P.cls) P.skills = S; else P.clsSkills[k] = S; }
-    if (k === P.cls) P.tokens = cap - clsSpent(k, S); else P.clsTok[k] = cap - clsSpent(k, S);
+// ---------- merit tokens: one pool for every tree (Borderlands-style) ----------
+// You pick one active ability (C) from any tree; points go into any tree. A tree's passive is yours when its ability is
+// your active one, or with PASSIVE_AT points in it. Rows open per tree (3 points a row), augments per tree too.
+let skView = null, skNode = null; // the tree shown, and the node picked in it
+const PASSIVE_AT = 5;
+const treeOf = id => Object.keys(CLASSES).find(k => CLASSES[k].tree.some(t => t[0] === id) || (AUGMENTS[k] || []).some(t => t[0] === id));
+const treePts = k => CLASSES[k] ? CLASSES[k].tree.reduce((a, [id]) => a + rk(id), 0) : 0;
+const hasPassive = k => isCls(k) || treePts(k) >= PASSIVE_AT;
+// class challenges: three a tree, all tied to its ability, all doable alone; all three done = +2 tokens
+const CLASS_CH = {
+  soldier: [['storm_k', 'Ölj meg 150 zombit Tűzvihar alatt', 150], ['rifle_k', 'Ölj meg 600 zombit gépkarabéllyal vagy nehézfegyverrel', 600], ['soldier_use', 'Használd a Tűzvihart 30-szor', 30]],
+  hunter: [['eye_head', '150 fejlövéses ölés Halálszem alatt', 150], ['eye_elite', 'Ölj meg 20 elitet Halálszem alatt', 20], ['hunter_use', 'Használd a Halálszemet 30-szor', 30]],
+  engineer: [['tur_k', 'A tornyaid öljenek meg 300 zombit', 300], ['boom_k', 'Ölj meg 250 zombit robbanással', 250], ['engineer_use', 'Telepíts 30 Szerelőtornyot', 30]],
+  medic: [['aura_heal', 'Gyógyíts 15 000 életerőt a Szentelt körrel', 15000], ['aura_k', 'Ölj meg 300 zombit a Szentelt körben állva', 300], ['medic_use', 'Használd a Szentelt kört 30-szor', 30]],
+  necro: [['min_k', 'A szolgáid öljenek meg 250 zombit', 250], ['necro_use', 'Támassz fel 40 szolgát', 40], ['min_alive_k', 'Ölj meg 400 zombit, miközben él szolgád', 400]],
+};
+const chVal = id => ((profile && profile.cc) || {})[id] || 0;
+const chDone = k => (CLASS_CH[k] || []).every(([id, , n]) => chVal(id) >= n);
+const chPoints = () => Object.keys(CLASS_CH).filter(chDone).length * 2;
+function chAdd(id, v = 1) {
+  const P = profile; if (!P || !mission || mission.job.test) return; P.cc = P.cc || {};
+  const k = Object.keys(CLASS_CH).find(c => CLASS_CH[c].some(x => x[0] === id)), def = k && CLASS_CH[k].find(x => x[0] === id); if (!def) return;
+  const was = P.cc[id] || 0; if (was >= def[2]) return; P.cc[id] = was + v;
+  if (P.cc[id] >= def[2]) { toast('KIHÍVÁS TELJESÍTVE', [`${CLASSES[k].name}: ${def[1]}`, chDone(k) ? '+2 érdemérem' : `${CLASS_CH[k].filter(([i, , n]) => chVal(i) >= n).length} / 3`], CLASSES[k].color); if (chDone(k)) { syncTokens(); SND.legend && SND.legend(); } }
+}
+function chKill(z, o) { // one kill, every challenge it counts toward
+  const w = o.w, c = w && CAT[w.base.id];
+  if (player.stormT > 0) chAdd('storm_k'); if (c === 'rifle' || c === 'heavy') chAdd('rifle_k');
+  if (player.eyeT > 0) { if (o.head) chAdd('eye_head'); if (z.elite) chAdd('eye_elite'); }
+  if (o.turret) chAdd('tur_k'); else if (!w && !o.melee && !o.dot && !o.minion) chAdd('boom_k');
+  if (inHolyAura()) chAdd('aura_k');
+  if (o.minion) chAdd('min_k'); if (typeof minions !== 'undefined' && minions.some(m => !m.dead)) chAdd('min_alive_k');
+}
+const tokEarned = () => Math.max(0, profile.level - 1) + chPoints();
+const tokSpent = () => { let n = 0; for (const k in CLASSES) n += treePts(k); return n + (profile.augOwn || []).length * AUG_COST; };
+function syncTokens() {
+  const P = profile; P.skills = P.skills || {};
+  if (!P.sk2) { // the old per-class trees become one pool: everything back, spend it again
+    const had = Object.values(P.skills).some(v => v) || Object.values(P.clsSkills || {}).some(S => Object.values(S || {}).some(v => v));
+    P.skills = {}; P.clsSkills = null; P.clsTok = null; P.augOwn = []; P.aug = {}; P.sk2 = 1;
+    if (had) setTimeout(() => toast('ÚJ KÉPESSÉGFA', ['Egy közös pontkeret, bármelyik fába költhetsz.', 'A pontjaid visszakerültek: költsd el őket újra.'], '#f0a024', 7000), 600);
   }
-  if (!P.cls) P.tokens = cap; P.tokEarned = cap;
+  if (tokSpent() > tokEarned()) { P.skills = {}; P.augOwn = []; P.aug = {}; } // more spent than earned (a build from a higher level): start clean
+  P.tokens = tokEarned() - tokSpent(); P.tokEarned = tokEarned();
 }
-function clsTokens(k) { const P = profile, t = (P.clsTok || {})[k]; return t == null ? tokEarned() : t; }
-function switchClass(k) {
-  const P = profile; tokEarned(); P.clsSkills = P.clsSkills || {}; P.clsTok = P.clsTok || {};
-  if (P.cls) { P.clsSkills[P.cls] = P.skills; P.clsTok[P.cls] = P.tokens; }
-  P.skills = P.clsSkills[k] || {}; P.tokens = clsTokens(k); P.cls = k;
+function switchClass(k) { profile.cls = k; syncTokens(); } // the active ability; the points stay where they are
+function giveTokens() { syncTokens(); }
+// builds: three saved setups (points, active ability, augments), loaded in one click
+function buildSave(i) { const P = profile; P.builds = P.builds || [null, null, null]; P.builds[i] = { skills: Object.assign({}, P.skills), cls: P.cls, augOwn: (P.augOwn || []).slice(), aug: Object.assign({}, P.aug || {}), at: Date.now() }; }
+function buildLoad(i) {
+  const P = profile, B = (P.builds || [])[i]; if (!B) return false;
+  const cost = Object.values(B.skills).reduce((a, v) => a + v, 0) + B.augOwn.length * AUG_COST; if (cost > tokEarned()) return false;
+  P.skills = Object.assign({}, B.skills); P.augOwn = B.augOwn.slice(); P.aug = Object.assign({}, B.aug); if (CLASSES[B.cls]) P.cls = B.cls; syncTokens(); return true;
 }
-function giveTokens() { syncTokens(); } // a level-up: the count follows the level
+const buildName = B => { if (!B) return 'Üres'; const top = Object.keys(CLASSES).map(k => [k, CLASSES[k].tree.reduce((a, [id]) => a + (B.skills[id] || 0), 0)]).filter(x => x[1]).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  return `${CLASSES[B.cls] ? CLASSES[B.cls].ability.name : '–'}${top.length ? ' · ' + top.map(([k, n]) => `${CLASSES[k].name} ${n}`).join(' / ') : ''}`; };
 function skillAction(kind, a) {
   const P = profile;
   if (kind === 'skview') { skView = a; skNode = null; return true; }
   if (kind === 'sknode') { skNode = a; return true; }
-  if (kind === 'swcls' && CLASSES[a] && a !== P.cls && state === 'hub') { switchClass(a); skView = a; banner(CLASSES[a].name.toUpperCase(), 'Kaszt váltva · a pontjaid megmaradtak'); return true; }
-  if (kind === 'cls') { const first = !P.cls; switchClass(a); if (first) { hubTab = 'jobs'; banner('KÉSZEN ÁLLSZ', 'Válassz egy munkát a térképen, és indulás!'); } return true; }
+  if ((kind === 'swcls' || kind === 'cls') && CLASSES[a]) { const first = !P.cls; if (!first && state !== 'hub') return false; switchClass(a); skView = a; if (first) { hubTab = 'jobs'; banner('KÉSZEN ÁLLSZ', 'Válassz egy munkát a térképen, és indulás!'); } else banner(CLASSES[a].ability.name.toUpperCase(), 'Aktív képesség'); return true; }
   if (kind === 'sk') {
-    const def = CLASSES[P.cls].tree.find(t => t[0] === a), row = Math.floor(CLASSES[P.cls].tree.indexOf(def) / 3);
-    if (P.tokens < 1 || rk(a) >= def[2] || treeSpent() < row * 3) return false;
-    P.tokens--; P.skills[a] = rk(a) + 1; return true;
+    const k = treeOf(a), T = k && CLASSES[k].tree, def = T && T.find(t => t[0] === a); if (!def) return false;
+    const row = Math.floor(T.indexOf(def) / 3);
+    if (P.tokens < 1 || rk(a) >= def[2] || treePts(k) < row * 3) return false;
+    P.skills[a] = rk(a) + 1; syncTokens(); return true;
   }
   if (kind === 'aug') {
-    const ok = (AUGMENTS[P.cls] || []).some(x => x[0] === a); if (!ok) return false;
+    const k = treeOf(a); if (!k || !(AUGMENTS[k] || []).some(x => x[0] === a)) return false;
     P.augOwn = P.augOwn || []; P.aug = P.aug || {};
-    if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST || augOwned(P.cls) >= augAllowed()) return false; P.tokens -= AUG_COST; P.augOwn.push(a); }
-    P.aug[P.cls] = a; return true;
+    if (!P.augOwn.includes(a)) { if (P.tokens < AUG_COST || augOwned(k) >= augAllowed(k)) return false; P.augOwn.push(a); }
+    P.aug[k] = a; syncTokens(); return true;
   }
-  if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.tokens += treeSpent(); P.skills = {}; const own = (AUGMENTS[P.cls] || []).map(x => x[0]).filter(id => (P.augOwn || []).includes(id)); P.tokens += own.length * AUG_COST; P.augOwn = (P.augOwn || []).filter(id => !own.includes(id)); if (P.aug) P.aug[P.cls] = null; return true; }
+  if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.skills = {}; P.augOwn = []; P.aug = {}; syncTokens(); return true; }
+  if (kind === 'bsave') { buildSave(+a); toast('BUILD MENTVE', [`${+a + 1}. hely · ${buildName(P.builds[+a])}`], '#f0a024'); return true; }
+  if (kind === 'bload') { if (!buildLoad(+a)) { SND.deny(); return false; } toast('BUILD BETÖLTVE', [buildName(P.builds[+a])], '#f0a024'); return true; }
   return false;
 }

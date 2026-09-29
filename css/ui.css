@@ -954,3 +954,24 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .vlock b{font-family:var(--fd);font-weight:900;font-size:44px;color:var(--tx2)}
 .vlock i{display:block;width:100%;height:6px;background:rgba(255,255,255,.08)}.vlock em{display:block;height:100%;background:var(--amb)}
 .vlock small{font-family:var(--fc);font-weight:700;font-size:18px;letter-spacing:.12em}
+
+/* shared skill pool: trees with their points, the active one marked; challenges; builds */
+.kleft h3 small{font-family:var(--fd);font-size:20px;color:var(--amb);margin-left:auto}
+.kcls em{display:flex;align-items:center;gap:8px}
+.kcls em u{text-decoration:none;font-family:var(--fd);font-weight:900;font-size:24px;color:var(--tx)}
+.kcls em kbd{height:22px;min-width:22px;font-size:12px;border-color:var(--cc);color:var(--cc)}
+.kcls.act{box-shadow:inset 3px 0 0 var(--cc),inset 0 0 0 1px var(--cc)}
+.kchk{display:inline-block;width:8px;height:14px;border:solid var(--pos);border-width:0 3px 3px 0;transform:rotate(45deg) translateY(-2px)}
+.kbuild{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:8px 10px;margin-bottom:6px;background:var(--pan);border:1px solid var(--ln)}
+.kbuild span{font-size:13px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kbuild b{color:var(--amb)}
+.kbuild .sbtn{height:32px;padding:0 10px;font-size:13px}
+.kpass{opacity:.45}.kpass.on{opacity:1}.kpass b{color:var(--kc);margin-right:6px}
+.kabil.act{border-color:var(--cc);box-shadow:inset 0 0 0 1px var(--cc)}
+.kabil .sbtn{margin-left:auto;height:36px}
+.kchal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 56px;gap:8px;margin:0 0 14px}
+.kcq{display:grid;gap:6px;text-align:left;font-family:var(--fb);padding:10px 12px;background:var(--pan);border:1px solid var(--ln);font-size:13px;color:var(--tx2)}
+.kcq i{display:block;height:4px;background:rgba(255,255,255,.08)}.kcq em{display:block;height:100%;background:var(--kc)}
+.kcq b{font-family:var(--fc);font-size:13px;color:var(--tx3)}
+.kcq.done{border-color:color-mix(in srgb,var(--pos) 50%,transparent)}.kcq.done em{background:var(--pos)}
+.kcrw{display:grid;place-items:center;font-family:var(--fd);font-weight:900;font-size:26px;color:var(--tx4);border:1px dashed var(--ln2)}
+.kcrw.on{color:#15130e;background:var(--pos);border:0}
