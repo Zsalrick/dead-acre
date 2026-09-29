@@ -415,6 +415,7 @@ function netTick(dt) {
         NET.waitHost = NET.waitHost || performance.now();
         if (performance.now() - NET.waitHost < 9000) return;
       }
+      if (!mission) { NET.waitHost = NET.waitHost || performance.now(); if (performance.now() - NET.waitHost < 9000) return; } // in the hub too: the leader may just be busy loading a map
       NET.waitHost = 0;
       if (mission && NET.client) { banner('A CSAPATVEZETŐ KILÉPETT', 'A munka véget ért.'); finishJob(false, true); }
       partyLeave(); return;

@@ -826,46 +826,72 @@ const MAPS = {
       east: { side: 'e', at: 24, name: 'A karantén-tábor', cost: 750, core: { minX: 50, maxX: 94, minZ: 12, maxZ: 54 }, spawns: [[92, 14], [92, 52]], station: ['well', 58, 38] },
     },
   },
-  rail: {
-    name: 'Vasúti rendező', desc: 'Éjszakai rendező pályaudvar: három vágány tehervagonokkal és egy tartálykocsival, víztorony, jelzőlámpák, konténerek.', minLevel: 16,
-    main: { minX: -46, maxX: 46, minZ: -34, maxZ: 34 }, look: { tex: 'dirt', ground: 0x7a746a, fog: 0x0b0c10, fogD: [.022, .03], fence: 0x9a9690 },
-    vans: [[-36, 26], [36, 26], [-38, -28], [38, 28]], ammo: [0, 20], boxSpots: [[-20, 4], [18, 4], [-30, -24], [30, -24], [0, 26], [-8, -8]],
-    spawns: [[-43, -30], [43, -30], [-43, 4], [43, 4], [0, 31], [-24, 31], [24, 31], [-43, 18], [43, 16]],
-    lamps: [[-26, 20], [26, 20], [0, 14], [-36, -6], [36, -6], [-12, -28], [14, -28]],
-    clear: [[-18, -16, 12], [14, -16, 11], [-10, -4, 12], [22, -4, 9], [-26, 8, 9], [10, 8, 9], [34, 8, 5], [0, -28, 7], [-34, 22, 5], [34, 22, 5]],
-    props: [['crate', 2], ['barrel', 2], ['boom', 1.5], ['stack', 2], ['logs', 1]], propN: [16, 22],
+  rail: { // core + three wings: the yard's three tracks with the cold engine; the engine shed, the container terminal and the passenger station open it up
+    name: 'Vasúti rendező', desc: 'Éjszakai rendező: három vágány kocsikkal, tartálykocsi, hideg gőzmozdony, jelzőház. Drótkerítésen túl nyitható: a mozdonyszín, a konténerterminál és az állomás.', minLevel: 16,
+    noScale: true, innerFence: 'chain',
+    main: { minX: -50, maxX: 50, minZ: -12, maxZ: 36 }, look: { tex: 'dirt', ground: 0x7a746a, fog: 0x0b0c10, fogD: [.022, .03], fence: 0x9a9690 },
+    vans: [[-44, 30], [44, 30]], ammo: [-10, 30], boxSpots: [[14, 26], [-36, 26], [34, 5], [-16, -8]],
+    spawns: [[-48, -10], [48, -10], [-48, 35], [48, 35]],
+    lamps: [],
+    clear: [[-8, 10, 7], [0, 28, 6], [-40, -6, 4], [40, -6, 4]],
+    props: [['crate', 2], ['barrel', 2], ['boom', 1.5], ['stack', 2], ['logs', 1]], propN: [8, 12],
+    power: { turret: [0, 28], gens: [[-80, 23], [90, -8], [-20, -52], [30, -9]], boxes: [[-44, 24], [44, 24], [-24, 31], [24, 34], [-6, -8], [-70, 23], [70, -10], [-12, -36], [16, -30], [86, 20]] },
+    quest: { radio: [-5, 12.8], drop: [2, 1.4], parts: [[-86, 23], [-72, -10], [-18, -30], [18, -46], [60, 20], [88, -6], [-46, 6], [40, 26]],
+      txt: { names: ['NYOMÁSSZELEP', 'INDÍTÓKAR', 'SÍPZSINÓR'], part: 'mozdonyalkatrész', broken: 'Hideg mozdony', use: 'Mozdony begyújtása', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Gyújtsd be a mozdonyt a középső vágányon.'],
+        call: ['A MOZDONY FELBŐG…', 'A füttyszó végigszáll a rendezőn. Egy különleges csapat tart feléd!'], done: 'A MOZDONY KIHŰLT', where: 'a mozdony mellett' } },
     build() {
       const rust = matStd({ color: 0x7a3a24, roughness: .9 }), green = matStd({ color: 0x2f4a36, roughness: .9 }), blue = matStd({ color: 0x2c3e5a, roughness: .9 }), dark = matStd({ color: 0x1c1d20, roughness: .8 });
       const steel = matStd({ color: 0x8a8e94, metalness: .6, roughness: .4 }), wood = matStd({ color: 0x4a3626, roughness: 1 }), tank = matStd({ color: 0x1e2226, metalness: .4, roughness: .5 }), brick = matStd({ color: 0x7a4a36 });
-      // three tracks: ballast, sleepers and two rails each, across the whole yard (low: you walk over them)
-      for (const tz of [-16, -4, 8]) {
-        addBox(0, tz, 92, 3.4, .06, matStd({ color: 0x33312d, roughness: 1 }), 0, false);
-        for (let x = -45; x <= 45; x += 1.2) addBox(x, tz, .3, 2.6, .1, wood, .04, false);
-        for (const o of [-.72, .72]) addBox(0, tz + o, 92, .1, .12, steel, .12, false);
-      }
-      // freight cars on the tracks (a gap in every line so the yard stays open)
-      const wagon = (x, z, len, m, open) => { addBox(x, z, len, 3, 2.6, m, .9); addBox(x, z, len + .2, 3.1, .2, dark, 3.5, false);
+      const track = (x0, x1, z) => { addBox((x0 + x1) / 2, z, x1 - x0, 3.4, .06, matStd({ color: 0x33312d, roughness: 1 }), 0, false); for (let x = x0 + .6; x <= x1; x += 1.2) addBox(x, z, .3, 2.6, .1, wood, .04, false); for (const o of [-.72, .72]) addBox((x0 + x1) / 2, z + o, x1 - x0, .1, .12, steel, .12, false); };
+      const car = (x, z, len, m, open) => { addBox(x, z, len, 3, 2.6, m, .9); addBox(x, z, len + .2, 3.1, .2, dark, 3.5, false);
         for (const a of [-len / 2 + 1.4, len / 2 - 1.4]) for (const b of [-1.1, 1.1]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .25, 12), dark)); w.rotation.x = Math.PI / 2; w.position.set(x + a, .5, z + b); }
-        addBox(x, z - 1.52, len * .3, .04, 2, open ? dark : m, 1.2, false); };
-      wagon(-24, -16, 12, rust); wagon(-10, -16, 12, green, true); wagon(20, -16, 12, blue);
-      wagon(22, -4, 12, rust, true); wagon(-6, -4, 12, blue);
-      wagon(-28, 8, 12, green); wagon(4, 8, 12, rust);
-      { const t = put(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 11, 18), tank)); t.rotation.z = Math.PI / 2; t.position.set(-10, 2.4, 8); t.castShadow = true; rayBlockers.push(t); // the tank car
-        obstacles.push({ minX: -15.5, maxX: -4.5, minZ: 6.5, maxZ: 9.5, h: 3.9 }); addBox(-10, 8, 11.4, 2.6, .5, dark, .7, false); label(['VESZÉLYES'], '#ffd23f', .7, -10, 2.4, 6.4); }
-      // the station on the south side, the water tower for the engines, containers stacked by the fence
-      house(0, 28, 16, 7, 5, brick, 0x2a2a2e, 'n'); label(['RENDEZŐ PÁLYAUDVAR'], '#e8e2d0', 2, 0, 7, 24.3);
-      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBox(34 + a * 1.8, -24 + b * 1.8, .35, .35, 7, steel);
-      { const tw = put(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4, 16), wood)); tw.position.set(34, 9, -24); tw.castShadow = true;
-        const cap = put(new THREE.Mesh(new THREE.ConeGeometry(3.4, 1.6, 16), dark)); cap.position.set(34, 11.8, -24); addBox(31.2, -24, .3, .3, 5, steel, 4, false); }
-      for (const [x, z, c, n] of [[-38, -24, rust, 2], [-38, -18, blue, 1], [40, 16, green, 2]]) for (let k = 0; k < n; k++) { addBox(x, z, 6, 2.6, 2.6, c, k * 2.6, k === 0); addBox(x, z - 1.32, 5.4, .04, 2.2, dark, k * 2.6 + .2, false); }
-      // signal masts: a red and a green eye glowing over the tracks
-      for (const [x, z] of [[-40, -10], [40, 2], [-2, -22]]) { addBox(x, z, .25, .25, 5, steel); addBox(x, z, .6, .5, 1.3, dark, 4.4, false);
-        glowSprite(0xff2a1a, .8, new V3(x, 5.4, z + .3)); glowSprite(0x2aff6a, .8, new V3(x, 4.9, z + .3)); pointLight(0xff3a2a, .8, 8, x, 5, z); }
+        addBox(x, z - 1.52, len * .3, .04, 2, open ? dark : m, 1.2, false);
+        for (let a = -len / 2 + .6; a < len / 2; a += 1.2) for (const s of [-1.53, 1.53]) addBox(x + a, z + s * (Math.abs(a) < len * .16 ? 1.02 : 1), .08, .04, 2.5, dark, .95, false); // ribs
+        for (let k = 0; k < 6; k++) addBox(x + len / 2 + .02, z + 1, .04, .5, .05, steel, 1.1 + k * .4, false); }; // a ladder at the end
+      const loco = (x, z, face = 1) => { const b = put(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 7, 16), tank)); b.rotation.z = Math.PI / 2; b.position.set(x - face * .5, 2.4, z); rayBlockers.push(b);
+        addBox(x + face * 4, z, 3, 2.8, 3.6, tank, .6); addBox(x + face * 4, z, 3.4, 3.2, .3, dark, 4.2, false); addBox(x - face * 3.2, z, .8, .8, 2.2, tank, 3.4, false); addBox(x - face * 4.4, z, .6, 2.6, 1, matStd({ color: 0x8a2a1c }), .3, false);
+        for (const a of [-2.5, -.5, 1.5]) for (const s of [-1.3, 1.3]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, .2, 14), matStd({ color: 0x8a2a1c }))); w.rotation.x = Math.PI / 2; w.position.set(x + a * face, .85, z + s); }
+        addBox(x + face * 4, z + 1.62, 1.2, .06, .9, glassDark, 2.6, false); obstacles.push({ minX: x - 5, maxX: x + 5.6, minZ: z - 1.5, maxZ: z + 1.5, h: 4 }); };
+      // three tracks across the yard (low: you walk over them), cars with gaps between, the tank car, the cold engine and its tender
+      for (const tz of [0, 10, 20]) track(-50, 50, tz);
+      car(-30, 0, 12, rust); car(-6, 0, 10, green, true); car(24, 0, 12, blue);
+      loco(-8, 10, 1); car(-18, 10, 6, dark); // the engine (the map's challenge) and its tender
+      { const t = put(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 11, 18), tank)); t.rotation.z = Math.PI / 2; t.position.set(18, 2.4, 10); t.castShadow = true; rayBlockers.push(t);
+        obstacles.push({ minX: 12.5, maxX: 23.5, minZ: 8.5, maxZ: 11.5, h: 3.9 }); addBox(18, 10, 11.4, 2.6, .5, dark, .7, false); label(['VESZÉLYES'], '#ffd23f', .7, 18, 2.4, 8.4); }
+      car(-24, 20, 12, green); car(28, 20, 12, rust, true);
+      // the footbridge over the tracks: stairs down each side, a truss walkway (you walk under it)
+      for (const z of [-7, 27]) { for (const a of [-1, 1]) addBox(34 + a * 1.2, z, .25, .25, 6.4, steel); for (let k = 0; k < 10; k++) addBox(36.4, z + (z < 0 ? k * .5 : -k * .5), 1.6, .5, .12, steel, .6 * k, false); }
+      addBox(34, 10, 2.6, 34, .25, steel, 6.2, false); for (const a of [-1.3, 1.3]) { addBox(34 + a, 10, .08, 34, .08, steel, 7.3, false); for (let z = -6; z <= 26; z += 2) addBox(34 + a, z, .08, .08, 1.1, steel, 6.3, false); }
+      for (const [x, z] of [[-26, -8], [26, 26], [-26, 26], [8, -8]]) floodlight(x, z);
+      // the signal box on stilts, the water tank for the engines, signal masts, containers by the fence
+      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBox(-40 + a * 1.8, -6 + b * 1.6, .3, .3, 3.2, wood);
+      addBox(-40, -6, 4.2, 3.8, 2.6, brick, 3.2, false); addBox(-40, -4.08, 3.4, .06, 1, glassLit, 4.4, false); addBox(-40, -6, 4.8, 4.4, .3, dark, 5.8, false); label(['JELZŐHÁZ'], '#e8e2d0', 1.1, -40, 6.8, -3.8);
+      addBox(-37.6, -3.9, .5, .1, 3.2, wood, 0, false); // the ladder
+      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBox(40 + a * 1.8, -6 + b * 1.8, .35, .35, 7, steel);
+      { const tw = put(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4, 16), wood)); tw.position.set(40, 9, -6); tw.castShadow = true; put(new THREE.Mesh(new THREE.ConeGeometry(3.4, 1.6, 16), dark)).position.set(40, 11.8, -6); addBox(37.2, -6, .3, .3, 5, steel, 4, false); }
+      for (const [x, z] of [[-46, 15], [46, 5], [0, -8]]) { addBox(x, z, .25, .25, 5, steel); addBox(x, z, .6, .5, 1.3, dark, 4.4, false); glowSprite(0xff2a1a, .8, new V3(x, 5.4, z + .3)); glowSprite(0x2aff6a, .8, new V3(x, 4.9, z + .3)); }
+      for (const [x, z, c, n] of [[-30, 32, rust, 2], [-18, 32, blue, 1], [30, 32, green, 2]]) for (let k = 0; k < n; k++) { addBox(x, z, 6, 2.6, 2.6, c, k * 2.6, k === 0); addBox(x, z - 1.32, 5.4, .04, 2.2, dark, k * 2.6 + .2, false); }
+      // --- north wing, A mozdonyszín: the engine shed you walk into (an engine in one road), the turntable pit in front
+      hollow(0, -46, 30, 12, 8, brick, { s: [[-9, 4.4], [0, 4.4], [9, 4.4]] }, 0x2a2a2e); for (const x of [-9, 0, 9]) track(x - 1.7, x + 1.7, -46);
+      loco(0, -46, 1); addBox(-9, -46, 6, 3, 2.6, rust, .9); pointLight(0xffb060, 1.1, 16, 0, 6, -46);
+      { const pit = put(new THREE.Mesh(new THREE.CircleGeometry(7, 32), matStd({ color: 0x1a1816 }))); pit.rotation.x = -Math.PI / 2; pit.position.set(0, .02, -26); addBox(0, -26, 14, 3, .3, steel, .1, false); addBox(0, -26, 1, 1, 1.2, dark); }
+      // --- west wing, A konténerterminál: stacks of containers in lanes, the gantry crane over them
+      const cols = [rust, blue, green, matStd({ color: 0x8a6a2a }), matStd({ color: 0x5a2a3a })];
+      for (const [z, gaps, x0] of [[-7, [2], -92], [19, [1, 4], -92], [6, [2], -86]]) for (let k = 0; k < 6; k++) { if (gaps.includes(k)) continue; const x = x0 + 3.5 + k * 6.4; if (x > (z === 6 ? -60 : -54)) continue; const n = 1 + (k * 3 + Math.abs(z)) % 3;
+        for (let l = 0; l < n; l++) { addBox(x, z, 6, 2.6, 2.6, cols[(k + l + Math.abs(z)) % cols.length], l * 2.6, false); addBox(x + 3.02, z, .04, 2.2, 2.2, dark, l * 2.6 + .2, false); } obstacles.push({ minX: x - 3, maxX: x + 3, minZ: z - 1.3, maxZ: z + 1.3, h: n * 2.6 }); }
+      for (const [x, z] of [[-90, -10], [-90, 22], [-60, -10], [-60, 22]]) addBox(x, z, .8, .8, 12, matStd({ color: 0xc8a020 })); for (const x of [-90, -60]) addBox(x, 6, .8, 32, .8, matStd({ color: 0xc8a020 }), 12, false);
+      addBox(-75, 6, 31, 1, 1, matStd({ color: 0xc8a020 }), 12.4, false); addBox(-70, 6, 2.4, 2.4, 1.4, dark, 11, false); addBox(-70, 6, .06, .06, 5, dark, 6, false);
+      // --- east wing, Az állomás: the waiting hall you walk into, the platform under its canopy, a coach at the platform
+      hollow(76, -4, 20, 8, 5, brick, { w: [[0, 3]], s: [[4, 2.4]] }, 0x2a2a2e); label(['ÁLLOMÁS'], '#e8e2d0', 1.8, 76, 7, .4);
+      for (const x of [70, 74, 78]) addBox(x, -6.6, 2.6, .6, .5, wood); addBox(84, -4, .6, 4, 1.2, wood); addBox(84.3, -4, .06, 1.6, .8, glassLit, 1.3, false);
+      for (const x of [68, 73, 83]) addBox(x, .03, 1.6, .06, 1.4, glassLit, 1.4, false);
+      addBox(74, 6, 36, 5, .45, matStd({ color: 0x6a6a64 }), 0, false); for (let x = 58; x <= 90; x += 8) addBox(x, 6, .25, .25, 3.6, steel); addBox(74, 6, 36, 5.4, .2, dark, 3.6, false);
+      track(52, 94, 12); addBox(74, 12, 18, 2.8, 2.8, matStd({ color: 0x3a4a2a }), .9); for (let x = 67; x <= 81; x += 2.4) addBox(x, 10.58, 1.4, .06, .9, Math.random() < .4 ? glassLit : glassDark, 2, false);
     },
     areas: {
-      north: { side: 'n', at: -20, name: 'Mozdonyszín', cost: 1250, core: { minX: -36, maxX: -4, minZ: -58, maxZ: -34 }, spawns: [[-32, -55], [-8, -55]], station: ['trap', -20, -44], graves: false },
-      east:  { side: 'e', at: -8, name: 'Raktárcsarnok', cost: 1000, core: { minX: 46, maxX: 68, minZ: -20, maxZ: 4 }, spawns: [[65, -17], [65, 1]], station: ['forge', 56, -8] },
-      west:  { side: 'w', at: 16, name: 'Váltóház', cost: 750, core: { minX: -68, maxX: -46, minZ: 4, maxZ: 28 }, spawns: [[-65, 7], [-65, 25]], station: ['well', -56, 16] },
+      north: { side: 'n', at: 0, name: 'A mozdonyszín', cost: 1250, core: { minX: -24, maxX: 24, minZ: -56, maxZ: -12 }, spawns: [[-20, -54], [20, -54]], station: ['trap', -12, -16] },
+      west: { side: 'w', at: 6, name: 'A konténerterminál', cost: 1000, core: { minX: -94, maxX: -50, minZ: -12, maxZ: 24 }, spawns: [[-92, -10], [-92, 22]], station: ['forge', -56, 12] },
+      east: { side: 'e', at: 6, name: 'Az állomás', cost: 750, core: { minX: 50, maxX: 94, minZ: -12, maxZ: 24 }, spawns: [[92, -10], [92, 22]], station: ['well', 58, 18] },
     },
   },
   range: {
@@ -1243,10 +1269,17 @@ function deployTurret(cost, dur = 60, opts = {}) {
     const p = player.pos.clone().addScaledVector(fwd, 1.6).addScaledVector(side, n > 1 ? (k ? 1.2 : -1.2) : 0); clampBounds(p, .5);
     const { g, head } = turretMesh(opts, n > 1 || opts.small);
     g.position.copy(p); scene.add(g);
-    turrets.push({ g, head, t: dur, cd: .5, rate: opts.rate || 1, station: !!opts.station, dmgMul: opts.dmgMul || 1, shield: !!opts.shield, rocket: !!opts.rocket, small: !!(n > 1 || opts.small) });
+    turrets.push({ g, head, t: dur, dur, cd: .5, rate: opts.rate || 1, station: !!opts.station, dmgMul: opts.dmgMul || 1, shield: !!opts.shield, rocket: !!opts.rocket, small: !!(n > 1 || opts.small) });
   }
   banner(n > 1 ? 'IKERTORONY' : opts.shield ? 'PAJZSTORONY' : opts.rocket ? 'RAKÉTATORONY' : 'LÖVEGTORONY TELEPÍTVE', `${Math.round(dur)} másodpercig lő mindenre, ami mozog.`);
   return true;
+}
+function pickTurret(t) { // back in the bag: what it had left counts 75% off the cooldown (half left -> 37.5% of the cooldown already done)
+  const i = turrets.indexOf(t); if (i < 0) return;
+  const mine = turrets.filter(o => !o.station && !o.fixed).length;
+  scene.remove(t.g); turrets.splice(i, 1); SND.pickup(2);
+  player.abilCd = Math.max(0, (player.abilCd || 0) * (1 - .75 * Math.max(0, t.t) / t.dur / mine));
+  popText(`Lövegtorony visszavéve · töltés −${Math.round(75 * t.t / t.dur / mine)}%`, '#9fc8ff');
 }
 function updateTurret(dt) {
   for (let i = turrets.length - 1; i >= 0; i--) {
@@ -1307,6 +1340,7 @@ function updateAreas(dt) {
 }
 function areaFocus() {
   const p = player.pos, near = (v, r) => Math.hypot(v.x - p.x, v.z - p.z) < r;
+  { const t = turrets.find(t => !t.station && !t.fixed && t.dur && near(t.g.position, 1.8)); if (t) return { type: 'tpick', t }; } // your own turret: take it back
   for (const k in AREAS) {
     const a = AREAS[k];
     if (!a.unlocked && near(a.gate, 3.2)) return { type: 'gate', area: k };
@@ -1333,6 +1367,7 @@ function areaPrompt(f) {
     case 'perk': { const P = PERKS[a.perk.key]; return player.perks && player.perks[a.perk.key] ? `${P.name} · már megvan` : `<b>[E]</b> ${P.name} · ${P.desc} · ${SK.cost(P.cost)} pont${lack(SK.cost(P.cost))}`; }
     case 'chest': return '<b>[E]</b> Zsákmányláda kinyitása';
     case 'gen': return '<b>[E]</b> Generátor · áram bekapcsolása';
+    case 'tpick': return `<b>[E]</b> Lövegtorony visszavétele · a töltésből −${Math.round(75 * f.t.t / f.t.dur)}%`;
     case 'pbox': return PWR.run ? `Lövegállás aktív · ${Math.ceil(PWR.run.t)} mp` : `<b>[E]</b> Áramdoboz · lövegállás 45 mp · ${pwCost()} pont${lack(pwCost())}`;
     case 'rpart': return `<b>[E]</b> ${QST.parts[f.i].name} felvétele (${qt().part})`;
     case 'radio': { const n = QST.parts.filter(q => q.got).length; return n < 3 ? `${qt().broken} · hiányzik ${3 - n} alkatrész` : `<b>[E]</b> ${qt().use}`; }
@@ -1343,6 +1378,7 @@ function areaInteract(f) {
   const st = f.area && AREAS[f.area].st;
   switch (f.type) {
     case 'gen': if (NET.client) return netAct('pw', 'gen'); return powerOn();
+    case 'tpick': return pickTurret(f.t);
     case 'pbox': return powerBoxUse();
     case 'rpart': return questTake(f.i);
     case 'radio': return questRadio();

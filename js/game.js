@@ -443,7 +443,8 @@ const keys = {};
 let mouseDown = false, rmb = false, clickQueued = 0, locked = false, hadLock = false, noLock = false, lockPending = false;
 function lockPointer() {
   lockPending = true;
-  try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(lockFailed); } catch (e) { lockFailed(); }
+  const el = renderer.domElement, plain = () => { try { const p = el.requestPointerLock(); if (p && p.catch) p.catch(lockFailed); } catch (e) { lockFailed(); } };
+  try { const p = el.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(plain); else if (!p) plain(); } catch (e) { plain(); } // raw mouse input: no OS acceleration, none of Chrome's jumps
 }
 // a lock request without a click behind it (a party job the leader started, a key press) is refused by the browser:
 // then wait for a click instead of giving up on mouse look
@@ -643,8 +644,11 @@ addEventListener('mousedown', e => {
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) rmb = false; });
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('wheel', e => { if (state === 'playing') switchTo(1 - player.cur); }, { passive: true });
+let lookLast = 0;
 addEventListener('mousemove', e => {
   if ((state !== 'playing' && state !== 'intro') || !(locked || noLock)) return; // in the van you can look around
+  const mx = e.movementX, my = e.movementY, big = Math.abs(mx) + Math.abs(my), last = lookLast; lookLast = big;
+  if (big > 300 && big > last * 8 + 60) return; // Chrome/Windows pointer lock sometimes reports one bogus jump: drop it
   const s = .0022 * SET.sens * (camera.fov / SET.fov) * (player.ads > .5 ? SET.adsSens : 1);
   player.yaw -= e.movementX * s; player.pitch -= e.movementY * s * (SET.invertY ? -1 : 1);
   player.pitch = clamp(player.pitch, -1.5, 1.5);
