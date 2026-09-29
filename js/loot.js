@@ -213,7 +213,7 @@ function explode(p, o = {}) {
   }
   const pd = player.pos.distanceTo(p);
   if (pd < 12) player.shake = Math.max(player.shake, .45 * (1 - pd / 12));
-  if (pd < pr && liveWorld()) hurtPlayer(Math.round(pdmg * (1 - pd / pr * .7)));
+  if (pd < pr && liveWorld()) { hurtFrom = p; hurtPlayer(Math.round(pdmg * (1 - pd / pr * .7))); }
 }
 function updateProjs(dt) {
   for (let i = projs.length - 1; i >= 0; i--) {

@@ -3,8 +3,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=148">
-<link rel="stylesheet" href="css/ui.css?v=148">
+<link rel="stylesheet" href="css/legacy.css?v=149">
+<link rel="stylesheet" href="css/ui.css?v=149">
 
 <!-- boot screen: painted before any script, gone once every script is in -->
 <div id="boot" style="position:fixed;inset:0;z-index:9999;background:#0e0f0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s">
@@ -14,7 +14,7 @@
 </div>
 <div id="game">
   <div class="hud" id="hud" hidden>
-    <div id="vig"></div><div id="eyefx"></div><div id="aurafx"></div><div id="hitfx"></div><div id="shfx"></div>
+    <div id="vig"></div><div id="dmgdir"></div><div id="eyefx"></div><div id="aurafx"></div><div id="hitfx"></div><div id="shfx"></div>
     <div id="scope" hidden><i class="v1"></i><i class="v2"></i><i class="h1"></i><i class="h2"></i><i class="fine"></i><i class="fine v"></i><i class="dot"></i></div>
     <div id="hbars"></div>
     <div id="dmg"></div>
@@ -167,7 +167,7 @@ T.Material.prototype.dispose = function () {}; // ponytail: a material's shader 
 window.THREE = THREE;
 const hold = e => { e.stopImmediatePropagation(); e.preventDefault(); }, HOLD = ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']; // no input until every script is in
 HOLD.forEach(t => addEventListener(t, hold, true));
-const LIST =  ["js/icons.js?v=148", "js/data.js?v=148", "js/audio.js?v=148", "js/music.js?v=148", "js/world.js?v=148", "js/maps.js?v=148", "js/fx.js?v=148", "js/gfx.js?v=148", "js/player.js?v=148", "js/zombies.js?v=148", "js/loot.js?v=148", "js/upgrades.js?v=148", "js/gear.js?v=148", "js/vet.js?v=148", "js/inv.js?v=148", "js/save.js?v=148", "js/menu.js?v=148", "js/skills.js?v=148", "js/necro.js?v=148", "js/hub.js?v=148", "js/book.js?v=148", "js/game.js?v=148", "js/jobs.js?v=148", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=148", "js/net.js?v=148", "js/avatar.js?v=148"];
+const LIST =  ["js/icons.js?v=149", "js/data.js?v=149", "js/audio.js?v=149", "js/music.js?v=149", "js/world.js?v=149", "js/maps.js?v=149", "js/fx.js?v=149", "js/gfx.js?v=149", "js/player.js?v=149", "js/zombies.js?v=149", "js/loot.js?v=149", "js/upgrades.js?v=149", "js/gear.js?v=149", "js/vet.js?v=149", "js/inv.js?v=149", "js/save.js?v=149", "js/menu.js?v=149", "js/skills.js?v=149", "js/necro.js?v=149", "js/hub.js?v=149", "js/book.js?v=149", "js/game.js?v=149", "js/jobs.js?v=149", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=149", "js/net.js?v=149", "js/avatar.js?v=149"];
 const bar = p => { const f = document.getElementById('bootFill'); if (f) f.style.width = Math.round(15 + 85 * p) + '%'; };
 try {
   for (let i = 0; i < LIST.length; i++) { await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = LIST[i]; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); }); bar((i + 1) / LIST.length); }

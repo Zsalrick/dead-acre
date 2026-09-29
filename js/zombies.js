@@ -336,7 +336,7 @@ function flameTick(z, dt, dist) { // the burner: short bursts, a cone of fire; s
   z.armR.updateMatrixWorld(true);
   const from = z.armR.localToWorld(new V3(0, -1.2, .05)), dir = new V3(player.pos.x - from.x, player.pos.y + 1 - from.y, player.pos.z - from.z).normalize();
   for (let k = 0; k < 3; k++) burst(from.clone().addScaledVector(dir, rand(.5, 6.5)).add(new V3(rand(-.5, .5), rand(-.3, .4), rand(-.5, .5))), pick([0xff7a20, 0xffb040, 0xff4a10]), 1, 1.2, .35);
-  if ((z.fTick = (z.fTick || 0) - dt) <= 0) { z.fTick = .25; if (dist < 7.2 && hasSight(from, new V3(player.pos.x, player.pos.y + 1.2, player.pos.z)) && liveWorld()) hurtPlayer(6 * zDmgMul()); if (Math.random() < .3) SND.zshot(clamp(.25 - dist / 60, .05, .25)); }
+  if ((z.fTick = (z.fTick || 0) - dt) <= 0) { z.fTick = .25; if (dist < 7.2 && hasSight(from, new V3(player.pos.x, player.pos.y + 1.2, player.pos.z)) && liveWorld()) { hurtFrom = z.pos; hurtPlayer(6 * zDmgMul()); } if (Math.random() < .3) SND.zshot(clamp(.25 - dist / 60, .05, .25)); }
 }
 function gunslingerFire(z, dmg = 9, spread = 1.2, quiet = false) {
   z.armR.updateMatrixWorld(true);
@@ -357,7 +357,7 @@ function gunslingerFire(z, dmg = 9, spread = 1.2, quiet = false) {
   if (!hit && wall) burst(end, 0xffc070, 4, 2, .3);
   const dist = z.pos.distanceTo(player.pos);
   if (!quiet) SND.zshot(clamp(.7 - dist / 45, .12, .7));
-  if (hit) { if (liveWorld()) hurtPlayer(dmg * zDmgMul()); }
+  if (hit) { if (liveWorld()) { hurtFrom = z.pos; hurtPlayer(dmg * zDmgMul()); } }
   else if (t > 0 && miss < 2.5 && !quiet) SND.whiz();
   z.gunKick = .5;
 }
@@ -379,7 +379,7 @@ function updateZProjs(dt) {
     if (p.bolt) {
       pos.addScaledVector(p.v, dt); p.life -= dt;
       const tp = p.tgt ? p.tgt.pos : player.pos, hit = pos.distanceTo(new V3(tp.x, (tp.y || 0) + 1.1, tp.z)) < .8;
-      if (hit) { if (p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, Math.round(p.dmg), 'Számszeríjas'], 16); else if (liveWorld()) hurtPlayer(p.dmg); }
+      if (hit) { if (p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, Math.round(p.dmg), 'Számszeríjas'], 16); else if (liveWorld()) { hurtFrom = pos.clone().addScaledVector(p.v, -1); hurtPlayer(p.dmg); } }
       if (hit || p.life <= 0) { burst(pos, 0xd8c49a, 5, 2, .3); scene.remove(p.m); zProjs.splice(i, 1); }
       continue;
     }
@@ -387,7 +387,7 @@ function updateZProjs(dt) {
     if (Math.random() < dt * 20) burst(pos, 0x9dff3a, 1, .5, .3);
     const tp = p.tgt ? p.tgt.pos : player.pos, direct = !p.remote && pos.distanceTo(new V3(tp.x, (tp.y || 0) + 1, tp.z)) < .7;
     if (pos.y <= .05 || direct) {
-      if (direct && p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, Math.round(15 * zDmgMul()), 'Köpködő'], 16); else if (direct && liveWorld()) hurtPlayer(15 * zDmgMul()); // the one it was aimed at takes the hit
+      if (direct && p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, Math.round(15 * zDmgMul()), 'Köpködő'], 16); else if (direct && liveWorld()) { hurtFrom = pos.clone().addScaledVector(p.v, -.5); hurtPlayer(15 * zDmgMul()); } // the one it was aimed at takes the hit
       const pm = new THREE.Mesh(puddleGeo, new THREE.MeshBasicMaterial({ color: 0x7fe02a, transparent: true, opacity: .55, depthWrite: false }));
       pm.position.set(pos.x, .03, pos.z); scene.add(pm);
       puddles.push({ m: pm, t: 5 });
@@ -631,7 +631,7 @@ function updateBoss(z, dt, dist, toPlayer) {
         z.bossState = null; z.bossT = rand(1.5, 2.5); z.armR.rotation.x = -.3;
         SND.slam(); player.shake = Math.max(player.shake, .5);
         burst(new V3(z.pos.x + Math.sin(z.heading) * 2, .2, z.pos.z + Math.cos(z.heading) * 2), 0x3a3020, 30, 5, .8);
-        if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 3.6 && liveWorld()) hurtPlayer(45 * zDmgMul());
+        if (Math.hypot(player.pos.x - z.pos.x, player.pos.z - z.pos.z) < 3.6 && liveWorld()) { hurtFrom = z.pos; hurtPlayer(45 * zDmgMul()); }
       }
     }
     z.g.position.set(z.pos.x, 0, z.pos.z);

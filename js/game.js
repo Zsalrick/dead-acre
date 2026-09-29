@@ -391,7 +391,7 @@ function leaveTest(M) {
 }
 function hurtAt(pos, r, d) {
   const me = NET.selfPos && player.pos !== NET.selfPos ? NET.selfPos : player.pos, zt = zTarget; zTarget = null;
-  if (Math.hypot(me.x - pos.x, me.z - pos.z) < r) { const P0 = player.pos; player.pos = me; hurtPlayer(d, true); player.pos = P0; }
+  if (Math.hypot(me.x - pos.x, me.z - pos.z) < r) { const P0 = player.pos; player.pos = me; hurtFrom = pos; hurtPlayer(d, true); player.pos = P0; }
   zTarget = zt;
   if (NET.mode === 'host') for (const [peer, a] of NET.avatars) if (!a.down && Math.hypot(a.pos.x - pos.x, a.pos.z - pos.z) < r) pushRoll(NET.dmgs, [++NET.seq, peer, Math.round(d * 10) / 10], 16);
 }
@@ -402,7 +402,25 @@ function hitFx(d, absorbed) { // blood where your health was hit, a blue flash w
   if (absorbed > 0) flash($('shfx'), clamp(.55 + absorbed / Math.max(1, maxShield()) * 3, .55, 1));
   const b = $('bl'); b.classList.remove('hit'); void b.offsetWidth; b.classList.add('hit');
 }
+// ---------- where a hit came from (Far Cry style): an arc round the crosshair, pointing at the attacker; red for health, blue for shield ----------
+let hurtFrom = null; // set just before hurtPlayer by attacks that know their source; melee falls back to the nearest zombie
+const dmgDirs = [];
+function dmgDir(from, shield) {
+  if (dmgDirs.length > 6) dmgDirs.shift().el.remove();
+  const el = document.createElement('div'); el.className = 'dd' + (shield ? ' sh' : '');
+  el.innerHTML = '<svg viewBox="-200 -200 400 400"><path d="M-77.5 -145.7Q0 -196 77.5 -145.7Q0 -168 -77.5 -145.7Z"/></svg>'; // a crescent, thick in the middle, pointed at the ends
+  $('dmgdir').appendChild(el); dmgDirs.push({ el, from: from.clone(), t: 1.4 });
+}
+function updateDmgDirs(dt) { // every frame: turn with you, fade out
+  for (let i = dmgDirs.length - 1; i >= 0; i--) {
+    const D = dmgDirs[i]; D.t -= dt; if (D.t <= 0) { D.el.remove(); dmgDirs.splice(i, 1); continue; }
+    const dx = D.from.x - player.pos.x, dz = D.from.z - player.pos.z, y = player.yaw;
+    const side = dx * Math.cos(y) - dz * Math.sin(y), ahead = -dx * Math.sin(y) - dz * Math.cos(y); // into the view: right and forward
+    D.el.style.transform = `rotate(${Math.atan2(side, ahead)}rad)`; D.el.style.opacity = Math.min(1, D.t / .6);
+  }
+}
 function hurtPlayer(d, quiet) {
+  const from = hurtFrom; hurtFrom = null;
   if (netRedirectHurt(d)) return; // a host zombie hit another player
   if (!liveWorld() || (mission && mission.leaving) || player.down) return;
   if (player.ffyl > 0) { player.ffyl = Math.max(.05, player.ffyl - .4); return; } // hits on the ground eat into the clock
@@ -414,6 +432,8 @@ function hurtPlayer(d, quiet) {
   if (player.hp <= 0 && rk('s_wind') && !mission.wind) { mission.wind = true; player.hp = 1; banner('MÁSODIK SZÉL', 'Még nem most.'); }
   else if (player.hp <= 0 && rk('m_revive') && !mission.revived) { mission.revived = true; player.hp = maxHp() * .5; banner('FELTÁMADÁS', 'Az ég még nem vár.'); burst(player.pos.clone().setY(1), 0xf2d27a, 30, 4, 1); }
   if (!quiet) { player.shake = .25; hitFx(d, absorbed); if (d > 0) SND.hurt(); else SND.shieldHit(); }
+  { const src = from || (!quiet && zombies.reduce((b, z) => { if (z.dead) return b; const q = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z); return q < 4 && (!b || q < b.q) ? { q, pos: z.pos } : b; }, null)); // melee: whoever is closest
+    const p = src && (src.pos || src); if (p && (d > 0 || absorbed > 0)) dmgDir(p, d <= 0); }
   if (player.hp <= 0 && perk('second')) { player.perks.second = false; player.hp = maxHp() * .5; banner('MÁSODIK ESÉLY', 'Még egyszer.'); SND.power(); }
   if (player.hp <= 0) { player.hp = 0; player.downBy = hurtSrc || 'a horda'; killFeed(player.downBy, '#c9c1a8', '', '', 'Te', '#ff4a3a'); startFFYL(); } // on the ground: kill something before the clock runs out
 }
@@ -749,7 +769,7 @@ function buffIcons(w) {
   if (player.chillT > 0) add('❄', 'Lelassítva', '#8ff0ff', sec(player.chillT), 3);
   return L.join('');
 }
-function updateHUDFx(dt) { if (typeof updateRemoteAuras === 'function') updateRemoteAuras(dt); }
+function updateHUDFx(dt) { if (typeof updateRemoteAuras === 'function') updateRemoteAuras(dt); updateDmgDirs(dt); }
 function updateHUD() {
   if ((updateHUD.cw = (updateHUD.cw || 0) + 1) % 60 === 0) contractWatch();
   if (updateHUD.cw % 300 === 0 && profile.inMission && mission) { profile.inMission.alone = !NET.mode || NET.avatars.size === 0; markCarry(); } // were you the last one there?

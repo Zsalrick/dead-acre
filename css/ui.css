@@ -1057,3 +1057,10 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .pskill .khead h2,.pskill .kside h2{font-family:var(--fd);font-weight:800;font-size:36px;text-transform:none;line-height:1.05}
 .tpic:has(.tkey) .tbadge{right:auto;left:6px;top:auto;bottom:6px} /* a hand tile: the badge moves off the hand number */
 
+
+/* where a hit came from: arcs round the crosshair */
+#dmgdir{position:absolute;left:50%;top:50%;width:400px;height:400px;margin:-200px 0 0 -200px;pointer-events:none}
+#dmgdir .dd{position:absolute;inset:0}
+#dmgdir svg{width:100%;height:100%;overflow:visible}
+#dmgdir path{fill:#ff3a2a;filter:drop-shadow(0 0 6px rgba(255,40,20,.8))}
+#dmgdir .dd.sh path{fill:#4ab4ff;filter:drop-shadow(0 0 6px rgba(60,160,255,.8))}
