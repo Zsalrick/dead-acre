@@ -3,8 +3,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=157">
-<link rel="stylesheet" href="css/ui.css?v=157">
+<link rel="stylesheet" href="css/legacy.css?v=158">
+<link rel="stylesheet" href="css/ui.css?v=158">
 
 <!-- boot screen: painted before any script, gone once every script is in -->
 <div id="boot" style="position:fixed;inset:0;z-index:9999;background:#0e0f0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s">
@@ -167,7 +167,7 @@ T.Material.prototype.dispose = function () {}; // ponytail: a material's shader 
 window.THREE = THREE;
 const hold = e => { e.stopImmediatePropagation(); e.preventDefault(); }, HOLD = ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']; // no input until every script is in
 HOLD.forEach(t => addEventListener(t, hold, true));
-const LIST =  ["js/icons.js?v=157", "js/data.js?v=157", "js/audio.js?v=157", "js/music.js?v=157", "js/world.js?v=157", "js/maps.js?v=157", "js/fx.js?v=157", "js/gfx.js?v=157", "js/player.js?v=157", "js/zombies.js?v=157", "js/loot.js?v=157", "js/upgrades.js?v=157", "js/gear.js?v=157", "js/vet.js?v=157", "js/inv.js?v=157", "js/save.js?v=157", "js/menu.js?v=157", "js/skills.js?v=157", "js/necro.js?v=157", "js/hub.js?v=157", "js/book.js?v=157", "js/game.js?v=157", "js/jobs.js?v=157", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=157", "js/net.js?v=157", "js/avatar.js?v=157"];
+const LIST =  ["js/icons.js?v=158", "js/data.js?v=158", "js/audio.js?v=158", "js/music.js?v=158", "js/world.js?v=158", "js/maps.js?v=158", "js/fx.js?v=158", "js/gfx.js?v=158", "js/player.js?v=158", "js/zombies.js?v=158", "js/loot.js?v=158", "js/upgrades.js?v=158", "js/gear.js?v=158", "js/vet.js?v=158", "js/inv.js?v=158", "js/save.js?v=158", "js/menu.js?v=158", "js/skills.js?v=158", "js/necro.js?v=158", "js/hub.js?v=158", "js/book.js?v=158", "js/game.js?v=158", "js/jobs.js?v=158", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=158", "js/net.js?v=158", "js/avatar.js?v=158"];
 const bar = p => { const f = document.getElementById('bootFill'); if (f) f.style.width = Math.round(15 + 85 * p) + '%'; };
 try {
   for (let i = 0; i < LIST.length; i++) { await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = LIST[i]; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); }); bar((i + 1) / LIST.length); }

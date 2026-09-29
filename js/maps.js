@@ -470,26 +470,69 @@ const MAPS = {
       south: { side: 's', at: 0, name: 'A kamionparkoló', cost: 750, core: { minX: -22, maxX: 22, minZ: 34, maxZ: 72 }, spawns: [[-20, 70], [20, 70]], station: ['tower', 14, 64] },
     },
   },
-  mill: {
-    name: 'Fűrésztelep', desc: 'Erdei fűrésztelep rönkökkel és fészerekkel, három megnyitható résszel.', minLevel: 5,
-    main: { minX: -34, maxX: 34, minZ: -34, maxZ: 34 }, look: { tex: 'dirt', ground: 0xa8946c, fog: 0x0a0e10, fogD: [.026, .036], fence: 0xffffff },
-    vans: [[-20, 28], [22, 27], [-24, -16]], ammo: [8, 14], boxSpots: [[16, 4], [-14, -6], [24, -6], [-22, 16]],
-    spawns: [[-31, 0], [31, 0], [0, -31], [0, 31], [-31, -31], [31, 31], [31, -31], [-31, 31]],
-    lamps: [[-8, 0], [10, -2], [-20, 12], [18, 20]],
-    clear: [[0, -14, 10], [-20, -20, 4], [22, 18, 4], [18, -24, 4]],
-    props: [['logs', 4], ['stack', 2], ['crate', 2], ['barrel', 1.5], ['boom', 1.5]], propN: [18, 24],
+  mill: { // core + three wings: the log yard with the saw shed and the engine house; the lake shore, the logging camp and the drying yard open it up
+    name: 'Fűrésztelep', desc: 'Erdei fűrésztelep: fűrészcsarnok, gépház magas kéménnyel, fűrészporégető. Korláton túl nyitható: a tópart, az erdei tábor és a szárítóudvar.', minLevel: 5,
+    noScale: true, innerFence: 'rail',
+    main: { minX: -48, maxX: 48, minZ: -8, maxZ: 38 }, look: { tex: 'dirt', ground: 0xa8946c, fog: 0x0a0e10, fogD: [.024, .034], fence: 0xffffff },
+    vans: [[-42, 32], [42, 32]], ammo: [-4, 34], boxSpots: [[8, 32], [-36, 4], [36, 30], [-40, 20]],
+    spawns: [[-46, 30], [46, 28], [-30, -6], [30, -6]],
+    lamps: [[-6, 20], [6, 20], [-34, 30], [30, 26], [-40, 0], [40, 2]],
+    clear: [[-18, 12, 12], [14, 2, 7], [34, 14, 7], [0, 24, 6], [-38, 28, 4], [-12, 31, 4], [24, 31, 4]],
+    props: [['logs', 3], ['stack', 2], ['crate', 1.5], ['barrel', 1.5], ['boom', 1]], propN: [10, 14],
+    power: { turret: [0, 24], gens: [[-88, 20], [88, -4], [20, -48], [-46, -2]], boxes: [[-30, 36], [30, 36], [-46, 12], [46, 12], [-4, -6], [-70, -4], [70, 20], [-20, -30], [20, -20], [-86, 6]] },
+    quest: { radio: [12, 4], drop: [0, -2], parts: [[-80, 18], [-56, -7], [-20, -46], [22, -40], [60, 20], [86, 0], [-44, 14], [44, 34]],
+      txt: { names: ['SZELEP', 'NYOMÁSMÉRŐ', 'SÍPFEJ'], part: 'gőzgépalkatrész', broken: 'Hideg gőzgép', use: 'Gőzsíp megfújása', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Fújd meg a gőzsípot a gépházban.'],
+        call: ['A GŐZSÍP VÉGIGSIVÍT AZ ERDŐN…', 'Egy különleges csapat tart feléd. Öld meg mindet!'], done: 'A GŐZSÍP ELHALLGATOTT', where: 'a gépházban' } },
     build() {
-      shed(0, -14, 16, 10, 5);
-      addBox(0, -14, 6, 1.4, 1, matStd({ color: 0x4a4a4e }));
-      const blade = put(new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, .06, 24), matStd({ color: 0xb8bcc0, metalness: .8, roughness: .3 })));
-      blade.rotation.x = Math.PI / 2; blade.position.set(0, 1.4, -14);
-      logPile(-20, -20); logPile(22, 18);
-      house(18, -24, 6, 5, 3.4, matStd({ map: plankTex }), 0x3a2a20, 'n');
+      const plank = matStd({ map: plankTex, color: 0x9a8062 }), wood = matStd({ map: woodTex, color: 0x6a5038 }), dark = matStd({ color: 0x1a1a1c }), brick = matStd({ color: 0x7a4a36 });
+      const rust = matStd({ color: 0x6a3a24, roughness: .9 }), steel = matStd({ color: 0xb8bcc0, metalness: .8, roughness: .3 }), logM = matStd({ color: 0x5a4028 }), cut = matStd({ color: 0xc8a878 });
+      // the saw shed: open at both ends and to the yard; the head saw, the log carriage on its rails, sawdust
+      hollow(-18, 12, 22, 12, 6, plank, { s: [[0, 8]], n: [[4, 5]], e: [[0, 5]], w: [[0, 4]] }, 0x3a3530);
+      addBox(-18, 12, 3, 1.6, 1, dark); const blade = put(new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, .06, 32), steel)); blade.rotation.x = Math.PI / 2; blade.position.set(-18, 1.6, 12);
+      for (const z of [10.6, 13.4]) addBox(-18, z, 20, .12, .1, steel, .05, false);
+      addBox(-24, 12, 3, 2.4, .5, wood, .2); const log = put(new THREE.Mesh(new THREE.CylinderGeometry(.55, .6, 6, 12), logM)); log.rotation.z = Math.PI / 2; log.position.set(-24, 1.2, 12); rayBlockers.push(log);
+      addBox(-18, 12, 20, 11, .03, matStd({ color: 0xc8b088 }), 0, false); // sawdust on the floor
+      for (let k = 0; k < 5; k++) addBox(-11, 8 + k * 1.1, 4.6, .9, .25 + (k % 2) * .25, cut, 0); // fresh boards stacked
+      pointLight(0xffb060, 1.2, 14, -18, 5, 12);
+      // the engine house: brick, a boiler inside, a tall chimney (the whistle's up on it)
+      hollow(14, 2, 9, 8, 5, brick, { s: [[-1.5, 2]], w: [[0, 2]] }, 0x2a2a2e);
+      const boiler = put(new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 5, 16), matStd({ color: 0x2a2c30, metalness: .5 }))); boiler.rotation.z = Math.PI / 2; boiler.position.set(15, 1.4, 1); rayBlockers.push(boiler);
+      obstacles.push({ minX: 12.3, maxX: 17.7, minZ: -.4, maxZ: 2.4, h: 2.7 }); glowSprite(0xff6a1a, .7, new V3(12.4, .8, 2.3)); addBox(12.4, 2.3, .8, .1, .6, basic(0xff6a1a), .5, false); // the firebox, still warm
+      cylinderSolid(19, -1, .8, 18, brick); addBox(19, -1, 1.9, 1.9, .5, brick, 17.8, false); addBox(19, -1, .25, .25, 1.2, brassMat, 18.3, false);
+      // the wigwam burner: a rusty cone that ate the sawdust, glowing at the top
+      cylinderSolid(34, 14, 4.2, 1, rust); put(new THREE.Mesh(new THREE.ConeGeometry(4.6, 11, 16, 1, true), matStd({ color: 0x5a3020, roughness: .9, side: THREE.DoubleSide }))).position.set(34, 6.5, 14);
+      put(new THREE.Mesh(new THREE.SphereGeometry(.9, 12, 8), basic(0xff7a2a))).position.set(34, 11.4, 14); glowSprite(0xff7a2a, 4, new V3(34, 11.6, 14)); pointLight(0xff6a1a, 1.4, 20, 34, 3, 14);
+      addBox(28, 14, 6, .8, .8, rust, 3.4, false).rotation.z = -.4; // the feed chute
+      // log decks, a log truck
+      logPile(-38, 28); logPile(-12, 31); logPile(24, 31, 12);
+      addBox(-30, 36, 3, 2.4, 1.8, matStd({ color: 0x3a5a2a }), .6); addBox(-24, 36, 9, 2.4, .4, dark, .9); for (let k = 0; k < 6; k++) { const l = put(new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 8.6, 10), logM)); l.rotation.z = Math.PI / 2; l.position.set(-24, 1.6 + Math.floor(k / 3) * .6, 35.3 + (k % 3) * .7); }
+      obstacles.push({ minX: -31.5, maxX: -19.5, minZ: 34.8, maxZ: 37.2, h: 2.8 });
+      // --- north wing, A tópart: a still pond, the boathouse, a pier, reeds; a canoe
+      const water = put(new THREE.Mesh(new THREE.CircleGeometry(1, 40), matStd({ color: 0x0e1a20, roughness: .08, metalness: .6 }))); water.rotation.x = -Math.PI / 2; water.scale.set(13, 8, 1); water.position.set(-2, .03, -36);
+      obstacles.push({ minX: -13, maxX: 9, minZ: -42, maxZ: -30, h: 1.2 }); // you don't swim here
+      for (let k = 0; k < 40; k++) { const a = rand(0, 6.28), x = -2 + Math.cos(a) * 13.3 * rand(.95, 1.08), z = -36 + Math.sin(a) * 8.3 * rand(.95, 1.08); if (Math.abs(x) < 3 && z > -30) continue; deco(unitBox, matStd({ color: 0x4a5a2a }), x, .6, z, .05, 1.2 + rand(0, .6), .05).rotation.set(rand(-.2, .2), 0, rand(-.2, .2)); }
+      addBox(-2, -28.5, 2.2, 6, .2, wood, .35, false); for (const [a, b] of [[-1, -31], [1, -31], [-1, -26.5], [1, -26.5]]) addBox(-2 + a, b, .2, .2, .5, wood, 0, false); // the pier
+      hollow(18, -38, 9, 11, 4, plank, { w: [[0, 3]], s: [[2, 2]] }, 0x2a2a2e); const canoe = put(new THREE.Mesh(new THREE.CapsuleGeometry(.45, 3.6, 4, 8), matStd({ color: 0x8a2a1c }))); canoe.rotation.x = Math.PI / 2; canoe.scale.set(1, 1, .5); canoe.position.set(18, .5, -38);
+      const tree = (x, z) => { pine(x, z); obstacles.push({ minX: x - .45, maxX: x + .45, minZ: z - .45, maxZ: z + .45, h: 4 }); };
+      for (const [x, z] of [[-22, -14], [22, -14], [-22, -50], [8, -50], [-10, -50], [-24, -32], [-20, -40], [14, -24], [24, -28], [4, -16], [-8, -18], [24, -50], [12, -46]]) tree(x + rand(-.8, .8), z + rand(-.8, .8));
+      // --- west wing, Az erdei tábor: the bunkhouse you can walk into, tents round the campfire, the cook's table
+      const logWall = matStd({ map: woodTex, color: 0x5a4028 });
+      hollow(-80, 14, 12, 7, 3.6, logWall, { e: [[0, 2]] }, 0x2a2420); for (const z of [11.6, 16.4]) for (const x of [-84, -80, -76]) { addBox(x, z, 2, .9, .15, wood, .5, false); addBox(x, z, 2, .9, .15, wood, 1.6, false); }
+      const tent = (x, z, col, r) => { const g = put(new THREE.Group()); g.position.set(x, 0, z); g.rotation.y = r; for (const s of [-1, 1]) deco(unitBox, matStd({ color: col, side: THREE.DoubleSide }), s * .9, 1, 0, .06, 2.4, 3.2, g).rotation.z = s * .72; obstacles.push({ minX: x - 1.6, maxX: x + 1.6, minZ: z - 1.6, maxZ: z + 1.6, h: 1.8 }); };
+      [[-66, 0, 0x5a6a3a, .3], [-58, 6, 0x6a5a3a, 1.2], [-70, 8, 0x3a4a5a, -.4], [-60, -4, 0x6a4a3a, 2]].forEach(a => tent(...a));
+      for (let k = 0; k < 8; k++) { const q = k / 8 * 6.28; deco(unitBox, stoneMat, -64 + Math.cos(q) * .9, .15, 3 + Math.sin(q) * .9, .35, .3, .35); }
+      glowSprite(0xff8a2a, 2.4, new V3(-64, .8, 3)); pointLight(0xff7a2a, 1.6, 14, -64, 1.4, 3); addBox(-64, 3, 1, 1, .5, matStd({ color: 0x2a1a0e }), 0, false);
+      addBox(-54, 18, 3, 1.2, .9, wood); for (const [x, z] of [[-86, -4], [-74, -4], [-88, 6], [-52, 22], [-68, 20], [-90, 14], [-58, 14], [-78, 22], [-50, -6]]) tree(x, z);
+      // --- east wing, A szárítóudvar: sticker stacks drying in rows, the kiln, a forklift
+      for (const [z, gaps] of [[-2, [1, 4]], [8, [0, 3]], [18, [2, 5]]]) for (let k = 0; k < 6; k++) if (!gaps.includes(k)) { const x = 58 + k * 4.2, n = 3 + (k + z) % 3;
+        for (let l = 0; l < n; l++) addBox(x, z, 3.8, 2, .32, cut, l * .42, false); addBox(x, z, 3.9, 2.1, .06, dark, n * .42, false); obstacles.push({ minX: x - 1.9, maxX: x + 1.9, minZ: z - 1, maxZ: z + 1, h: n * .42 }); }
+      hollow(84, 8, 8, 14, 5, brick, { w: [[-3, 2.4]] }, 0x2a2a2e); glowSprite(0xff5a1a, 2, new V3(84, 1, 8)); label(['SZÁRÍTÓ'], '#e8c890', 1.4, 79.8, 5.2, 8);
+      addBox(66, 22, 1.4, 2.4, 1.6, matStd({ color: 0xc8a020 })); addBox(66, 20.6, 1.2, .1, 2.6, dark, 0, false); // a forklift, forks up
     },
     areas: {
-      south: { side: 's', at: 0, name: 'Tópart', cost: 750, core: { minX: -14, maxX: 14, minZ: 34, maxZ: 56 }, spawns: [[-10, 53], [10, 53]], station: ['well', 0, 45] },
-      north: { side: 'n', at: 0, name: 'Erdei tábor', cost: 1250, core: { minX: -14, maxX: 14, minZ: -56, maxZ: -34 }, spawns: [[-10, -53], [10, -53]], station: ['tower', 5, -38] },
-      west:  { side: 'w', at: 0, name: 'Hordóraktár', cost: 1000, core: { minX: -56, maxX: -34, minZ: -12, maxZ: 12 }, spawns: [[-53, -9], [-53, 9]], station: ['trap', -37, 7] },
+      north: { side: 'n', at: 0, name: 'A tópart', cost: 750, core: { minX: -26, maxX: 26, minZ: -52, maxZ: -8 }, spawns: [[-24, -50], [24, -50]], station: ['well', -16, -22] },
+      west: { side: 'w', at: 8, name: 'Az erdei tábor', cost: 1000, core: { minX: -92, maxX: -48, minZ: -8, maxZ: 24 }, spawns: [[-90, -6], [-90, 22]], station: ['forge', -72, -2] },
+      east: { side: 'e', at: 8, name: 'A szárítóudvar', cost: 1250, core: { minX: 48, maxX: 92, minZ: -8, maxZ: 24 }, spawns: [[90, -6], [90, 22]], station: ['trap', 54, 14] },
     },
   },
   town: {
