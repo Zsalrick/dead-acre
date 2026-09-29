@@ -610,82 +610,70 @@ const MAPS = {
       south: { side: 's', at: 0, name: 'A csizmadomb', cost: 750, core: { minX: -24, maxX: 24, minZ: 26, maxZ: 66 }, spawns: [[-22, 64], [22, 38]], station: ['well', -12, 40] },
     },
   },
-  quarry: {
-    name: 'Kőbánya', desc: 'Nyitott kőfejtő: sziklafal körben, nagy üres gödör, messzire látni. A peremről jönnek.', minLevel: 7,
-    main: { minX: -42, maxX: 42, minZ: -38, maxZ: 38 }, look: { tex: 'asphalt', ground: 0xa89c88, fog: 0x11151b, fogD: [.014, .02], fence: 0x9a9488 },
-    vans: [[-30, -22], [30, -24], [-34, 27], [31, 28]], ammo: [4, 10], boxSpots: [[12, -6], [-16, 6], [28, -4], [-6, 22], [-28, -8], [2, -24]],
-    spawns: [[-36, -34], [0, -35], [36, -34], [-39, -9], [-39, 13], [39, -11], [39, 22], [-22, 35], [22, 35]],
-    lamps: [[-20, 20], [22, 20]],
-    clear: [[-26, 16, 5], [28, 16, 4], [8, 20, 5], [24, -14, 3], [-4, 4, 6], [-12, -21, 3], [-9, -16, 3], [14, 4, 4], [-18, -6, 4]],
-    props: [['boom', 2.5], ['barrel', 2], ['crate', 1.5], ['stack', 1], ['logs', .5], ['car', .6]], propN: [14, 20],
+  quarry: { // core + three wings: the pit floor with the crusher plant and the haul truck; the rock face, the machine shop and the explosives store open it up
+    name: 'Kőbánya', desc: 'Nyitott kőfejtő: a gödör alján zúzómű, szállítószalag, óriás dömper. Drótkerítésen túl nyitható: a fejtőfal, a gépműhely és a robbanóanyag-raktár.', minLevel: 7,
+    noScale: true, innerFence: 'chain',
+    main: { minX: -50, maxX: 50, minZ: -10, maxZ: 36 }, look: { tex: 'asphalt', ground: 0xa89c88, fog: 0x11151b, fogD: [.014, .02], fence: 0x9a9488 },
+    vans: [[-44, -4], [44, -4]], ammo: [4, 30], boxSpots: [[14, 6], [-36, 26], [34, 30], [-10, 32]],
+    spawns: [[-48, 34], [48, 34], [-30, -8], [30, -8]],
+    lamps: [],
+    clear: [[-20, 2, 10], [22, 20, 7], [0, 20, 6], [-34, 16, 5], [30, -2, 4], [8, -4, 4]],
+    props: [['boom', 2], ['barrel', 2], ['crate', 1.5], ['stack', 1], ['car', .5]], propN: [10, 14],
+    power: { turret: [0, 20], gens: [[-90, 32], [90, 10], [-20, -52], [46, 20]], boxes: [[-44, 30], [44, 30], [-24, 32], [26, 34], [-4, -8], [-70, 10], [70, 32], [-12, -30], [18, -44], [86, 30]] },
+    quest: { radio: [-6, 30], drop: [2, -1], fx: 'blast', parts: [[-86, 26], [-57, 18], [-18, -44], [20, -30], [62, 16], [88, 22], [-46, 8], [40, 8]],
+      txt: { names: ['GYUTACS', 'DINAMITKÖTEG', 'GYÚJTÓKÁBEL'], part: 'robbantóeszköz', broken: 'Üres robbantóláda', use: 'Robbantás indítása', all: ['MEGVAN MIND A HÁROM ESZKÖZ', 'Indítsd a robbantást a robbantóládánál, a gödör alján.'],
+        call: ['ROBBANTÁS!', 'A dörrenés felverte a bányát. Egy különleges csapat tart feléd!'], done: 'A BÁNYA ELCSENDESEDETT', where: 'a robbantóládánál' } },
     build() {
-      const rng = mulberry(91), M = this.main, cliff = matStd({ color: 0x77716a, flatShading: true });
-      // the rim: boulders along the fence, with openings for the gates, the van lanes and the spawn ramps
-      const k = M.maxZ / 38, open = { w: [0, -22, 27, -9, 13], e: [12, -24, 28, -11, 22], s: [0, -22, 22] }; // openings follow the map's scale
-      for (const sd in open) open[sd] = open[sd].map(v => v * k);
-      const edge = (side, from, to, at) => {
-        for (let t = from; t <= to; t += 3.5 + rng() * 1.5) {
-          if (open[side].some((o, i) => Math.abs(t - o) < (i ? 5.5 : 6.5) * k)) continue;
-          const r = 3 + rng() * 1.3, off = 1.2 + rng();
-          if (side === 'w') rock(M.minX - off, t, r, r * (.8 + rng() * .5), rng);
-          if (side === 'e') rock(M.maxX + off, t, r, r * (.8 + rng() * .5), rng);
-          if (side === 's') rock(t, M.maxZ + off, r, r * (.8 + rng() * .5), rng);
-        }
-      };
-      edge('w', -32 * k, 36 * k); edge('e', -32 * k, 36 * k); edge('s', -36 * k, 36 * k);
-      // the north face: two stepped cliffs with a ramp between them
-      [-1, 1].forEach(s => {
-        addBox(s * 15, -34.5, 22, 7, 8, cliff); addBox(s * 15, -29.5, 22, 3, 3.5, cliff);
-        for (let k = 0; k < 4; k++) rock(s * (6 + k * 5.5), -35 + rng() * 2, 2.5 + rng() * 2, 2 + rng() * 2, rng, false, 7);
-        rock(s * 5, -36.5, 1.6, 2.5, rng);
-      });
-      // the pit wall beyond the fence
-      for (let i = 0; i < 68; i++) {
-        const a = i / 34 * Math.PI * 2, r = (i < 34 ? 12 : 30) + rng() * 6, x = Math.sin(a) * (M.maxX + r), z = -Math.cos(a) * (M.maxZ + r);
-        if (Object.values(this.areas).some(A => x > A.core.minX - 6 && x < A.core.maxX + 6 && z > A.core.minZ - 6 && z < A.core.maxZ + 6)) continue;
-        rock(x, z, 7 + rng() * 5, 8 + rng() * 8, rng, false);
-      }
-      // conveyor from the hopper up onto the cliff
-      const belt = put(new THREE.Mesh(unitBox, matStd({ color: 0x2a2a2c }))), a = [-8, 1.3, -13], b = [-16, 8.4, -31];
-      const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz);
-      belt.scale.set(1.3, .3, L); belt.rotation.order = 'YXZ'; belt.rotation.set(-Math.asin(dy / L), Math.atan2(dx, dz), 0);
-      belt.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); belt.castShadow = true; rayBlockers.push(belt);
-      for (const t of [.25, .5, .75]) addBox(a[0] + dx * t, a[2] + dz * t, .3, .3, a[1] + dy * t, matStd({ color: 0x8a6a1a }));
-      addBox(-8, -12, 2.4, 2.4, 1.6, matStd({ color: 0x6a5a3a, metalness: .4, roughness: .6 }));
-      // tower crane
-      const yellow = matStd({ color: 0xc8a020, roughness: .7 });
-      addBox(24, -14, 3, 3, .8, matStd({ color: 0x6a6a66 })); addBox(24, -14, 1, 1, 18, yellow);
-      addBox(28, -14, 24, .8, .9, yellow, 17.6, false); addBox(19, -14, 2.4, 1.6, 1.6, matStd({ color: 0x4a4a4e }), 16.8, false);
-      addBox(25.5, -14, 1.6, 1.4, 1.4, yellow, 16.6, false);
-      addBox(35, -14, .06, .06, 11, basic(0x222222), 6.6, false); addBox(35, -14, 2.2, 1.4, 1.2, rockMats[0], 5.4, false);
-      put(new THREE.Mesh(new THREE.SphereGeometry(.2, 8, 6), basic(0xff3020))).position.set(40, 18.3, -14);
-      // site cabins (two stacked) and a haul truck
-      const cabin = (x, z, y, col, lit) => {
-        addBox(x, z, 8, 3, 2.8, matStd({ color: col }), y, !y);
-        addBox(x - 1.8, z + 1.52, 2.4, .05, .9, lit ? glassLit : glassDark, y + 1.3, false);
-        addBox(x + 2.2, z + 1.52, 1, .05, 2.1, doorMat, y, false);
-      };
-      cabin(-26, 16, 0, 0x3a5a7a, true); cabin(-26, 16, 2.8, 0xb8a040, false); cabin(28, 16, 0, 0x8a3a2a, true);
-      addBox(-26, 16, 8.3, 3.3, .15, roofMat, 5.6, false);
-      addBox(8, 20, 7.4, 3.4, 1.2, matStd({ color: 0x2a2a2a }), .9);
-      addBox(9.3, 20, 4.8, 3.6, 1.8, yellow, 2.1, false); addBox(5.2, 20, 1.8, 2.8, 1.8, yellow, 2.1, false);
-      addBox(4.3, 20, .06, 2.2, .9, glassDark, 2.8, false);
-      for (const [wx, wz] of [[5.6, 18.2], [5.6, 21.8], [10.6, 18.2], [10.6, 21.8]]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(1, 1, .8, 14), tireMat)); w.rotation.x = Math.PI / 2; w.position.set(wx, 1, wz); }
-      // rock piles and gravel mounds in the pit; a slurry puddle in the middle
-      for (const [cx, cz, n] of [[14, 4, 3], [-18, -6, 4], [-30, 34, 2]]) for (let k = 0; k < n; k++) rock(cx + (rng() - .5) * 3, cz + (rng() - .5) * 3, 1.2 + rng(), 1 + rng(), rng);
-      const gravel = matStd({ color: 0x8a8274, flatShading: true });
-      for (const [x, z, r] of [[-30, -28, 3.5], [16, 30, 3]]) { const m = put(new THREE.Mesh(new THREE.ConeGeometry(r, r * .7, 9), gravel)); m.position.set(x, r * .35, z); m.receiveShadow = true; rayBlockers.push(m); obstacles.push({ minX: x - r * .6, maxX: x + r * .6, minZ: z - r * .6, maxZ: z + r * .6, h: r * .5 }); }
-      const pond = put(new THREE.Mesh(new THREE.CircleGeometry(5, 24), matStd({ color: 0x1a242a, roughness: .12, metalness: .5 })));
-      pond.rotation.x = -Math.PI / 2; pond.scale.set(1.3, 1, 1); pond.position.set(-4, .03, 4);
-      [[-20, -24], [20, -26], [-30, 6], [30, 4], [0, 28]].forEach(([x, z]) => floodlight(x, z));
-      // in the areas: the machine shop shed and the control tower's hut
-      shed(-55, 6, 8, 6, 4); addBox(-55, 6, 3, 1.4, 1.1, matStd({ color: 0x3a3c40, metalness: .5 }));
-      addBox(50, 3, 5, 3, 3, matStd({ color: 0x5a5e62 })); label(['KŐBÁNYA KFT.'], '#d8d0b8', 2, 50, 4.4, 4.7);
+      const rng = mulberry(91), yellow = matStd({ color: 0xc8a020, roughness: .7 }), dark = matStd({ color: 0x2a2a2c }), grey = matStd({ color: 0x5a5e62 }), cliff = matStd({ color: 0x77716a, flatShading: true });
+      const concrete = matStd({ color: 0x8a8a84, roughness: 1 }), gravel = matStd({ color: 0x8a8274, flatShading: true });
+      // the crusher plant on its steel legs, a hopper, the conveyor climbing out of the pit to the north
+      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBox(-20 + a * 3.4, 2 + b * 2.6, .4, .4, 6, steelMat);
+      addBox(-20, 2, 8, 6, 4, grey, 6, false); addBox(-20, 2, 8.4, 6.4, .3, dark, 10, false); addBox(-20, 2, 3.6, 3, 2.4, matStd({ color: 0x6a5a3a, metalness: .4 }), 1.2); // the crusher under its house
+      put(new THREE.Mesh(new THREE.CylinderGeometry(2.6, 1, 3, 4, 1, true), matStd({ color: 0x4a4a4e, side: THREE.DoubleSide }))).position.set(-20, 11.6, 2); label(['ZÚZÓMŰ'], '#ffd23f', 1.6, -20, 13.8, 5);
+      const belt = put(new THREE.Mesh(unitBox, dark)), a = [-20, 6.2, -1], b = [-20, 16, -40], dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz);
+      belt.scale.set(1.4, .3, L); belt.rotation.order = 'YXZ'; belt.rotation.set(-Math.asin(dy / L), Math.atan2(dx, dz), 0); belt.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); belt.castShadow = true;
+      addBox(-20, -42, 3, 3, 16.4, grey); addBox(-20, -42, 3.6, 3.6, .3, dark, 16.4, false); // the loading tower the belt ends at
+      for (const t of [.12, .35, .6, .85]) { const z = a[2] + dz * t; addBox(-20, z, .35, .35, a[1] + dy * t, yellow, 0, z > -9); }
+      for (const [x, z, r] of [[-34, 16, 3.6], [-8, 6, 2.8], [30, -2, 3]]) { const m = put(new THREE.Mesh(new THREE.ConeGeometry(r, r * .75, 9), gravel)); m.position.set(x, r * .37, z); m.receiveShadow = true; rayBlockers.push(m); obstacles.push({ minX: x - r * .6, maxX: x + r * .6, minZ: z - r * .6, maxZ: z + r * .6, h: r * .55 }); }
+      // the haul truck: a dumper taller than a house, bed raised
+      { const g = put(new THREE.Group()); g.position.set(22, 0, 20); g.rotation.y = -.3; const hb = (w, h, d, m, x, y, z, rx = 0) => { const e = new THREE.Mesh(unitBox, m); e.scale.set(w, h, d); e.position.set(x, y, z); e.rotation.x = rx; e.castShadow = true; g.add(e); };
+        hb(5, 1.4, 9, dark, 0, 2.1, 0); hb(5.4, 2.6, 6.4, yellow, 0, 4.4, 1.4, -.35); hb(3, 2, 2.4, yellow, -1, 3.8, -3.6); hb(2.6, 1, .1, glassDark, -1, 4.3, -4.82); hb(5, .3, 1.2, yellow, 0, 2.9, -4.6);
+        for (const [x, z] of [[-2.6, -3], [2.6, -3], [-2.6, 2.6], [2.6, 2.6]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1.2, 16), matStd({ color: 0x141414 })); w.rotation.z = Math.PI / 2; w.position.set(x, 1.6, z); g.add(w); }
+        obstacles.push({ minX: 18.5, maxX: 25.5, minZ: 14.5, maxZ: 25.5, h: 5 }); }
+      // site cabins (the lower one you can walk into), floodlights, the detonator box (the map's challenge)
+      hollow(-36, 30, 8, 3.4, 2.8, matStd({ color: 0x3a5a7a }), { n: [[1.5, 1.2]] }, 0x2a2a2e); addBox(-36, 30, 8.4, 3.6, 2.6, matStd({ color: 0xb8a040 }), 3.2, false); addBox(-38, 28.27, 2.4, .06, .9, glassLit, 1.3, false);
+      addBox(-37.5, 30.6, 2, .8, .8, matStd({ color: 0x6a5038 }));
+      [[-44, 12], [44, 12], [-6, -6], [10, 34]].forEach(([x, z]) => floodlight(x, z));
+      addBox(-6, 31, 1, .7, .7, matStd({ color: 0x8a2a1c })); addBox(-6, 31, .08, .08, .7, steelMat, .7, false); addBox(-6, 31, .5, .08, .08, steelMat, 1.4, false); // the plunger box, no plunger
+      for (let k = 0; k < 3; k++) addBox(-2 + k * 1.1, 32.5, .9, .6, .5, matStd({ color: 0x9a6a3a }), 0);
+      // concrete block walls for cover, a site toilet, a water bowser
+      for (const [x, z, n, al] of [[8, 4, 4, true], [-4, 12, 3, false], [34, 10, 3, false], [-34, 4, 4, true], [12, 28, 3, true]]) for (let k = 0; k < n; k++) for (let l = 0; l < 2; l++) if (l === 0 || k % 2 === 0) addBox(al ? x + k * 1.7 : x, al ? z : z + k * 1.7, al ? 1.6 : .8, al ? .8 : 1.6, .8, concrete, l * .8, l === 0);
+      addBox(-44, 20, 1.2, 1.2, 2.3, matStd({ color: 0x2a6a3a })); addBox(-43.39, 20, .04, .7, 1.8, doorMat, 0, false);
+      { const t = put(new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 5, 14), matStd({ color: 0xb8bcc0, metalness: .4 }))); t.rotation.z = Math.PI / 2; t.position.set(-24, 2, 22); rayBlockers.push(t); addBox(-28, 22, 2.4, 2.4, 2.6, yellow); addBox(-24, 22, 5.4, 2, .6, dark, .4, false); obstacles.push({ minX: -29.2, maxX: -21.4, minZ: 20.8, maxZ: 23.2, h: 3 }); }
+      // the rim beyond the fence: boulders along the south and the far sides
+      for (let x = -48; x <= 48; x += 5 + rng() * 2) if (Math.abs(x) > 6) rock(x, 40 + rng() * 2, 2.4 + rng(), 2 + rng() * 2, rng, false);
+      // --- north wing, A fejtőfal: the rock face in steps, a drill rig, blasted rock, the water pump
+      for (let x = -22; x <= 22; x += 4.4) { const h = 10 + rng() * 5; addBox(x, -53, 4.6, 6, h, cliff); addBox(x, -48.5, 4.6, 3, h * .45, cliff); }
+      for (let k = 0; k < 14; k++) rock(-20 + rng() * 40, -44 + rng() * 26, 1 + rng() * 1.3, .8 + rng(), rng);
+      addBox(8, -36, 3, 5, 1.4, yellow, .6); addBox(8, -37.5, .5, .5, 10, grey, 1.8, false); addBox(8, -35.4, 2.2, 2, 1.8, dark, 2, false); obstacles.push({ minX: 6.5, maxX: 9.5, minZ: -38.5, maxZ: -33.5, h: 3 });
+      for (const [x, z] of [[-10, -24], [-6, -30], [4, -46]]) { addBox(x, z, 1, .6, .6, matStd({ color: 0x9a6a3a })); label(['TNT'], '#ff5a3a', .6, x, 1, z); }
+      // --- west wing, A gépműhely: the workshop with a dozer inside, fuel tanks, an excavator reaching over the fence
+      hollow(-76, 18, 16, 10, 6, matStd({ color: 0x6a7278, metalness: .3 }), { e: [[0, 5]], n: [[3, 2]] }, 0x2a2a2e);
+      addBox(-78, 18, 5, 3, 1.8, yellow, .4); addBox(-80.8, 18, .6, 3.4, 1.4, steelMat, .2, false); addBox(-77, 18, 2, 2.4, 1.6, dark, 2.2, false); // the dozer
+      for (const z of [10, 13.5]) { const t = put(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 5, 14), matStd({ color: 0xb8bcc0, metalness: .4 }))); t.rotation.z = Math.PI / 2; t.position.set(-62, 1.4, z); rayBlockers.push(t); }
+      obstacles.push({ minX: -64.6, maxX: -59.4, minZ: 8.6, maxZ: 14.9, h: 2.6 });
+      addBox(-86, 30, 4, 3, 1.4, dark, .4); addBox(-86, 30, 3.2, 2.8, 2, yellow, 1.8, false); { const arm = put(new THREE.Mesh(unitBox, yellow)); arm.scale.set(.6, .6, 7); arm.position.set(-86, 5, 26); arm.rotation.x = -.55; const s2 = put(new THREE.Mesh(unitBox, yellow)); s2.scale.set(.5, .5, 4); s2.position.set(-86, 5.2, 21.4); s2.rotation.x = .7; }
+      for (let k = 0; k < 5; k++) { const t = put(new THREE.Mesh(new THREE.TorusGeometry(.9, .35, 6, 14), matStd({ color: 0x141414 }))); t.rotation.x = Math.PI / 2; t.position.set(-56, .35 + k * .7, 32); } obstacles.push({ minX: -57.3, maxX: -54.7, minZ: 30.7, maxZ: 33.3, h: 3.5 });
+      // --- east wing, A robbanóanyag-raktár: an earth-banked bunker you walk into, magazine sheds, warning boards
+      hollow(78, 24, 12, 8, 3.4, concrete, { w: [[0, 1.8]] }, 0x3a3a34); for (const s of [-1, 1]) { const bank = put(new THREE.Mesh(unitBox, gravel)); bank.scale.set(13, 2.6, 3); bank.position.set(78, 1, 24 + s * 5.4); bank.rotation.x = s * .5; }
+      for (let k = 0; k < 4; k++) addBox(80 + (k % 2) * 2.4, 22 + Math.floor(k / 2) * 3, 1.6, 1, .9, matStd({ color: 0x9a6a3a }), 0);
+      for (const [x, z] of [[62, 12], [70, 12], [86, 12]]) { addBox(x, z, 4, 3, 2.6, matStd({ color: 0x6a5a4a })); addBox(x, z + 1.52, 1, .06, 2, doorMat, 0, false); addBox(x, z + 1.54, 3, .02, .4, tapeMat, 2.2, false); }
+      for (const [x, z] of [[56, 20], [66, 32]]) { addBox(x, z, .15, .15, 2, steelMat); addBox(x, z, 1.8, .1, 1.2, matStd({ map: hazardTex }), 1.6, false); label(['VESZÉLY', 'ROBBANÓANYAG'], '#ffd23f', .8, x, 3.3, z); }
     },
     areas: {
-      west:  { side: 'w', at: 0, name: 'Gépműhely', cost: 1000, core: { minX: -64, maxX: -42, minZ: -12, maxZ: 12 }, spawns: [[-61, -9], [-61, 9]], station: ['forge', -54, -4] },
-      east:  { side: 'e', at: 12, name: 'Irányítótorony', cost: 1250, core: { minX: 42, maxX: 64, minZ: 0, maxZ: 24 }, spawns: [[61, 3], [61, 21]], station: ['tower', 46, 19] },
-      south: { side: 's', at: 0, name: 'Zagytó', cost: 750, core: { minX: -12, maxX: 12, minZ: 38, maxZ: 60 }, spawns: [[-9, 57], [9, 57]], station: ['well', 0, 48] },
+      north: { side: 'n', at: 0, name: 'A fejtőfal', cost: 750, core: { minX: -24, maxX: 24, minZ: -56, maxZ: -10 }, spawns: [[-18, -46], [18, -46]], station: ['well', 14, -20] },
+      west: { side: 'w', at: 22, name: 'A gépműhely', cost: 1000, core: { minX: -94, maxX: -50, minZ: 6, maxZ: 36 }, spawns: [[-92, 8], [-92, 34]], station: ['forge', -64, 30] },
+      east: { side: 'e', at: 22, name: 'A robbanóanyag-raktár', cost: 1250, core: { minX: 50, maxX: 94, minZ: 6, maxZ: 36 }, spawns: [[92, 8], [92, 34]], station: ['tower', 60, 28] },
     },
   },
   fair: {
@@ -1542,6 +1530,7 @@ function questRadio() {
   QST.stage = 1; const d = (mission && mission.job.diff) || 1, S = activeSpawns().slice().sort((a, b) => Math.hypot(b[0] - QST.radio.pos.x, b[1] - QST.radio.pos.z) - Math.hypot(a[0] - QST.radio.pos.x, a[1] - QST.radio.pos.z));
   for (let k = 0; k < 5 + 2 * d; k++) { const [sx, sz] = S[k % Math.min(3, S.length)], z = spawnZombieAt(pick(['brute', 'runner', 'walker', 'leaper']), sx + rand(-2, 2), sz + rand(-2, 2)); setZTier(z, 2); QST.wave.push(z); }
   banner(...qt().call); SND.roar();
+  if (MAP.quest.fx === 'blast') for (let k = 0; k < 5; k++) setTimeout(() => { fxExplosion(new V3(-20 + k * 10, 6, -50), 0xff8a30, 6); SND.explode(); }, k * 260); // the rock face goes up
 }
 function updateQuest() { // host / solo: the answer beaten -> the reward on the porch
   if (QST.stage !== 1 || NET.client || QST.wave.some(z => !z.dead)) return;
