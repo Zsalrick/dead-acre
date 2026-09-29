@@ -434,6 +434,7 @@ function doQuit() { // giving up needs a second click; it counts as a failed job
   $('pause').hidden = true; finishJob(false, true);
 }
 $('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
+  if (a === 'tab-inv' || a === 'tab-char') { pinvTab = a.slice(4); document.querySelectorAll('.pinvtabs button').forEach(x => x.classList.toggle('on', x.dataset.pm === a)); renderPauseInv(); return; }
   if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'help') renderPauseMenu(true); else if (a === 'quit') doQuit(); });
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
@@ -448,7 +449,17 @@ function ammoRows() { // reserve rounds by family, over the guns in hand and in 
   const by = {}; for (const w of [...player.slots, ...player.bag]) if (w) { const k = CAT[w.base.id], e = by[k] || (by[k] = { n: 0, max: 0, guns: [] }); e.n += w.reserve; e.max += resMax(w); e.guns.push(w.base.name); }
   return Object.entries(by).map(([k, e]) => `<div class="amr" style="--ac:${AMMO_COL[k]}"><div><b>${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}</b><span>${e.n} / ${e.max}</span></div><i><em style="width:${e.max ? e.n / e.max * 100 : 0}%"></em></i><small>${e.guns.join(', ')}</small></div>`).join('') || '<p class="note">Nincs fegyvered.</p>';
 }
+let pinvTab = 'inv'; // the in-game inventory's pages: the kit, or your character in what you wear
+function renderPauseChar() {
+  const G = profile.gear; let [sl, si] = invSel.split(':'); if (sl !== 'W' || !G[si]) { si = GEAR_KEYS.find(k => G[k]) || ''; invSel = si ? `W:${si}` : invSel; }
+  const x = G[si], worn = GEAR_KEYS.filter(k => G[k]).length;
+  const left = `<h3>Viselt <small>${worn} / ${GEAR_KEYS.length}${maxShield() ? ` · pajzs ${Math.round(maxShield())}` : ''}</small></h3><div class="tiles bag" data-drop="W">${GEAR_KEYS.map(k => G[k] ? gTile(`W:${k}`, G[k]) : emptyTile(`${GEAR_SLOTS[k]} · üres`, '')).join('')}</div>`;
+  const mid = `<div class="lview pchar"><div id="lookCv"></div></div>`;
+  const detail = x ? gearDetail(x, null, hbtn('Leveszem', `unwear:${si}`, false, 'KeyF')) : '<div class="invd"></div>';
+  const lo = $('loadout'); lo.innerHTML = invLayout(left, detail, mid); markCta(lo); updateKeybar(lo); lookPreview();
+}
 function renderPauseInv() {
+  if (pinvTab === 'char') return renderPauseChar();
   const L = player.slots, B = player.bag, bagFull = B.length >= bagMax(), lone = L.filter(Boolean).length < 2, MG = mission.gear;
   let [sl, si] = invSel.split(':');
   const get = () => sl === 'L' ? L[+si] : sl === 'B' ? B[+si] : sl === 'M' ? MG[+si] : sl === 'W' ? profile.gear[si] : null;

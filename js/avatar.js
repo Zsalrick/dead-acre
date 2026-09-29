@@ -111,7 +111,7 @@ function lookPreview() {
     r.domElement.addEventListener('pointerdown', e => { lookView.drag = e.clientX; r.domElement.setPointerCapture(e.pointerId); });
     r.domElement.addEventListener('pointermove', e => { if (lookView.drag != null) { lookView.rot += (e.clientX - lookView.drag) * .012; lookView.drag = e.clientX; } });
     r.domElement.addEventListener('pointerup', () => { lookView.drag = null; });
-    const loop = () => { const V = lookView, host = document.getElementById('lookCv'); if (!host || state !== 'hub') { V.running = false; return; } requestAnimationFrame(loop);
+    const loop = () => { const V = lookView, host = document.getElementById('lookCv'); if (!host || (state !== 'hub' && state !== 'paused')) { V.running = false; return; } requestAnimationFrame(loop);
       if (V.r.domElement.parentNode !== host) host.appendChild(V.r.domElement);
       const w = host.clientWidth, h = host.clientHeight; if (w && h && (V.w !== w || V.h !== h)) { V.w = w; V.h = h; V.r.setSize(w, h, false); V.cam.aspect = w / h; V.cam.updateProjectionMatrix(); }
       const key = JSON.stringify([myLook(), gearVis(), profile.cls]); if (key !== V.key) { V.key = key; if (V.rig) V.sc.remove(V.rig.g); V.rig = buildRig(myLook(), gearVis(), CLASSES[profile.cls] ? CLASSES[profile.cls].color : '#9aa0a6'); V.sc.add(V.rig.g); }

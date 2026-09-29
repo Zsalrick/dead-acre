@@ -985,3 +985,9 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .kcq{position:relative;padding-right:48px}
 .kcq u{position:absolute;right:10px;top:10px;text-decoration:none;font-family:var(--fd);font-weight:900;font-size:18px;color:var(--tx4);border:1px dashed var(--ln2);padding:0 6px}
 .kcq.done u{color:#15130e;background:var(--pos);border-color:var(--pos)}
+
+/* the in-game inventory's page tabs, and the character page's model */
+.pinvh{gap:24px}.pinvtabs{display:flex;gap:6px;margin-right:auto;margin-left:40px}
+.pinvtabs button{height:44px;padding:0 20px;background:transparent;border:1px solid var(--ln2);color:var(--tx2);font-family:var(--fc);font-weight:700;font-size:16px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer}
+.pinvtabs button.on{background:var(--pan2);color:var(--tx);border-color:var(--amb)}
+#pause .pchar{height:100%;min-height:0}
