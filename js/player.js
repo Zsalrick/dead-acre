@@ -18,11 +18,11 @@ const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x3c4634, roughness: .
 // hand sits at the group origin; the forearm and sleeve run toward +z (back toward the camera)
 function makeArm() {
   const g = new THREE.Group();
-  const part = (mat, sx, sy, sz, z) => { const m = new THREE.Mesh(unitBox, mat); m.scale.set(sx, sy, sz); m.position.z = z; g.add(m); return m; };
+  const part = (mat, sx, sy, sz, z, tp = 1) => { const m = new THREE.Mesh(rboxGeo(sx, sy, sz, Math.min(sx, sy, sz) * .38, 3, tp, 'z'), mat); m.position.z = z; g.add(m); return m; }; // rounded, like your character
   part(gloveMat, .07, .085, .11, 0);
   part(gloveMat, .028, .03, .07, -.05).position.set(-.035, .03, -.02); // thumb
-  part(skinMat, .06, .06, .2, .15);
-  part(sleeveMat, .09, .09, .5, .48);
+  part(skinMat, .062, .062, .2, .15, .85);
+  part(sleeveMat, .092, .092, .5, .48, .88);
   return g;
 }
 function addHands(g, b) {

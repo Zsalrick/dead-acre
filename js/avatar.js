@@ -89,7 +89,8 @@ function buildRig(look, gv = [], clsCol = '#9aa0a6') {
 // your own hands in first person: skin tone, and the gloves you wear
 function applyLookFP() {
   const L = myLook(), gl = profile && profile.gear && profile.gear.gloves;
-  skinMat.color.set(LOOK.sk.opts[L.sk]); gloveMat.color.set(gl ? darker(gl.exo ? '#c8402a' : BRANDS[gl.brand] ? BRANDS[gl.brand].color : '#24211e', .5) : '#24211e');
+  skinMat.color.set(LOOK.sk.opts[L.sk]); gloveMat.color.set(gl && L.gear ? darker(gearTone(gl.exo ? '#c8402a' : BRANDS[gl.brand] ? BRANDS[gl.brand].color : '#24211e'), .5) : LOOK.sk.opts[L.sk]); // bare hands unless you wear gloves
+  const cls = CLASSES[profile && profile.cls], shirtC = L.sh ? LOOK.sh.opts[L.sh] : darker(cls ? cls.color : '#9aa0a6', .75); sleeveMat.color.set(darker(shirtC, .85)); // the sleeve is your shirt
 }
 // ---------- the hub's Karakter tab: options on the left, the model turning on the right ----------
 let lookView = null;
