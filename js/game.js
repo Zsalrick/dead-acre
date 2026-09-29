@@ -641,7 +641,7 @@ function renderSlots() {
 }
 function gearGroundCard(it, act) { // armor on the ground: the same card as a gun, with its armor against what you wear
   const B = BRANDS[it.brand], worn = profile.gear[it.slot], d = worn ? it.armor - worn.armor : 0;
-  return `<div class="gck" style="color:${gCol(it)}">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level} · a földön</div><div class="gcn">${it.name}</div>
+  return `<div class="gck" style="color:${gCol(it)}">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level} · a földön${rollTagP(gRoll(it))}</div><div class="gcn">${it.name}</div>
     <div class="gcs">${GEAR_SLOTS[it.slot]} · ${it.exo ? 'egzotikus, bármely márkához számít' : `<span style="color:${B.color}">${B.name}</span> · ${B.tag}`}</div>
     <div class="gcst"><div><small>Páncél</small><b>${it.armor}${d ? `<em class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</em>` : ''}</b></div>${it.exo ? '' : `<div><small>${GSTATS[B.core[0]].name}</small><b>${fmtG(B.core[0], coreVal(it))}</b></div>`}${Object.entries(it.stats).slice(0, 1).map(([k, v]) => `<div><small>${GSTATS[k].name}</small><b>${fmtG(k, v)}</b></div>`).join('')}</div>
     ${it.exo && EXOTICS[it.exo] ? `<div class="gcx" style="color:${EXO_COL}">${EXOTICS[it.exo].talent}</div>` : ''}

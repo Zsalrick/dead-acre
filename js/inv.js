@@ -88,7 +88,7 @@ addEventListener('contextmenu', e => {
   lastSel = { s: '', t: 0 }; t.click(); // selected: the detail panel now holds its actions
   const btns = [...root.querySelectorAll('.invd [data-act], .invd [data-hact]')].filter(b => !b.closest('.tile') && b.classList.contains('sbtn')); if (!btns.length) return;
   const nm = root.querySelector('.invd .dname'), sub = root.querySelector('.invd .dband, .invd .dsub'), m = document.createElement('div'); m.className = 'ctxm';
-  m.innerHTML = '<div class="ctxh"><b></b><small></small></div>'; m.querySelector('b').textContent = nm ? nm.textContent : ''; m.querySelector('small').textContent = sub ? sub.innerText.replace(/\s+/g, ' ') : '';
+  m.innerHTML = '<div class="ctxh"><b></b><small></small></div>'; m.querySelector('b').textContent = nm ? nm.firstChild.textContent : ''; // the name without the roll tag m.querySelector('small').textContent = sub ? sub.innerText.replace(/\s+/g, ' ') : '';
   btns.forEach(b => { const c = b.cloneNode(true); c.removeAttribute('data-key'); m.appendChild(c); });
   const kb = $('keybar'), lim = (kb && !kb.hidden ? kb.getBoundingClientRect().top : innerHeight) - 8; // stay above the key bar
   root.appendChild(m); m.style.maxHeight = (lim - 8) / (m.currentCSSZoom || 1) + 'px'; const r = m.getBoundingClientRect();
@@ -186,7 +186,8 @@ const srw = (label, val, cmpHTML = '', bar = null, tip = '', cls = '') => `<div 
 const dlt = (v, c, lowBetter, dg = 0) => { if (c == null) return ''; const d = v - c; if (Math.abs(d) < 1e-6) return '<em class="eq">=</em>'; return `<em class="${(lowBetter ? d < 0 : d > 0) ? 'up' : 'down'}">${d > 0 ? '+' : '−'}${Math.abs(+d.toFixed(dg))}</em>`; };
 const dbox = (kind, name, text, col) => `<div class="dbox"${col ? ` style="--tc:${col}"` : ''}><small>${kind}</small>${name ? `<b>${name}</b>` : ''}${text ? `<span>${text}</span>` : ''}</div>`;
 const expPips = n => `<span class="pips">${Array.from({ length: 10 }, (_, k) => `<i class="${k < n ? 'on' : ''}"></i>`).join('')}</span>`;
-const rollTag = w => w.roll == null ? '' : `<span class="rtag ${w.roll >= 90 ? 'r4' : w.roll >= 75 ? 'r3' : w.roll >= 50 ? 'r2' : 'r1'}">${w.roll}%</span>`; // the gun's roll at a glance
+const rollTagP = p => p == null ? '' : `<span class="rtag ${p >= 90 ? 'r4' : p >= 75 ? 'r3' : p >= 50 ? 'r2' : 'r1'}">${p}%</span>`, rollTag = w => rollTagP(w.roll); // the roll at a glance
+const gRoll = it => { const R = gRolls(it); return R.length ? Math.round(R.reduce((a, r) => a + r[2], 0) / R.length * 100) : null; }; // an armour piece's roll: its values' average place in their ranges
 function weaponDetail(w, cmp, actions) {
   const b = w.base, A = wCalc(w), C = cmp && cmp !== w ? wCalc(cmp) : null, c = C && cmp, el = w.element && ELEMENTS[w.element], RL = rollsOf(w), R = critRange(w);
   const x = (k, low, dg) => C ? dlt(A[k], C[k], low, dg) : '';
@@ -244,7 +245,7 @@ function gearDetail(it, cmp, actions) {
   const setLine = (on, t) => `<span style="color:${on ? 'var(--tx)' : 'var(--tx4)'}">${on ? '✓' : '·'} ${t}</span>`;
   return `<div class="dscroll" style="--rc:${gCol(it)};--bc:${B.color}">
     <div class="dvimg"><img src="${gPic(it)}" alt=""></div>
-    <div class="dvhead"><div class="dk">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level}</div><div class="dname">${it.name}</div>
+    <div class="dvhead"><div class="dk">${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · Lv ${it.level}</div><div class="dname">${it.name}${rollTagP(gRoll(it))}</div>
       <div class="dsub">${GEAR_SLOTS[it.slot]} · ${it.exo ? 'egzotikus: bármely márkához számít' : `${B.name} · ${B.tag}`}</div><div class="dperk">${it.exo ? (tb ? `Most ide számít: ${B.name} (a legtöbbet viselt márkád)` : 'Más páncél nélkül egy szetthez sem számít') : `${B.name} szett · ${sets}`}</div></div>
     <div class="dvbody">
       ${!canUse(it) ? `<div class="dlock">Csak ${it.level}. szinttől viselhető. Addig a raktárban tarthatod.</div>` : ''}
