@@ -63,7 +63,15 @@ function bookJobs() {
     <h3>Módosítók</h3><div class="bgrid">${Object.values(MODS).map(m => bcard('', m.label, '', `<p>${m.sub}</p>`, '#7d8dff')).join('')}</div>
     <h3>Direktívák <small>5. szinttől</small></h3><div class="bgrid">${Object.values(DIRECTIVES).map(d => bcard('', d.name, '', `<p>${d.desc}</p>`, '#ff5a4a')).join('')}</div>
     <h3>Pályák</h3><div class="bgrid">${MAP_IDS.map(id => bcard('', MAPS[id].name, `${MAPS[id].minLevel || 1}. szinttől`, `<p>${MAPS[id].desc || ''}</p>`, '#9fcf6a')).join('')}</div>
-    <h3>Rémálom</h3><p class="note">A 30. szint után a munkák Rémálom +1, +2… fokozaton is mehetnek: erősebb zombik, több XP, pénz és jobb zsákmány, és a zombikon ☠ jelzi a fokozatot.</p>`;
+    <h3>Kihívások</h3><div class="bgrid">${bcard('', 'Hétvégi Meló', '16. szinttől · hetente új', `<p>3 egymás utáni, egyre nehezebb munka: 3, 4 és 5 csillag, véletlen pályán, feladattal és módosítóval. A hét minden játékosnak ugyanazt adja.</p>
+      <p>Indítás után a Hétvégi Meló hubra kerülsz: a térképen látod a három munkát és az utat köztük. Ott csak a kezedben és a táskádban lévő fegyvereket és a páncélodat éred el, vásárolni nem lehet.</p>
+      <p>A munkák pénze és XP-je félre van téve, és csak a 3. munka után kapod meg. Ha elbuksz vagy feladod, a félretett jutalom elveszik, és az 1. munkától kezded.</p>`
+      + bkv([['Végső jutalom', 'egzotikus páncél · 2 ◆ · 60 ⚙'], ['Munkánként', '+30% pénz és XP'], ['Hetente', 'egyszer']]), '#f0a024')}
+    ${bcard('', 'Rémálom', '30. szinttől', '<p>A 30. szint után a munkák Rémálom +1, +2… fokozaton is mehetnek: erősebb zombik, több XP, pénz és jobb zsákmány, és a zombikon ☠ jelzi a fokozatot.</p>', '#b05cff')}</div>
+    <h3>Veterán</h3><div class="bgrid">${bcard('', 'Veterán rang', `${LEVEL_CAP}. szinttől · minden karakteredre`, `<p>A ${LEVEL_CAP}. szint után a megszerzett XP veterán pontot ad, és minden kihívás-fokozat is ad egyet. A pontokat a Fejlődés → Veterán oldalon költheted apró, végtelenül fejleszthető bónuszokra. Minden rang kicsit kevesebbet ad, mint az előző.</p>`
+      + bkv(Object.keys(VET).map(k => [GSTATS[k].name, `${fmtG(k, vetVal(k, 1))} az 1. rangon`])), '#6fd08a')}
+    ${bcard('', 'Veterán kihívások', 'a fiók összes karakterén számol', `<p>Minden fokozat 1 veterán pontot ad, a következő cél mindig nagyobb. A számlálás a ${LEVEL_CAP}. szint előtt is megy, így a pontok már várnak rád.</p>`
+      + bkv(CHALLENGES.map(c => [c.name, `${c.base.toLocaleString('hu-HU')} ${c.what}`])), '#6fd08a')}</div>`;
 }
 
 // a zombie's portrait: the real model, rendered once off-screen and kept as an image

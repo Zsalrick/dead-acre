@@ -1027,3 +1027,5 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .dpot{display:grid;gap:2px;padding:10px 14px;background:var(--pan);border:1px solid var(--ln);flex:1;min-width:220px}
 .dpot b{font:900 22px var(--fd);color:var(--amb)}.dpot small{color:var(--tx3);font-size:13px}
 .dgo{display:flex;gap:8px;align-items:center}.dgo .sbtn{height:52px}
+
+.vdesc{max-width:640px;margin:16px auto 0;text-align:center;color:var(--tx2);font-size:15px;line-height:1.5}

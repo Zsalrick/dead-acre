@@ -34,7 +34,7 @@ function vetSync() { // this character's progress since the last save, added to 
 }
 const vetAvail = () => vetEarned() - vetSpent();
 function vetTab() {
-  if (!vetOpen()) return `<div class="hubhead"><h2>Veterán</h2></div><div class="vlock"><span class="klk"></span><b>${LEVEL_CAP}. szint</b><i><em style="width:${Math.min(100, profile.level / LEVEL_CAP * 100)}%"></em></i><small>${profile.level} / ${LEVEL_CAP}</small></div>`; // locked: a lock and how far there is still to go
+  if (!vetOpen()) return `<div class="hubhead"><h2>Veterán</h2></div><div class="vlock"><span class="klk"></span><b>${LEVEL_CAP}. szint</b><i><em style="width:${Math.min(100, profile.level / LEVEL_CAP * 100)}%"></em></i><small>${profile.level} / ${LEVEL_CAP}</small></div><p class="vdesc">A ${LEVEL_CAP}. szint után az XP és a kihívások veterán pontot adnak, amit végtelenül fejleszthető bónuszokra költhetsz (sebzés, életerő, páncél…). Részletek: Kézikönyv → Munkák és pályák → Veterán.</p>`; // locked: a lock and how far there is still to go
   const P = profile, V = SH.vet.ranks, avail = vetAvail();
   const rows = Object.keys(VET).map(k => {
     const n = V[k] || 0, now = n ? vetVal(k, n) : 0, next = vetVal(k, n + 1);
