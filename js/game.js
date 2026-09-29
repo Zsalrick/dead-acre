@@ -669,7 +669,7 @@ function statRows(w, c) {
 function cardHTML(w, action, c) {
   const el = w.element ? ELEMENTS[w.element] : null, cc = c && c !== w ? c : null;
   const st = (lbl, v, shown, cv, low) => { const d = cc == null ? 0 : v - cv, good = low ? d < 0 : d > 0; return `<div><small>${lbl}</small><b>${shown}${cc && Math.abs(d) > 1e-6 ? `<em class="${good ? 'up' : 'down'}">${good ? '▲' : '▼'}${Math.abs(+d.toFixed(1))}</em>` : ''}</b></div>`; };
-  return `<div class="gck">${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · Lv ${w.level} · a földön</div><div class="gcn">${w.name}${rollTag(w)}</div>
+  return `<div class="gck">${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · Lv ${w.level} · a földön${rollTag(w)}</div><div class="gcn">${w.name}</div>
     <div class="gcs">${w.base.name} · ${w.maker}${el ? ` · <span style="color:${el.color}">${el.name}</span>` : ''}</div>
     <div class="gcst">${st('DPS', dps(w), dps(w), cc && dps(cc))}${st('Tár', w.mag, w.mag, cc && cc.mag)}${st('Pontosság', accuracy(w), accuracy(w) + '%', cc && accuracy(cc))}</div>
     ${w.unique && UNIQUES[w.unique] ? `<div class="gcx" style="color:#ff5a4a">${UNIQUES[w.unique].name}: ${UNIQUES[w.unique].trick}</div>` : w.tal && TALENTS[w.tal] ? `<div class="gcx" style="color:#ffd23f">${TALENTS[w.tal].name}: ${TALENTS[w.tal].desc}</div>` : ''}
@@ -722,6 +722,7 @@ function updateHUD() {
   if (updateHUD.cw % 300 === 0 && profile.inMission && mission) { profile.inMission.alone = !NET.mode || NET.avatars.size === 0; markCarry(); } // were you the last one there?
   const w = curW();
   focus = findFocus();
+  highlightDrops(focus && (focus.drop ? focus.drop.g : focus.gd ? focus.gd.g : null));
   let card = '', prompt = '';
   if (focus) {
     if (focus.type === 'gear') { const worn = profile.gear[focus.it.slot], full = mission.gear.length >= gearBagMax(), out = full && gearSwapOut(focus.it);

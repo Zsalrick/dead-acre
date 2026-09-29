@@ -174,7 +174,8 @@ function makeWeapon(base, q, level, mk) {
   if (q >= 5) return makeUnique(null, level);
   mk = mk || pick(makersFor(base));
   const M = MAKERS[mk], r = {};
-  for (const k of ['dmg', 'rate', 'mag', 'reload', 'acc']) r[k] = rand(-1, 1);
+  const J = typeof mission !== 'undefined' && mission && !mission.job.test ? mission.job : null, perfect = Math.random() < Math.min(.005, .00005 * Math.pow(2.5, ((J && J.diff) || 1) - 1) * Math.pow(1.6, (J && J.tier) || 0)); // 0.005% on one star, up to 0.5% on hard nightmares
+  for (const k of ['dmg', 'rate', 'mag', 'reload', 'acc']) r[k] = perfect ? 1 : rand(-1, 1);
   const lv = Math.pow(1.08, level - 1); // ×1.08 per level, the same as zombie health: endless, but always even
   const w = {
     base, q, level, mk, maker: M.name, sv: 2,
