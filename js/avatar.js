@@ -60,17 +60,17 @@ function buildRig(look, gv = [], clsCol = '#9aa0a6') {
   eye(-.05); eye(.05); box(head, skin, .03, .05, .035, 0, .08, -.145); box(head, rigMat('#5a2a24'), .06, .012, .01, 0, .035, -.135); // eyes, brows, nose, mouth
   const helmetOn = G.head && G.head[1] !== 'cap';
   if (!helmetOn) { // hair
-    const hs = G.head && L.hs >= 2 ? 1 : L.hs, cap = (sc = 1.05) => ball(head, hair, .142, 0, .12, .01, sc, .9, sc, new THREE.SphereGeometry(.142, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.1));
-    if (hs === 1) cap(); if (hs === 2) { cap(); for (let i = 0; i < 7; i++) { const s = new THREE.Mesh(new THREE.ConeGeometry(.035, .1, 5), hair); s.position.set(Math.sin(i) * .07, .25, Math.cos(i * 1.7) * .07); s.rotation.set(Math.cos(i) * .4, 0, Math.sin(i) * .4); head.add(s); } }
-    if (hs === 3) { cap(1.08); box(head, hair, .26, .22, .08, 0, .03, .1); } if (hs === 4) { cap(); ball(head, hair, .05, 0, .08, .17); box(head, hair, .05, .16, .05, 0, -.02, .19); }
-    if (hs === 5) box(head, hair, .05, .07, .24, 0, .25, .01); }
+    const hs = G.head && L.hs >= 2 ? 1 : L.hs, cap = (sc = 1) => { box(head, hair, .285 * sc, .09, .275 * sc, 0, .222, .006); box(head, hair, .28 * sc, .17, .07, 0, .14, .1); box(head, hair, .05, .13, .2, -.132, .16, .03); box(head, hair, .05, .13, .2, .132, .16, .03); }; // top, back and sides, over the skull
+    if (hs === 1) cap(); if (hs === 2) { cap(); for (let i = 0; i < 7; i++) { const s = new THREE.Mesh(new THREE.ConeGeometry(.035, .1, 5), hair); s.position.set(Math.sin(i) * .08, .29, Math.cos(i * 1.7) * .08); s.rotation.set(Math.cos(i) * .4, 0, Math.sin(i) * .4); head.add(s); } }
+    if (hs === 3) { cap(1.04); box(head, hair, .29, .3, .08, 0, .05, .115); box(head, hair, .05, .26, .18, -.14, .06, .05); box(head, hair, .05, .26, .18, .14, .06, .05); } if (hs === 4) { cap(); ball(head, hair, .05, 0, .12, .16); box(head, hair, .05, .16, .05, 0, .02, .18); }
+    if (hs === 5) box(head, hair, .06, .09, .26, 0, .28, .01); }
   // beard
   const bc = rigMat(LOOK.hc.opts[L.hc], { roughness: 1, transparent: L.bd === 1, opacity: .55 });
   if (L.bd === 1) box(head, bc, .2, .08, .04, 0, .03, -.11); if (L.bd === 2) box(head, bc, .1, .025, .02, 0, .055, -.14);
   if (L.bd === 3) { box(head, bc, .06, .07, .03, 0, 0, -.13); box(head, bc, .1, .02, .02, 0, .055, -.14); } if (L.bd === 4) { box(head, bc, .24, .12, .08, 0, .01, -.08); box(head, bc, .1, .025, .02, 0, .055, -.14); }
   // head gear
   if (G.head) { const c = rigMat(G.head[2], { roughness: .5 }), k = G.head[1];
-    if (k === 'cap') { ball(head, c, .145, 0, .13, .01, 1.05, .8, 1.05, new THREE.SphereGeometry(.145, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2)); box(head, c, .2, .015, .1, 0, .16, -.17); }
+    if (k === 'cap') { box(head, c, .3, .12, .29, 0, .23, .005); box(head, c, .24, .02, .12, 0, .19, -.17); } // a cap and its peak
     else { ball(head, c, .17, 0, .13, 0, 1, .95, 1.05, new THREE.SphereGeometry(.17, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.85)); box(head, dark, .3, .02, .3, 0, .13, 0);
       if (k === 'miner') { box(head, dark, .07, .05, .04, 0, .22, -.16); box(head, rigMat('#fff2a0', { emissive: 0xffe060 }), .04, .03, .01, 0, .22, -.182); }
       if (k === 'mask') { box(head, dark, .2, .1, .06, 0, .06, -.13); const f = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, .07, 10), rigMat(G.head[2])); f.rotation.x = Math.PI / 2; f.position.set(0, .03, -.19); head.add(f); box(head, rigMat('#9ad0e0', { roughness: .1, metalness: .4 }), .17, .045, .02, 0, .125, -.145); }
