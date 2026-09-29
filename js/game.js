@@ -15,6 +15,27 @@ const EVAC_WARN = 40, BOARD_T = 6;
 const bountyPre = J => 75 + 15 * ((J.diff || 1) - 1), bountyPost = J => 45 + 10 * ((J.diff || 1) - 1); // a bounty: hold out, the boss, hold out again, then the van
 
 // opts (party jobs): seed and van spots come from the host so everyone gets the same layout; client: the host runs the world
+// behind the loading screen: every kind of zombie, loot and effect is drawn once off to the side, so the GPU builds their
+// shaders now and not in the middle of a fight (the hitches were exactly those first appearances)
+function warmUp() {
+  const far = new V3(0, -60, 0), tmp = [], legend = SND.legend, drop = SND.drop; SND.legend = SND.drop = () => {};
+  try {
+    for (const k of Object.keys(KINDS)) { const m = mkZombie(k); m.g.position.copy(far); scene.add(m.g); tmp.push(m.g); }
+    for (let q = 0; q <= 4; q++) tmp.push(spawnDrop(makeWeapon(BASES[q * 3 % BASES.length], q, 1), far));
+    tmp.push(spawnDrop(makeUnique(null, 1), far));
+    for (const s of GEAR_KEYS) tmp.push(spawnGearDrop(makeGear(s, 2, 1), far));
+    burst(far, 0xffffff, 4, 1, .1); tracer(far, far.clone().setX(2), 0xffffff); bloodPool(far.x, far.z, 1);
+    const lists = [powerUps, itemDrops, resDrops], n0 = lists.map(L => L.length); // pick-ups: an ammo pack, a power-up, an item, parts
+    spawnPower(far, 'ammo'); spawnPower(far); spawnItem('med', far); spawnResDrop('parts', 5, far);
+    renderer.compile(scene, camera); lists.forEach((L, k) => L.splice(n0[k]).forEach(d => scene.remove(d.s)));
+    const av = makeAvatar({ n: '', c: 'soldier' }); av.g.position.copy(far); tmp.push(av.g);
+    const vg = new THREE.Group(); vmScene.add(vg); for (const b of BASES) { const g = buildGun(makeWeapon(b, 2, 1)); vg.add(g); } // every gun as it looks in your hands
+    renderer.compile(scene, camera); renderer.compile(vmScene, vmCamera);
+    vmScene.remove(vg);
+  } catch (e) { console.warn('warm-up skipped:', e); }
+  for (const o of tmp) { if (o && o.g && drops.includes(o)) removeDrop(o); else if (o && o.g && gearDrops.includes(o)) removeGearDrop(o); else if (o && o.isObject3D) scene.remove(o); }
+  SND.legend = legend; SND.drop = drop;
+}
 function startJob(job, opts = {}) {
   if (!opts.client && !job.test) job.dir = (profile.dirs || []).filter(k => DIRECTIVES[k]); // the host's chosen directives travel with the job
   if (noClock(job)) job.dur = 1e6; // no clock: the job ends when the goal is met
@@ -49,6 +70,7 @@ function startJob(job, opts = {}) {
   if (opts.client) { a = clamp(opts.a, 0, n - 1); b = clamp(opts.b, 0, n - 1); }
   mission.pickup = b; placeVan(a, false);
   setupObjective(mission);
+  warmUp();
   player.pos.set(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 2.8); player.vel.set(0, 0, 0);
   player.carry = null; contractSeen = null;
   if (!job.test) { profile.inMission = { coop: !!NET.pr, code: NET.code, alone: !NET.pr, at: Date.now() }; saveProfile(); } // cleared by finishJob; still here on the next load = the job was abandoned
@@ -900,6 +922,7 @@ function gameStep(t) {
   if ($('keybar').hidden === kb) $('keybar').hidden = !kb;
   const cur = state === 'playing' ? 'none' : 'default';
   if (renderer.domElement.style.cursor !== cur) renderer.domElement.style.cursor = cur;
+  syncVanLight();
   gfxRender(state === 'playing' || state === 'paused'); // world + viewmodel, with bloom when the quality setting allows (gfx.js)
 }
 // the loop starts at the end of net.js, the last script, so every system exists on the first frame

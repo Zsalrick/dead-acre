@@ -883,8 +883,8 @@ function buildTruck() {
   }
   [-.6, .6].forEach(b => bx(basic(0xfff2c0), .06, .18, .3, 2.42, .95, b));
   [-.8, .8].forEach(b => bx(basic(0xff2a1a), .06, .14, .22, -2.42, 1, b)); // tail lights
-  const head = new THREE.SpotLight(0xfff0c0, 2.2, 30, .5, .5, 1.5); head.position.set(2.5, 1, 0); head.target.position.set(10, 0, 0); g.add(head, head.target);
-  put(g);
+  const head = new THREE.SpotLight(0xfff0c0, 2.2, 30, .5, .5, 1.5); head.target.position.set(10, 0, 0); g.add(head.target);
+  put(g); put(head); truck.head = head; // the headlight lives in the scene, not in the van: hiding the van must not change the light count (every shader would rebuild)
   truck.g = g;
   truck.obs = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, h: 2.2 }; obstacles.push(truck.obs);
   truck.beacon = glowSprite(0x6aff6a, 4, new V3()); truck.beacon.visible = false;
@@ -903,6 +903,10 @@ function placeVan(i, parked) {
 // how far out the van starts: from the road beyond its gate
 const vanRun = () => Math.abs(truck.pos.x - (truck.dir < 0 ? MAIN_RECT.minX : MAIN_RECT.maxX)) + 14;
 // off: metres the van is away from its spot along its lane (outward)
+function syncVanLight() { // every frame: the headlight follows the van, and goes dark instead of away when the van is out of sight
+  const h = truck.head; if (!h) return;
+  truck.g.updateMatrixWorld(); h.position.set(2.5, 1, 0).applyMatrix4(truck.g.matrixWorld); h.intensity = truck.g.visible ? 2.2 : 0;
+}
 function setVanAt(off) {
   const x = truck.pos.x + truck.dir * off, z = truck.pos.z;
   truck.g.position.set(x, 0, z);

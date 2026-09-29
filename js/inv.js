@@ -4,10 +4,10 @@
 let invSel = 'L:0';
 
 // ---------- armor pictures (drawn once per shape + brand color) ----------
-const gearIcons = {};
-function gearIcon(slot, color, name = '') {
+const gearIcons = {}, gearCanvases = {}; // data URL for the HTML tiles, the canvas itself for the 3D drop
+function gearCanvas(slot, color, name = '') { // the drawing; gearIcon turns it into a data URL only when a menu needs one
   const kind = /sapka/i.test(name) ? 'cap' : /álarc/i.test(name) ? 'mask' : /bányász/i.test(name) ? 'miner' : /kabát/i.test(name) ? 'coat' : /óra/i.test(name) ? 'watch' : /cédula/i.test(name) ? 'tags' : /rózsa/i.test(name) ? 'beads' : slot;
-  const key = kind + color; if (gearIcons[key]) return gearIcons[key];
+  const key = kind + color; if (gearCanvases[key]) return gearCanvases[key];
   const c = document.createElement('canvas'); c.width = 320; c.height = 180;
   const g = c.getContext('2d'), grad = g.createLinearGradient(0, 20, 0, 170);
   grad.addColorStop(0, color); grad.addColorStop(.55, color); grad.addColorStop(1, '#1a1b18');
@@ -51,8 +51,9 @@ function gearIcon(slot, color, name = '') {
     const boot = (ox, sh) => { g.globalAlpha = sh; poly([[ox, 30], [ox + 46, 30], [ox + 48, 112], [ox + 104, 126], [ox + 108, 150], [ox - 4, 150]]); dark(ox - 4, 140, 112, 10); stitch(ox + 8, 50, ox + 40, 50); stitch(ox + 8, 70, ox + 40, 70); stitch(ox + 8, 90, ox + 40, 90); g.globalAlpha = 1; };
     boot(128, .55); boot(90, 1);
   }
-  return gearIcons[key] = c.toDataURL();
+  return gearCanvases[key] = c;
 }
+function gearIcon(slot, color, name = '') { const c = gearCanvas(slot, color, name); return c.url || (c.url = c.toDataURL()); } // PNG encoding is slow: once per picture, and never for a drop on the ground
 const wPic = w => gunShot(w.base, w.q);
 const gPic = it => gearIcon(it.slot, BRANDS[it.brand].color, it.name);
 

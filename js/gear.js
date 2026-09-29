@@ -138,7 +138,7 @@ function gearSummary() {
 
 // ---------- gear dropped during a job: walk over it to bag it; it is yours if you extract ----------
 const gearDrops = [], gearTexes = {}, gearPlane = new THREE.PlaneGeometry(1.1, 1.1 * 180 / 320);
-function gearTex(it) { const u = gPic(it); return gearTexes[u] || (gearTexes[u] = new THREE.TextureLoader().load(u)); } // cached per icon, kept for the session
+function gearTex(it) { const c = gearCanvas(it.slot, BRANDS[it.brand].color, it.name); if (!c.tex) { c.tex = new THREE.CanvasTexture(c); c.tex.userData.keep = true; } return c.tex; } // straight from the canvas, kept for the session // cached per icon, kept for the session
 function spawnGearDrop(it, pos) {
   if (Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z) < 35) SND.drop(it.exo ? 5 : it.q);
   const col = new THREE.Color(gCol(it)), g = new THREE.Group();
@@ -158,7 +158,7 @@ function updateGearDrops(dt) {
     if (d.t <= 0) removeGearDrop(d);
   }
 }
-function removeGearDrop(d) { scene.remove(d.g); d.g.traverse(o => { if (o.geometry && o.geometry !== gearPlane) o.geometry.dispose(); if (o.material) { if (o.material.map && o.material.map !== glowTex && !Object.values(gearTexes).includes(o.material.map)) o.material.map.dispose(); o.material.dispose(); } }); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
+function removeGearDrop(d) { scene.remove(d.g); d.g.traverse(o => { if (o.geometry && o.geometry !== gearPlane) o.geometry.dispose(); if (o.material) { if (o.material.map && o.material.map !== glowTex && !o.material.map.userData.keep) o.material.map.dispose(); o.material.dispose(); } }); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
 const gearBagMax = () => 6 + U('bag'); // armor pieces a job's bag holds
 function gearSwapOut(it) { const G = mission.gear, same = G.filter(g => g.slot === it.slot), pool = same.length ? same : G; return pool.reduce((a, b) => gearScore(b) < gearScore(a) ? b : a); }
 function takeGear(d) {
