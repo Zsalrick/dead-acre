@@ -211,15 +211,15 @@ const KEY_LABEL = { Enter: 'Enter', KeyU: 'U', KeyO: 'O', KeyJ: 'J', KeyM: 'M', 
 const wList = sl => ({ L: profile.loadout, B: profile.bag, S: profile.stash })[sl] || [];
 const wAt = (sl, i) => unpackW(wList(sl)[+i]);
 function wRemove(sl, i) { const L = wList(sl); if (sl === 'L') { L[+i] = null; if (!L[0] && L[1]) { L[0] = L[1]; L[1] = null; } } else L.splice(+i, 1); }
-const gearAt = (sl, k) => sl === 'W' ? profile.gear[k] : profile.gearStash[+k];
-function gRemove(sl, k) { if (sl === 'W') { profile.gear[k] = null; gearChanged(); } else profile.gearStash.splice(+k, 1); }
+const gearAt = (sl, k) => sl === 'W' ? profile.gear[k] : sl === 'Z' ? (profile.gearBag || [])[+k] : profile.gearStash[+k]; // worn, the armour bag, the stash
+function gRemove(sl, k) { if (sl === 'W') { profile.gear[k] = null; gearChanged(); } else if (sl === 'Z') profile.gearBag.splice(+k, 1); else profile.gearStash.splice(+k, 1); }
 const salvageGain = x => PARTS[x.q] + expRefund(x);
 const wSellBtns = (w, sl, i, lone) => hhold(`Eladás (tartsd) $${sellValue(w)}`, `sell:${sl}:${i}`, w.fav || lone, 'KeyX') + hhold(`Szétszedés (tartsd) +${salvageGain(w)} ⚙`, `salvage:${sl}:${i}`, w.fav || lone, 'KeyB') +
   hbtn(w.fav ? '★ Kedvenc' : 'Kedvenc', `fav:${sl}:${i}`, false, 'KeyV') + hbtn(w.junk ? '🗑 Kukában' : 'Kukába', `trash:${sl}:${i}`, w.fav, 'KeyJ');
 const gSellBtns = (it, sl, k) => hhold(`Eladás (tartsd) $${gearValue(it)}`, `gsell:${sl}:${k}`, it.fav, 'KeyX') + hhold(`Szétszedés (tartsd) +${PARTS[it.q] + expRefund(it)} ${FAB}`, `gsalvage:${sl}:${k}`, it.fav, 'KeyB') +
   hbtn(it.fav ? '★ Kedvenc' : 'Kedvenc', `gfav:${sl}:${k}`, false, 'KeyV') + hbtn(it.junk ? '🗑 Kukában' : 'Kukába', `gtrash:${sl}:${k}`, it.fav, 'KeyJ');
 function trashBar(kind) { // bulk sell / salvage everything marked as trash
-  const P = profile, items = kind === 'w' ? [...P.bag, ...P.stash].map(unpackW).filter(w => w && w.junk && !w.fav) : P.gearStash.filter(it => it.junk && !it.fav);
+  const P = profile, items = kind === 'w' ? [...P.bag, ...P.stash].map(unpackW).filter(w => w && w.junk && !w.fav) : [...P.gearStash, ...(P.gearBag || [])].filter(it => it.junk && !it.fav);
   if (!items.length) return '';
   const cash = items.reduce((a, x) => a + (kind === 'w' ? sellValue(x) : gearValue(x)), 0), parts = items.reduce((a, x) => a + (kind === 'w' ? salvageGain(x) : PARTS[x.q] + expRefund(x)), 0);
   return `<div class="trashbar"><b>🗑 Kukában: ${items.length} db</b>${hbtn(`Összes eladása · $${cash}`, `trashsell:${kind}`)}${hbtn(`Összes szétszedése · +${parts} ${kind === 'w' ? '⚙' : FAB}`, `trashsalv:${kind}`)}</div>`;
@@ -383,7 +383,7 @@ const HUB = {
     const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : sl === 'H' ? SH.g[+si] : sl === 'Z' ? gb[+si] : null;
     if (!get()) { const k = GEAR_KEYS.find(k => P.gear[k]); [sl, si] = k ? ['W', k] : ['G', '0']; invSel = `${sl}:${si}`; }
     const it = get();
-    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'W', si) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : sl === 'Z' ? hbtn('Felveszem', `zwear:${si}`, !canUse(it), 'KeyF') + hbtn('Raktárba', `gunbag:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, !canUse(it), 'KeyF') + hbtn('Táskába', `gbag:${si}`, gbFull, 'KeyT') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'G', si);
+    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'W', si) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : sl === 'Z' ? hbtn('Felveszem', `zwear:${si}`, !canUse(it), 'KeyF') + hbtn('Raktárba', `gunbag:${si}`, st.length >= gearMax(), 'KeyR') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'Z', si) : hbtn('Felveszem', `wear:${si}`, !canUse(it), 'KeyF') + hbtn('Táskába', `gbag:${si}`, gbFull, 'KeyT') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'G', si);
     const worn = GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(`${GEAR_SLOTS[k]} · üres`, 'Húzz ide páncélt', null, 'W')).join('');
     const fit = x => gFilter === 'all' || x.slot === gFilter;
     const sorted = st.map((x, k) => [x, k]).filter(([x]) => fit(x)).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
@@ -429,9 +429,9 @@ const HUB = {
   forge() { // the smith: pick a gun or a piece on the left, its workbench in the middle, the item itself on the right
     const P = profile, lists = { L: P.loadout.map(unpackW), B: P.bag.map(unpackW), S: P.stash.map(unpackW) }, st = P.gearStash;
     let [sl, si] = invSel.split(':');
-    const okSel = () => lists[sl] ? !!lists[sl][+si] : sl === 'W' ? !!P.gear[si] : sl === 'G' ? !!st[+si] : false;
+    const okSel = () => lists[sl] ? !!lists[sl][+si] : sl === 'W' || sl === 'G' || sl === 'Z' ? !!gearAt(sl, si) : false;
     if (!okSel()) { sl = 'L'; si = lists.L[0] ? '0' : '1'; invSel = `L:${si}`; }
-    const i = +si, w = lists[sl] && lists[sl][i], it = !w && (sl === 'W' ? P.gear[si] : st[i]), pp = P.parts || 0;
+    const i = +si, w = lists[sl] && lists[sl][i], it = !w && gearAt(sl, si), pp = P.parts || 0;
     const card = (t, sm, body, cls = '') => `<section class="fcard${cls ? ' ' + cls : ''}"><h4>${t}${sm ? `<small>${sm}</small>` : ''}</h4>${body}</section>`;
     const optRows = (rows, key, costTxt, can) => rows.map(([k, n, pr]) => { const max = pr >= .999;
       return `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b><button class="sbtn" data-act="${key}:${sl}:${si}:${k}" data-tip="${n}: ${Math.round(pr * 100)}% → ${Math.round(Math.min(1, pr + OPT_STEP) * 100)}%"${max || !can(pr) ? ' disabled' : ''}>${max ? 'Tökéletes' : costTxt(pr)}</button></div>`; }).join('');
@@ -458,7 +458,7 @@ const HUB = {
     const x = w || it, head = `<div class="fhead"><h2>Kovács</h2>${x ? `<b style="color:${w ? rarColor(w) : gCol(it)}">${x.name}</b>` : ''}<small>${pp} ⚙ · ${P.fabric || 0} ${FAB} · ${P.oc || 0} ◆</small></div>`;
     const sec = (t, x) => x ? `<h3>${t}</h3><div class="tiles">${x}</div>` : '';
     const left = sec('Kézben', lists.L.map((x, k) => x ? wTile(`L:${k}`, x, { n: `${k + 1}` }) : '').join('')) + sec('Táska', lists.B.map((x, k) => wTile(`B:${k}`, x, { sub: x.base.name })).join('')) + sec('Raktár', lists.S.map((x, k) => wTile(`S:${k}`, x, { sub: x.base.name })).join('')) +
-      sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
+      sec('Viselt páncél', GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : '').join('')) + sec('Páncél-táska', (P.gearBag || []).map((x, k) => gTile(`Z:${k}`, x)).join('')) + sec('Páncélraktár', st.map((x, k) => gTile(`G:${k}`, x)).join(''));
     return invLayout(left, w ? weaponDetail(w, null, '') : it ? gearDetail(it, null, '') : noDetail('Nincs mit fejleszteni.'), head + (bench || '<p class="note">Válassz egy fegyvert vagy páncélt a bal oldalon.</p>'));
   },
   stats() {
@@ -521,7 +521,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); clearNew(invSel); renderHub(); return selDbl($('hubBody'), invSel); } // seen: no longer new
   if (kind === 'jsel') { jobSel = a === 'range' ? 'range' : +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
-  if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.fabric || 0) >= expCost(it)) { P.fabric -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
+  if (kind === 'gexp') { const it = gearAt(a, c); if (it && (it.exp || 0) < 10 && (P.fabric || 0) >= expCost(it)) { P.fabric -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
   if (kind === 'ocset') { const [, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]), k = w && pick(Object.keys(OVERCLOCKS).filter(o => ocFits(w, o) && o !== w.oc)); if (w && k && (w.oc || (P.oc || 0) >= 1) && (P.parts || 0) >= 20) { if (!w.oc) P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } } // a random one, never the one it already has
   if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; deepState().run = true; invSel = ''; saveProfile(); } // into the Hétvégi Meló hub first
   if (kind === 'deepgo') { if (NET.code && !NET.host) return; return startJob(deepJob(deepState().stage)); }
@@ -590,7 +590,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'trashsell' || kind === 'trashsalv') { // every trash-marked piece in the bag and stash (weapons) or the armor stash
     const sell = kind === 'trashsell';
     if (a === 'w') for (const sl of ['S', 'B']) { const L = wList(sl); for (let k = L.length - 1; k >= 0; k--) { const w = unpackW(L[k]); if (w && w.junk && !w.fav) { L.splice(k, 1); if (sell) P.cash += sellValue(w); else P.parts = (P.parts || 0) + salvageGain(w); } } }
-    else for (let k = P.gearStash.length - 1; k >= 0; k--) { const it = P.gearStash[k]; if (it.junk && !it.fav) { P.gearStash.splice(k, 1); if (sell) P.cash += gearValue(it); else { P.fabric = (P.fabric || 0) + PARTS[it.q] + expRefund(it); } } }
+    else for (const L of [P.gearStash, P.gearBag || []]) for (let k = L.length - 1; k >= 0; k--) { const it = L[k]; if (it.junk && !it.fav) { L.splice(k, 1); if (sell) P.cash += gearValue(it); else { P.fabric = (P.fabric || 0) + PARTS[it.q] + expRefund(it); } } }
   }
   if (kind === 'sell') { const w = wAt(a, c); if (w && !w.fav) { wRemove(a, c); P.cash += sellValue(w); } }
   hubToast(kind, before, b.dataset.act);
