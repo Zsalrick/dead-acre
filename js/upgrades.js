@@ -30,7 +30,8 @@ const maxHp = () => Math.round((100 + 20 * U('maxHp') + SK.hp() + G('hp')) * (pe
 const maxShield = () => 25 * U('shield') + SK.shield() + G('armor');
 const maxStam = () => 100 + 20 * U('stamina') + G('stam');
 const wCrit = w => w && w.crit != null ? w.crit : .05, wCdmg = w => w && w.cdmg ? w.cdmg : 1.5;
-const critChance = () => Math.min(.75, wCrit(curW()) + .04 * U('crit') + SK.crit(curW()) + G('crit') + (mkOf(curW()).crit || 0) + (curW() && curW().anoint === 'ads' && player.ads > .6 ? .15 : 0));
+const CRIT_CAP = .6; // crit chance stops here, whatever stacks on top
+const critChance = () => Math.min(CRIT_CAP, wCrit(curW()) + .04 * U('crit') + SK.crit(curW()) + G('crit') + (mkOf(curW()).crit || 0) + (curW() && curW().anoint === 'ads' && player.ads > .6 ? .15 : 0));
 const critMult = () => wCdmg(curW()) + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (mkOf(curW()).critDmg || 0);
 const headBonus = () => 1 + .15 * U('head') + SK.head() + G('head') + (mkOf(curW()).head || 0);
 const speedMul = () => 1 + .04 * U('speed') + SK.speed() + G('speed') + (perk('runner') ? .15 : 0) + (exoOn('league') ? .2 : 0);

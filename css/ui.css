@@ -1049,3 +1049,5 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .rtag{display:inline-block;margin-left:10px;padding:1px 7px;font-family:var(--fd);font-weight:900;font-size:.62em;vertical-align:middle;border:1px solid currentColor;letter-spacing:0}
 .rtag.r1{color:var(--tx3)}.rtag.r2{color:var(--tx)}.rtag.r3{color:#6fd08a}.rtag.r4{color:#ffd23f}
 #card .gck .rtag{font-size:15px;padding:0 6px;margin-left:8px;letter-spacing:0}
+
+.cmax{color:#6fd08a}

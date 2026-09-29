@@ -138,7 +138,7 @@ function wCalc(w) { // everything this gun does with your current upgrades, skil
   return {
     dps: dps(w), dmg: w.dmg * w.pellets, bonus: SK.dmg(w) - 1,
     roll: w.dmg / (b.dmg * lv * rq) - 1, lv: lv - 1, rq: rq - 1,
-    crit: wCrit(w) + .04 * U('crit') + SK.crit(w) + G('crit') + (M.crit || 0),
+    crit: Math.min(CRIT_CAP, wCrit(w) + .04 * U('crit') + SK.crit(w) + G('crit') + (M.crit || 0)), critRaw: wCrit(w) + .04 * U('crit') + SK.crit(w) + G('crit') + (M.crit || 0), // above the cap it counts as the cap
     critDmg: wCdmg(w) + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (M.critDmg || 0),
     head: (b.headMult || 2) * (1 + .15 * U('head') + SK.head() + G('head') + (M.head || 0)),
     res: resMax(w), acc: accuracy(w),
@@ -205,7 +205,7 @@ function weaponDetail(w, cmp, actions) {
         ${srw('Tár', w.mag, c ? dlt(w.mag, c.mag) : '', RL.mag)}
         ${srw(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? dlt(w.reload, c.reload, true, 2) : '', RL.reload, `gyorsaság ${pctS(reloadMul() - 1)}`)}
         ${srw('Pontosság', `${A.acc}%`, x('acc'), RL.acc)}
-        ${srw('Kritikus esély', `${Math.round(A.crit * 100)}%`, C ? dlt(Math.round(A.crit * 100), Math.round(C.crit * 100)) : '', clamp((wCrit(w) - R[0]) / (R[1] + .016 - R[0]), 0, 1), `fegyver ${Math.round(wCrit(w) * 1000) / 10}% · a többi: felszerelés, képességek, gyártó`)}
+        ${srw('Kritikus esély', A.critRaw > CRIT_CAP ? `<span class="cmax">${Math.round(CRIT_CAP * 100)}% (max)</span>` : `${Math.round(A.crit * 100)}%`, C ? dlt(Math.round(A.crit * 100), Math.round(C.crit * 100)) : '', clamp((wCrit(w) - R[0]) / (R[1] + .016 - R[0]), 0, 1), `fegyver ${Math.round(wCrit(w) * 1000) / 10}% · a többi: felszerelés, képességek, gyártó`)}
       </div>
       <div class="srows">
         ${srw('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2), null, `fegyver ×${wCdmg(w).toFixed(2)}`, 'minor')}

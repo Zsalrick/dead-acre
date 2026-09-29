@@ -466,7 +466,7 @@ const HUB = {
     const kv = (k, v, note) => `<div class="kvr"><span>${k}${note ? `<small>${note}</small>` : ''}</span><b>${v}</b></div>`;
     return `<div class="st3">
       <section class="stc"><h3>Karakter</h3>${kv('Kaszt', P.cls ? `<span style="color:${CLASSES[P.cls].color}">${CLASSES[P.cls].name}</span>` : 'nincs')}${kv('Szint', P.level)}${kv('Max életerő', Math.round(maxHp()))}${kv('Pajzs', Math.round(maxShield ? maxShield() : 0))}${kv('Kapott sebzés', pc(SK.taken()), 'képességek, páncél')}${kv('Újratöltés gyorsaság', pc(reloadMul()))}</section>
-      <section class="stc"><h3>Harc · 1. kéz</h3>${A ? kv('Kritikus esély', pc(A.crit), `fegyver ${pc(wCrit(w0))} + fejlesztés, képesség, páncél, gyártó`) + kv('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`) + kv('Fejlövés-szorzó', `×${A.head.toFixed(2)}`) + kv('Sebzésbónusz', `+${pc(A.bonus)}`, 'kaszt, képességek, páncél, mesterség, szakértelem') : ''}${ws.map((w, k) => kv(`${k + 1}. kéz · <span style="color:${rarColor(w)}">${w.name}</span>`, `DPS ${dps(w)}`)).join('')}</section>
+      <section class="stc"><h3>Harc · 1. kéz</h3>${A ? kv('Kritikus esély', pc(A.crit) + (A.critRaw > CRIT_CAP ? ' (max)' : ''), `fegyver ${pc(wCrit(w0))} + fejlesztés, képesség, páncél, gyártó`) + kv('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`) + kv('Fejlövés-szorzó', `×${A.head.toFixed(2)}`) + kv('Sebzésbónusz', `+${pc(A.bonus)}`, 'kaszt, képességek, páncél, mesterség, szakértelem') : ''}${ws.map((w, k) => kv(`${k + 1}. kéz · <span style="color:${rarColor(w)}">${w.name}</span>`, `DPS ${dps(w)}`)).join('')}</section>
       <section class="stc"><h3>Páncél összesítve</h3>${gearSummary()}</section></div>
       `;
   },

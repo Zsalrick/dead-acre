@@ -262,6 +262,7 @@ function shoot() {
   for (const z of zombies) if (!z.dead) targets.push(...z.parts);
   const tally = new Map();
   const color = b.tracer || (b.energy ? 0x5aff6a : w.element ? ELEMENTS[w.element].hex : 0xffd9a0);
+  const shotCrit = forceCrit || Math.random() < critChance();
   for (let p = 0; p < w.pellets; p++) {
     const a = Math.random() * Math.PI * 2, r = Math.tan(spread) * Math.sqrt(Math.random());
     const dir = fwd.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
@@ -276,7 +277,7 @@ function shoot() {
         const fall = !b.flame && h.distance > b.range * .5 ? lerp(1, .4, (h.distance - b.range * .5) / (b.range * .5)) : 1;
         const head = !!h.object.userData.head, weak = !!h.object.userData.weak; // a boss's weak point counts as a head, and hurts more
         const t = tally.get(z) || { amt: 0, head: false, crit: false }, pf = hitN++ >= basePierce ? .6 : 1; // targets pierced thanks to Átütő erő take 60%
-        const crit = forceCrit || Math.random() < critChance();
+        const crit = shotCrit; // one roll per shot: a shotgun's pellets crit together, so its chance means what it says
         t.amt += w.dmg * sm * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1) * (weak ? 3 : 1) * (rk('h_long') && h.distance > 25 ? 1 + .1 * rk('h_long') : 1) * pf;
         t.head = t.head || head || weak; t.crit = t.crit || crit; tally.set(z, t);
         burst(h.point, 0x5a0a0a, 3, 2.2, .4);
