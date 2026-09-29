@@ -170,9 +170,14 @@ function startReload() {
 const reloadProgress = () => player.reloading ? clamp(1 - player.reloadT / player.reloadDur, 0, 1) : 0;
 function updateReloadAnim(dt) {
   const w = curW(), U = vm.gun.userData, R = player.reloading && RELOADS[w.base.rl];
-  if (U.leftHand) U.leftHand.visible = !R;
+  if (U.leftHand) { U.leftHand.visible = !R; if (U.lhZ == null) U.lhZ = U.leftHand.position.z; U.leftHand.position.z = U.lhZ + (player.cycK === 'pump' ? .1 * (player.cycE || 0) : 0); } // the pump slides back and forth
   if (U.mag) { U.mag.visible = true; U.mag.position.y = U.magY; }
   if (U.drum) U.drum.position.x += (0 - U.drum.position.x) * Math.min(1, dt * 12);
+  if (!R && player.cycK === 'bolt' && player.cycE > .05 && U.port) { // the hand goes to the bolt, pulls it back and pushes it home
+    vmRoot.updateMatrixWorld(true); const e = player.cycE, at = U.port.clone().applyMatrix4(vm.gun.matrixWorld).add(new V3(.03, .02, .05 * e));
+    vmArm.position.lerpVectors(new V3(ARM_REST[0], ARM_REST[1], ARM_REST[2]), at, Math.min(1, e * 1.6));
+    vmArm.rotation.set(lerp(ARM_REST[3], ARM_RELOAD_ROT[0], e), lerp(ARM_REST[4], ARM_RELOAD_ROT[1], e), lerp(ARM_REST[5], ARM_RELOAD_ROT[2], e)); vmArm.visible = true; return;
+  }
   if (!R) { if (!armAnim) vmArm.visible = false; return; }
   const p = reloadProgress(), full = player.reloading === 'full';
   const ev = (k, at, fn) => { if (fn && at != null && p >= at && !player.rlDone[k]) { player.rlDone[k] = true; fn(); } };
@@ -366,7 +371,7 @@ function updateWeapon(dt) {
   if (w.ammo <= 0) { if (w.reserve > 0) startReload(); else { SND.dry(); if (now - (player.dryMsgT || -9) > 2.5) { player.dryMsgT = now; popText(`Nincs lőszer! Válts fegyvert, vagy lőszerláda ${Math.round(Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z))} m`, '#ff8a70'); } } player.fireCd = .25; return; }
   player.sprint = false;
   if (w.base.mode === 'burst') { player.burstLeft = w.base.burst; player.burstT = 0; player.fireCd = w.base.burstDelay + (w.base.burst - 1) * 60 / w.rpm; }
-  else { shoot(); player.fireCd = 60 / w.rpm / (player.stormT > 0 ? 1.4 : 1) / rateMul(w); }
+  else { shoot(); player.fireCd = 60 / w.rpm / (player.stormT > 0 ? 1.4 : 1) / rateMul(w); if (CYCLE[w.base.id] && w.ammo > 0 && player.fireCd > .3) Object.assign(player, { cycT: player.fireCd, cycMax: player.fireCd, cycK: CYCLE[w.base.id], cycW: w, cycS: 0 }); }
   if (w.ammo <= 0 && w.reserve > 0) setTimeout(() => { if (curW() === w && state === 'playing') startReload(); }, 250);
 }
 
@@ -423,6 +428,7 @@ function updatePlayer(dt) {
   camera.position.set(player.pos.x + rand(-sh, sh), player.pos.y + (ff ? .55 : 1.65) + bob, player.pos.z + rand(-sh, sh));
   camera.rotation.set(player.pitch, player.yaw, ff ? .18 : 0);
 }
+const CYCLE = { sniper: 'bolt', antimat: 'bolt', lever: 'bolt', shotgun: 'pump', slug: 'pump' }; // worked by hand between shots
 function updateVM(dt) {
   if (!vm.gun) return;
   const w = curW(), ads = player.ads, sightY = vm.gun.userData.sightY;
@@ -437,6 +443,15 @@ function updateVM(dt) {
     const p = reloadProgress(), e = player.reloading === 'single' ? 1 : smooth(clamp(p / .12, 0, 1)) * smooth(clamp((1 - p) / .15, 0, 1));
     rz += RL.gun[0] * e; rx += RL.gun[1] * e; y += RL.gun[2] * e; x -= .03 * e; // bring the gun up and in so the hands are on screen
     if (RL.snap && p > RL.snap && p < RL.snap + .08) z += .012 * Math.sin((p - RL.snap) / .08 * Math.PI); // small action slap
+  }
+  player.cycE = 0;
+  if (player.cycT > 0) { // the bolt or the pump: the gun rolls, the hand works it, one clack in the middle
+    player.cycT -= dt;
+    if (player.cycW !== w || player.reloading || player.switchT > 0) player.cycT = 0;
+    else { const p = 1 - player.cycT / player.cycMax, e = Math.sin(clamp((p - .1) / .75, 0, 1) * Math.PI); player.cycE = e;
+      if (!player.cycS && p > .35) { player.cycS = 1; player.cycK === 'pump' ? SND.pump() : SND.bolt(); }
+      if (player.cycK === 'pump') { z += .035 * e; rx += .07 * e; rz -= .06 * e; } else { rz += .38 * e; rx += .06 * e; y += .02 * e; x -= .02 * e; }
+      if (ads > .85 && w.base.scopeView) vm.swayY += .004 * e; }
   }
   if (player.switchT > 0) { const p = Math.sin((1 - player.switchT / SWITCH_T) * Math.PI); y -= .32 * p; rx -= .45 * p; }
   if (vm.pending && player.switchT <= SWITCH_T / 2) equipView();

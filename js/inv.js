@@ -309,6 +309,10 @@ function dropAct(from, to) {
   if (tl === 'ground') return fl === 'L' || fl === 'B' ? `drop:${fl}:${fi}` : fl === 'M' ? `gdrop:${fi}` : null;
   if (fl === 'G' && tl === 'H') return `gshare:${fi}`;
   if (fl === 'H' && tl === 'G') return `gunshare:${fi}`;
+  if (fl === 'G' && tl === 'Z') return `gbag:${fi}`;
+  if (fl === 'Z' && tl === 'G') return `gunbag:${fi}`;
+  if (fl === 'Z' && tl === 'W') return `zwear:${fi}`;
+  if (fl === 'W' && tl === 'Z') return `zunwear:${fi}`;
   if ('LBSK'.includes(fl) && 'LBSK'.includes(tl)) {
     if (tl === 'L') return ti !== undefined && ti !== '' ? `mv:${fl}:${fi}:L:${ti}` : `mv:${fl}:${fi}:L:${freeHand(dragLists().L)}`;
     return fl === tl ? null : `mv:${fl}:${fi}:${tl}`;

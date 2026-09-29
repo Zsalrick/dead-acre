@@ -43,6 +43,7 @@ function startJob(job, opts = {}) {
   if (!player.slots[0]) { player.slots[0] = player.slots[1]; player.slots[1] = null; }
   [...player.slots, ...player.bag].forEach(w => w && trackBest(w));
   mission.brought = [...player.slots.filter(Boolean), ...player.bag];
+  mission.gear = (P.gearBag || []).slice(); // the armour bag comes along
   // the van drops you at one spot and picks you up at another
   const n = MAP.vans.length; let a = Math.floor(Math.random() * n), b = Math.floor(Math.random() * (n - 1)); if (b >= a) b++;
   if (opts.client) { a = clamp(opts.a, 0, n - 1); b = clamp(opts.b, 0, n - 1); }
@@ -301,10 +302,13 @@ function settleWeapons(success, M) {
   let overflow = 0; const home = [], lostGear = [];
   const toStash = it => { if (P.gearStash.length < gearMax()) P.gearStash.push(it); else { P.cash += gearValue(it); overflow++; } };
   for (const k of GEAR_KEYS) { const it = P.gear[k]; if (it && it.found) { if (success) { delete it.found; home.push(it); } else { P.gear[k] = null; lostGear.push(it); } } }
+  const gb = []; // your own pieces go back in the armour bag, the rest to the stash
   for (const it of M.gear) {
-    if (it.found) { if (!success) { lostGear.push(it); continue; } delete it.found; it.isNew = true; home.push(it); }
-    if (!success && !P.gear[it.slot]) P.gear[it.slot] = it; else toStash(it);
+    const found = it.found;
+    if (found) { if (!success) { lostGear.push(it); continue; } delete it.found; it.isNew = true; home.push(it); }
+    if (!success && !P.gear[it.slot]) P.gear[it.slot] = it; else if (!found && gb.length < bagMax()) gb.push(it); else toStash(it);
   }
+  P.gearBag = gb;
   gearChanged();
   return { junkN: junk.length, junkParts, kept: newOnes, lost, overflow, gear: success ? home : lostGear };
 }
@@ -434,7 +438,7 @@ function doQuit() { // giving up needs a second click; it counts as a failed job
   $('pause').hidden = true; finishJob(false, true);
 }
 $('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
-  if (a === 'tab-inv' || a === 'tab-char') { pinvTab = a.slice(4); document.querySelectorAll('.pinvtabs button').forEach(x => x.classList.toggle('on', x.dataset.pm === a)); renderPauseInv(); return; }
+  if (a === 'tab-inv' || a === 'tab-char') { pinvPage(a.slice(4)); return; }
   if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'help') renderPauseMenu(true); else if (a === 'quit') doQuit(); });
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
@@ -449,36 +453,39 @@ function ammoRows() { // reserve rounds by family, over the guns in hand and in 
   const by = {}; for (const w of [...player.slots, ...player.bag]) if (w) { const k = CAT[w.base.id], e = by[k] || (by[k] = { n: 0, max: 0, guns: [] }); e.n += w.reserve; e.max += resMax(w); e.guns.push(w.base.name); }
   return Object.entries(by).map(([k, e]) => `<div class="amr" style="--ac:${AMMO_COL[k]}"><div><b>${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}</b><span>${e.n} / ${e.max}</span></div><i><em style="width:${e.max ? e.n / e.max * 100 : 0}%"></em></i><small>${e.guns.join(', ')}</small></div>`).join('') || '<p class="note">Nincs fegyvered.</p>';
 }
-let pinvTab = 'inv'; // the in-game inventory's pages: the kit, or your character in what you wear
+let pinvTab = 'inv';
+const syncGearBag = () => { if (mission) profile.gearBag = mission.gear.filter(it => !it.found); }; // a save mid-job keeps the armour bag right
+function pinvPage(t) { pinvTab = t; invSel = ''; document.querySelectorAll('.pinvtabs button').forEach(x => x.classList.toggle('on', x.dataset.pm === 'tab-' + t)); renderPauseInv(); } // the in-game inventory's pages: the kit, or your character in what you wear
 function renderPauseChar() {
-  const G = profile.gear; let [sl, si] = invSel.split(':'); if (sl !== 'W' || !G[si]) { si = GEAR_KEYS.find(k => G[k]) || ''; invSel = si ? `W:${si}` : invSel; }
-  const x = G[si], worn = GEAR_KEYS.filter(k => G[k]).length;
-  const left = `<h3>Viselt <small>${worn} / ${GEAR_KEYS.length}${maxShield() ? ` · pajzs ${Math.round(maxShield())}` : ''}</small></h3><div class="tiles bag" data-drop="W">${GEAR_KEYS.map(k => G[k] ? gTile(`W:${k}`, G[k]) : emptyTile(`${GEAR_SLOTS[k]} · üres`, '')).join('')}</div>`;
+  const G = profile.gear, MG = mission.gear, test = mission.job.test; let [sl, si] = invSel.split(':');
+  const get = () => sl === 'W' ? G[si] : sl === 'M' ? MG[+si] : null;
+  if (!get()) { const k = GEAR_KEYS.find(k => G[k]); [sl, si] = k ? ['W', k] : ['M', '0']; invSel = `${sl}:${si}`; }
+  const x = get(), worn = GEAR_KEYS.filter(k => G[k]).length, own = MG.filter(it => !it.found).length;
+  const destroy = test || !x ? '' : hhold(`Szétszedés (tartsd) +${fieldParts(x.q)} ${FAB}`, `gdestroy:${si}`, false, 'KeyX');
+  const detail = !x ? '<div class="invd"></div>' : sl === 'M' ? gearDetail(x, G[x.slot], hbtn('Felveszem', `wear:${si}`, !canUse(x), 'KeyF') + destroy)
+    : gearDetail(x, null, hbtn('Leveszem', `unwear:${si}`, false, 'KeyF'));
+  const left = `<h3>Viselt <small>${worn} / ${GEAR_KEYS.length}${maxShield() ? ` · pajzs ${Math.round(maxShield())}` : ''}</small></h3><div class="tiles bag" data-drop="W">${GEAR_KEYS.map(k => G[k] ? gTile(`W:${k}`, G[k], { tag: G[k].found ? 'új' : '' }) : emptyTile(`${GEAR_SLOTS[k]} · üres`, '', null, 'W')).join('')}</div>
+    <h3>Páncél-táska <small>${own} / ${bagMax()}${MG.length > own ? ` · ${MG.length - own} talált` : ''}</small></h3><div class="tiles bag" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: G[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Üres', '')}</div>`;
   const mid = `<div class="lview pchar"><div id="lookCv"></div></div>`;
-  const detail = x ? gearDetail(x, null, hbtn('Leveszem', `unwear:${si}`, false, 'KeyF')) : '<div class="invd"></div>';
-  const lo = $('loadout'); lo.innerHTML = invLayout(left, detail, mid); markCta(lo); updateKeybar(lo); lookPreview();
+  const lo = $('loadout'); keepScroll(lo, () => { lo.innerHTML = invLayout(left, detail, mid); markCta(lo); }); updateKeybar(lo); lookPreview();
 }
 function renderPauseInv() {
   if (pinvTab === 'char') return renderPauseChar();
   const L = player.slots, B = player.bag, bagFull = B.length >= bagMax(), lone = L.filter(Boolean).length < 2, MG = mission.gear;
   let [sl, si] = invSel.split(':');
-  const get = () => sl === 'L' ? L[+si] : sl === 'B' ? B[+si] : sl === 'M' ? MG[+si] : sl === 'W' ? profile.gear[si] : null;
+  const get = () => sl === 'L' ? L[+si] : sl === 'B' ? B[+si] : null;
   if (!get()) { sl = 'L'; si = String(player.cur); invSel = `L:${si}`; }
   const i = +si, x = get(), tag = w => w.owned ? 'saját' : 'új';
   let detail;
   const test = mission.job.test, destroyBtn = (act, it, off) => test ? '' : hhold(`Szétszedés (tartsd) +${fieldParts(it.q)} ${act[0] === 'g' ? FAB : '⚙'}`, act, off, 'KeyX');
-  if (sl === 'M') detail = gearDetail(x, profile.gear[x.slot], `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd, akkor is, ha felveszed.' : 'Saját, levetted.'}</small>` + hbtn('Felveszem', `wear:${si}`, !canUse(x), 'KeyF') + destroyBtn(`gdestroy:${si}`, x, false));
-  else if (sl === 'W') detail = gearDetail(x, null, `<small class="note">${x.found ? 'Talált: csak evakuálással a tiéd.' : 'Saját.'}</small>` + hbtn('Leveszem', `unwear:${si}`, false, 'KeyF'));
-  else {
+  {
     const acts = sl === 'L' ? hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyF') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`) + hbtn('Eldob', `drop:L:${i}`, lone, 'KeyG') + destroyBtn(`destroy:L:${i}`, x, lone)
       : hbtn(`Kézbe → ${bestHand(L, x) + 1}. kéz`, `mv:B:${i}:L:${bestHand(L, x)}`, !canUse(x), 'KeyF') + hbtn('1. kézbe', `mv:B:${i}:L:0`, !canUse(x), 'Digit1') + hbtn('2. kézbe', `mv:B:${i}:L:1`, !canUse(x), 'Digit2') + hbtn('Eldob', `drop:B:${i}`, false, 'KeyG') + destroyBtn(`destroy:B:${i}`, x, false);
     detail = weaponDetail(x, sl === 'L' ? L[1 - i] : L[player.cur], `<small class="note">${x.owned ? 'Saját' : 'Új: csak evakuálással a tiéd'} · lőszer ${x.ammo}/${x.reserve}</small>${acts}`);
   }
   const bagFree = Math.max(0, bagMax() - B.length), foundG = MG.filter(it => it.found).length;
   const left = `<h3>Kézben <small>${L.filter(Boolean).length} / 2 · görgő vagy 1 / 2</small></h3><div class="tiles hands" data-drop="L">${L.map((w, k) => w ? wTile(`L:${k}`, w, { n: `${k + 1}`, tag: w.owned ? '' : 'új' }) : emptyTile(`${k + 1}. kéz üres`, 'Húzz ide egy fegyvert', null, `L:${k}`)).join('')}</div>
-    <h3>Táska <small>${B.length} / ${bagMax()} · a munkán felvett fegyverek</small></h3><div class="tiles bag" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új', sub: w.base.name })).join('')}${Array.from({ length: bagFree }, () => emptyTile('Üres', 'F: felvétel a földről', null, 'B')).join('')}</div>
-    <h3>Viselt páncél <small>${GEAR_KEYS.filter(k => profile.gear[k]).length} / ${GEAR_KEYS.length}${maxShield() ? ` · pajzs ${Math.round(maxShield())}` : ''}</small></h3><div class="tiles bag" data-drop="W">${GEAR_KEYS.map(k => profile.gear[k] ? gTile(`W:${k}`, profile.gear[k], { tag: profile.gear[k].found ? 'új' : '' }) : emptyTile(`${GEAR_SLOTS[k]} · üres`, 'Húzz ide páncélt', null, 'W')).join('')}</div>
-    <h3>Páncél a zsákban <small>a talált darab csak evakuálással a tiéd</small></h3><div class="tiles bag" data-drop="M">${MG.map((it, k) => gTile(`M:${k}`, it, { cmp: profile.gear[it.slot] || null, tag: it.found ? 'új' : '' })).join('') || emptyTile('Még semmi', 'A zombik dobják, rálépve felveszed')}</div>`;
+    <h3>Táska <small>${B.length} / ${bagMax()} · a munkán felvett fegyverek</small></h3><div class="tiles bag" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { cmp: curW(), tag: w.owned ? '' : 'új', sub: w.base.name })).join('')}${Array.from({ length: bagFree }, () => emptyTile('Üres', 'F: felvétel a földről', null, 'B')).join('')}</div></div>`;
   const mid = `<h3>Lőszer <small>tartalék a fegyvereid szerint</small></h3><div class="amrs">${ammoRows()}</div>
     <h3>Tárgyak</h3><div class="itrs">${ITEM_KEYS.map(k => `<div class="itr" style="--ic:${ITEMS[k].color}" data-tip="${itemDesc(k).replace(/"/g, '&quot;')}"><kbd>${ITEMS[k].key}</kbd><span>${itemName(k)}</span><b>${player.inv[k]}</b></div>`).join('')}</div>
     ${test ? '' : `<div class="pout"><small>Kijutáskor a tiéd</small><span>+${mission.parts || 0} ⚙ alkatrész · +${mission.fabric || 0} ${FAB} anyag${foundG ? ` · ${foundG} talált páncél` : ''}${player.bag.filter(w => !w.owned).length ? ` · ${player.bag.filter(w => !w.owned).length} új fegyver` : ''}</span><p>Ha elesel, a talált zsákmány elveszik.</p></div>`}`;
@@ -492,21 +499,21 @@ $('loadout').addEventListener('click', e => {
   const [kind, f, i, t, j] = b.dataset.act.split(':'), held = curW();
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); renderPauseInv(); return selDbl($('loadout'), invSel); }
   if (kind === 'mv') moveGun({ L: player.slots, B: player.bag }, f, +i, t, +j);
-  if (kind === 'gdrop') { const it = mission.gear.splice(+f, 1)[0]; if (it) itemFeed('eldobta', it.name, it.q); if (it) netShareDrop('g', it, spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6))))); invSel = ''; }
+  if (kind === 'gdrop') { setTimeout(syncGearBag); const it = mission.gear.splice(+f, 1)[0]; if (it) itemFeed('eldobta', it.name, it.q); if (it) netShareDrop('g', it, spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6))))); invSel = ''; }
   if (kind === 'destroy') { // parts are paid out only if you extract
     const w = f === 'L' ? player.slots[+i] : player.bag[+i];
     if (!w || (f === 'L' && player.slots.filter(Boolean).length < 2)) return;
     if (f === 'L') player.slots[+i] = null; else player.bag.splice(+i, 1);
     SND.salvage('w'); itemFeed('szétszedte', `${w.name} · +${fieldParts(w.q)} ⚙`, w.unique ? 5 : w.q); mission.parts = (mission.parts || 0) + fieldParts(w.q); (mission.destroyed || (mission.destroyed = [])).push(w); invSel = '';
   }
-  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { SND.salvage('g'); itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ${FAB}`, it.q); mission.fabric = (mission.fabric || 0) + fieldParts(it.q); } invSel = ''; }
+  if (kind === 'gdestroy') { const it = mission.gear.splice(+f, 1)[0]; if (it) { SND.salvage('g'); itemFeed('szétszedte', `${it.name} · +${fieldParts(it.q)} ${FAB}`, it.q); mission.fabric = (mission.fabric || 0) + fieldParts(it.q); } invSel = ''; syncGearBag(); }
   if (kind === 'wear' || kind === 'unwear') { // swap armor in the field; shield and health keep their share of the new maximum
     const G0 = profile.gear, hpF = player.hp / maxHp(), shF = maxShield() ? player.shield / maxShield() : 1;
     if (kind === 'wear' && mission.gear[+f] && !exoWearOk(profile.gear, mission.gear[+f])) { SND.deny(); popText('Egyszerre csak 1 egzotikus páncél lehet rajtad', '#ff8a70'); return renderPauseInv(); }
     if (kind === 'wear' && mission.gear[+f] && !canUse(mission.gear[+f])) { SND.deny(); popText(`Csak ${mission.gear[+f].level}. szinttől viselhető`, '#ff8a70'); return renderPauseInv(); }
     if (kind === 'wear') { const it = mission.gear.splice(+f, 1)[0], old = G0[it.slot]; G0[it.slot] = it; if (old) mission.gear.push(old); invSel = `W:${it.slot}`; }
     else { mission.gear.push(G0[f]); G0[f] = null; invSel = `M:${mission.gear.length - 1}`; }
-    gearChanged(); player.hp = Math.max(1, maxHp() * hpF); player.shield = maxShield() * shF;
+    gearChanged(); syncGearBag(); player.hp = Math.max(1, maxHp() * hpF); player.shield = maxShield() * shF;
   }
   if (kind === 'drop') {
     const w = f === 'L' ? player.slots[+i] : player.bag[+i];
@@ -533,6 +540,7 @@ addEventListener('keydown', e => {
   if (state === 'hub' && hubTab === 'swheel' && e.code === 'Space') { e.preventDefault(); const b = document.querySelector('#hubBody [data-act="slot"]'); if (b && !b.disabled) b.click(); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'menu' && e.code === 'Escape' && performance.now() - pausedAt > 400) { resume(); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && e.code === 'Escape') { closePauseForClick(); return; } // Esc closes the inventory (the mouse comes back on the next click)
+  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && (e.code === 'KeyQ' || e.code === 'KeyE')) { pinvPage(pinvTab === 'inv' ? 'char' : 'inv'); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && invKey(e, $('loadout'))) return;
   if (state === 'station' && (e.code === 'Escape' || e.code === 'KeyE')) { closeStation(e.code === 'Escape'); return; }
   if (state === 'paused' && (e.code === 'Escape' || e.code === 'KeyP') && noLock) { resume(); return; }
@@ -729,7 +737,7 @@ function updateHUD() {
 
   setHTML('points', `${Math.floor(player.points).toLocaleString('hu-HU')}<small>PONT</small>`);
   if (profile && profile.cls) {
-    const C = CLASSES[profile.cls], cd = player.abilCd, active = player.stormT > 0 || aura;
+    const C = CLASSES[profile.cls], cd = player.abilCd, active = abilActive();
     setHTML('ability', `<span class="abtx"><b>${C.ability.name}</b><small>${active ? 'aktív' : cd > 0 ? Math.ceil(cd) + ' mp' : 'kész'}</small></span><span class="abring" style="--p:${Math.round((active ? 1 : clamp(1 - cd / (abilityCd() || 1), 0, 1)) * 100)}%"><kbd>C</kbd></span>`);
     $('ability').className = cd > 0 && !active ? 'cd' : 'ready'; $('ability').style.setProperty('--cc', C.color);
   } else setHTML('ability', '');

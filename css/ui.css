@@ -991,3 +991,5 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .pinvtabs button{height:44px;padding:0 20px;background:transparent;border:1px solid var(--ln2);color:var(--tx2);font-family:var(--fc);font-weight:700;font-size:16px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer}
 .pinvtabs button.on{background:var(--pan2);color:var(--tx);border-color:var(--amb)}
 #pause .pchar{height:100%;min-height:0}
+
+.pinvtabs{align-items:center}.pinvtabs kbd{opacity:.7}

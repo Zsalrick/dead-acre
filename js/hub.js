@@ -377,14 +377,16 @@ const HUB = {
   gear() {
     const P = profile, st = P.gearStash;
     let [sl, si] = invSel.split(':');
-    const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : sl === 'H' ? SH.g[+si] : null;
+    const gb = P.gearBag || (P.gearBag = []), gbFull = gb.length >= bagMax();
+    const get = () => sl === 'W' ? P.gear[si] : sl === 'G' ? st[+si] : sl === 'H' ? SH.g[+si] : sl === 'Z' ? gb[+si] : null;
     if (!get()) { const k = GEAR_KEYS.find(k => P.gear[k]); [sl, si] = k ? ['W', k] : ['G', '0']; invSel = `${sl}:${si}`; }
     const it = get();
-    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'W', si) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, !canUse(it), 'KeyF') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'G', si);
+    const acts = !it ? '' : sl === 'W' ? hbtn('Leveszem', `unwear:${si}`, st.length >= gearMax(), 'KeyF') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'W', si) : sl === 'H' ? hbtn('Raktárba', `gunshare:${si}`, st.length >= gearMax(), 'KeyR') : sl === 'Z' ? hbtn('Felveszem', `zwear:${si}`, !canUse(it), 'KeyF') + hbtn('Raktárba', `gunbag:${si}`, st.length >= gearMax(), 'KeyR') : hbtn('Felveszem', `wear:${si}`, !canUse(it), 'KeyF') + hbtn('Táskába', `gbag:${si}`, gbFull, 'KeyT') + hbtn('Karakterládába', `gshare:${si}`, SH.g.length >= SHARED_MAX, 'KeyK') + hbtn('Kovács ›', 'goforge', false, 'KeyG') + gSellBtns(it, 'G', si);
     const worn = GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(`${GEAR_SLOTS[k]} · üres`, 'Húzz ide páncélt', null, 'W')).join('');
     const fit = x => gFilter === 'all' || x.slot === gFilter;
     const sorted = st.map((x, k) => [x, k]).filter(([x]) => fit(x)).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
-    const left = `<h3>Viselt <small>${GEAR_KEYS.filter(k => P.gear[k]).length} / ${GEAR_KEYS.length}</small></h3><div class="tiles worn" data-drop="W">${worn}</div>`;
+    const left = `<h3>Viselt <small>${GEAR_KEYS.filter(k => P.gear[k]).length} / ${GEAR_KEYS.length}</small></h3><div class="tiles worn" data-drop="W">${worn}</div>
+      <h3>Páncél-táska <small>${gb.length} / ${bagMax()} · a munkára is jön</small></h3><div class="tiles" data-drop="Z">${gb.map((x, k) => gTile(`Z:${k}`, x, { cmp: P.gear[x.slot] || null })).join('')}${Array.from({ length: Math.min(2, bagMax() - gb.length) }, () => emptyTile('Üres hely', 'Húzz ide páncélt', null, 'Z')).join('')}</div>`;
     const mid = `<div class="itools"><button class="chip${gFilter === 'all' ? ' on' : ''}" data-act="gfilt:all">Mind</button>${GEAR_KEYS.map(k => `<button class="chip${gFilter === k ? ' on' : ''}" data-act="gfilt:${k}" data-badge="${newCounts().gs[k] || ''}">${GEAR_SLOTS[k]}</button>`).join('')}<span class="sp"></span>${trashBar('g')}</div>
       <h3>Páncélraktár <small>${st.length} / ${gearMax()}</small></h3><div class="tiles" data-drop="G">${sorted.map(([x, k]) => gTile(`G:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'A munkán talált páncél ide kerül')}</div>
       <h3>Karakterek közti láda <small>${SH.g.length} / ${SHARED_MAX}</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => fit(x) ? gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null }) : '').join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>
@@ -537,6 +539,11 @@ $('hubBody').addEventListener('click', e => {
   else if (kind === 'wear' && P.gearStash[+a] && !canUse(P.gearStash[+a])) { SND.deny(); popText(`Csak ${P.gearStash[+a].level}. szinttől viselhető`, '#ff8a70'); }
   else if (kind === 'wear') { const it = P.gearStash.splice(+a, 1)[0], old = P.gear[it.slot]; P.gear[it.slot] = it; if (old) P.gearStash.push(old); gearChanged(); }
   if (kind === 'unwear') { P.gearStash.push(P.gear[a]); P.gear[a] = null; gearChanged(); }
+  { const gb = P.gearBag || (P.gearBag = []); // the armour bag: into it, out of it, worn from it
+    if (kind === 'gbag' && P.gearStash[+a] && gb.length < bagMax()) gb.push(P.gearStash.splice(+a, 1)[0]);
+    if (kind === 'gunbag' && gb[+a] && P.gearStash.length < gearMax()) P.gearStash.push(gb.splice(+a, 1)[0]);
+    if (kind === 'zunwear' && P.gear[a] && gb.length < bagMax()) { gb.push(P.gear[a]); P.gear[a] = null; gearChanged(); }
+    if (kind === 'zwear' && gb[+a]) { const it = gb[+a]; if (!canUse(it) || !exoWearOk(P.gear, it)) SND.deny(); else { gb.splice(+a, 1); const old = P.gear[it.slot]; P.gear[it.slot] = it; if (old) gb.push(old); gearChanged(); } } }
   if (kind === 'gshare' && P.gearStash[+a] && SH.g.length < SHARED_MAX) SH.g.push(P.gearStash.splice(+a, 1)[0]);
   if (kind === 'gunshare' && SH.g[+a] && P.gearStash.length < gearMax()) P.gearStash.push(SH.g.splice(+a, 1)[0]);
   if (kind === 'gsell') { const it = gearAt(a, c); if (it && !it.fav) { gRemove(a, c); P.cash += gearValue(it); } }

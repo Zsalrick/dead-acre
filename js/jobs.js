@@ -225,7 +225,7 @@ function testRefill() { [...player.slots, ...player.bag].forEach(w => { if (w &&
 function updateTestGround(M, dt) {
   M.t += dt; testRefill();
   for (const q of M.dummyQ) q.t -= dt;
-  M.dummyQ = M.dummyQ.filter(q => q.t > 0 || (spawnDummy(q.spot[0], q.spot[1]), false));
+  M.dummyQ = M.dummyQ.filter(q => q.t > 0 || (zombies.some(z => z.dummy && !z.dead && z.spot[0] === q.spot[0] && z.spot[1] === q.spot[1]) || spawnDummy(q.spot[0], q.spot[1]), false)); // never two on one spot
 }
 
 // ---------- escort: a survivor walks to the pickup van, but only with someone beside them; zombies want them too ----------

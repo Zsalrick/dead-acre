@@ -217,10 +217,11 @@ function useAbility() {
   player.abilCd = abilityCd(); SND.power(); pushFx(['ab', c]); if (c === 'medic' && aura) pushFx(['au', Math.round(aura.pos.x * 10), Math.round(aura.pos.z * 10), Math.round(aura.t)]);
   (player.buf || (player.buf = {})).ability = 8;
 }
+const abilActive = () => player.stormT > 0 || player.eyeT > 0 || !!aura || turrets.some(t => !t.station) || minions.some(m => !m.dead);
 function updateSkills(dt) {
   if (player.eyeT > 0) player.eyeT -= dt;
   if (player.twinWait > 0 && (player.twinWait -= dt) <= 0) { player.twinWait = 0; player.abilCd = abilityCd(); } // the second twin turret never came
-  player.abilCd = Math.max(0, (player.abilCd || 0) - dt);
+  if (!abilActive()) player.abilCd = Math.max(0, (player.abilCd || 0) - dt); // the cooldown starts when the ability is over
   player.stormT = Math.max(0, (player.stormT || 0) - dt);
   updateMinions(dt); updateRemoteMinions(dt);
   if (!aura) return;

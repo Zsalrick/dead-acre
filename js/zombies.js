@@ -241,7 +241,7 @@ function popBloater(z) {
   explode(new V3(z.pos.x, 1, z.pos.z), { r: 4.2, zdmg: 90 + zombieHp() * .9, pr: 3.8, pdmg: 45 * zDmgMul(), color: 0x9dff3a });
 }
 function killZombie(z, o) {
-  if (z.dummy) { z.dead = true; z.deathT = 0; z.fallDir = 1; if (!o.remote) { hitmarker(true); SND.kill(); } if (mission && mission.dummyQ) mission.dummyQ.push({ t: 2.5, spot: z.spot }); return; }
+  if (z.dummy) { z.dead = true; z.deathT = 0; z.fallDir = 1; if (!o.remote) { hitmarker(true); SND.kill(); } if (mission && mission.dummyQ && !mission.dummyQ.some(q => q.spot[0] === z.spot[0] && q.spot[1] === z.spot[1])) mission.dummyQ.push({ t: 3.1, spot: z.spot }); return; } // after the old body sank (3 s)
   if (mission) mission.kc = (mission.kc || 0) + 1; // the whole party's kills (objective jobs)
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1; bloodPool(z.pos.x, z.pos.z, z.scale);
   for (const k of z.traits || []) if (AFFIX[k].die) AFFIX[k].die(z);
@@ -619,12 +619,14 @@ function hbEl(i) {
 // name tags the Borderlands 3 way: shown when you aim at an enemy or hurt it, gone ~3 s later; only within reach, a handful at once
 const HB_MAX = 8, HB_NEAR = 5, HB_AIM = .15, HB_KEEP = 3, HB_FAR = 45;
 let hbRayT = 0, hbAimed = null;
+const hbFar = () => { const w = curW(); return w && w.base.scopeView && player.ads > .5 ? Math.max(HB_FAR, w.base.range + 30) : HB_FAR; }; // through a scope: as far as the rifle reaches
 function updateHealthBars() {
   const blind = dirOn('blind');
   if (!blind && now - hbRayT > .1) { // the aim ray is the costly part: ten times a second is plenty
     const dt = Math.min(.3, now - hbRayT); hbRayT = now;
-    const parts = []; for (const z of zombies) if (!z.dead && Math.abs(z.pos.x - player.pos.x) < 70 && Math.abs(z.pos.z - player.pos.z) < 70) parts.push(...z.parts);
-    ray.set(camera.position, new V3(0, 0, -1).applyQuaternion(camera.quaternion)); ray.far = HB_FAR;
+    const R = Math.max(70, hbFar());
+    const parts = []; for (const z of zombies) if (!z.dead && Math.abs(z.pos.x - player.pos.x) < R && Math.abs(z.pos.z - player.pos.z) < R) parts.push(...z.parts);
+    ray.set(camera.position, new V3(0, 0, -1).applyQuaternion(camera.quaternion)); ray.far = hbFar();
     const h = ray.intersectObjects(rayBlockers.concat(parts), false)[0], lz = (h && h.object.userData.z) || null;
     if (lz) { lz.aimT = lz === hbAimed ? (lz.aimT || 0) + dt : 0; if (lz.aimT >= HB_AIM) lz.seenT = now; }
     hbAimed = lz;
@@ -633,7 +635,7 @@ function updateHealthBars() {
   if (!blind) for (const z of zombies) {
     if (z.dead || z.rise > .5 || z.K.boss || (z.K.ghost && z.op < .4)) continue;
     const d = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z);
-    const last = Math.max(z.hitT || -99, z.seenT || -99), pr = d > HB_FAR + (z.tier === 3 ? 15 : 0) ? -1 : now - (z.hitT || -99) < HB_KEEP ? 0 : now - (z.seenT || -99) < HB_KEEP ? 1 : d < HB_NEAR ? 2 : -1;
+    const last = Math.max(z.hitT || -99, z.seenT || -99), pr = d > hbFar() + (z.tier === 3 ? 15 : 0) ? -1 : now - (z.hitT || -99) < HB_KEEP ? 0 : now - (z.seenT || -99) < HB_KEEP ? 1 : d < HB_NEAR ? 2 : -1;
     if (pr >= 0) pick.push([pr, d, z, pr < 2 ? clamp((HB_KEEP - (now - last)) / .5, 0, 1) : 1]);
   }
   pick.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
