@@ -472,6 +472,10 @@ function toggleFS() {
 }
 document.addEventListener('fullscreenchange', () => document.querySelectorAll('.fslbl').forEach(s => { const hub = !!s.closest('.hsys'); s.textContent = document.fullscreenElement ? (hub ? 'KILÉPÉS' : 'Kilépés a teljes képernyőből') : (hub ? 'TELJES KÉPERNYŐ' : 'Teljes képernyő'); }));
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-fs]')) toggleFS(); });
+// F11 is the browser's own fullscreen: it doesn't catch Ctrl+W. Say so, and point at Y
+const fsWarn = () => { if (performance.now() - (fsWarn.t || -1e9) < 4000) return; fsWarn.t = performance.now(); toast('NE AZ F11-ET HASZNÁLD', ['A böngésző teljes képernyője nem véd: a Ctrl+W így is bezárja a játékot.', 'Nyomd meg az Y gombot: a játék saját teljes képernyője a billentyűket is elkapja.'], '#ff8a30', 7000); SND.deny && SND.deny(); };
+addEventListener('keydown', e => { if (e.code === 'F11') { e.preventDefault(); fsWarn(); } }, true);
+addEventListener('resize', () => { if (!document.fullscreenElement && innerHeight >= screen.height - 2 && innerWidth >= screen.width - 2) fsWarn(); }); // F11 got through anyway
 let pinvTab = 'inv';
 const syncGearBag = () => { if (mission) profile.gearBag = mission.gear.filter(it => !it.found); }; // a save mid-job keeps the armour bag right
 function pinvPage(t) { pinvTab = t; invSel = ''; document.querySelectorAll('.pinvtabs button').forEach(x => x.classList.toggle('on', x.dataset.pm === 'tab-' + t)); renderPauseInv(); } // the in-game inventory's pages: the kit, or your character in what you wear
