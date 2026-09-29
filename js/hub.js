@@ -10,6 +10,7 @@ const JOB_TEXT = {
   town:   [['Délben a főutcán', 'Városi tanács'], ['A bank nem nyit ki magától', 'Első Megyei Bank'], ['Utolsó kör a szalonban', 'Kocsmáros']],
   hospital: [['Éjszakai ügyelet', 'Főorvos'], ['Kiürítés', 'Katasztrófavédelem'], ['A lezuhant helikopter', 'Mentőszolgálat']],
   fair:   [['Utolsó kör a körhintán', 'Vásárigazgató'], ['Az óriáskerék fénye', 'Mutatványos család'], ['Céllövölde zárás után', 'Bódés Feri']],
+  rail:   [['Az utolsó szerelvény', 'MÁV rendező'], ['Váltóállítás éjjel', 'Forgalmista'], ['Rakomány a harmadik vágányon', 'Szállítmányozó']],
   quarry: [['A gödör alján', 'Kőbánya Kft.'], ['Robbantás előtti éjszaka', 'Bányamester'], ['Senki sem jön fel', 'Bányászszakszervezet']],
 };
 const stashMax = () => 40 + 10 * U('stash'), gearMax = () => 40 + 10 * U('stash'); // the Raktárbővítés upgrade adds 10 + 10 a level
@@ -104,7 +105,7 @@ function topUpShop() { // reached level 10/20/30 since the last restock: the new
 const jobMap = { h: 440, k: 1 }; // the jobs map's height in map units and its text scale, fitted to the box on screen
 let hubTab = 'jobs', jobSel = 0, wFilter = 'all', gFilter = 'all'; // the arsenal / armor list filters
 // the county: where each map lies, and a hand-drawn backdrop
-const MAP_LOC = { range: [110, 150], farm: [170, 300], chapel: [300, 105], gas: [560, 335], mill: [735, 110], town: [450, 215], quarry: [790, 320], fair: [615, 205], hospital: [330, 330] };
+const MAP_LOC = { range: [110, 150], farm: [170, 300], chapel: [300, 105], gas: [560, 335], mill: [735, 110], town: [450, 215], quarry: [790, 320], fair: [615, 205], hospital: [330, 330], rail: [860, 215] };
 const MAP_ART = (() => {
   const L = MAP_LOC, road = (a, b) => `<path class="road" d="M${L[a][0]} ${L[a][1]} Q ${(L[a][0] + L[b][0]) / 2 + 30} ${(L[a][1] + L[b][1]) / 2 - 20} ${L[b][0]} ${L[b][1]}"/>`;
   const r = mulberry(7), trees = Array.from({ length: 140 }, () => { const x = r() * 900, y = r() * 440; return Math.hypot(x - 450, y - 215) < 70 ? '' : `<circle class="tree" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${(3 + r() * 6).toFixed(1)}"/>`; }).join('');
@@ -112,7 +113,7 @@ const MAP_ART = (() => {
   return `<defs><radialGradient id="jfog" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#1c211c"/><stop offset="1" stop-color="#070908"/></radialGradient></defs>
     ${grid}${trees}
     <path class="river" d="M-10 200 C 120 170 200 230 300 210 S 520 140 620 200 S 800 260 910 230"/>
-    ${road('farm', 'town')}${road('chapel', 'town')}${road('town', 'gas')}${road('town', 'mill')}${road('gas', 'quarry')}${road('mill', 'quarry')}${road('town', 'fair')}${road('farm', 'hospital')}${road('hospital', 'gas')}${road('farm', 'chapel')}
+    ${road('farm', 'town')}${road('chapel', 'town')}${road('town', 'gas')}${road('town', 'mill')}${road('gas', 'quarry')}${road('mill', 'quarry')}${road('town', 'fair')}${road('farm', 'hospital')}${road('hospital', 'gas')}${road('farm', 'chapel')}${road('fair', 'rail')}${road('quarry', 'rail')}
 `;
 })();
 function jobCard(j, i, notReady) {

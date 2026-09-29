@@ -542,6 +542,48 @@ const MAPS = {
       east:  { side: 'e', at: -10, name: 'Ügyelet', cost: 1000, core: { minX: 46, maxX: 68, minZ: -22, maxZ: 2 }, spawns: [[65, -19], [65, -1]], station: ['forge', 56, -12] },
     },
   },
+  rail: {
+    name: 'Vasúti rendező', desc: 'Éjszakai rendező pályaudvar: három vágány tehervagonokkal és egy tartálykocsival, víztorony, jelzőlámpák, konténerek.', minLevel: 16,
+    main: { minX: -46, maxX: 46, minZ: -34, maxZ: 34 }, look: { tex: 'dirt', ground: 0x7a746a, fog: 0x0b0c10, fogD: [.022, .03], fence: 0x9a9690 },
+    vans: [[-36, 26], [36, 26], [-38, -28], [38, 28]], ammo: [0, 20], boxSpots: [[-20, 4], [18, 4], [-30, -24], [30, -24], [0, 26], [-8, -8]],
+    spawns: [[-43, -30], [43, -30], [-43, 4], [43, 4], [0, 31], [-24, 31], [24, 31], [-43, 18], [43, 16]],
+    lamps: [[-26, 20], [26, 20], [0, 14], [-36, -6], [36, -6], [-12, -28], [14, -28]],
+    clear: [[-18, -16, 12], [14, -16, 11], [-10, -4, 12], [22, -4, 9], [-26, 8, 9], [10, 8, 9], [34, 8, 5], [0, -28, 7], [-34, 22, 5], [34, 22, 5]],
+    props: [['crate', 2], ['barrel', 2], ['boom', 1.5], ['stack', 2], ['logs', 1]], propN: [16, 22],
+    build() {
+      const rust = matStd({ color: 0x7a3a24, roughness: .9 }), green = matStd({ color: 0x2f4a36, roughness: .9 }), blue = matStd({ color: 0x2c3e5a, roughness: .9 }), dark = matStd({ color: 0x1c1d20, roughness: .8 });
+      const steel = matStd({ color: 0x8a8e94, metalness: .6, roughness: .4 }), wood = matStd({ color: 0x4a3626, roughness: 1 }), tank = matStd({ color: 0x1e2226, metalness: .4, roughness: .5 }), brick = matStd({ color: 0x7a4a36 });
+      // three tracks: ballast, sleepers and two rails each, across the whole yard (low: you walk over them)
+      for (const tz of [-16, -4, 8]) {
+        addBox(0, tz, 92, 3.4, .06, matStd({ color: 0x33312d, roughness: 1 }), 0, false);
+        for (let x = -45; x <= 45; x += 1.2) addBox(x, tz, .3, 2.6, .1, wood, .04, false);
+        for (const o of [-.72, .72]) addBox(0, tz + o, 92, .1, .12, steel, .12, false);
+      }
+      // freight cars on the tracks (a gap in every line so the yard stays open)
+      const wagon = (x, z, len, m, open) => { addBox(x, z, len, 3, 2.6, m, .9); addBox(x, z, len + .2, 3.1, .2, dark, 3.5, false);
+        for (const a of [-len / 2 + 1.4, len / 2 - 1.4]) for (const b of [-1.1, 1.1]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .25, 12), dark)); w.rotation.x = Math.PI / 2; w.position.set(x + a, .5, z + b); }
+        addBox(x, z - 1.52, len * .3, .04, 2, open ? dark : m, 1.2, false); };
+      wagon(-24, -16, 12, rust); wagon(-10, -16, 12, green, true); wagon(20, -16, 12, blue);
+      wagon(22, -4, 12, rust, true); wagon(-6, -4, 12, blue);
+      wagon(-28, 8, 12, green); wagon(4, 8, 12, rust);
+      { const t = put(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 11, 18), tank)); t.rotation.z = Math.PI / 2; t.position.set(-10, 2.4, 8); t.castShadow = true; rayBlockers.push(t); // the tank car
+        obstacles.push({ minX: -15.5, maxX: -4.5, minZ: 6.5, maxZ: 9.5, h: 3.9 }); addBox(-10, 8, 11.4, 2.6, .5, dark, .7, false); label(['VESZÉLYES'], '#ffd23f', .7, -10, 2.4, 6.4); }
+      // the station on the south side, the water tower for the engines, containers stacked by the fence
+      house(0, 28, 16, 7, 5, brick, 0x2a2a2e, 'n'); label(['RENDEZŐ PÁLYAUDVAR'], '#e8e2d0', 2, 0, 7, 24.3);
+      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBox(34 + a * 1.8, -24 + b * 1.8, .35, .35, 7, steel);
+      { const tw = put(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4, 16), wood)); tw.position.set(34, 9, -24); tw.castShadow = true;
+        const cap = put(new THREE.Mesh(new THREE.ConeGeometry(3.4, 1.6, 16), dark)); cap.position.set(34, 11.8, -24); addBox(31.2, -24, .3, .3, 5, steel, 4, false); }
+      for (const [x, z, c, n] of [[-38, -24, rust, 2], [-38, -18, blue, 1], [40, 16, green, 2]]) for (let k = 0; k < n; k++) { addBox(x, z, 6, 2.6, 2.6, c, k * 2.6, k === 0); addBox(x, z - 1.32, 5.4, .04, 2.2, dark, k * 2.6 + .2, false); }
+      // signal masts: a red and a green eye glowing over the tracks
+      for (const [x, z] of [[-40, -10], [40, 2], [-2, -22]]) { addBox(x, z, .25, .25, 5, steel); addBox(x, z, .6, .5, 1.3, dark, 4.4, false);
+        glowSprite(0xff2a1a, .8, new V3(x, 5.4, z + .3)); glowSprite(0x2aff6a, .8, new V3(x, 4.9, z + .3)); pointLight(0xff3a2a, .8, 8, x, 5, z); }
+    },
+    areas: {
+      north: { side: 'n', at: -20, name: 'Mozdonyszín', cost: 1250, core: { minX: -36, maxX: -4, minZ: -58, maxZ: -34 }, spawns: [[-32, -55], [-8, -55]], station: ['trap', -20, -44], graves: false },
+      east:  { side: 'e', at: -8, name: 'Raktárcsarnok', cost: 1000, core: { minX: 46, maxX: 68, minZ: -20, maxZ: 4 }, spawns: [[65, -17], [65, 1]], station: ['forge', 56, -8] },
+      west:  { side: 'w', at: 16, name: 'Váltóház', cost: 750, core: { minX: -68, maxX: -46, minZ: 4, maxZ: 28 }, spawns: [[-65, 7], [-65, 25]], station: ['well', -56, 16] },
+    },
+  },
   range: {
     name: 'Lőtér · Elhagyatott ház', desc: 'Egy elhagyott ház a kertjével, körben erdő. Lőállás öt sávval és egy vezérlőasztal.', minLevel: 1, range: true,
     main: { minX: -34, maxX: 34, minZ: -28, maxZ: 28 }, look: { tex: 'grass', ground: 0x7d8c5c, fog: 0x0c1410, fogD: [.012, .016], fence: 0x8a7a60 },

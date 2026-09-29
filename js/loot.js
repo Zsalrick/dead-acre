@@ -275,11 +275,17 @@ function updateItemDrops(dt) {
 
 // ---------- grenade and knife kinds ----------
 const GREN_MATS = { molotov: new THREE.MeshStandardMaterial({ color: 0x6a4a1a, emissive: 0x3a1a00, roughness: .3 }), cryo: new THREE.MeshStandardMaterial({ color: 0x8fe8ff, emissive: 0x1a4a5a }),
-  shock: new THREE.MeshStandardMaterial({ color: 0x7d8dff, emissive: 0x2a2a8a }), sticky: new THREE.MeshStandardMaterial({ color: 0x9dff3a, emissive: 0x2a5a0a }) };
+  shock: new THREE.MeshStandardMaterial({ color: 0x7d8dff, emissive: 0x2a2a8a }), nail: new THREE.MeshStandardMaterial({ color: 0x9a9ea4, emissive: 0x2a2a2a, metalness: .8, roughness: .3 }), sticky: new THREE.MeshStandardMaterial({ color: 0x9dff3a, emissive: 0x2a5a0a }) };
 const KNIFE_MATS = { poison: new THREE.MeshStandardMaterial({ color: 0x7fe05a, emissive: 0x1a4a0a, metalness: .6 }), blast: new THREE.MeshStandardMaterial({ color: 0xff7a3a, emissive: 0x5a1a00, metalness: .6 }),
   ricochet: new THREE.MeshStandardMaterial({ color: 0xb8c8ff, emissive: 0x1a2a5a, metalness: .9, roughness: .2 }) };
 function detonate(p) {
   const pos = p.m.position.clone().setY(Math.max(.3, p.m.position.y));
+  if (p.type === 'nail') { // a smaller blast, then nails in a wide ring: everything hit bleeds
+    explode(pos, { r: 3, zdmg: 60 + zombieHp() * .5, pr: 2, pdmg: 10, color: 0xc8c0b0 });
+    for (const z of zombies) { if (z.dead) continue; const d = Math.hypot(z.pos.x - pos.x, z.pos.z - pos.z); if (d > 9) continue;
+      const hit = (40 + zombieHp() * .35) * SK.explMul() * (1 - d / 9 * .5); tracer(pos, new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0xc8c0b0, .03);
+      hurtZombie(z, hit, { color: '#c8c0b0' }); if (!z.dead) { z.burnT = Math.max(z.burnT, 4); z.burnDps = Math.max(z.burnDps, hit * .15); } }
+    return; }
   if (p.type === 'molotov') { addFireZone(pos, 4, 6); explode(pos, { r: 2.5, zdmg: 40 + zombieHp() * .3, pr: 1.5, pdmg: 8, color: 0xff7a1a }); return; }
   if (p.type === 'cryo') {
     explode(pos, { r: 4, zdmg: 60 + zombieHp() * .5, pr: 2.5, pdmg: 10, color: 0x8ff0ff });

@@ -213,6 +213,9 @@ const UNIQUES = {
   hydra:     { base: 'autoshot', name: 'Hidra',           text: 'Vágj le egy fejet, kettő nő helyette.', trick: 'Minden ölés után 3 mp-ig nem fogy a tár.' },
   bells:     { base: 'burst',    name: 'Lélekharang',     text: 'Kinek szól a harang?', trick: 'Minden kilencedik találat megkondítja a harangot: a célpont körül minden zombi elkábul.' },
   scalpel:   { base: 'mpistol',  name: 'Szike',           text: 'Nem fog fájni. Nagyon.', trick: 'A kritikus találat 3 mp-ig vérzést okoz: a sebzés fele még egyszer.' },
+  spike:     { base: 'dmr',      name: 'Sínszög',         text: 'Ahová egyszer beverték, ott is marad.', trick: 'Ugyanazt a célt minden újabb találat 25%-kal jobban sebzi (5-ször halmozódik).' },
+  howl:      { base: 'shotgun',  name: 'Farkasüvöltés',   text: 'A falka sosem vadászik egyedül.', trick: 'Ölés után 4 mp-ig 30%-kal gyorsabban futsz és töltesz újra.' },
+  venom:     { base: 'pdw',      name: 'Méregfog',        text: 'Egy harapás elég. A többi csak ráadás.', trick: 'A találatok mérget halmoznak: a tizediknél a cél méregfelhőben szétrobban.', element: 'corrosive' },
   bigbang:   { base: 'launcher', name: 'A Nagy Bumm',     text: 'Minek célozni?', trick: 'Minden gránát három kisebb bombára esik szét.' },
 };
 function makeUnique(key, level) {
@@ -257,6 +260,7 @@ const GREN_TYPES = {
   cryo:    { name: 'Fagygránát', desc: 'Kisebb robbanás, a környéket 5 mp-re lefagyasztja.', price: 1100 },
   shock:   { name: 'Villámgránát', desc: 'Villám ugrik a közeli 6 zombira.', price: 1300 },
   sticky:  { name: 'Tapadó gránát', desc: 'Rátapad az első eltalált zombira, és nagyobbat robban.', price: 1500 },
+  nail:    { name: 'Szögbomba', desc: 'Kisebb robbanás, de 9 m-es körben szögeket szór: minden eltalált zombi vérzik.', price: 1700 },
 };
 const KNIFE_TYPES = {
   steel:    { name: 'Acélkés', desc: 'Nagy sebzés, fejre dupla.', price: 0 },

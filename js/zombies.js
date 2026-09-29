@@ -666,6 +666,9 @@ const BOUNTIES = {
   titan:   { minLvl: 10, loot: ['anvil', 'hydra'], name: 'A Vaskolosszus', desc: 'Vastag páncél borítja, földrengető csapásokkal üt. Páncélosokat hív.', hp: 4.6, tint: 0x8a929a, slam: true, plate: .6, summon: ['armored', 22, 2] },
   bell:    { minLvl: 30, loot: ['bells', 'silent'], name: 'A Harangozó', desc: 'Megkondítja a harangot: akit a hang egyenesen elér, megszédül. Bújj fedezék mögé!', hp: 5.5, tint: 0xd8c47a, bell: true, summon: ['screamer', 16, 2] },
   doctor:  { minLvl: 13, loot: ['scalpel', 'honey'], name: 'A Főorvos', desc: 'Időnként meggyógyítja magát és a közeli zombikat. Ha a zöld kör alatt elég sebzést kap, megszakad.', hp: 5, tint: 0x6aff9a, heal: true, summon: ['runner', 11, 3] },
+  conductor: { minLvl: 16, loot: ['spike', 'howl'], name: 'A Kalauz', desc: 'Kijelöl egy kört a lábad alatt, és a következő pillanatban odacsapódik, mint egy mozdony. Lépj ki a körből! Futókat hív.', hp: 5.4, tint: 0xffb03a, charge: true, summon: ['runner', 10, 3] },
+  widow:   { minLvl: 12, loot: ['venom', 'honey'], name: 'A Méregkeverő', desc: 'Savat köp oda, ahol állsz: a zöld körből sav-tócsák lesznek. Köpködőket hív.', hp: 5, tint: 0x9dff3a, acid: true, summon: ['spitter', 12, 2] },
+  hound:   { minLvl: 6, loot: ['howl', 'hydra'], name: 'A Falkavezér', desc: 'Gyors, és üvöltésével felpörgeti a környék zombijait. Ugrókat hív.', hp: 4.4, tint: 0xb8a890, howl: true, fast: true, summon: ['leaper', 12, 2] },
   shade:   { loot: ['silent', 'rod', 'sebastian'], name: 'Az Árnyék', desc: 'Eltűnik, és a hátad mögött bukkan fel. Árnyakat hív.', hp: 4.6, tint: 0x6a4aff, blink: true, summon: ['phantom', 16, 2] },
 };
 function spawnBounty(key) {
@@ -676,6 +679,7 @@ function spawnBounty(key) {
   z.maxHp = z.hp; z.scale *= 1.15; z.g.scale.setScalar(z.scale); bountyLook(z, key);
   z.sumT = 6; z.novaT = 8; z.blinkT = 10; z.phase = 1; z.dmg *= 1.2; z.throwT = 4; z.slamT = 6;
   if (B.plate) z.armor = z.hp * B.plate;
+  if (B.fast) z.speed *= 1.35; // the Pack Leader runs
  // the Colossus: break the plating first (headshots skip it)
   banner(B.name.toUpperCase(), B.desc); SND.roar();
   return z;
@@ -709,7 +713,7 @@ function bountyTick(z, dt, dist) {
     z.novaT = z.phase === 3 ? 4.5 : z.phase === 2 ? 6 : 9;
     for (let k = 0; k < 24; k++) { const a = k / 24 * 6.28; burst(new V3(z.pos.x + Math.sin(a) * 5, .2, z.pos.z + Math.cos(a) * 5), 0xff7a1a, 3, 2, .6); }
     SND.explode();
-    hurtAt(z.pos, 6.5, 28 * (z.phase || 1));
+    hurtAt(z.pos, 6.5, 28 * (z.phase || 1) * zDmgMul());
   }
   if (B.frost && (z.novaT -= dt) <= 0) { // frost wave: a blue ring warns you, then it slows everyone inside
     z.novaT = z.phase === 3 ? 4.5 : z.phase === 2 ? 6 : 8;
@@ -718,13 +722,13 @@ function bountyTick(z, dt, dist) {
       for (let k = 0; k < 28; k++) { const a = k / 28 * 6.28; burst(new V3(at.x + Math.sin(a) * 6, .3, at.z + Math.cos(a) * 6), 0x9fe6ff, 3, 2.5, .7); }
       SND.armorBreak();
       if (Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < 8) { player.chillT = 3; popText('Megdermedtél!', '#9fe6ff'); }
-      hurtAt(at, 8, 18 * ph);
+      hurtAt(at, 8, 18 * ph * zDmgMul());
     }, 'frost');
   }
   if (B.slam && (z.slamT -= dt) <= 0 && dist < 16) { // a ground slam with a tell, then a charge in the last phase
     z.slamT = z.phase === 3 ? 3.5 : z.phase === 2 ? 5 : 6.5;
     burst(new V3(z.pos.x, .2, z.pos.z), 0xc8c0a8, 30, 6, .9); SND.slam(); player.shake = Math.max(player.shake, dist < 10 ? .5 : .2);
-    hurtAt(z.pos, 7, 32 * (z.phase || 1));
+    hurtAt(z.pos, 7, 32 * (z.phase || 1) * zDmgMul());
     if (z.phase === 3) { z.chargeT = 1.6; z.speed *= 2.2; }
   }
   if (z.chargeT > 0 && (z.chargeT -= dt) <= 0) z.speed /= 2.2;
@@ -743,6 +747,24 @@ function bountyTick(z, dt, dist) {
     z.bellT = z.phase === 3 ? 7 : z.phase === 2 ? 9.5 : 12;
     const at = z.pos.clone(); tn(220, 1.6, .12, 'sine', 200); tn(330, 1.6, .06, 'sine', 300); popText('A harang mindjárt megszólal: fedezékbe!', '#d8c47a');
     telegraph(at, 30, 0xd8c47a, 1.5, () => bellHit(at), 'bell');
+  }
+  if (B.charge && (z.chargeT2 = (z.chargeT2 == null ? 5 : z.chargeT2) - dt) <= 0 && dist > 5 && dist < 34) { // the Conductor: a ring where you stand, then it lands there like a train
+    z.chargeT2 = z.phase === 3 ? 3.5 : z.phase === 2 ? 5 : 7; const at = new V3(player.pos.x, 0, player.pos.z), ph = z.phase || 1;
+    tn(1180, .5, .07, 'square', 1180); tn(1480, .5, .05, 'square', 1480, .1); popText('A Kalauz rád fut: lépj ki a körből!', '#ffb03a'); // the whistle
+    telegraph(at, 3.5, 0xffb03a, 1.1, () => { if (z.dead) return; burst(new V3(z.pos.x, 1, z.pos.z), 0xffb03a, 16, 4, .5); z.pos.set(at.x, 0, at.z); collide(z.pos, .7);
+      for (let k = 0; k < 26; k++) { const a = k / 26 * 6.28; burst(new V3(at.x + Math.sin(a) * 3.5, .3, at.z + Math.cos(a) * 3.5), 0xc8c0a8, 2, 3, .6); }
+      SND.slam(); hurtAt(at, 3.5, 40 * ph * zDmgMul()); }, 'boom');
+  }
+  if (B.acid && (z.acidT2 = (z.acidT2 == null ? 4 : z.acidT2) - dt) <= 0 && dist < 30) { // the Widow: acid lobbed where you stand, pools that burn
+    z.acidT2 = z.phase === 3 ? 3 : z.phase === 2 ? 4.5 : 6; const at = new V3(player.pos.x, 0, player.pos.z), ph = z.phase || 1; SND.spit();
+    telegraph(at, 3.2, 0x9dff3a, 1, () => { burst(at.clone().setY(.4), 0x9dff3a, 24, 4, .6); hurtAt(at, 3.2, 14 * ph * zDmgMul());
+      for (let k = 0; k < 2 + ph; k++) { const pm = new THREE.Mesh(puddleGeo, new THREE.MeshBasicMaterial({ color: 0x7fe02a, transparent: true, opacity: .55, depthWrite: false })); pm.position.set(at.x + rand(-1.6, 1.6), .03, at.z + rand(-1.6, 1.6)); scene.add(pm); puddles.push({ m: pm, t: 6 }); } }, 'acid');
+  }
+  if (B.howl && (z.howlT = (z.howlT == null ? 6 : z.howlT) - dt) <= 0) { // the Pack Leader: a howl that makes every zombie near it faster
+    z.howlT = z.phase === 3 ? 6 : z.phase === 2 ? 8 : 10;
+    SND.scream(.4); tn(260, 1.3, .1, 'sawtooth', 520); netBanner('A FALKAVEZÉR ÜVÖLT', 'A közeli zombik felgyorsultak.');
+    for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 25) { q.buffT = 5; burst(new V3(q.pos.x, 1.6 * q.scale, q.pos.z), 0xff5a4a, 3, 1.5, .4); }
+    if (z.phase >= 2) { const a = rand(0, 6.28); for (let k = 0; k < z.phase; k++) spawnZombieAt('leaper', z.pos.x + Math.sin(a + k) * 3, z.pos.z + Math.cos(a + k) * 3, .5); }
   }
   if (B.blink && (z.blinkT -= dt) <= 0 && dist > 5) { // vanishes and comes out behind you
     z.blinkT = z.phase === 3 ? 4 : z.phase === 2 ? 7 : 10;
@@ -774,6 +796,8 @@ function weaponOnHit(z, amt, o) {
   const w = o.w; if (!w || o.dot) return;
   if (o.chain && w.oc !== 'leech') return; // a bounce or a chain doesn't set off the gun's tricks again
   if (w.unique === 'honey') player.hp = Math.min(maxHp(), player.hp + amt * .02);
+  if (w.unique === 'spike' && !o.chain) { const n = z.spikeN = Math.min(5, (z.spikeN || 0) + 1); if (n > 1 && !z.dead) hurtZombie(z, amt * .25 * (n - 1), { w, chain: true, color: '#c8c0b0' }); } // Sínszög: the nail goes deeper
+  if (w.unique === 'venom' && !o.chain && !z.dead && (z.venomN = (z.venomN || 0) + 1) >= 10) { z.venomN = 0; explode(new V3(z.pos.x, 1, z.pos.z), { r: 4, zdmg: amt * 6, pr: .01, pdmg: .001, color: 0x9dff3a }); } // Méregfog
   if (w.unique === 'silent' && o.head) explode(zHeadPos(z), { r: 3.5, zdmg: amt * .5, pr: .01, pdmg: .001, color: 0xb0c8ff });
   if (w.unique === 'anvil') { if (z.armor > 0 && z.K.boss) z.armor -= z.maxHp * .1; else if (z.armor > 0) { z.armor = 0; z.armorParts.forEach(a => a.visible = false); SND.armorBreak(); } if (!z.K.boss) { const d = new V3(z.pos.x - player.pos.x, 0, z.pos.z - player.pos.z).setLength(1.2); z.pos.add(d); collide(z.pos, .5); } }
   if (w.unique === 'bells' && (player.bellN = (player.bellN || 0) + 1) % 9 === 0) { burst(new V3(z.pos.x, 1.5, z.pos.z), 0xd8c47a, 20, 4, .6); tn(440, .9, .08, 'sine', 430); for (const q of zombies) if (!q.dead && q.pos.distanceTo(z.pos) < 6) { q.slowT = 2.5; q.flinch = .3; } }
@@ -805,6 +829,7 @@ function weaponOnKill(z, o) {
   if (!w) return;
   if (w.unique === 'granny') { const t = Math.min(w.mag - w.ammo, w.reserve); w.ammo += t; w.reserve -= t; } // the refill comes out of the reserve
   if (w.unique === 'hydra') player.hydraUntil = now + 3;
+  if (w.unique === 'howl') player.howlUntil = now + 4; // Farkasüvöltés
   if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }
   if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
   if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
