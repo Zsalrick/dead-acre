@@ -541,7 +541,7 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'testground') { if (NET.code && !NET.host) return; return startJob(testJob()); }
   if (kind === 'job') { if (!P.cls) { hubTab = 'skills'; return renderHub(); } if (NET.code && (!NET.host || partyMembers().some(m => !m.me && !m.rdy))) return; return startJob(P.jobs[+a]); }
   if (kind === 'sknode' || kind === 'skview') { skillAction(kind, a); return renderHub(); } // just looking
-  if (['cls', 'sk', 'respec', 'aug', 'swcls'].includes(kind)) skillAction(kind, a);
+  if (['cls', 'sk', 'respec', 'aug', 'swcls', 'kbsave', 'kbload'].includes(kind)) skillAction(kind, a);
   if (['pcreate', 'pjoin', 'pjoinc', 'pleave', 'preveal', 'pcopy', 'pready'].includes(kind)) return partyAction(kind, a);
   if (kind === 'vet' && VET[a] && vetOpen() && vetAvail() > 0) { SH.vet.ranks[a] = (SH.vet.ranks[a] || 0) + 1; saveShared(); gearChanged(); }
   if (kind === 'reroll' && !(NET.code && !NET.host) && pay(reroll())) rollBoard();
@@ -725,7 +725,7 @@ function saveBuild(i) {
   P.builds[i] = { w: P.loadout.map(uidOf), g: Object.fromEntries(GEAR_KEYS.map(k => [k, uidOf(P.gear[k])])), name: P.loadout.filter(Boolean).map(o => unpackW(o).base.name).join(' + ') };
 }
 function loadBuild(i) {
-  const P = profile, B = P.builds && P.builds[i]; if (!B) return;
+  const P = profile, B = P.builds && P.builds[i]; if (!B || !B.w) return;
   const lists = [P.loadout, P.bag, P.stash, SH.w];
   B.w.forEach((u, k) => { // each hand: find the gun wherever it is now and swap it in
     if (!u || (P.loadout[k] && P.loadout[k].uid === u)) return;
@@ -741,7 +741,7 @@ function loadBuild(i) {
   if (!P.loadout[0] && !P.loadout[1]) P.loadout[0] = packW(makeWeapon(BASES[0], 0, 1));
   gearChanged(); SND.power();
 }
-const buildsRow = (extra = '') => `<div class="builds"><b class="parts">${profile.parts || 0} ⚙ · ${profile.fabric || 0} ${FAB} · ${profile.oc || 0} ◆</b>${extra}<b>Buildek</b>${[0, 1, 2].map(i => { const B = (profile.builds || [])[i]; return `<span class="bslot"><small>${i + 1}. ${B ? esc(B.name) : 'üres'}</small>${hbtn('Betöltés', `bload:${i}`, !B)}${hbtn('Mentés', `bsave:${i}`)}</span>`; }).join('')}</div>`;
+const buildsRow = (extra = '') => `<div class="builds"><b class="parts">${profile.parts || 0} ⚙ · ${profile.fabric || 0} ${FAB} · ${profile.oc || 0} ◆</b>${extra}<b>Buildek</b>${[0, 1, 2].map(i => { const B0 = (profile.builds || [])[i], B = B0 && B0.w ? B0 : null; return `<span class="bslot"><small>${i + 1}. ${B ? esc(B.name) : 'üres'}</small>${hbtn('Betöltés', `bload:${i}`, !B)}${hbtn('Mentés', `bsave:${i}`)}</span>`; }).join('')}</div>`;
 
 // a party member sees what the leader is looking at on the map
 function hostPick() {

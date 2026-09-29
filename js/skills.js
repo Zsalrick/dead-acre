@@ -257,7 +257,7 @@ function skillsTab() {
   const augs = (AUGMENTS[V] || []), sel = C.tree.find(t => t[0] === skNode) || augs.find(t => t[0] === skNode) || C.tree[0]; skNode = sel[0];
   // left: the trees (points in each, which one gives your ability), the pool, the builds
   const trees = Object.entries(CLASSES).map(([k, c]) => `<button class="kcls${k === V ? ' on' : ''}${isCls(k) ? ' act' : ''}" data-act="skview:${k}" style="--cc:${c.color}"><b>${c.name}</b><small>${c.ability.name}</small><em>${isCls(k) ? '<kbd>C</kbd>' : ''}<u>${treePts(k)}</u>${chDone(k) ? '<i class="kchk"></i>' : ''}</em></button>`).join('');
-  const builds = [0, 1, 2].map(i => { const B = (P.builds || [])[i]; return `<div class="kbuild"><span><b>${i + 1}.</b> ${buildName(B)}</span>${hbtn('Betölt', `bload:${i}`, !B || state !== 'hub')}${hbtn('Ment', `bsave:${i}`)}</div>`; }).join('');
+  const builds = [0, 1, 2].map(i => { const B = skBuilds()[i]; return `<div class="kbuild"><span><b>${i + 1}.</b> ${buildName(B)}</span>${hbtn('Betölt', `kbload:${i}`, !B || state !== 'hub')}${hbtn('Ment', `kbsave:${i}`)}</div>`; }).join('');
   const rows = [0, 1, 2, 3, 4].map(r => {
     const need = r * 3, open = spent >= need;
     return `<div class="krow${open ? '' : ' locked'}"><div class="klab"><b>${r + 1}. sor</b><small>${open ? '' : `<span class="klk"></span>${spent} / ${need}`}</small></div>` +
@@ -334,13 +334,17 @@ function syncTokens() {
 function switchClass(k) { profile.cls = k; syncTokens(); } // the active ability; the points stay where they are
 function giveTokens() { syncTokens(); }
 // builds: three saved setups (points, active ability, augments), loaded in one click
-function buildSave(i) { const P = profile; P.builds = P.builds || [null, null, null]; P.builds[i] = { skills: Object.assign({}, P.skills), cls: P.cls, augOwn: (P.augOwn || []).slice(), aug: Object.assign({}, P.aug || {}), at: Date.now() }; }
+function skBuilds() { // skill builds live apart from the gear builds (they once shared profile.builds and broke each other)
+  const P = profile; if (!P.skBuilds) { P.skBuilds = [null, null, null]; (P.builds || []).forEach((B, i) => { if (B && B.skills) { P.skBuilds[i] = B; P.builds[i] = null; } }); }
+  return P.skBuilds;
+}
+function buildSave(i) { const P = profile; skBuilds()[i] = { skills: Object.assign({}, P.skills), cls: P.cls, augOwn: (P.augOwn || []).slice(), aug: Object.assign({}, P.aug || {}), at: Date.now() }; }
 function buildLoad(i) {
-  const P = profile, B = (P.builds || [])[i]; if (!B) return false;
+  const P = profile, B = skBuilds()[i]; if (!B || !B.skills) return false;
   const cost = Object.values(B.skills).reduce((a, v) => a + v, 0) + B.augOwn.length * AUG_COST; if (cost > tokEarned()) return false;
   P.skills = Object.assign({}, B.skills); P.augOwn = B.augOwn.slice(); P.aug = Object.assign({}, B.aug); if (CLASSES[B.cls]) P.cls = B.cls; syncTokens(); return true;
 }
-const buildName = B => { if (!B) return 'Üres'; const top = Object.keys(CLASSES).map(k => [k, CLASSES[k].tree.reduce((a, [id]) => a + (B.skills[id] || 0), 0)]).filter(x => x[1]).sort((a, b) => b[1] - a[1]).slice(0, 2);
+const buildName = B => { if (!B || !B.skills) return 'Üres'; const top = Object.keys(CLASSES).map(k => [k, CLASSES[k].tree.reduce((a, [id]) => a + (B.skills[id] || 0), 0)]).filter(x => x[1]).sort((a, b) => b[1] - a[1]).slice(0, 2);
   return `${CLASSES[B.cls] ? CLASSES[B.cls].ability.name : '–'}${top.length ? ' · ' + top.map(([k, n]) => `${CLASSES[k].name} ${n}`).join(' / ') : ''}`; };
 function skillAction(kind, a) {
   const P = profile;
@@ -360,7 +364,7 @@ function skillAction(kind, a) {
     P.aug[k] = a; syncTokens(); return true;
   }
   if (kind === 'respec' && P.cash >= RESPEC) { P.cash -= RESPEC; P.skills = {}; P.augOwn = []; P.aug = {}; syncTokens(); return true; }
-  if (kind === 'bsave') { buildSave(+a); toast('BUILD MENTVE', [`${+a + 1}. hely · ${buildName(P.builds[+a])}`], '#f0a024'); return true; }
-  if (kind === 'bload') { if (!buildLoad(+a)) { SND.deny(); return false; } toast('BUILD BETÖLTVE', [buildName(P.builds[+a])], '#f0a024'); return true; }
+  if (kind === 'kbsave') { buildSave(+a); toast('BUILD MENTVE', [`${+a + 1}. hely · ${buildName(skBuilds()[+a])}`], '#f0a024'); return true; }
+  if (kind === 'kbload') { if (!buildLoad(+a)) { SND.deny(); return false; } toast('BUILD BETÖLTVE', [buildName(skBuilds()[+a])], '#f0a024'); return true; }
   return false;
 }
