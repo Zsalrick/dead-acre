@@ -295,11 +295,11 @@ const treePts = k => CLASSES[k] ? CLASSES[k].tree.reduce((a, [id]) => a + rk(id)
 const hasPassive = k => isCls(k) || treePts(k) >= PASSIVE_AT;
 // class challenges: three a tree, all tied to its ability, all doable alone; all three done = +2 tokens
 const CLASS_CH = {
-  soldier: [['storm_k', 'Ölj meg 150 zombit Tűzvihar alatt', 150], ['rifle_k', 'Ölj meg 600 zombit gépkarabéllyal vagy nehézfegyverrel', 600], ['soldier_use', 'Használd a Tűzvihart 30-szor', 30]],
-  hunter: [['eye_head', '150 fejlövéses ölés Halálszem alatt', 150], ['eye_elite', 'Ölj meg 20 elitet Halálszem alatt', 20], ['hunter_use', 'Használd a Halálszemet 30-szor', 30]],
-  engineer: [['tur_k', 'A tornyaid öljenek meg 300 zombit', 300], ['boom_k', 'Ölj meg 250 zombit robbanással', 250], ['engineer_use', 'Telepíts 30 Szerelőtornyot', 30]],
-  medic: [['aura_heal', 'Gyógyíts 15 000 életerőt a Szentelt körrel', 15000], ['aura_k', 'Ölj meg 300 zombit a Szentelt körben állva', 300], ['medic_use', 'Használd a Szentelt kört 30-szor', 30]],
-  necro: [['min_k', 'A szolgáid öljenek meg 250 zombit', 250], ['necro_use', 'Támassz fel 40 szolgát', 40], ['min_alive_k', 'Ölj meg 400 zombit, miközben él szolgád', 400]],
+  soldier: [['storm_k', 'Ölj meg 2000 zombit Tűzvihar alatt', 2000], ['rifle_k', 'Ölj meg 3000 zombit gépkarabéllyal vagy nehézfegyverrel', 3000], ['soldier_use', 'Használd a Tűzvihart 30-szor', 30]],
+  hunter: [['eye_head', '2000 fejlövéses ölés Halálszem alatt', 2000], ['eye_elite', 'Ölj meg 200 elitet Halálszem alatt', 200], ['hunter_use', 'Használd a Halálszemet 30-szor', 30]],
+  engineer: [['tur_k', 'A tornyaid öljenek meg 2500 zombit', 2500], ['boom_k', 'Ölj meg 2000 zombit robbanással', 2000], ['engineer_use', 'Telepíts 30 Szerelőtornyot', 30]],
+  medic: [['aura_heal', 'Gyógyíts 50 000 életerőt a Szentelt körrel', 50000], ['aura_k', 'Ölj meg 2500 zombit a Szentelt körben állva', 2500], ['medic_use', 'Használd a Szentelt kört 30-szor', 30]],
+  necro: [['min_k', 'A szolgáid öljenek meg 2000 zombit', 2000], ['necro_use', 'Támassz fel 40 szolgát', 40], ['min_alive_k', 'Ölj meg 3000 zombit, miközben él szolgád', 3000]],
 };
 const chVal = id => ((profile && profile.cc) || {})[id] || 0;
 const chDone = k => (CLASS_CH[k] || []).every(([id, , n]) => chVal(id) >= n);
