@@ -738,7 +738,7 @@ function revokeTake(nid) { // someone got there first: what we picked up goes
 const tagBk = (d, peer) => { d.bkOf = peer || '?'; return d; };
 function dropBackpack(a, peer) { // a teammate dropped out: their bag, found armor, parts and fabric stay where they stood, for anyone to pick up
   const M = mission, b = a.bk; if (!M || M.job.test || M.leaving || !b || typeof b !== 'object') return;
-  const spot = () => new V3(a.pos.x + rand(-1.2, 1.2), 0, a.pos.z + rand(-1.2, 1.2)); let n = 0;
+  let n = 0; const spot = () => { const t = n * 2.4, r = 1 + .8 * Math.sqrt(n), p = new V3(a.pos.x + Math.cos(t) * r, 0, a.pos.z + Math.sin(t) * r); clampBounds(p, .5); return p; }; // a widening spiral, one piece per spot
   for (const o of (Array.isArray(b.w) ? b.w : []).slice(0, 20)) { if (!o || !BASES.some(x => x.id === o.base)) continue; const w = unpackW(cleanStrs(Object.assign({}, o))); w.owned = false; w.ammo = w.mag; w.reserve = resMax(w); netShareDrop('w', w, tagBk(spawnDrop(w, spot()), peer)); n++; }
   for (const o of (Array.isArray(b.g) ? b.g : []).slice(0, 12)) { if (!o || !GEAR_SLOTS[o.slot] || !BRANDS[o.brand] || typeof o.stats !== 'object') continue; const it = cleanStrs(Object.assign({}, o, { stats: Object.assign({}, o.stats) })); delete it.found; netShareDrop('g', it, tagBk(spawnGearDrop(it, spot()), peer)); n++; }
   for (const [k, v] of [['parts', b.pa], ['fabric', b.fa]]) if (+v > 0) { const c = Math.min(9999, +v | 0); netShareDrop('r', { q: 0, k, n: c }, tagBk(spawnResDrop(k, c, spot()), peer)); n++; }

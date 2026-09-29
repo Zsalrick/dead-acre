@@ -43,7 +43,7 @@ function startJob(job, opts = {}) {
   if (!player.slots[0]) { player.slots[0] = player.slots[1]; player.slots[1] = null; }
   [...player.slots, ...player.bag].forEach(w => w && trackBest(w));
   mission.brought = [...player.slots.filter(Boolean), ...player.bag];
-  mission.gear = (P.gearBag || []).slice(); // the armour bag comes along
+  mission.gear = (P.gearBag || []).slice(); mission.worn0 = GEAR_KEYS.map(k => P.gear[k]).filter(Boolean); // the armour bag comes along; what you wore stays yours even if you took it off
   // the van drops you at one spot and picks you up at another
   const n = MAP.vans.length; let a = Math.floor(Math.random() * n), b = Math.floor(Math.random() * (n - 1)); if (b >= a) b++;
   if (opts.client) { a = clamp(opts.a, 0, n - 1); b = clamp(opts.b, 0, n - 1); }
@@ -284,9 +284,16 @@ function extract() {
 }
 // only the two guns in your hands go home. Anything dropped on the map stays there, even your own.
 // On a failed job, guns found during the job are lost too; what you brought and still hold comes back.
+function addLost(w, g) { // the lost-and-found keeps what you lost on your last three failed jobs
+  const P = profile; if (!w.length && !g.length) return;
+  const n = P.lostN = (P.lostN || 0) + 1, L = P.lost || (P.lost = { w: [], g: [] }), keep = o => (o.lr || 0) > n - 3;
+  w.forEach(o => o.lr = n); g.forEach(o => o.lr = n);
+  L.w = [...L.w, ...w].filter(keep); L.g = [...L.g, ...g].filter(keep); L.at = Date.now();
+  if (!L.w.length && !L.g.length) P.lost = null;
+}
 function settleWeapons(success, M) {
-  const carried = [...player.slots.filter(Boolean), ...player.bag];
-  let keep = success ? carried : carried.filter(w => w.owned);
+  const carried = [...player.slots.filter(Boolean), ...player.bag], soloFail = !success && !M.job.test && !NET.mode; // co-op keeps the old rule
+  let keep = success ? carried : carried.filter(w => w.owned && !(soloFail && player.bag.includes(w)));
   const lost = [...carried.filter(w => !keep.includes(w)), ...M.brought.filter(w => !carried.includes(w) && !(M.destroyed || []).includes(w))];
   const P = profile, junkQ = P.junkQ == null ? -1 : P.junkQ, junk = success ? keep.filter(w => !w.owned && !w.unique && w.q <= junkQ) : [];
   const junkParts = junk.reduce((a, w) => a + PARTS[w.q], 0); P.parts = (P.parts || 0) + junkParts; // auto-salvage: marked-as-junk rarities turn into parts at home
@@ -302,15 +309,16 @@ function settleWeapons(success, M) {
   let overflow = 0; const home = [], lostGear = [];
   const toStash = it => { if (P.gearStash.length < gearMax()) P.gearStash.push(it); else { P.cash += gearValue(it); overflow++; } };
   for (const k of GEAR_KEYS) { const it = P.gear[k]; if (it && it.found) { if (success) { delete it.found; home.push(it); } else { P.gear[k] = null; lostGear.push(it); } } }
-  const gb = []; // everything you carried out stays in the armour bag; what doesn't fit goes to the stash
+  const gb = [], lostG = []; // everything you carried out stays in the armour bag; what doesn't fit goes to the stash
   for (const it of M.gear) {
     const found = it.found;
     if (found) { if (!success) { lostGear.push(it); continue; } delete it.found; it.isNew = true; home.push(it); }
-    if (!success && !P.gear[it.slot]) P.gear[it.slot] = it; else if (gb.length < bagMax()) gb.push(it); else toStash(it);
+    if (!success && !P.gear[it.slot] && (!soloFail || (M.worn0 || []).includes(it))) P.gear[it.slot] = it; else if (soloFail) { lostG.push(it); lostGear.push(it); } else if (gb.length < bagMax()) gb.push(it); else toStash(it);
   }
   P.gearBag = gb;
+  let toLost = 0; if (soloFail) { const lw = carried.filter(w => !keep.includes(w)), lg = [...lostGear.filter(it => !lostG.includes(it)), ...lostG]; toLost = lw.length + lg.length; addLost(lw.map(w => packW(Object.assign(w, { owned: false }))), lg.map(it => { delete it.found; return it; })); }
   gearChanged();
-  return { junkN: junk.length, junkParts, kept: newOnes, lost, overflow, gear: success ? home : lostGear };
+  return { junkN: junk.length, junkParts, kept: newOnes, lost, overflow, toLost, gear: success ? home : lostGear };
 }
 function finishJob(success, abandoned) {
   $('loadscr').hidden = true;

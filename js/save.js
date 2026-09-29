@@ -65,7 +65,7 @@ function openProfile(n) {
     } else { // solo, or the last one out: everything you carried goes to the lost-and-found, to buy back dearly (a newer loss replaces an older one)
       unfound();
       const w = [...hands, ...bag].filter(o => !(o.base === BASES[0].id && !o.q)), g = [...GEAR_KEYS.map(k => profile.gear[k]).filter(Boolean), ...mg]; // the free starter pistol isn't worth a slot
-      if (w.length || g.length) profile.lost = { w, g, at: Date.now() };
+      addLost(w, g); // alongside the other recent losses
       profile.loadout = [starter(), null]; profile.bag = []; for (const k of GEAR_KEYS) profile.gear[k] = null;
       profile.abandonNote = 'lost';
     }
