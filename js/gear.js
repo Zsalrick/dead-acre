@@ -161,13 +161,14 @@ function updateGearDrops(dt) {
 function removeGearDrop(d) { scene.remove(d.g); d.g.traverse(o => { if (o.geometry && o.geometry !== gearPlane) o.geometry.dispose(); if (o.material) { if (o.material.map && o.material.map !== glowTex && !o.material.map.userData.keep) o.material.map.dispose(); o.material.dispose(); } }); const i = gearDrops.indexOf(d); if (i >= 0) gearDrops.splice(i, 1); }
 const gearBagMax = () => 6 + U('bag'); // armor pieces a job's bag holds
 function gearSwapOut(it) { const G = mission.gear, same = G.filter(g => g.slot === it.slot), pool = same.length ? same : G; return pool.reduce((a, b) => gearScore(b) < gearScore(a) ? b : a); }
+// legendary and exotic armour picked up on a job counts toward "find a legendary item", like guns do
 function takeGear(d) {
   if (mission && mission.gear.length >= gearBagMax()) { // full: swap with the weakest piece
     const out = gearSwapOut(d.it); mission.gear.splice(mission.gear.indexOf(out), 1); itemFeed('eldobta', out.name, out.q);
     netShareDrop('g', out, spawnGearDrop(out, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6)))));
   }
   if (d.it.exo || d.it.q >= 3) toast(d.it.exo ? 'EGZOTIKUS PÁNCÉL' : `${RARITIES[d.it.q].name.toUpperCase()} PÁNCÉL`, [`${d.it.name} · Lv ${d.it.level} · ${d.it.armor} páncél`, d.it.exo && EXOTICS[d.it.exo] ? EXOTICS[d.it.exo].talent : ''], gCol(d.it));
-  if (d.it.exo) (stats.exo || (stats.exo = {}))[d.it.exo] = 1; netTookDrop(d); itemFeed('felvette', d.it.name, d.it.q); d.it.found = true; mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
+  if (d.it.exo) (stats.exo || (stats.exo = {}))[d.it.exo] = 1; netTookDrop(d); itemFeed('felvette', d.it.name, d.it.q); d.it.found = true; if ((d.it.q >= 4 || d.it.exo) && !d.it.counted) { d.it.counted = true; stats.legendaries++; } mission.gear.push(d.it); removeGearDrop(d); SND.pickup(d.it.q); popText(`${d.it.name} · a zsákba (a bázison veheted fel)`, RARITIES[d.it.q].color); }
 function clearGearDrops() { while (gearDrops.length) removeGearDrop(gearDrops[gearDrops.length - 1]); }
 
 // ---------- weapons: two in hand (L, fixed slots), up to five in the bag (B), the stash at home (S) ----------

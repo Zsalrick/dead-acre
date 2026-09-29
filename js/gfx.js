@@ -54,7 +54,9 @@ function gfxApply() {
   if (moon.shadow.mapSize.x !== ms) { moon.shadow.mapSize.set(ms, ms); if (moon.shadow.map) { moon.shadow.map.dispose(); moon.shadow.map = null; } }
   gfxResize();
 }
+const EXPOSURE = .75; // the tuned night; the Fényerő setting scales it
 function gfxRender(withVM) {
+  renderer.toneMappingExposure = EXPOSURE * (SET.bright || 1);
   if (GFX.q !== (SET.gfx == null ? 2 : SET.gfx)) gfxApply(); // the settings screen changed it
   if (GFX.composer && GFX.q > 0) {
     GFX.vmPass.enabled = withVM;

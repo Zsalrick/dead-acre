@@ -489,7 +489,7 @@ const HUB = {
   career() {
     const t = Math.round(stats.time / 60), ptime = t < 60 ? `${t} p` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
     const cells = [['Szint', profile.level], ['Kész munkák', stats.jobs], ['Elbukott', stats.fails], ['Ölések', stats.kills], ['Fejlövések', stats.heads],
-      ['Keresett pénz', `$${stats.cash}`], ['Legendás fegyverek', stats.legendaries], ['Játékidő', ptime]];
+      ['Keresett pénz', `$${stats.cash}`], ['Legendás tárgyak', stats.legendaries], ['Játékidő', ptime]];
     const maps = MAP_IDS.map(id => { const m = stats.byMap[id] || {}; return `<li><b>${MAPS[id].name}</b><span>${profile.level >= MAPS[id].minLevel ? `${m.done || 0} kész · ${m.fail || 0} elbukott` : `${MAPS[id].minLevel}. szinttől`}</span></li>`; }).join('');
     return `<div class="hubhead"><h2>Karrier</h2><label class="charname">Karakter neve <input id="charName" maxlength="24" value="${esc(profile.name)}"></label></div>
       <div class="cstats">${cells.map(([a, b]) => `<div><small>${a}</small><b>${b}</b></div>`).join('')}</div>
