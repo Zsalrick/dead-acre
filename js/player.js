@@ -417,7 +417,7 @@ function updatePlayer(dt) {
   if (!ff && rk('e_drone') && turrets.some(t => Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 6)) player.hp = Math.min(maxHp(), player.hp + 6 * rk('e_drone') * dt); // Javítódrón
   // ads
   const w = curW();
-  const adsTarget = rmb && !player.sprint && player.knifeT <= 0 && !player.reloading && player.carry == null ? 1 : 0; // no scope while reloading; holding the button brings it back after
+  const adsTarget = rmb && !player.sprint && player.knifeT <= 0 && !player.reloading && !(player.cycT > 0) && player.carry == null ? 1 : 0; // no scope while reloading or working the bolt / pump; holding the button brings it back after
   player.ads += (adsTarget - player.ads) * Math.min(1, dt * 13);
   camera.fov = lerp(SET.fov, SET.fov / w.base.zoom, player.ads); camera.updateProjectionMatrix();
   // recoil recovery

@@ -302,11 +302,11 @@ function settleWeapons(success, M) {
   let overflow = 0; const home = [], lostGear = [];
   const toStash = it => { if (P.gearStash.length < gearMax()) P.gearStash.push(it); else { P.cash += gearValue(it); overflow++; } };
   for (const k of GEAR_KEYS) { const it = P.gear[k]; if (it && it.found) { if (success) { delete it.found; home.push(it); } else { P.gear[k] = null; lostGear.push(it); } } }
-  const gb = []; // your own pieces go back in the armour bag, the rest to the stash
+  const gb = []; // everything you carried out stays in the armour bag; what doesn't fit goes to the stash
   for (const it of M.gear) {
     const found = it.found;
     if (found) { if (!success) { lostGear.push(it); continue; } delete it.found; it.isNew = true; home.push(it); }
-    if (!success && !P.gear[it.slot]) P.gear[it.slot] = it; else if (!found && gb.length < bagMax()) gb.push(it); else toStash(it);
+    if (!success && !P.gear[it.slot]) P.gear[it.slot] = it; else if (gb.length < bagMax()) gb.push(it); else toStash(it);
   }
   P.gearBag = gb;
   gearChanged();
@@ -833,6 +833,7 @@ function gameStep(t) {
   } else if (state === 'playing' || netLive()) {
     now += dt;
     if (state === 'playing' && !(mission && mission.leaving)) updatePlayer(dt); // the ride out moves the camera itself
+    else if (state !== 'paused' && (player.ads || camera.fov !== SET.fov)) { player.ads = 0; camera.fov = SET.fov; camera.updateProjectionMatrix(); } // no zoom left over in the van
     NET.client ? updateProxies(dt) : updateZombies(dt);
     scene.updateMatrixWorld();
     if (state === 'playing') updateWeapon(dt);
