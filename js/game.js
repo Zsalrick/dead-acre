@@ -464,11 +464,15 @@ function ammoRows() { // reserve rounds by family, over the guns in hand and in 
   return Object.entries(by).map(([k, e]) => `<div class="amr" style="--ac:${AMMO_COL[k]}"><div><b>${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}</b><span>${e.n} / ${e.max}</span></div><i><em style="width:${e.max ? e.n / e.max * 100 : 0}%"></em></i><small>${e.guns.join(', ')}</small></div>`).join('') || '<p class="note">Nincs fegyvered.</p>';
 }
 // an accidental Ctrl+W, F5 or closed tab: during a job the browser asks first; in real fullscreen the keys are caught outright (Chrome, Edge)
-addEventListener('beforeunload', e => { if ((mission && !mission.job.test) || (typeof deepRun === 'function' && deepRun())) { e.preventDefault(); e.returnValue = ''; } });
+addEventListener('beforeunload', e => { if (profile) { e.preventDefault(); e.returnValue = ''; } }); // always ask once a character is loaded, in the hub too
 function toggleFS() {
   if (document.fullscreenElement) return document.exitFullscreen();
   const el = document.documentElement; if (!el.requestFullscreen) return;
-  el.requestFullscreen().then(() => { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(() => {}); }).catch(() => {});
+  el.requestFullscreen().then(() => {
+    if (!(navigator.keyboard && navigator.keyboard.lock)) return toast('TELJES KÉPERNYŐ', ['Ez a böngésző nem tudja elkapni a Ctrl+W-t (csak Chrome, Edge, Opera, Brave).', 'Kilépéskor a játék rákérdez, mielőtt bezárnád.'], '#ff8a30', 7000);
+    navigator.keyboard.lock().then(() => toast('BILLENTYŰZÁR BE', ['A Ctrl+W, Ctrl+T, Ctrl+N most a játéké, nem zár be semmit.', 'Kilépés a teljes képernyőből: tartsd nyomva az Esc-et, vagy Y.'], '#6fd08a', 6000))
+      .catch(err => toast('A BILLENTYŰZÁR NEM ÁLLT BE', [`A böngésző elutasította (${err && err.name || 'ismeretlen ok'}).`, 'Kilépéskor a játék rákérdez, mielőtt bezárnád.'], '#ff5a4a', 8000));
+  }).catch(err => toast('NINCS TELJES KÉPERNYŐ', [`A böngésző nem engedte (${err && err.name || 'ismeretlen ok'}).`], '#ff5a4a', 6000));
 }
 document.addEventListener('fullscreenchange', () => document.querySelectorAll('.fslbl').forEach(s => { const hub = !!s.closest('.hsys'); s.textContent = document.fullscreenElement ? (hub ? 'KILÉPÉS' : 'Kilépés a teljes képernyőből') : (hub ? 'TELJES KÉPERNYŐ' : 'Teljes képernyő'); }));
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-fs]')) toggleFS(); });
