@@ -391,26 +391,83 @@ const MAPS = {
       south: { side: 's', at: 0, name: 'A csontkert', cost: 750, core: { minX: -22, maxX: 22, minZ: 36, maxZ: 72 }, spawns: [[-20, 70], [20, 70]], station: ['forge', -12, 52] },
     },
   },
-  gas: {
-    name: 'Route 9 benzinkút', desc: 'Kiégett benzinkút az országút mellett, sok autóroncs és robbanó hordó.', minLevel: 3,
-    main: { minX: -36, maxX: 36, minZ: -26, maxZ: 26 }, look: { tex: 'asphalt', ground: 0x8a8a90, fog: 0x0b0d12, fogD: [.024, .032], fence: 0x8a8e94 },
-    vans: [[24, 18], [-26, 18], [24, -17]], ammo: [-6, 14], boxSpots: [[16, 2], [-22, 6], [10, -18], [-28, -18]],
-    spawns: [[-33, 0], [33, 0], [0, -23], [0, 23], [-30, 20], [30, -20], [-30, -20], [20, 23]],
-    lamps: [[-10, -4], [22, -4], [-2, 20], [-28, 10]],
-    clear: [[-20, -16, 8], [6, -8, 9], [28, -20, 3]],
-    props: [['car', 3], ['barrel', 2], ['boom', 2.5], ['crate', 1.5], ['stack', 1]], propN: [16, 22],
+  gas: { // core + three wings: the forecourt on Route 9 with the shop you walk into; the junkyard, the motel and the truck stop open it up
+    name: 'Route 9 benzinkút', desc: 'Kiégett töltőállomás az országúton: kút, bolt, egy lerobbant kamion. Drótkerítésen túl nyitható: a roncstelep, a motel és a kamionparkoló.', minLevel: 3,
+    noScale: true, innerFence: 'chain',
+    main: { minX: -50, maxX: 50, minZ: -12, maxZ: 34 }, look: { tex: 'asphalt', ground: 0x8a8a90, fog: 0x0b0d12, fogD: [.022, .03], fence: 0x8a8e94 },
+    vans: [[-44, 29], [44, 30], [-44, 6], [44, 2]], ammo: [-14, 16], boxSpots: [[12, 24], [-34, 14], [34, -6], [-8, -8]],
+    spawns: [[-48, 18], [48, 16], [-48, -8], [48, -8]],
+    lamps: [[-16, 13], [16, 13], [-40, 20], [40, 21], [-36, -8], [34, -9]],
+    clear: [[0, 4, 12], [-28, 2, 10], [0, 17, 6], [26, 14, 9], [24, 24, 3], [0, 30, 5]],
+    props: [['car', 2.5], ['barrel', 2], ['boom', 2.5], ['crate', 1.5], ['stack', 1]], propN: [12, 16],
+    power: { turret: [0, 17], gens: [[-46, -50], [46, -16], [18, 68], [-47, -2]], boxes: [[-34, 26], [34, 26], [-44, -10], [44, 12], [-6, -10], [20, -40], [-26, -36], [8, 64], [-16, 44], [40, -52]] },
+    quest: { radio: [19, 11.6], drop: [-2, -1], parts: [[-40, -24], [-20, -52], [-8, -30], [12, -28], [44, -44], [-16, 66], [18, 46], [-46, 12]],
+      txt: { names: ['AKKUMULÁTOR', 'INDÍTÓKULCS', 'ÉKSZÍJ'], part: 'kamionalkatrész', broken: 'Lerobbant kamion', use: 'Kamion beindítása (duda)', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Indítsd be a kamiont a töltőállomás mellett.'],
+        call: ['A DUDA VÉGIGBŐGI A VIDÉKET…', 'Egy különleges csapat tart feléd. Öld meg mindet!'], done: 'A KAMION MOTORJA LEFULLADT', where: 'a kamion mellett' } },
     build() {
-      house(-20, -16, 12, 8, 4.5, matStd({ color: 0xb8b4a8 }), 0x3a3a3e, 's');
-      label(['GAS'], '#ff5a3a', 2.4, -20, 7.2, -11.8);
-      for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) addBox(6 + a * 6.5, -8 + b * 3.5, .4, .4, 5, matStd({ color: 0x9a9ea4 }));
-      addBox(6, -8, 16, 10, .5, matStd({ color: 0xd8d4c8 }), 5, false);
-      [2, 10].forEach(x => { addBox(x, -8, .7, .5, 1.5, matStd({ color: 0xa82a22 })); });
-      for (let x = -34; x < 34; x += 5) addBox(x, 20.5, 2.6, .18, .02, basic(0xd8b43a), 0, false);
-      addBox(28, -20, .3, .3, 5, poleMat); addBox(28, -20, 6, .3, 3, matStd({ color: 0x6a4a3a }), 5, false);
+      const white = matStd({ color: 0xd8d6cc }), red = matStd({ color: 0xa82a22 }), concrete = matStd({ color: 0x9a9a94, roughness: 1 }), dark = matStd({ color: 0x1a1a1c });
+      const rust = matStd({ color: 0x6a3a24, roughness: .9 }), wood = matStd({ map: woodTex, color: 0x6a5038 }), plaster = matStd({ color: 0xb8b4a8 });
+      // Route 9: lines on the road along the south edge
+      for (let x = -48; x < 48; x += 5) addBox(x, 30, 2.6, .18, .02, basic(0xd8b43a), 0, false);
+      for (const z of [26.2, 33.6]) addBox(0, z, 100, .14, .02, basic(0xb8b8b0), 0, false);
+      addBox(0, 6, 44, 20, .02, concrete, 0, false); // the forecourt slab
+      // the canopy over three pump islands, lit from under
+      for (const [a, b] of [[-9, -.5], [9, -.5], [-9, 8.5], [9, 8.5]]) addBox(a, b, .5, .5, 5.2, white);
+      addBox(0, 4, 21, 11, .5, white, 5.2, false); addBox(0, 4, 21.2, 11.2, .35, red, 5.7, false);
+      label(['ROUTE 9'], '#ff5a3a', 1.6, 0, 6.6, 9.8);
+      for (const x of [-6, 0, 6]) { addBox(x, 4, 1.4, 4.2, .25, concrete); for (const z of [2.9, 5.1]) { addBox(x, z, .8, .55, 1.7, red, .25); addBox(x, z, .6, .57, .4, basic(0x2a3a2a), 1.3, false); } }
+      glowSprite(0xe8f0ff, 3, new V3(0, 5, 4)); pointLight(0xdce8ff, 1.5, 18, 0, 4.8, 4);
+      // the shop: walk in by the front door (or the side one); shelves, the counter, windows lit
+      hollow(-28, 2, 16, 10, 4.2, plaster, { s: [[3, 2]], e: [[0, 2]] }, 0x3a3a3e);
+      for (const x of [-34, -31]) addBox(x, 7.03, 2.4, .06, 1.5, glassLit, 1, false);
+      addBox(-28, 7.1, 16.4, .3, .6, red, 4.2, false); label(['BOLT · 24 H'], '#ffd8a0', 1.3, -28, 5.4, 7.4);
+      for (const z of [-1, 2]) { addBox(-32, z, 5, .7, 1.7, wood); for (let k = 0; k < 6; k++) addBox(-34.2 + k * .85, z, .5, .75, .3, basic([0xc8283a, 0x3a8ad8, 0xe8c83a][k % 3]), 1.72, false); }
+      addBox(-23, -.5, .9, 4.5, 1.1, wood); addBox(-23, -1.5, .5, .5, .4, dark, 1.1, false); // the counter and the till
+      pointLight(0xdcecff, 1.2, 12, -28, 3.6, 2); addBox(-28, 2, 6, .3, .08, basic(0xe8f4ff), 4.1, false); // a strip light still on
+      addBox(-36.5, 7.6, 1.8, 1.2, 1.4, matStd({ color: 0x2a4a3a })); // a dumpster
+      addBox(-19.6, 6.8, .9, .7, 1.3, matStd({ color: 0xd8e0e8 })); label(['JÉG'], '#9fd8ff', .7, -19.6, 1.7, 7.2);
+      // the big pole sign by the road
+      addBox(24, 24, .5, .5, 9, steelMat); addBox(24, 24, 5.2, .5, 3, matStd({ color: 0xe8e2d0 }), 8.5, false); label(['GAS', '$ 3.19'], '#ff5a3a', 2.4, 24, 10, 24.4);
+      // the semi truck left by the pumps: cab facing west, a long trailer (its horn is the map's challenge)
+      const truckRig = (x, z, col, trailer = true) => {
+        addBox(x, z, 3, 2.6, 1.6, col, .6); addBox(x + .3, z, 2.4, 2.5, 1.4, col, 2.2); addBox(x - .93, z, .06, 2.1, .8, glassDark, 2.6, false);
+        addBox(x - 1.52, z, .1, 2.2, .7, matStd({ color: 0x8a8e94, metalness: .6, roughness: .4 }), .8, false);
+        for (const a of [-.8, 1]) for (const b of [-1.2, 1.2]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .35, 14), dark)); w.rotation.x = Math.PI / 2; w.position.set(x + a, .55, z + b); }
+        if (trailer) { addBox(x + 8.1, z, 12, 2.6, 2.9, matStd({ color: 0xb8bcc0, metalness: .3, roughness: .6 }), 1.1); for (const a of [4, 5.2, 12.6, 13.4]) for (const b of [-1.2, 1.2]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .3, 12), dark)); w.rotation.x = Math.PI / 2; w.position.set(x + a, .5, z + b); } }
+      };
+      truckRig(19, 14, red); addBox(19, 12.6, .6, .06, .9, dark, 1.2, false); // the cab door hangs open
+      // --- west wing, A roncstelep: walls of crushed cars, a magnet crane, the crusher, the yard office
+      const wreckC = [0x6a3a24, 0x4a4a4e, 0x3a4a5a, 0x5a2a24, 0x6a6a5a, 0x2e3a2a].map(c => matStd({ color: c, roughness: .9 }));
+      const stack = (x, z, n, alongX) => { const w = alongX ? 4.2 : 1.9, d = alongX ? 1.9 : 4.2; for (let k = 0; k < n; k++) addBox(x + rand(-.15, .15), z + rand(-.1, .1), w, d, .9, wreckC[(k + Math.abs(x | 0)) % wreckC.length], k * .9, false).rotation.y = rand(-.06, .06);
+        obstacles.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: n * .9 }); };
+      for (const [z, gaps] of [[-22, [2, 6]], [-33, [0, 5, 8]], [-44, [3, 7]]]) for (let k = 0; k < 9; k++) if (!gaps.includes(k)) stack(-46 + k * 4.4, z, 2 + (k * 7 + z) % 3, true);
+      for (let k = 0; k < 6; k++) { const t = put(new THREE.Mesh(new THREE.TorusGeometry(.42, .16, 6, 12), dark)); t.rotation.x = Math.PI / 2; t.position.set(-8 + (k % 2) * .2, .16 + k * .3, -18); }
+      addBox(-8, -18, 1, 1, 1.8, dark, 0, true).visible = false;
+      addBox(-40, -50, 1.2, 1.2, 13, matStd({ color: 0xc8a020 })); addBox(-36, -50, 10, .7, .7, matStd({ color: 0xc8a020 }), 12.6, false);
+      addBox(-32, -50, .05, .05, 6, dark, 6.6, false); put(new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, .4, 16), dark)).position.set(-32, 6.4, -50);
+      addBox(-12, -49, 6, 3.4, 2.4, matStd({ color: 0x3a4a5a, metalness: .4 })); addBox(-12, -49, 6.2, 3.6, .5, dark, 3.2, false); label(['PRÉS'], '#ffd23f', 1, -12, 4.2, -47.2);
+      addBox(-44, -16, 7, 3, 2.8, matStd({ color: 0xc8c0a0 })); addBox(-43, -14.47, 1.2, .06, .9, glassLit, 1.2, false); addBox(-46.5, -14.47, .9, .06, 2, doorMat, 0, false); label(['IRODA'], '#e8e2d0', .9, -44, 3.4, -14.3);
+      // --- east wing, A motel: the long row of rooms with a walkway, the drained pool, the neon sign
+      addBox(28, -51, 36, 7, 3.4, matStd({ color: 0xa89a82 })); addBox(28, -46.6, 36.6, 2.2, .2, dark, 3.2, false);
+      for (let x = 11; x <= 45; x += 4.25) { addBox(x, -47.44, 1, .06, 2.2, doorMat, 0, false); addBox(x + 1.6, -47.44, 1.2, .06, 1, Math.random() < .25 ? glassLit : glassDark, 1.1, false); addBox(x - 2.1, -45.7, .15, .15, 3.2, poleMat); }
+      hollow(8, -51, 4.6, 7, 3.4, matStd({ color: 0xa89a82 }), { s: [[0, 1.4]] }, 0x2a2a2e); addBox(7, -53, 2, 2.4, .6, matStd({ color: 0x7a5a6a })); // the one room with its door kicked in: a bed
+      const tile = matStd({ color: 0x3a7a9a, roughness: .3 });
+      addBox(24, -30, 12, 7, .02, tile, 0, false); for (const [w, d, x, z] of [[12.8, .4, 24, -33.7], [12.8, .4, 24, -26.3], [.4, 7.8, 17.8, -30], [.4, 7.8, 30.2, -30]]) addBox(x, z, w, d, .35, concrete);
+      addBox(29, -33.3, .6, .06, 1.2, steelMat, 0, false); // the ladder
+      addBox(12, -16, .4, .4, 8, steelMat); addBox(12, -16, 5, .4, 1.8, matStd({ color: 0x2a1a2a }), 7, false); label(['MOTEL', 'SZOBA VAN'], '#ff6ad8', 1.8, 12, 8.6, -15.6); pointLight(0xff4ac8, 1.1, 12, 12, 7, -15);
+      addBox(46, -34, .9, .7, 1.9, matStd({ color: 0xc8283a })); glowSprite(0xff6a6a, 1.4, new V3(46, 1.4, -33.5));
+      // --- south wing, A kamionparkoló: two rigs parked, the diner with its counter
+      truckRig(-2, 44, matStd({ color: 0x2a4a7a })); truckRig(-6, 52, matStd({ color: 0x3a5a2a }));
+      const chrome = matStd({ color: 0xc8ccd0, metalness: .6, roughness: .35 });
+      hollow(-10, 64, 14, 8, 3.8, chrome, { e: [[0, 2]], n: [[3, 2]] }, 0x2a2a2e);
+      addBox(-12, 64, 7, .9, 1.1, matStd({ color: 0xc8283a })); for (let k = 0; k < 5; k++) cylinderSolid(-15 + k * 1.5, 62.8, .25, .7, chrome);
+      for (const x of [-15, -11, -7]) addBox(x, 59.97, 2, .06, 1.2, glassLit, 1.2, false);
+      label(['DINER'], '#6ae8ff', 2, -10, 5.8, 59.6); pointLight(0x6ae8ff, .9, 12, -10, 4, 58);
     },
     areas: {
-      north: { side: 'n', at: 0, name: 'Szerviz garázs', cost: 1000, core: { minX: -14, maxX: 14, minZ: -48, maxZ: -26 }, spawns: [[-10, -45], [10, -45]], station: ['forge', 0, -38] },
-      east:  { side: 'e', at: 0, name: 'Motel', cost: 1250, core: { minX: 36, maxX: 58, minZ: -12, maxZ: 12 }, spawns: [[55, -9], [55, 9]], station: ['tower', 40, 7] },
+      west: { side: 'n', at: -26, name: 'A roncstelep', cost: 1000, core: { minX: -50, maxX: -4, minZ: -56, maxZ: -12 }, spawns: [[-48, -54], [-8, -54]], station: ['forge', -14, -27] },
+      east: { side: 'n', at: 26, name: 'A motel', cost: 1250, core: { minX: 4, maxX: 50, minZ: -56, maxZ: -12 }, spawns: [[8, -40], [48, -40]], station: ['well', 40, -26] },
+      south: { side: 's', at: 0, name: 'A kamionparkoló', cost: 750, core: { minX: -22, maxX: 22, minZ: 34, maxZ: 72 }, spawns: [[-20, 70], [20, 70]], station: ['tower', 14, 64] },
     },
   },
   mill: {
