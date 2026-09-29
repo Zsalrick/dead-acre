@@ -20,7 +20,42 @@ const cornTex = canvasTex(128, (g, S) => {
   }
 });
 cornTex.wrapS = THREE.RepeatWrapping; cornTex.repeat.set(4, 1);
-const cornMat = new THREE.MeshLambertMaterial({ map: cornTex, alphaTest: .4, side: THREE.DoubleSide });
+const cornMat = new THREE.MeshLambertMaterial({ map: cornTex, alphaTest: .4, side: THREE.DoubleSide, color: 0x3e4032 }); // the dim core of a row; the stalks stand in front of it
+// corn: single stalks (stem, drooping leaves, a tassel, sometimes a cob), all in one instanced mesh that sways in the wind
+const cornWind = { value: 0 }, cornStalks = [];
+const cornGeo = (() => {
+  const col = (g, c) => { g = g.index ? g.toNonIndexed() : g; const n = g.attributes.position.count, a = new Float32Array(n * 3), k = new THREE.Color(c); for (let i = 0; i < n; i++) k.toArray(a, i * 3); g.setAttribute('color', new THREE.Float32BufferAttribute(a, 3)); return g; };
+  const parts = [col(new THREE.CylinderGeometry(.009, .016, 1, 5, 1, true).translate(0, .5, 0), 0x6f8a3a)];
+  for (let k = 0; k < 5; k++) { // a leaf: a strip that rises off the stem and droops
+    const L = new THREE.PlaneGeometry(.34, .045, 4, 1).rotateX(-Math.PI / 2), p = L.attributes.position;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i) + .17, w = 1 - x / .4; p.setXYZ(i, x, .55 * x - 2.2 * x * x, p.getZ(i) * w); }
+    L.computeVertexNormals(); L.rotateY(k * 2.4 + .3).translate(0, .28 + k * .13, 0); parts.push(col(L, k < 2 ? 0x7a8a3c : 0x5f7a30));
+  }
+  for (let k = 0; k < 5; k++) parts.push(col(new THREE.CylinderGeometry(.002, .005, .16, 3).translate(0, .08, 0).rotateZ(k ? .5 : 0).rotateY(k * 1.26).translate(0, .99, 0), 0xb89a4a)); // the tassel: a few thin spikes
+  parts.push(col(new THREE.CylinderGeometry(.022, .016, .15, 5).rotateZ(.35).translate(.03, .56, 0), 0xa8a860)); // a cob in its husk
+  parts.forEach(g => { g.deleteAttribute('uv'); });
+  return THREE.BufferGeometryUtils.mergeGeometries(parts);
+})();
+const cornStalkMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+cornStalkMat.onBeforeCompile = s => { s.uniforms.uWind = cornWind; s.vertexShader = 'uniform float uWind;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+#ifdef USE_INSTANCING
+{ vec3 o = instanceMatrix[3].xyz; float w = sin(uWind * 1.3 + o.x * .31 + o.z * .23) + .35 * sin(uWind * 3.2 + o.x * 1.7 + o.z); float h = position.y * position.y; transformed.x += w * .045 * h; transformed.z += w * .025 * h; }
+#endif`); };
+function cornRow(x, z, w, d, h) { // blocks like the old box did (and hides what's behind it); the look is the stalks
+  const m = addBox(x, z, w, d, h, cornMat), along = w >= d; m.scale.set(along ? w * .9 : w * .35, h * .62, along ? d * .35 : d * .9); m.position.y = h * .31; m.castShadow = false;
+  const len = Math.max(w, d), thick = Math.min(w, d), lines = Math.max(2, Math.round(thick / .3));
+  for (let l = 0; l < lines; l++) for (let t = -len / 2 + .12; t < len / 2; t += rand(.15, .26)) {
+    const a = t + rand(-.06, .06), b = (l + .5) / lines * thick - thick / 2 + rand(-.08, .08);
+    cornStalks.push([along ? x + a : x + b, along ? z + b : z + a, h * rand(.85, 1.2)]);
+  }
+}
+function flushCorn() { // one draw for the whole field
+  if (!cornStalks.length) return;
+  const im = new THREE.InstancedMesh(cornGeo, cornStalkMat, cornStalks.length), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new V3(), p = new V3(), c = new THREE.Color();
+  cornStalks.forEach(([x, z, h], i) => { e.set(rand(-.07, .07), rand(0, 6.28), rand(-.07, .07)); q.setFromEuler(e); s.set(h, h, h); m.compose(p.set(x, 0, z), q, s); im.setMatrixAt(i, m);
+    im.setColorAt(i, c.setRGB(1, 1, 1).lerp(new THREE.Color(0xc8a868), Math.random() < .18 ? rand(.4, .8) : rand(0, .15))); }); // a few dried-out ones
+  im.receiveShadow = true; im.frustumCulled = false; mapGroup.add(im); cornStalks.length = 0;
+}
 
 const asphaltTex = canvasTex(256, (g, s) => {
   const img = g.createImageData(s, s);
@@ -252,9 +287,9 @@ const MAPS = {
       { const r = mulberry(13), clearing = (x, z) => Math.hypot(x, z + 36) < 8;
         for (const zr of [-13, -21, -29, -43, -51]) {
           const skip = new Set([Math.floor(r() * 9), Math.floor(r() * 9), zr === -13 ? 4 : Math.floor(r() * 9)]); // a few gaps a row; the first row always opens by the gate
-          for (let k = 0; k < 9; k++) { const x = -18 + k * 4.5; if (skip.has(k) || clearing(x, zr)) continue; addBox(x, zr, 4.2, 1.2, 2.2, cornMat); }
+          for (let k = 0; k < 9; k++) { const x = -18 + k * 4.5; if (skip.has(k) || clearing(x, zr)) continue; cornRow(x, zr, 4.2, 1.2, 2.6); }
         }
-        for (const [x, z] of [[-10, -17], [10, -25], [-10, -47], [10, -47], [-14, -36], [14, -36]]) if (!clearing(x, z)) addBox(x, z, 1.2, 5, 2.2, cornMat);
+        for (const [x, z] of [[-10, -17], [10, -25], [-10, -47], [10, -47], [-14, -36], [14, -36]]) if (!clearing(x, z)) cornRow(x, z, 1.2, 5, 2.6);
         scarecrow(7, -25); scarecrow(-9, -52); }
       // east wing, A temető: graves in two fields, a ruined chapel you can go into, a crypt
       for (const [x0, x1] of [[30, 42], [52, 64]]) for (let x = x0; x <= x1; x += 3) for (let z = -14; z >= -34; z -= 4) grave(x + rand(-.4, .4), z + rand(-.4, .4));
@@ -717,7 +752,7 @@ function loadMap(id, seed) {
     if (d.side === 'n') rect.maxZ += 2; if (d.side === 's') rect.minZ -= 2; if (d.side === 'e') rect.minX -= 2; if (d.side === 'w') rect.maxX += 2;
     AREAS[k] = Object.assign({}, d, { core: c, rect, gate, out: new V3(ox, 0, oz), unlocked: false, desc: STATION_INFO[d.station[0]] });
   }
-  MAP.build();
+  cornStalks.length = 0; MAP.build(); flushCorn();
   resolveVanLanes(); buildFences(); buildVanGates(); // lanes are checked against what the map built, then the fence gets its gaps
   MAP.lamps.filter(([x, z]) => !inVanLane(x, z, 1.5)).forEach(([x, z]) => lamp(x, z));
   SPAWNS.forEach(([x, z]) => { const m = put(new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.1, .12, 10), new THREE.MeshLambertMaterial({ color: 0x2a2116 }))); m.position.set(x, .06, z); });
@@ -1436,7 +1471,7 @@ function applyMod(key) {
 }
 function updateMapFx(dt) {
   for (const m of mist) { m.position.x += m.userData.v * dt; if (m.position.x > m.userData.hi) m.position.x = m.userData.lo; } // the ground mist drifts
-  mapSpin.forEach(m => m.rotation.z += dt * .4);
+  mapSpin.forEach(m => m.rotation.z += dt * .4); cornWind.value += dt;
   updateVanGates(dt);
   if (rain.visible) updateRain(dt);
   for (const s of mapLabels) { const d = Math.hypot(s.position.x - player.pos.x, s.position.z - player.pos.z); if (s.userData.base) s.scale.copy(s.userData.base).multiplyScalar(clamp(d / 9, .45, 1)); }
