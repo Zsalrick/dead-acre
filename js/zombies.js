@@ -820,7 +820,7 @@ function weaponOnHit(z, amt, o) {
     const fresh = marks.filter(q => !(q.markT > 1)); marks.forEach(q => q.markT = Math.max(q.markT || 0, 6)); if (NET.client && fresh.length) netAct('mark', fresh.map(q => q.id)); }
   if (w.tal && !o.chain) talentHit(z, amt, o, w);
   if (w.unique === 'sebastian') explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: amt * .7, pr: .01, pdmg: .001 });
-  if (z.markT > 0 && augOn('execute') && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
+  if (z.markT > 0 && augOn('execute') && !z.K.boss && !z.bounty && z.hp > 0 && z.hp < z.maxHp * .3) { const rest = z.hp; z.markT = 0; hurtZombie(z, rest + 1, { color: '#b46cff' }); }
 }
 function talentHit(z, amt, o, w) { // the extra damage lands as a chained hit, so it can't set the talents off again
   const extra = k => { if (!z.dead && z.hp > 0) hurtZombie(z, amt * k, { w, chain: true, color: '#ffd23f' }); };
