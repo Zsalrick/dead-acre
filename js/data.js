@@ -242,7 +242,8 @@ const ANOINTS = {
 };
 const fireRate = w => w.base.mode === 'burst' ? w.base.burst / (w.base.burstDelay + (w.base.burst - 1) * 60 / w.rpm) : w.rpm / 60;
 // sustained DPS: a full magazine plus its reload, so a double barrel doesn't look like the best gun in the game
-const dps = w => Math.round(w.dmg * w.pellets * w.mag / (w.mag / fireRate(w) + (w.base.single ? w.reload * w.mag : w.reload)));
+const wDmg = w => Math.round(w.dmg * (1 + .02 * (w.exp || 0))); // a shot's damage with the gun's expertise (+2% a level) in it
+const dps = w => Math.round(wDmg(w) * w.pellets * w.mag / (w.mag / fireRate(w) + (w.base.single ? w.reload * w.mag : w.reload)));
 const accuracy = w => Math.round(clamp(100 - w.spread * 9, 5, 99));
 const rarColor = w => RARITIES[w.q].color;
 const sellValue = w => Math.round([60, 150, 320, 650, 1300, 2600][w.q] * (1 + .08 * (w.level - 1)));

@@ -137,7 +137,7 @@ const pctS = v => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
 function wCalc(w) { // everything this gun does with your current upgrades, skills and gear
   const b = w.base, M = mkOf(w), lv = Math.pow(1.08, w.level - 1), rq = 1 + w.q * .14;
   return {
-    dps: dps(w), dmg: w.dmg * w.pellets, bonus: SK.dmg(w) - 1,
+    dps: dps(w), dmg: wDmg(w) * w.pellets, bonus: SK.dmg(w) - 1 - .02 * (w.exp || 0), // expertise is in the damage line, not the bonus
     roll: w.dmg / (b.dmg * lv * rq) - 1, lv: lv - 1, rq: rq - 1,
     crit: Math.min(CRIT_CAP, wCrit(w) + .04 * U('crit') + SK.crit(w) + G('crit') + (M.crit || 0)), critRaw: wCrit(w) + .04 * U('crit') + SK.crit(w) + G('crit') + (M.crit || 0), // above the cap it counts as the cap
     critDmg: wCdmg(w) + .25 * U('critDmg') + SK.critDmg() + G('critDmg') + (M.critDmg || 0),
@@ -201,7 +201,7 @@ function weaponDetail(w, cmp, actions) {
       ${c ? `<div class="dcmp">összevetve: <span style="color:${rarColor(c)}">${c.name}</span></div>` : ''}
       <div class="srows">
         ${srw('DPS', A.dps, x('dps'), w.roll != null ? w.roll / 100 : null, 'Másodpercenkénti sebzés egy teljes tárral és újratöltéssel. A csík: a véletlen értékek összesített minősége.')}
-        ${srw('Sebzés', w.pellets > 1 ? `${w.dmg}×${w.pellets}` : w.dmg, x('dmg'), RL.dmg, `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · véletlen ${pctS(A.roll)}`)}
+        ${srw('Sebzés', w.pellets > 1 ? `${wDmg(w)}×${w.pellets}` : wDmg(w), x('dmg'), RL.dmg, `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · véletlen ${pctS(A.roll)}${w.exp ? ` · szakértelem +${2 * w.exp}%` : ''}`)}
         ${srw('Tűzgyorsaság', `${w.rpm}/p`, c ? dlt(w.rpm, c.rpm) : '', RL.rate)}
         ${srw('Tár', w.mag, c ? dlt(w.mag, c.mag) : '', RL.mag)}
         ${srw(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? dlt(w.reload, c.reload, true, 2) : '', RL.reload, `gyorsaság ${pctS(reloadMul() - 1)}`)}
@@ -211,7 +211,7 @@ function weaponDetail(w, cmp, actions) {
       <div class="srows">
         ${srw('Kritikus szorzó', `×${A.critDmg.toFixed(2)}`, x('critDmg', false, 2), null, `fegyver ×${wCdmg(w).toFixed(2)}`, 'minor')}
         ${srw('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2), null, '', 'minor')}
-        ${srw('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), null, 'kaszt, képességek, páncél, gyártó, szakértelem', 'minor')}
+        ${srw('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), null, 'kaszt, képességek, páncél, gyártó, mesterség', 'minor')}
         ${srw('Hatótáv', `${b.range} m`, c ? dlt(b.range, c.base.range) : '', null, '', 'minor')}
         ${srw('Tartalék lőszer', A.res, x('res'), null, '', 'minor')}
       </div>
