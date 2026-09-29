@@ -676,61 +676,83 @@ const MAPS = {
       east: { side: 'e', at: 22, name: 'A robbanóanyag-raktár', cost: 1250, core: { minX: 50, maxX: 94, minZ: 6, maxZ: 36 }, spawns: [[92, 8], [92, 34]], station: ['tower', 60, 28] },
     },
   },
-  fair: {
-    name: 'Vásártér', desc: 'Elhagyott vándorvásár: óriáskerék, körhinta, sátrak és bódék. Színes fények a ködben.', minLevel: 9,
-    main: { minX: -44, maxX: 44, minZ: -34, maxZ: 34 }, look: { tex: 'grass', ground: 0x76805f, fog: 0x140d18, fogD: [.02, .028], fence: 0xc8b8a0 },
-    vans: [[-34, 26], [34, 26], [-36, -26], [36, -24]], ammo: [8, 14], boxSpots: [[-10, 2], [14, -4], [-30, -14], [30, 22], [2, 20], [-16, 24]],
-    spawns: [[-41, -20], [-41, 12], [41, -8], [41, 18], [0, -31], [-26, -31], [26, -31], [-14, 31], [14, 31]],
-    lamps: [[-8, -6], [10, 6], [-28, 20], [28, -2], [0, 26], [-20, -24]],
-    clear: [[0, -18, 7], [-22, 6, 7], [24, 12, 8], [30, -14, 6], [0, 30, 5], [-18, 22, 4], [-26, 22, 4], [18, 22, 4], [26, 22, 4], [-10, 22, 4], [10, 22, 4]],
-    props: [['crate', 2], ['hay', 2], ['barrel', 2], ['stack', 1], ['boom', 1]], propN: [18, 24],
+  fair: { // core + three wings: the midway under the Ferris wheel; the ghost train, the big top and the carnies' camp open it up
+    name: 'Vásártér', desc: 'Elhagyott vándorvásár: óriáskerék, körhinta, bódék, füzérlámpák. Kordonon túl nyitható: a szellemvasút, a cirkuszsátor és a lakókocsitábor.', minLevel: 9,
+    noScale: true, innerFence: 'rope',
+    main: { minX: -50, maxX: 50, minZ: -12, maxZ: 36 }, look: { tex: 'grass', ground: 0x76805f, fog: 0x140d18, fogD: [.02, .028], fence: 0xc8b8a0 },
+    vans: [[-44, -6], [44, -6]], ammo: [-8, 24], boxSpots: [[16, 12], [-36, 30], [34, 30], [-14, -8]],
+    spawns: [[-48, -10], [48, -10], [-30, 34], [30, 34]],
+    lamps: [[-14, 6], [14, 6], [-38, 24], [38, 24], [-40, -8], [40, -8]],
+    clear: [[0, -4, 8], [-26, 12, 7], [0, 16, 6], [26, 6, 3], [7, -4, 3]],
+    props: [['crate', 1.5], ['hay', 2], ['barrel', 2], ['stack', 1], ['boom', 1]], propN: [8, 12],
+    power: { turret: [0, 16], gens: [[-90, 32], [90, 4], [-20, -52], [46, 30]], boxes: [[-44, 32], [44, 12], [-22, 32], [22, 34], [-6, -10], [-70, 6], [70, 32], [-12, -30], [18, -46], [86, 30]] },
+    quest: { radio: [7, -2.2], drop: [-1, 1.6], fx: 'spin', parts: [[-86, 30], [-60, 6], [-18, -44], [18, -30], [66, 34], [88, 10], [-46, 4], [40, 20]],
+      txt: { names: ['BIZTOSÍTÉK', 'FOGASKERÉK', 'INDÍTÓKAR'], part: 'óriáskerék-alkatrész', broken: 'Álló óriáskerék', use: 'Óriáskerék beindítása', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Indítsd be az óriáskereket a vezérlőfülkénél.'],
+        call: ['FOROG AZ ÓRIÁSKERÉK, SZÓL A ZENE…', 'A fények és a zene mindenkit idecsalt. Egy különleges csapat tart feléd!'], done: 'A VÁSÁR ELCSENDESEDETT', where: 'a vezérlőfülkénél' } },
     build() {
-      const steel = matStd({ color: 0xd8d4cc, metalness: .6, roughness: .4 }), wood = matStd({ map: woodTex, color: 0x9a6a4a });
-      const colors = [0xff3a5a, 0xffd23f, 0x3ad8ff, 0x7dff7a, 0xff8a3a, 0xc05aff];
-      // the Ferris wheel: it keeps turning, lights on
-      addBox(0, -18, 11, 4, .4, matStd({ color: 0x5a4a3a }));
-      for (const sx of [-1, 1]) for (const sz of [-1.3, 1.3]) { const leg = put(new THREE.Mesh(unitBox, steel)); leg.scale.set(.35, 13.3, .35); leg.position.set(sx * 2.4, 6.4, -18 + sz); leg.rotation.z = sx * .36; leg.castShadow = true; }
-      const wheel = put(new THREE.Group()); wheel.position.set(0, 12.5, -18);
-      for (let k = 0; k < 16; k++) {
-        const a = k / 16 * Math.PI * 2, rim = new THREE.Mesh(unitBox, steel); rim.scale.set(.25, 3.6, .25); rim.position.set(Math.cos(a) * 9, Math.sin(a) * 9, 0); rim.rotation.z = a; wheel.add(rim);
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 6), basic(colors[k % colors.length])); bulb.position.set(Math.cos(a) * 9.3, Math.sin(a) * 9.3, .2); wheel.add(bulb);
-      }
-      for (let k = 0; k < 8; k++) {
-        const a = k / 8 * Math.PI * 2, sp = new THREE.Mesh(unitBox, steel); sp.scale.set(.15, 9, .15); sp.position.set(Math.cos(a) * 4.5, Math.sin(a) * 4.5, 0); sp.rotation.z = a - Math.PI / 2; wheel.add(sp);
-        const car = new THREE.Mesh(unitBox, matStd({ color: colors[k % colors.length] })); car.scale.set(1.4, 1.1, 1.6); car.position.set(Math.cos(a) * 9, Math.sin(a) * 9 - 1, 0); car.castShadow = true; wheel.add(car);
-      }
+      const steel = matStd({ color: 0xd8d4cc, metalness: .6, roughness: .4 }), wood = matStd({ map: woodTex, color: 0x9a6a4a }), dark = matStd({ color: 0x1a1a1e });
+      const colors = [0xff3a5a, 0xffd23f, 0x3ad8ff, 0x7dff7a, 0xff8a3a, 0xc05aff], cm = colors.map(c => matStd({ color: c }));
+      // the Ferris wheel: it stands still until someone gets it going (the map's challenge)
+      addBox(0, -4, 11, 4, .4, matStd({ color: 0x5a4a3a }));
+      for (const sx of [-1, 1]) for (const sz of [-1.3, 1.3]) { const leg = put(new THREE.Mesh(unitBox, steel)); leg.scale.set(.35, 13.3, .35); leg.position.set(sx * 2.4, 6.4, -4 + sz); leg.rotation.z = sx * .36; leg.castShadow = true; }
+      const wheel = put(new THREE.Group()); wheel.position.set(0, 12.5, -4);
+      for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, rim = new THREE.Mesh(unitBox, steel); rim.scale.set(.25, 3.6, .25); rim.position.set(Math.cos(a) * 9, Math.sin(a) * 9, 0); rim.rotation.z = a; wheel.add(rim);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 6), basic(colors[k % colors.length])); bulb.position.set(Math.cos(a) * 9.3, Math.sin(a) * 9.3, .2); wheel.add(bulb); }
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, sp = new THREE.Mesh(unitBox, steel); sp.scale.set(.15, 9, .15); sp.position.set(Math.cos(a) * 4.5, Math.sin(a) * 4.5, 0); sp.rotation.z = a - Math.PI / 2; wheel.add(sp);
+        const car = new THREE.Mesh(unitBox, cm[k % cm.length]); car.scale.set(1.4, 1.1, 1.6); car.position.set(Math.cos(a) * 9, Math.sin(a) * 9 - 1, 0); car.castShadow = true; wheel.add(car); }
       const hubM = new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, 1.2, 16), steel); hubM.rotation.x = Math.PI / 2; wheel.add(hubM);
-      mapSpin.push(wheel); pointLight(0x3ad8ff, 1.6, 26, 0, 8, -14);
+      QST.spin = wheel; pointLight(0x3ad8ff, 1.4, 24, 0, 8, 0);
+      addBox(7, -4, 2.2, 2.2, 2.4, matStd({ color: 0x8a2a3a })); addBox(7, -2.87, 1.4, .06, .8, glassLit, 1.2, false); addBox(7, -4, 2.6, 2.6, .2, matStd({ color: 0xf2e8d8 }), 2.4, false); label(['VEZÉRLŐ'], '#ffd23f', .8, 7, 3.1, -2.8);
       // the carousel
-      cylinderSolid(-22, 6, 5, .5, wood);
-      addBox(-22, 6, .4, .4, 4.6, steel, .5, false);
-      const roof = put(new THREE.Mesh(new THREE.ConeGeometry(5.6, 2.4, 16), matStd({ color: 0xc8283a }))); roof.position.set(-22, 6.3, 6); roof.castShadow = true;
-      put(new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.4, 16), matStd({ color: 0xf2e8d8 }))).position.set(-22, 7.9, 6);
-      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, x = -22 + Math.cos(a) * 3.6, z = 6 + Math.sin(a) * 3.6; addBox(x, z, .08, .08, 4.2, steel, .5, false); const h = addBox(x, z, .35, 1.1, .6, matStd({ color: k % 2 ? 0xf2e8d8 : 0x6a3a2a }), 1.2, false); h.rotation.y = -a; }
-      pointLight(0xff4a8a, 1.4, 16, -22, 3.5, 6);
-      // two big tents
-      cylinderSolid(24, 12, 6, 3, matStd({ color: 0xe8dcc8 }));
-      put(new THREE.Mesh(new THREE.ConeGeometry(6.6, 4, 16), matStd({ color: 0xb8283a }))).position.set(24, 5, 12);
-      addBox(24, 12, .15, .15, 3, steel, 7, false);
-      cylinderSolid(30, -14, 4.2, 2.6, matStd({ color: 0xe0c85a }));
-      put(new THREE.Mesh(new THREE.ConeGeometry(4.7, 3.2, 16), matStd({ color: 0x3a5ab8 }))).position.set(30, 4.2, -14);
-      label(['CIRKUSZ'], '#ffd23f', 2.4, 24, 9.8, 12);
-      // a row of stalls with striped awnings
-      [-26, -18, -10, 10, 18, 26].forEach((x, i) => {
-        addBox(x, 22, 5, 2.2, 1.1, wood); addBox(x, 20.7, 5, .3, 2.7, wood);
-        addBox(x, 21.8, 5.6, 3, .15, matStd({ color: colors[i % colors.length] }), 2.75, false);
-        [-2.6, 2.6].forEach(dx => addBox(x + dx, 23.1, .12, .12, 2.75, poleMat, 0, false));
-      });
-      label(['CÉLLÖVÖLDE'], '#ff8a3a', 1.6, -18, 3.8, 22.3); label(['VATTACUKOR'], '#ff9ad8', 1.4, 10, 3.8, 22.3);
-      // the gate arch
-      [-4.5, 4.5].forEach(dx => addBox(dx, 31, .45, .45, 6, matStd({ color: 0xc8283a })));
-      addBox(0, 31, 9.6, .5, 1.3, matStd({ color: 0xf2e8d8 }), 5.4, false);
-      label(['VÁSÁR'], '#ffd23f', 3, 0, 7.6, 31);
+      cylinderSolid(-26, 12, 5, .5, wood); addBox(-26, 12, .4, .4, 4.6, steel, .5, false);
+      put(new THREE.Mesh(new THREE.ConeGeometry(5.6, 2.4, 16), matStd({ color: 0xc8283a }))).position.set(-26, 6.3, 12); put(new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.4, 16), matStd({ color: 0xf2e8d8 }))).position.set(-26, 7.9, 12);
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, x = -26 + Math.cos(a) * 3.6, z = 12 + Math.sin(a) * 3.6; addBox(x, z, .08, .08, 4.2, steel, .5, false); const h = addBox(x, z, .35, 1.1, .6, matStd({ color: k % 2 ? 0xf2e8d8 : 0x6a3a2a }), 1.2, false); h.rotation.y = -a; }
+      glowSprite(0xff4a8a, 3, new V3(-26, 5, 12));
+      // the strength tester: hit the pad, ring the bell
+      addBox(26, 6, 1.4, 1, .4, wood); addBox(26, 5.6, .4, .3, 7, matStd({ color: 0xf2e8d8 })); for (let k = 0; k < 6; k++) addBox(26, 5.42, .5, .04, .3, cm[k], 1 + k * 1, false);
+      put(new THREE.Mesh(new THREE.SphereGeometry(.35, 12, 8), brassMat)).position.set(26, 7.3, 5.6); label(['PRÓBÁLD KI!'], '#ffd23f', .9, 26, 8.2, 6);
+      // the stalls along the south side, facing the midway
+      [-30, -20, -10, 10, 20, 30].forEach((x, i) => { addBox(x, 29, 5, 2.2, 1.1, wood); addBox(x, 30.3, 5, .3, 2.7, wood); addBox(x, 29.2, 5.6, 3, .15, cm[i % cm.length], 2.75, false); [-2.6, 2.6].forEach(dx => addBox(x + dx, 27.9, .12, .12, 2.75, poleMat, 0, false)); });
+      label(['CÉLLÖVÖLDE'], '#ff8a3a', 1.4, -20, 3.6, 28); label(['VATTACUKOR'], '#ff9ad8', 1.3, 10, 3.6, 28); label(['LÁNGOS'], '#ffd23f', 1.3, 30, 3.6, 28);
+      // festoon lights strung over the midway
+      const fest = (x0, z0, x1, z1) => { for (let k = 1; k < 14; k++) { const t = k / 14; deco(new THREE.SphereGeometry(.1, 6, 4), basic(colors[k % colors.length]), x0 + (x1 - x0) * t, 4.1 - Math.sin(t * Math.PI) * .8, z0 + (z1 - z0) * t); } };
+      [[-14, 6, 14, 6], [-14, 6, -38, 24], [14, 6, 38, 24], [-14, 6, 14, 24], [14, 6, -14, 24]].forEach(a => fest(...a));
+      for (const [x, z] of [[-14, 24], [14, 24]]) addBox(x, z, .2, .2, 4.2, poleMat);
+      // --- north wing, A szellemvasút: the dark ride's house you walk through, its track, clowns that aren't moving (yet)
+      hollow(0, -38, 22, 12, 6, matStd({ color: 0x3a2a4a }), { s: [[-6, 3], [6, 3]], n: [[0, 3]] }, 0x1a121e);
+      addBox(0, -31.8, 22.4, .3, 2.6, matStd({ color: 0x5a2a6a }), 6, false); label(['SZELLEMVASÚT'], '#c05aff', 2.4, 0, 7.6, -31.5);
+      put(new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 8), matStd({ color: 0xe8e2d0 }))).position.set(0, 5.6, -31.6); for (const s of [-1, 1]) addBox(s * .45, -30.5, .35, .1, .35, dark, 5.7, false); // a skull over the doors
+      for (let x = -9; x <= 9; x += 1) addBox(x, -38, .7, .1, .06, steelMat, .06, false); for (const x of [-9, 9]) for (let z = -43; z <= -33; z += 1) addBox(x, z, .1, .7, .06, steelMat, .06, false);
+      for (const [x, z] of [[-4, -38], [5, -38]]) { addBox(x, z, 1.6, 1.1, .9, matStd({ color: 0x8a1a2a }), .2); addBox(x - .6, z, .2, 1, .7, matStd({ color: 0x8a1a2a }), 1.1, false); }
+      pointLight(0x9a3aff, 1, 12, 0, 4, -38);
+      const clown = (x, z, r) => { const g = put(new THREE.Group()); g.position.set(x, 0, z); g.rotation.y = r;
+        deco(new THREE.CylinderGeometry(.35, .5, 1.4, 8), cm[(x * 7 | 0) & 3 || 0], 0, .7, 0, 1, 1, 1, g); deco(new THREE.SphereGeometry(.28, 10, 8), matStd({ color: 0xf2e8d8 }), 0, 1.65, 0, 1, 1, 1, g); deco(new THREE.SphereGeometry(.08, 6, 4), basic(0xff2a2a), 0, 1.65, .27, 1, 1, 1, g);
+        deco(new THREE.ConeGeometry(.2, .5, 8), cm[1], 0, 2.05, 0, 1, 1, 1, g); obstacles.push({ minX: x - .5, maxX: x + .5, minZ: z - .5, maxZ: z + .5, h: 2 }); };
+      clown(-10, -24, .4); clown(12, -26, -.5); clown(-16, -48, .9); clown(16, -50, -1);
+      // --- west wing, A cirkuszsátor: the big top you walk into, the ring, the benches, the trapeze
+      { const cx = -72, cz = 20, R = 11, n = 16, canvas = matStd({ color: 0xe8dcc8, side: THREE.DoubleSide }), stripe = matStd({ color: 0xb8283a, side: THREE.DoubleSide });
+        for (let k = 0; k < n; k++) { if (k === 0 || k === 8) continue; const a = (k + .5) / n * Math.PI * 2, x = cx + Math.cos(a) * R, z = cz + Math.sin(a) * R, L = 2 * R * Math.sin(Math.PI / n) + .1, seg = addBox(x, z, L, .2, 3.4, k % 2 ? canvas : stripe, 0, false); seg.rotation.y = -a + Math.PI / 2;
+          for (const t of [-.33, 0, .33]) { const px = x - Math.sin(a) * L * t, pz = z + Math.cos(a) * L * t; obstacles.push({ minX: px - .75, maxX: px + .75, minZ: pz - .75, maxZ: pz + .75, h: 3.4 }); } } // a round wall: collide as a string of small squares
+        const roof = put(new THREE.Mesh(new THREE.ConeGeometry(R + .8, 6, n, 1, true), matStd({ color: 0xb8283a, side: THREE.DoubleSide }))); roof.position.set(cx, 6.4, cz); addBox(cx, cz, .3, .3, 10, steel, 0, true);
+        const ring = put(new THREE.Mesh(new THREE.TorusGeometry(4, .25, 6, 28), matStd({ color: 0xc8283a }))); ring.rotation.x = Math.PI / 2; ring.position.set(cx, .25, cz);
+        { const f = put(new THREE.Mesh(new THREE.CircleGeometry(4, 28), matStd({ color: 0xa8905a }))); f.rotation.x = -Math.PI / 2; f.position.set(cx, .02, cz); }
+        for (let k = 0; k < 10; k++) { const a = (k + 3) / 16 * Math.PI * 2; if (Math.abs(Math.sin(a)) < .3) continue; for (let r = 0; r < 3; r++) { const b = addBox(cx + Math.cos(a) * (7 + r * 1.1), cz + Math.sin(a) * (7 + r * 1.1), 3, .9, .45 + r * .45, wood, 0, false); b.rotation.y = -a + Math.PI / 2; } }
+        for (const s of [-1, 1]) addBox(cx + s * 3, cz, .15, .15, 7, steel, 0, false); addBox(cx, cz, 6, .1, .1, steel, 7, false); addBox(cx, cz, 1.2, .06, .06, steel, 5.4, false);
+        label(['CIRKUSZ'], '#ffd23f', 2.4, cx, 10.4, cz); pointLight(0xffc070, 1.2, 16, cx, 5, cz); }
+      // --- east wing, A lakókocsitábor: caravans (one open), the fortune teller's tent, washing on a line
+      const van = (x, z, col, r, open) => { const g = put(new THREE.Group()); g.position.set(x, 0, z); g.rotation.y = r; const m = matStd({ color: col });
+        deco(new THREE.CapsuleGeometry(1.2, 4, 4, 10), m, 0, 1.6, 0, 1, 1, 1, g).rotation.z = Math.PI / 2; deco(unitBox, glassDark, 0, 1.9, 1.21, 1.4, .6, .05, g); deco(unitBox, open ? glassLit : dark, -1.6, 1.3, 1.22, .7, 1.6, .05, g);
+        for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, .2, 10), dark); w.rotation.x = Math.PI / 2; w.position.set(.6, .35, s * 1.2); g.add(w); }
+        const hx = Math.abs(Math.cos(r)) * 3.2 + Math.abs(Math.sin(r)) * 1.2, hz = Math.abs(Math.sin(r)) * 3.2 + Math.abs(Math.cos(r)) * 1.2; obstacles.push({ minX: x - hx, maxX: x + hx, minZ: z - hz, maxZ: z + hz, h: 2.8 }); };
+      [[64, 8, 0x8ab8a8, .2], [80, 10, 0xd8c8a0, -.3], [86, 24, 0xa87a9a, 1.4], [62, 30, 0x9aa8c8, 2.9]].forEach(([x, z, c, r], i) => van(x, z, c, r, i === 1));
+      cylinderSolid(72, 26, 2.4, 2.4, matStd({ color: 0x5a2a6a })); put(new THREE.Mesh(new THREE.ConeGeometry(2.8, 2.4, 12), matStd({ color: 0xd8b04a }))).position.set(72, 3.6, 26); label(['JÖVENDŐMONDÓ'], '#ff9ad8', 1.1, 72, 5.4, 26);
+      glowSprite(0x9fd8ff, 1.2, new V3(72, 1.4, 23.4));
+      addBox(70, 16, .1, .1, 2.2, poleMat); addBox(78, 16, .1, .1, 2.2, poleMat); addBox(74, 16, 8, .02, .02, dark, 2.1, false); for (let k = 0; k < 5; k++) addBox(71 + k * 1.4, 16, .8, .04, .9, cm[k], 1.2, false);
     },
     areas: {
-      north: { side: 'n', at: 22, name: 'Szellemvasút', cost: 1250, core: { minX: 10, maxX: 34, minZ: -56, maxZ: -34 }, spawns: [[14, -53], [30, -53]], station: ['trap', 22, -42], graves: true },
-      west:  { side: 'w', at: 0, name: 'Lövöldebódé', cost: 1000, core: { minX: -66, maxX: -44, minZ: -12, maxZ: 12 }, spawns: [[-63, -9], [-63, 9]], station: ['forge', -54, -4] },
-      east:  { side: 'e', at: 4, name: 'Elsősegély-sátor', cost: 750, core: { minX: 44, maxX: 66, minZ: -8, maxZ: 16 }, spawns: [[63, -5], [63, 13]], station: ['well', 54, 4] },
+      north: { side: 'n', at: 0, name: 'A szellemvasút', cost: 1250, core: { minX: -24, maxX: 24, minZ: -56, maxZ: -12 }, spawns: [[-20, -54], [20, -54]], station: ['trap', -12, -16] },
+      west: { side: 'w', at: 20, name: 'A cirkuszsátor', cost: 1000, core: { minX: -94, maxX: -50, minZ: 2, maxZ: 36 }, spawns: [[-92, 4], [-92, 34]], station: ['forge', -56, 32] },
+      east: { side: 'e', at: 20, name: 'A lakókocsitábor', cost: 750, core: { minX: 50, maxX: 94, minZ: 2, maxZ: 36 }, spawns: [[92, 4], [92, 34]], station: ['well', 58, 20] },
     },
   },
   hospital: {
@@ -1530,7 +1552,12 @@ function questRadio() {
   QST.stage = 1; const d = (mission && mission.job.diff) || 1, S = activeSpawns().slice().sort((a, b) => Math.hypot(b[0] - QST.radio.pos.x, b[1] - QST.radio.pos.z) - Math.hypot(a[0] - QST.radio.pos.x, a[1] - QST.radio.pos.z));
   for (let k = 0; k < 5 + 2 * d; k++) { const [sx, sz] = S[k % Math.min(3, S.length)], z = spawnZombieAt(pick(['brute', 'runner', 'walker', 'leaper']), sx + rand(-2, 2), sz + rand(-2, 2)); setZTier(z, 2); QST.wave.push(z); }
   banner(...qt().call); SND.roar();
-  if (MAP.quest.fx === 'blast') for (let k = 0; k < 5; k++) setTimeout(() => { fxExplosion(new V3(-20 + k * 10, 6, -50), 0xff8a30, 6); SND.explode(); }, k * 260); // the rock face goes up
+  questFx();
+}
+function questFx() { // what the challenge sets off, for everyone
+  const f = MAP.quest && MAP.quest.fx;
+  if (f === 'blast') for (let k = 0; k < 5; k++) setTimeout(() => { fxExplosion(new V3(-20 + k * 10, 6, -50), 0xff8a30, 6); SND.explode(); }, k * 260); // the rock face goes up
+  if (f === 'spin' && QST.spin && !mapSpin.includes(QST.spin)) mapSpin.push(QST.spin); // the wheel turns again
 }
 function updateQuest() { // host / solo: the answer beaten -> the reward on the porch
   if (QST.stage !== 1 || NET.client || QST.wave.some(z => !z.dead)) return;
@@ -1547,7 +1574,7 @@ function pwApply(s) {
   if (+s[0] && !PWR.on) powerOn();
   if (+s[1] >= 0 && +s[1] !== PWR.bi && MAP.power.boxes[+s[1]]) placePowerBox(+s[1]);
   PWR.uses = +s[2] || 0; if (+s[3] > 0 && !PWR.run) { PWR.run = { t: +s[3], remote: true }; banner('LÖVEGÁLLÁS AKTÍV', 'Egy társad bekapcsolta.'); } if (PWR.run && PWR.run.remote) PWR.run.t = +s[3]; if (!(+s[3] > 0) && PWR.run && PWR.run.remote) PWR.run = null;
-  QST.parts.forEach((q, i) => { if ((+s[4] & (1 << i)) && !q.got) questGot(i); }); QST.stage = +s[5] || QST.stage;
+  QST.parts.forEach((q, i) => { if ((+s[4] & (1 << i)) && !q.got) questGot(i); }); if (!QST.stage && +s[5]) questFx(); QST.stage = +s[5] || QST.stage;
 }
 function pwAct(a) { // host: a member's request
   if (a === 'gen') { if (!PWR.on) powerOn(); }
