@@ -448,6 +448,7 @@ function doQuit() { // giving up needs a second click; it counts as a failed job
 }
 $('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
   if (a === 'tab-inv' || a === 'tab-char' || a === 'tab-skill') { pinvPage(a.slice(4)); return; }
+  if (a === 'fs') { toggleFS(); return; }
   if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'help') renderPauseMenu(true); else if (a === 'quit') doQuit(); });
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
@@ -462,6 +463,14 @@ function ammoRows() { // reserve rounds by family, over the guns in hand and in 
   const by = {}; for (const w of [...player.slots, ...player.bag]) if (w) { const k = CAT[w.base.id], e = by[k] || (by[k] = { n: 0, max: 0, guns: [] }); e.n += w.reserve; e.max += resMax(w); e.guns.push(w.base.name); }
   return Object.entries(by).map(([k, e]) => `<div class="amr" style="--ac:${AMMO_COL[k]}"><div><b>${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}</b><span>${e.n} / ${e.max}</span></div><i><em style="width:${e.max ? e.n / e.max * 100 : 0}%"></em></i><small>${e.guns.join(', ')}</small></div>`).join('') || '<p class="note">Nincs fegyvered.</p>';
 }
+// an accidental Ctrl+W, F5 or closed tab: during a job the browser asks first; in real fullscreen the keys are caught outright (Chrome, Edge)
+addEventListener('beforeunload', e => { if ((mission && !mission.job.test) || (typeof deepRun === 'function' && deepRun())) { e.preventDefault(); e.returnValue = ''; } });
+function toggleFS() {
+  if (document.fullscreenElement) return document.exitFullscreen();
+  const el = document.documentElement; if (!el.requestFullscreen) return;
+  el.requestFullscreen().then(() => { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(() => {}); }).catch(() => {});
+}
+document.addEventListener('fullscreenchange', () => { const b = $('fsBtn'); if (b) b.textContent = document.fullscreenElement ? 'Kilépés a teljes képernyőből' : 'Teljes képernyő'; });
 let pinvTab = 'inv';
 const syncGearBag = () => { if (mission) profile.gearBag = mission.gear.filter(it => !it.found); }; // a save mid-job keeps the armour bag right
 function pinvPage(t) { pinvTab = t; invSel = ''; document.querySelectorAll('.pinvtabs button').forEach(x => x.classList.toggle('on', x.dataset.pm === 'tab-' + t)); renderPauseInv(); } // the in-game inventory's pages: the kit, or your character in what you wear
