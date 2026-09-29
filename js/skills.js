@@ -244,7 +244,7 @@ function skillsTab() {
   const P = profile;
   if (!P.cls) {
     return `<div class="hubhead"><h2>Válassz kasztot</h2></div>
-      <p class="lede">A kaszt ad egy passzív bónuszt, egy aktív képességet (C gomb) és egy saját képességfát. Minden szintlépés egy érdemérmet ad (a 30. szinten összesen 29-et). Később bármikor ingyen válthatsz, a pontjaid kasztonként megmaradnak.</p>
+      
       <div class="classes">${Object.entries(CLASSES).map(([k, C]) => `<article class="cls" style="--cc:${C.color}">
         <div class="ctag">${C.tag}</div><h3>${C.name}</h3><p>${C.desc}</p>
         <dl><dt>Passzív</dt><dd>${C.passive}</dd><dt>Képesség · ${C.ability.name}</dt><dd>${C.ability.desc} (${C.ability.cd} mp)</dd></dl>
@@ -257,7 +257,7 @@ function skillsTab() {
   const classes = Object.entries(CLASSES).map(([k, c]) => `<button class="kcls${k === V ? ' on' : ''}" data-act="skview:${k}" style="--cc:${c.color}"><b>${c.name}</b><small>${c.tag}</small><em>${k === P.cls ? 'Aktív' : 'Váltás ingyen'}</em></button>`).join('');
   const rows = [0, 1, 2, 3, 4].map(r => {
     const need = r * 3, open = spent >= need;
-    return `<div class="krow${open ? '' : ' locked'}"><div class="klab"><b>${r + 1}. sor</b><small>${open ? 'nyitva' : `${need} elköltött kell (${spent}/${need})`}</small></div>` +
+    return `<div class="krow${open ? '' : ' locked'}"><div class="klab"><b>${r + 1}. sor</b><small>${open ? '' : `<span class="klk"></span>${spent} / ${need}`}</small></div>` +
       C.tree.slice(r * 3, r * 3 + 3).map(([id, name, max, desc]) => { const l = lvOf(id);
         return `<button class="knode${id === skNode ? ' on' : ''}${l ? ' has' : ''}${l >= max ? ' max' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${l}/${max}</em></span>${bars(l, max)}<small>${desc(Math.max(1, l))}</small></button>`; }).join('') + '</div>';
   }).join('');
@@ -267,14 +267,14 @@ function skillsTab() {
   const isAug = augs.some(t => t[0] === skNode), ri = isAug ? -1 : C.tree.indexOf(sel), row = Math.floor(ri / 3), l = isAug ? 0 : lvOf(sel[0]), max = isAug ? 1 : sel[2];
   let cta = '', info = '';
   if (isAug) { const own = (P.augOwn || []).includes(sel[0]), on = mine && augOn(sel[0]), can = own || augOwned(V) < augAllowed();
-    info = `<div class="kbox"><small>${C.ability.name} módosítása</small><span>${sel[2]}</span></div>${!can ? `<p class="note">Zárva: ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]} elköltött érdemérem kell (van: ${spent}).</p>` : ''}`;
+    info = `<div class="kbox"><small>${C.ability.name} módosítása</small><span>${sel[2]}</span></div>${!can ? `<p class="klock">${spent} / ${AUG_AT[augOwned(V)] || AUG_AT[AUG_AT.length - 1]}</p>` : ''}`;
     cta = mine ? hbtn(on ? 'Aktív' : own ? 'Kiválaszt' : `Feloldás · ${AUG_COST} érdemérem`, `aug:${sel[0]}`, on || !can || (!own && P.tokens < AUG_COST)) : '';
   } else { const open = spent >= row * 3, maxed = l >= max;
-    info = `<div class="kbox"><small>Szintenként</small><span>${sel[3](1)}</span></div>${l && !maxed ? `<div class="kbox"><small>Most → következő</small><span>${sel[3](l)} → ${sel[3](l + 1)}</span></div>` : ''}${!open ? `<p class="note">Zárva: ${row * 3} elköltött érdemérem kell ebben a fában (${spent}/${row * 3}).</p>` : ''}`;
+    info = `<div class="kbox"><small>Szintenként</small><span>${sel[3](1)}</span></div>${l && !maxed ? `<div class="kbox"><small>Most → következő</small><span>${sel[3](l)} → ${sel[3](l + 1)}</span></div>` : ''}${!open ? `<p class="klock">${spent} / ${row * 3}</p>` : ''}`;
     cta = mine ? hbtn(maxed ? 'Kész' : 'Tanul · 1 érdemérem', `sk:${sel[0]}`, maxed || !open || P.tokens < 1) : ''; }
   const side = `<aside class="kside" style="--cc:${C.color}"><div class="kstop"><small>${isAug ? 'Módosító' : `${row + 1}. sor`} · ${C.name}</small><h2>${sel[1]}</h2>${isAug ? '' : `<div class="kmax">${bars(l, max)}<b>${l} / ${max}</b></div>`}${info}</div>
     <div class="ksfoot"><div class="ktok"><span>${mine ? 'Elérhető érdemérem' : `Érdemérem (${C.name})`}</span><b>${tok}</b></div>${mine ? cta : hbtn(`Váltás: ${C.name}`, `swcls:${V}`, state !== 'hub')}</div></aside>`;
-  return `<div class="ktab" style="--kc:${C.color}"><div class="kleft"><h3>Kasztok</h3>${classes}<p class="kinfo">Minden szintlépés egy érdemérmet ad. A kasztváltás ingyenes, a pontjaid kasztonként megmaradnak.</p></div>
+  return `<div class="ktab" style="--kc:${C.color}"><div class="kleft"><h3>Kasztok</h3>${classes}</div>
     <div class="kmid"><div class="khead"><div><h2 style="color:${C.color}">${C.name} · ${C.tag}</h2><p><b>Passzív:</b> ${C.passive}</p></div>${mine ? hbtn('Pontok vissza (ingyen)', 'respec', !spent && !augOwned(V)) : ''}</div>
       <div class="kabil" style="--cc:${C.color}"><kbd>C</kbd><b>${C.ability.name}</b><span>${C.ability.desc}</span><small>töltődés ${mine ? Math.round(abilityCd()) : C.ability.cd} mp</small></div>
       <div class="ktree">${rows}${augRow}</div></div>

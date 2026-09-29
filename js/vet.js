@@ -34,7 +34,7 @@ function vetSync() { // this character's progress since the last save, added to 
 }
 const vetAvail = () => vetEarned() - vetSpent();
 function vetTab() {
-  if (!vetOpen()) return `<div class="hubhead"><h2>Veterán</h2></div><p class="lede">A veterán rang a ${LEVEL_CAP}. szinten nyílik meg. Az összes karaktered közös: a pontokat, a rangokat és a kihívásokat megosztják. A szintlépés után szerzett XP és a kihívás-fokozatok adnak pontot.</p>`;
+  if (!vetOpen()) return `<div class="hubhead"><h2>Veterán</h2></div><div class="vlock"><span class="klk"></span><b>${LEVEL_CAP}. szint</b><i><em style="width:${Math.min(100, profile.level / LEVEL_CAP * 100)}%"></em></i><small>${profile.level} / ${LEVEL_CAP}</small></div>`; // locked: a lock and how far there is still to go
   const P = profile, V = SH.vet.ranks, avail = vetAvail();
   const rows = Object.keys(VET).map(k => {
     const n = V[k] || 0, now = n ? vetVal(k, n) : 0, next = vetVal(k, n + 1);
@@ -45,7 +45,7 @@ function vetTab() {
     return `<div class="chal"><div><b>${c.name}</b> <span class="vrank">${t.tier}. fokozat</span><small>${Math.floor(t.v)} / ${t.goal} ${c.what}</small></div><i><b style="width:${p * 100}%"></b></i></div>`;
   }).join('');
   return `<div class="hubhead"><h2>Veterán</h2></div>
-    <p class="lede">A 30. szint utáni XP és minden kihívás-fokozat ad egy veterán pontot, és minden karaktered közösen gyűjti és költi. A pontokért kis, de sosem véget érő bónuszokat veszel; minden rang egy kicsit kevesebbet ad, mint az előző, de a fejlődésnek nincs plafonja.</p>
+    
     <div class="vtop"><div>Veterán rang<strong>${vetEarned()}</strong></div><div>Elkölthető pont<strong class="cash">${avail}</strong></div></div>
     <div class="gtop"><section><h3>Bónuszok</h3><div class="slist">${rows}</div></section><section><h3>Kihívások</h3><div class="chals">${ch}</div></section></div>`;
 }

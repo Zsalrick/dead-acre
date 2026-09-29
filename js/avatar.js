@@ -97,9 +97,9 @@ let lookView = null;
 function lookTab() {
   const L = myLook(), sw = (k, v, i) => `<button class="lsw${L[k] === i ? ' on' : ''}" data-act="look:${k}:${i}" data-tip="${LOOK[k].name}"${String(v).startsWith('#') ? ` style="--sw:${v}"` : ''}>${String(v).startsWith('#') ? '' : v === 'kaszt' ? 'Kaszt színe' : v}</button>`;
   const rows = LOOK_KEYS.map(k => `<div class="lrow"><h4>${LOOK[k].name}</h4><div class="lopts${String(LOOK[k].opts[1]).startsWith('#') ? ' col' : ''}">${LOOK[k].opts.map((v, i) => sw(k, v, i)).join('')}</div></div>`).join('');
-  return `<div class="looktab"><div class="lleft"><h3>Karakter</h3><p class="note">Így látnak a társaid a munkán. A bőrszínt és a kesztyűt a saját kezeden is látod.</p>${rows}
+  return `<div class="looktab"><div class="lleft"><h3>Karakter</h3>${rows}
     <div class="lrow"><h4>Viselt páncél</h4><div class="lopts">${hbtn(L.gear ? 'Látszik a karakteren' : 'Rejtve', 'look:gear:' + (L.gear ? 0 : 1))}</div></div></div>
-    <div class="lview"><div id="lookCv"></div><small>Húzd az egérrel a forgatáshoz</small></div></div>`;
+    <div class="lview"><div id="lookCv"></div></div></div>`;
 }
 function lookPreview() {
   const box = document.getElementById('lookCv'); if (!box) return;

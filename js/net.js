@@ -99,7 +99,7 @@ function partyPanel() {
     const open = openParties();
     return `<div class="party"><div class="phead"><b>Csapat</b>${hbtn('Csapat létrehozása', 'pcreate')}</div>
       ${open.length ? `<div class="plist">${open.map(o => `<div class="prow"><span><b>${esc(o.n)}</b> csapata · ${o.m} fő · ${o.lv}. szint</span>${hbtn('Csatlakozás', `pjoin:${o.pc}`)}</div>`).join('')}</div>`
-        : '<span class="note">Most nincs nyitott csapat. Hozz létre egyet, és a barátaid csatlakozhatnak.</span>'}</div>`;
+        : '<span class="note">Nincs nyitott csapat.</span>'}</div>`;
   }
   const mem = partyMembers();
   // the code is hidden until you ask (streams, screenshots); copying works without revealing it
@@ -108,7 +108,7 @@ function partyPanel() {
   return `<div class="party in"><div class="pbar">${NET.p2p ? `<div><small>Csapatkód</small><b class="pcodebig">${NET.showCode ? NET.code.split('-')[0].toUpperCase() : '•••••'}</b></div>${hbtn(NET.showCode ? 'Elrejt' : 'Megmutat', 'preveal')}${hbtn(NET.copied ? 'Másolva ✓' : 'Másolás', 'pcopy')}` : `<div><small>Csapat</small><b class="pcodebig">${mem.length} fő</b></div>`}<span class="sp"></span>${hbtn(NET.leaveArmed ? 'Biztos? Kattints újra' : 'Kilépés', 'pleave')}</div>
     <div class="pmem">${[0, 1, 2, 3].map(k => { const m = mem[k]; if (!m) return '<div class="pm empty"><b>Üres hely</b><small>várakozik…</small></div>'; const C = CLASSES[m.c];
       return `<div class="pm${m.h ? ' host' : ''}" style="--cc:${C ? C.color : '#8a867c'}"><em>${m.h ? 'Vezető' : m.rdy ? 'Kész' : 'Várakozik'}${m.st === 'job' ? ' · munkán' : ''}</em><b>${esc(m.n)}${m.me ? ' (te)' : ''}</b><small>${m.lv}. szint · ${C ? C.name : 'nincs kaszt'}</small></div>`; }).join('')}</div>${NET.host ? '' : hbtn(NET.ready ? 'Mégsem vagyok kész' : 'Kész vagyok', 'pready')}
-    <span class="note">${NET.host ? 'Te választod a munkát: amikor elvállalsz egyet, a csapat veled jön.' : 'A csapatvezető választ munkát; amikor elindítja, veled is automatikusan indul.'}</span></div>`;
+    </div>`;
 }
 function partyAction(kind, a) {
   if (kind === 'pcreate') partyJoin(Math.random().toString(36).slice(2, 7), true);
