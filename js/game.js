@@ -330,13 +330,14 @@ function finishJob(success, abandoned) {
   const xp = Math.round((success ? J.xp + player.kills * 2 : Math.floor(player.kills)) * (1 + .1 * (party - 1)) * (success && stats.jobs < 5 ? 2 : 1) * (J.map === featuredMap() ? 1.25 : 1) * (1 + .15 * dirCount(J)) * (success && exoOn('charm') ? 1.2 : 1)) + secB.xp; // the first five jobs: double XP; the featured map +25%; directives +15% each
   const bd = success ? { c: [[`Munka díja${spMul(J, 'cash2') > 1 ? ' (2× pénz)' : ''}`, `$${J.reward}`], [`Pontjaid 7%-a`, `$${Math.floor(player.earned * .07)}`], SK.cash() > 1 ? ['Képesség', `×${SK.cash().toFixed(2)}`] : null, party > 1 ? [`Csapat (${party} fő)`, `+${10 * (party - 1)}%`] : null, dirCount(J) ? [`Direktívák (${dirCount(J)})`, `+${10 * dirCount(J)}%`] : null, ...secB.list.map(s => [`Mellékcél: ${secOf(s).name}`, `+$${Math.round(J.reward * .2 / 10) * 10}`])].filter(Boolean),
     x: [['Munka', `${J.xp} XP${spMul(J, 'xp2') > 1 ? ' (2× XP)' : ''}`], [`Ölések (${player.kills} × 2)`, `${player.kills * 2} XP`], party > 1 ? [`Csapat`, `+${10 * (party - 1)}%`] : null, stats.jobs < 5 ? ['Első 5 munka', '×2'] : null, J.map === featuredMap() ? ['Heti kiemelt pálya', '+25%'] : null, dirCount(J) ? ['Direktívák', `+${15 * dirCount(J)}%`] : null, ...secB.list.map(s => [`Mellékcél: ${secOf(s).name}`, `+${Math.round(J.xp * .2)} XP`])].filter(Boolean) } : null; // shown on the results
-  P.cash += cash; stats.cash += cash;
+  const dHold = deepHold(J, success, cash, xp), payC = dHold ? dHold.c : cash, payX = dHold ? dHold.x : xp; // Hétvégi Meló: paid after the third job
+  P.cash += payC; stats.cash += payC;
   const parts = success ? (M.parts || 0) + secB.parts : 0; P.parts = (P.parts || 0) + parts; const fabric = success ? M.fabric || 0 : 0; P.fabric = (P.fabric || 0) + fabric;
   let tierBonus = null; // clearing Rémálom always pays a legendary, sometimes a unique; the very first job a rare gun
   if (success && stats.jobs === 0 && !J.test) { tierBonus = makeWeapon(pick(BASES), 2, Math.max(1, P.level)); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
   if (success && J.tier) P.parts = (P.parts || 0) + 10 + 5 * J.tier; // Rémálom pays parts too
   if (success && J.tier) { tierBonus = Math.random() < .12 ? makeUnique(null, J.lvl) : makeWeapon(pick(BASES), 4, J.lvl); if (P.stash.length < stashMax()) P.stash.push(packW(tierBonus)); else P.cash += sellValue(tierBonus); noteFound(tierBonus); }
-  const xpFrom = P.xp / xpNeed(P.level); const levelUps = addXp(xp);
+  const xpFrom = P.xp / xpNeed(P.level); const levelUps = addXp(payX);
   const tokens = levelUps; // one merit token per level, nothing else
   if (success && J.bounty) stats.bounties = (stats.bounties || 0) + 1;
   if (success && J.tier > (P.tier || 0)) P.tier = J.tier; // next nightmare tier unlocked
@@ -349,7 +350,7 @@ function finishJob(success, abandoned) {
   NET.revs = 0;
   delete P.inMission;
   const deep = deepFinished(J, success); saveProfile(); // the dive's progress and reward are saved right away
-  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, bd, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash, xp, levelUps, tokens, ...w });
+  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, bd, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash: payC, xp: payX, dHold, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {

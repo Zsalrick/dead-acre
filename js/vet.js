@@ -135,17 +135,24 @@ function deepCard() {
   const left = Math.ceil(7 - ((Date.now() / 864e5 + 3) % 7));
   return `<div class="deep"><div class="ctop"><b>HÉTVÉGI MELÓ</b><small>még ${left} nap</small></div><div class="ctit">3 egymás utáni, egyre nehezebb munka</div>
     <div class="dbars">${[0, 1, 2].map(i => `<i class="${i < st.stage || st.done ? 'ok' : ''}"></i>`).join('')}</div><ul>${rows}</ul>
-    <div class="cfoot"><small>Egzotikus · 2 mag · 60 ⚙</small>${st.done ? '<em class="ok">✓ E heti kész</em>' : hbtn(st.stage ? `${st.stage + 1}. szakasz ›` : 'Indítás ›', `deep:${st.stage}`, off)}</div></div>`;
+    <div class="cfoot"><small>Egzotikus · 2 mag · 60 ⚙</small>${st.done ? '<em class="ok">✓ E heti kész</em>' : hbtn(st.stage ? 'Folytatás ›' : 'Indítás ›', `deep:${st.stage}`, off)}</div></div>`;
+}
+function deepHold(J, success, cash, xp) { // each job's pay waits in the pot; the third job pays it all out
+  if (!J.deep || J.deep.wk !== weekKey() || !success) return null;
+  const st = deepState(); if (J.deep.stage !== st.stage || st.done) return null;
+  const pot = st.pot || { c: 0, x: 0 };
+  if (st.stage < 2) { st.pot = { c: pot.c + cash, x: pot.x + xp }; return { c: 0, x: 0 }; }
+  st.pot = null; return { c: pot.c + cash, x: pot.x + xp, all: true };
 }
 function deepFinished(J, success) { // called from finishJob: progress, failure reset, the weekly reward
   if (!J.deep || J.deep.wk !== weekKey()) return null;
   const st = deepState(), P = profile;
-  if (!success) { st.stage = 0; return { fail: true }; }
+  if (!success) { st.stage = 0; st.pot = null; st.run = false; return { fail: true }; }
   if (J.deep.stage !== st.stage) return null;
   st.stage++;
-  if (st.stage < 3) return { next: st.stage };
+  if (st.stage < 3) return { next: st.stage, pot: st.pot };
   if (st.done) return null;
-  st.done = true; const missing = Object.keys(EXOTICS).filter(k => !(stats.exo || {})[k]), it = makeExotic(missing.length ? pick(missing) : null, P.level); // one you don't have yet, if any
+  st.done = true; st.run = false; const missing = Object.keys(EXOTICS).filter(k => !(stats.exo || {})[k]), it = makeExotic(missing.length ? pick(missing) : null, P.level); // one you don't have yet, if any
   let sold = false; if (P.gearStash.length < gearMax()) { P.gearStash.push(it); (stats.exo || (stats.exo = {}))[it.exo] = 1; } else { P.cash += gearValue(it); sold = true; }
   P.oc = (P.oc || 0) + 2; P.parts = (P.parts || 0) + 60;
   return { reward: it, sold };

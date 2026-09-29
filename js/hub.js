@@ -167,8 +167,10 @@ function showHub() {
   if (!MAP || MAP_ID !== 'farm') loadMap('farm', 1234); // the backdrop
   renderHub();
 }
+const deepRun = () => { const d = profile && profile.deep; return !!(d && d.run && d.wk === weekKey() && !d.done); };
 function renderHub() {
   if (profile) { topUpShop(); fixBoard(); }
+  { const dr = deepRun(); if (dr) hubTab = 'deep'; else if (hubTab === 'deep') hubTab = 'jobs'; $('hub').classList.toggle('deepmode', dr); document.querySelector('#hub .hlogo').textContent = dr ? 'HÉTVÉGI MELÓ' : 'A BÁZIS'; } // between its jobs the Hétvégi Meló has its own little hub
   setTimeout(() => { if (hubTab === 'look') lookPreview(); });
   const P = profile;
   $('hubSlot').textContent = P.name; $('hubJobs').textContent = `${stats.jobs} kész munka${NET.code ? ` · csapat ${partyMembers().length} fő` : ''}`;
@@ -204,7 +206,7 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
 const OC_HELP = 'A túlhajtás-mag (◆) ritka nyersanyag: minden fejvadász első legyőzése, a heti kontrakt és a Hétvégi Meló ad belőle. Egy túlhajtás beszereléséhez kell egy.';
-const KEY_LABEL = { KeyU: 'U', KeyO: 'O', KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
+const KEY_LABEL = { Enter: 'Enter', KeyU: 'U', KeyO: 'O', KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 // selling and salvaging: weapons from the hands, bag or stash, armor worn or stored; favourites are locked, trash goes in bulk
 const wList = sl => ({ L: profile.loadout, B: profile.bag, S: profile.stash })[sl] || [];
 const wAt = (sl, i) => unpackW(wList(sl)[+i]);
@@ -310,7 +312,7 @@ const tipAttr = t => t ? ` data-tip="${t.replace(/"/g, '&quot;')}"` : '';
 const expTip = (it, gear) => gear ? `Szakértelem: +3% a darab minden értékére szintenként (páncél, márka, statok). Most: +${3 * (it.exp || 0)}%, legfeljebb +30%.`
   : `Szakértelem: +2% sebzés ezzel a fegyverrel szintenként. Most: +${2 * (it.exp || 0)}%, legfeljebb +20%.`;
 const hbtn = (label, act, off, key, tip) => `<button class="sbtn"${tipAttr(tip || actTip(act))} data-act="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
-const HOLD_TIP = { sell: 'Tartsd lenyomva: eladod pénzért.', gsell: 'Tartsd lenyomva: eladod pénzért.', salvage: 'Tartsd lenyomva: szétszeded alkatrészre (⚙).', gsalvage: 'Tartsd lenyomva: szétszeded anyagra (▦).' };
+const HOLD_TIP = { deepquit: 'Tartsd lenyomva: a Hétvégi Meló véget ér, a félretett pénz és XP elveszik, legközelebb elölről kezded.',  sell: 'Tartsd lenyomva: eladod pénzért.', gsell: 'Tartsd lenyomva: eladod pénzért.', salvage: 'Tartsd lenyomva: szétszeded alkatrészre (⚙).', gsalvage: 'Tartsd lenyomva: szétszeded anyagra (▦).' };
 const hhold = (label, act, off, key) => `<button class="sbtn hold"${tipAttr(HOLD_TIP[act.split(':')[0]] || 'Tartsd lenyomva: a tárgy megsemmisül; az alkatrészt (⚙) vagy anyagot (▦) kijutáskor kapod meg.')} data-hact="${act}"${key ? ` data-key="${key}"` : ''}${off ? ' disabled' : ''}>${key ? `<kbd>${KEY_LABEL[key]}</kbd>` : ''}${label}</button>`;
 const freeHand = L => L[0] ? L[1] ? 0 : 1 : 0;
 function bestHand(L, w) { // where a gun goes: the other exotic's hand, an empty hand, the hand with the same kind of gun, else the weaker one
@@ -392,6 +394,37 @@ const HUB = {
       <h3>Karakterek közti láda <small>${SH.g.length} / ${SHARED_MAX}</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => fit(x) ? gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null }) : '').join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>
       ${buildsRow()}`;
     return invLayout(left, it ? gearDetail(it, sl === 'G' ? P.gear[it.slot] : null, acts) : noDetail('Még nincs páncélod. A zombik dobják, és a boltban is van.'), mid);
+  },
+  deep() { // the Hétvégi Meló between its jobs: the route on the county map, only what you carry, nothing to buy
+    const P = profile, D = deepDive(), st = deepState(), pot = st.pot || { c: 0, x: 0 };
+    const L = P.loadout.map(unpackW), B = P.bag.map(unpackW), gb = P.gearBag || (P.gearBag = []);
+    let [sl, si] = invSel.split(':');
+    const get = () => sl === 'L' ? L[+si] : sl === 'B' ? B[+si] : sl === 'W' ? P.gear[si] : sl === 'Z' ? gb[+si] : null;
+    if (!get()) { sl = 'L'; si = String(Math.max(0, L.findIndex(Boolean))); invSel = `L:${si}`; }
+    const x = get(), i = +si, lone = L.filter(Boolean).length < 2, bagFull = B.length >= bagMax();
+    let detail = noDetail('');
+    if (x && sl === 'L') detail = weaponDetail(x, L[1 - i], hbtn('Táskába', `mv:L:${i}:B`, lone || bagFull, 'KeyT') + hbtn(`${2 - i}. kézbe`, `mv:L:${i}:L:${1 - i}`, false, `Digit${2 - i}`));
+    else if (x && sl === 'B') detail = weaponDetail(x, L[0] || L[1], hbtn(`Kézbe → ${bestHand(L, x) + 1}. kéz`, `mv:B:${i}:L:${bestHand(L, x)}`, !canUse(x), 'KeyF'));
+    else if (x && sl === 'W') detail = gearDetail(x, null, hbtn('Táskába', `zunwear:${si}`, gb.length >= bagMax(), 'KeyT'));
+    else if (x) detail = gearDetail(x, P.gear[x.slot], hbtn('Felveszem', `zwear:${si}`, !canUse(x), 'KeyF'));
+    const left = `<h3>Kézben</h3><div class="tiles" data-drop="L">${L.map((w, k) => w ? wTile(`L:${k}`, w, { n: `${k + 1}` }) : emptyTile(`${k + 1}. kéz üres`, '', null, `L:${k}`)).join('')}</div>
+      <h3>Táska <small>${B.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="B">${B.map((w, k) => wTile(`B:${k}`, w, { sub: w.base.name })).join('') || emptyTile('Üres', '', null, 'B')}</div>
+      <h3>Viselt</h3><div class="tiles worn" data-drop="W">${GEAR_KEYS.map(k => P.gear[k] ? gTile(`W:${k}`, P.gear[k]) : emptyTile(`${GEAR_SLOTS[k]} · üres`, '', null, 'W')).join('')}</div>
+      <h3>Páncél-táska <small>${gb.length} / ${bagMax()}</small></h3><div class="tiles" data-drop="Z">${gb.map((it, k) => gTile(`Z:${k}`, it, { cmp: P.gear[it.slot] || null })).join('') || emptyTile('Üres', '', null, 'Z')}</div>`;
+    // the route: base, then the three jobs; done legs solid, the next one drawn on, the rest faint
+    const base = MAP_LOC.range, pts = D.stages.map((S, k) => { const p = MAP_LOC[S.map] || [450, 220], dup = D.stages.slice(0, k).filter(o => o.map === S.map).length; return [p[0] + dup * 52, p[1] - dup * 34]; });
+    const cls = k => k < st.stage ? 'done' : k === st.stage ? 'now' : 'later';
+    const seg = (a, b, c) => { const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[0] - a[0], dy = b[1] - a[1]; return `<path class="dseg ${c}" d="M${a[0]} ${a[1]} Q${mx - dy * .22} ${my + dx * .22} ${b[0]} ${b[1]}"/>`; };
+    const tname = S => S.type === 'bounty' ? BOUNTIES[S.bounty].name : JOB_TYPES[S.type].name;
+    const segs = pts.map((p, k) => seg(k ? pts[k - 1] : base, p, cls(k))).join('');
+    const nodes = pts.map(([px, py], k) => `<g class="dnode ${cls(k)}" transform="translate(${px} ${py})"><circle class="ring" r="24"/><circle class="dot" r="16"/>${k < st.stage ? '<path class="chk" d="M-7 0 L-2 5 L7 -5"/>' : `<text class="dn" y="6">${k + 1}</text>`}<text class="ln" y="44">${MAPS[D.stages[k].map].name}</text><text class="ls" y="60">${tname(D.stages[k])}</text></g>`).join('');
+    const svg = `<svg viewBox="-40 -10 980 460" class="dsvg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="A Hétvégi Meló útvonala"><g class="dart">${MAP_ART}</g><g class="dbase" transform="translate(${base[0]} ${base[1]})"><rect x="-9" y="-9" width="18" height="18"/><text y="30">Bázis</text></g>${segs}${nodes}</svg>`;
+    const rows = D.stages.map((S, k) => `<li class="${cls(k)}"><b>${k + 1}.</b><span>${tname(S)}<small>${MAPS[S.map].name}${S.mod && MODS[S.mod] ? ` · ${MODS[S.mod].label}` : ''}</small></span><em class="jstars">${stars(S.diff)}</em></li>`).join('');
+    const off = NET.code && !NET.host;
+    const mid = `<div class="dhub"><div class="dmapbox">${svg}</div><ol class="dlist">${rows}</ol>
+      <div class="dfoot"><div class="dpot"><small>Félretéve</small><b>$${pot.c.toLocaleString('hu-HU')} · ${pot.x.toLocaleString('hu-HU')} XP</b><small>A 3. munka után: egzotikus · 2 ◆ · 60 ⚙</small></div>
+      <div class="dgo">${st.stage ? hhold('Feladás (tartsd)', 'deepquit', false, 'KeyX') : hbtn('Vissza a bázisra', 'deepquit', false, 'KeyB')}${hbtn(off ? 'A vezető indítja' : `Indulás · ${st.stage + 1}. munka ›`, 'deepgo', off, 'Enter')}</div></div></div>`;
+    return invLayout(left, detail, mid);
   },
   forge() { // the smith: pick a gun or a piece on the left, its workbench in the middle, the item itself on the right
     const P = profile, lists = { L: P.loadout.map(unpackW), B: P.bag.map(unpackW), S: P.stash.map(unpackW) }, st = P.gearStash;
@@ -490,7 +523,9 @@ $('hubBody').addEventListener('click', e => {
   if (kind === 'claim') claimContract(a);
   if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.parts || 0) >= expCost(it)) { P.parts -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
   if (kind === 'ocset') { const [, l, i] = b.dataset.act.split(':'), list = { L: P.loadout, B: P.bag, S: P.stash, K: SH.w }[l], w = list && list[+i] && unpackW(list[+i]), k = w && pick(Object.keys(OVERCLOCKS).filter(o => ocFits(w, o) && o !== w.oc)); if (w && k && (w.oc || (P.oc || 0) >= 1) && (P.parts || 0) >= 20) { if (!w.oc) P.oc--; P.parts -= 20; setOverclock(w, k); list[+i] = packW(w); SND.explode(); } } // a random one, never the one it already has
-  if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; return startJob(deepJob(clamp(+a, 0, 2))); }
+  if (kind === 'deep') { if (!P.cls || (NET.code && !NET.host)) return; deepState().run = true; invSel = ''; saveProfile(); } // into the Hétvégi Meló hub first
+  if (kind === 'deepgo') { if (NET.code && !NET.host) return; return startJob(deepJob(deepState().stage)); }
+  if (kind === 'deepquit') { const st = deepState(); st.run = false; st.stage = 0; st.pot = null; saveProfile(); }
   if (kind === 'dir' && DIRECTIVES[a] && !(NET.code && !NET.host)) { const D = P.dirs || (P.dirs = []), i = D.indexOf(a); if (i >= 0) D.splice(i, 1); else D.push(a); if (NET.host) publishMember(); }
   if (kind === 'bsave') saveBuild(+a);
   if (kind === 'bload') loadBuild(+a);
@@ -579,7 +614,7 @@ function showResults(r) {
     ${r.board ? `<h3>Csapat</h3><table class="mtable"><tr><th>Játékos</th><th>Ölés</th><th>Sebzés</th><th>Felélesztés</th></tr>${(() => { const top = Math.max(...r.board.map(p => p.d || 0)); return r.board.sort((a, b) => (b.d || 0) - (a.d || 0) || b.k - a.k).map(p => `<tr><td>${top > 0 && p.d === top ? '★ ' : ''}${esc(p.n)}${p.me ? ' (te)' : ''}</td><td>${p.k}</td><td>${(p.d || 0).toLocaleString('hu-HU')}</td><td>${p.r}</td></tr>`).join(''); })()}</table>` : ''}
     ${profile.tokens > 0 || (vetOpen() && vetAvail() > 0) ? `<p class="note nudge">Elkölthető: ${profile.tokens > 0 ? `${profile.tokens} érdemérem (Fejlődés → Képességek)` : ''}${profile.tokens > 0 && vetOpen() && vetAvail() > 0 ? ' · ' : ''}${vetOpen() && vetAvail() > 0 ? `${vetAvail()} veterán pont (Fejlődés → Veterán)` : ''}</p>` : ''}
     ${r.levelUps ? `<p class="lvlup">Szintet léptél: ${profile.level}. szint! +${r.levelUps} érdemérem a képességfához. ${MAP_IDS.filter(id => MAPS[id].minLevel === profile.level).map(id => `Új pálya: ${MAPS[id].name}.`).join(' ')}</p>` : ''}
-    ${r.deep ? `<p class="deepres">${r.deep.fail ? 'A Hétvégi Meló megszakadt: legközelebb elölről kezded.' : r.deep.next ? `Hétvégi Meló: ${r.deep.next}/3 szakasz kész. ${NET.code && !NET.host ? hbtn('A vezető indítja a következőt', 'deepnext', true) : hbtn('Következő szakasz', 'deepnext')}` : `A HÉTVÉGI MELÓ KÉSZ! ${r.deep.reward.name} (egzotikus${r.deep.sold ? ', a teli raktár miatt eladva' : ''}), 2 túlhajtás-mag, 60 ⚙.`}</p>` : ''}
+    ${r.deep ? `<p class="deepres">${r.deep.fail ? 'A Hétvégi Meló megszakadt: legközelebb elölről kezded.' : r.deep.next ? `Hétvégi Meló: ${r.deep.next}/3 kész. Félretéve: $${(r.deep.pot || {}).c || 0} · ${(r.deep.pot || {}).x || 0} XP, a 3. munka után kapod meg. ${NET.code && !NET.host ? '' : hbtn('Tovább ›', 'deepnext')}` : `A HÉTVÉGI MELÓ KÉSZ! $${r.dHold ? r.dHold.c : 0} és ${r.dHold ? r.dHold.x : 0} XP a három munkáért. ${r.deep.reward.name} (egzotikus${r.deep.sold ? ', a teli raktár miatt eladva' : ''}), 2 túlhajtás-mag, 60 ⚙.`}</p>` : ''}
     ${r.tierBonus ? `<h3>${r.job.tier ? 'Rémálom-jutalom' : 'Az első munkád jutalma'}</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
     ${(() => { const best = [...r.kept].sort((a, b) => (b.unique ? 9 : b.q) - (a.unique ? 9 : a.q) || dps(b) - dps(a))[0]; return best && best.q >= 2 ? `<div class="bestdrop" style="--rc:${rarColor(best)}"><small>A MUNKA LEGJOBB ZSÁKMÁNYA</small><img src="${wPic(best)}" alt=""><b>${best.name}</b><span>${best.unique ? 'Egzotikus' : RARITIES[best.q].name} · Lv ${best.level} ${best.base.name} · ${dps(best)} DPS</span></div>` : ''; })()}
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}
@@ -716,6 +751,7 @@ function hostPick() {
 }
 
 function hubCycle(d) { // Q / E: previous / next top tab
+  if (hubTab === 'deep') return;
   const tops = [...document.querySelectorAll('.mbtn[data-hub]')], i = tops.findIndex(b => b.classList.contains('on'));
   const b = tops[(Math.max(0, i) + d + tops.length) % tops.length]; if (b) { hubTab = b.dataset.hub; renderHub(); }
 }
@@ -726,7 +762,7 @@ function directivesRow() { // toggles; the leader's choice is what the party pla
   return `<div class="dirs"><b>Direktívák</b>${Object.entries(DIRECTIVES).map(([k, d]) => `<button class="chip${D.includes(k) ? ' on' : ''}" data-act="dir:${k}" title="${d.desc}"${off ? ' disabled' : ''}>${d.name}</button>`).join('')}<small>${n ? `+${15 * n}% XP · +${10 * n}% pénz · jobb zsákmány` : ''}${off ? ' · a vezető választja' : ''}</small></div>`;
 }
 
-$('resultsBody').addEventListener('click', e => { const b = e.target.closest('[data-act="deepnext"]'); if (b && (!NET.code || NET.host)) { const st = deepState(); $('results').hidden = true; startJob(deepJob(st.stage)); } });
+$('resultsBody').addEventListener('click', e => { const b = e.target.closest('[data-act="deepnext"]'); if (b && (!NET.code || NET.host)) { $('results').hidden = true; showHub(); } }); // back to the Hétvégi Meló hub
 
 const expCost = it => Math.round((6 + 4 * (it.exp || 0)) * (1 + (it.level || 1) / 15)); // expertise: parts per level, rising
 const expRefund = it => { let t = 0; for (let k = 0; k < (it.exp || 0); k++) t += Math.round((6 + 4 * k) * (1 + (it.level || 1) / 15)); return Math.floor(t / 2); };

@@ -993,3 +993,37 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 #pause .pchar{height:100%;min-height:0}
 
 .pinvtabs{align-items:center}.pinvtabs kbd{opacity:.7}
+
+/* the Hétvégi Meló hub: no top menu, the route on a darkened county map */
+#hub.deepmode .hubnav,#hub.deepmode #hubSub{visibility:hidden}
+#hub.deepmode .hlogo{color:var(--amb)}
+.dhub{display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:12px;height:100%;min-height:0}
+.dmapbox{min-height:260px;background:#0e0d0a;border:1px solid rgba(240,160,36,.35);position:relative;overflow:hidden}
+.dsvg{width:100%;height:100%;display:block}
+.dart{filter:sepia(.9) saturate(.8) brightness(.8) contrast(1.05)}
+.dseg{fill:none;stroke-width:4;stroke-linecap:round}
+.dseg.done{stroke:#6fd08a}
+.dseg.now{stroke:#f0a024;stroke-width:5;stroke-dasharray:14 10;animation:dmarch 1s linear infinite}
+.dseg.later{stroke:rgba(236,230,212,.3);stroke-dasharray:4 10}
+@keyframes dmarch{to{stroke-dashoffset:-24}}
+.dnode .ring{fill:none;stroke:rgba(236,230,212,.25);stroke-width:2}
+.dnode .dot{fill:#1c1a14;stroke:rgba(236,230,212,.5);stroke-width:2}
+.dnode .dn{fill:#ece6d4;font:900 18px var(--fd);text-anchor:middle}
+.dnode .chk{fill:none;stroke:#15130e;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+.dnode.done .dot{fill:#6fd08a;stroke:#6fd08a}
+.dnode.now .dot{fill:#f0a024;stroke:#f0a024}.dnode.now .dn{fill:#15130e}
+.dnode.now .ring{stroke:#f0a024;animation:dpulse 1.4s ease-out infinite;transform-origin:center;transform-box:fill-box}
+@keyframes dpulse{from{transform:scale(.7);opacity:1}to{transform:scale(1.6);opacity:0}}
+.dnode .ln,.dbase text{fill:#ece6d4;font:700 15px var(--fc);letter-spacing:.08em;text-anchor:middle;text-transform:uppercase;paint-order:stroke;stroke:#0e0d0a;stroke-width:4}
+.dnode .ls{fill:#b9b09a;font:600 13px var(--fc);text-anchor:middle;paint-order:stroke;stroke:#0e0d0a;stroke-width:4}
+.dnode.later{opacity:.6}
+.dbase rect{fill:#5fb4e8;transform:rotate(45deg);transform-box:fill-box;transform-origin:center}
+.dlist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.dlist li{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;padding:10px 12px;background:var(--pan);border:1px solid var(--ln)}
+.dlist li b{font:900 22px var(--fd);color:var(--tx3)}.dlist li span{display:grid;font-weight:700}.dlist li small{font-weight:400;color:var(--tx3);font-size:13px}
+.dlist li em{grid-column:1/-1;font-style:normal}
+.dlist li.now{border-color:var(--amb)}.dlist li.now b{color:var(--amb)}.dlist li.done b{color:var(--pos)}.dlist li.later{opacity:.6}
+.dfoot{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
+.dpot{display:grid;gap:2px;padding:10px 14px;background:var(--pan);border:1px solid var(--ln);flex:1;min-width:220px}
+.dpot b{font:900 22px var(--fd);color:var(--amb)}.dpot small{color:var(--tx3);font-size:13px}
+.dgo{display:flex;gap:8px;align-items:center}.dgo .sbtn{height:52px}
