@@ -3,8 +3,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=140">
-<link rel="stylesheet" href="css/ui.css?v=140">
+<link rel="stylesheet" href="css/legacy.css?v=141">
+<link rel="stylesheet" href="css/ui.css?v=141">
 
 <div id="game">
   <div class="hud" id="hud" hidden>
@@ -159,6 +159,9 @@ THREE.WebGLRenderer = class extends T.WebGLRenderer {
   }
 };
 window.THREE = THREE;
-for (const src of ["js/icons.js?v=140", "js/data.js?v=140", "js/audio.js?v=140", "js/music.js?v=140", "js/world.js?v=140", "js/maps.js?v=140", "js/fx.js?v=140", "js/gfx.js?v=140", "js/player.js?v=140", "js/zombies.js?v=140", "js/loot.js?v=140", "js/upgrades.js?v=140", "js/gear.js?v=140", "js/vet.js?v=140", "js/inv.js?v=140", "js/save.js?v=140", "js/menu.js?v=140", "js/skills.js?v=140", "js/necro.js?v=140", "js/hub.js?v=140", "js/book.js?v=140", "js/game.js?v=140", "js/jobs.js?v=140", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=140", "js/net.js?v=140", "js/avatar.js?v=140"]) await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = src; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); });
+const hold = e => { e.stopImmediatePropagation(); e.preventDefault(); }, HOLD = ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']; // no input until every script is in
+HOLD.forEach(t => addEventListener(t, hold, true));
+for (const src of ["js/icons.js?v=141", "js/data.js?v=141", "js/audio.js?v=141", "js/music.js?v=141", "js/world.js?v=141", "js/maps.js?v=141", "js/fx.js?v=141", "js/gfx.js?v=141", "js/player.js?v=141", "js/zombies.js?v=141", "js/loot.js?v=141", "js/upgrades.js?v=141", "js/gear.js?v=141", "js/vet.js?v=141", "js/inv.js?v=141", "js/save.js?v=141", "js/menu.js?v=141", "js/skills.js?v=141", "js/necro.js?v=141", "js/hub.js?v=141", "js/book.js?v=141", "js/game.js?v=141", "js/jobs.js?v=141", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=141", "js/net.js?v=141", "js/avatar.js?v=141"]) await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = src; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); });
 document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true })); // it fired before the scripts were here
+HOLD.forEach(t => removeEventListener(t, hold, true)); window.__ready = true;
 </script>
