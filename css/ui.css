@@ -1057,5 +1057,3 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .pskill .khead h2,.pskill .kside h2{font-family:var(--fd);font-weight:800;font-size:36px;text-transform:none;line-height:1.05}
 .tpic:has(.tkey) .tbadge{right:auto;left:6px;top:auto;bottom:6px} /* a hand tile: the badge moves off the hand number */
 
-.hsys .hfs{display:flex;align-items:center;gap:10px}.hsys .hfs kbd{height:24px;min-width:24px;font-size:13px}
-.pmb kbd{margin-left:auto}

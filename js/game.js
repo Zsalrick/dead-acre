@@ -471,7 +471,6 @@ function doQuit() { // giving up needs a second click; it counts as a failed job
 }
 $('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
   if (a === 'tab-inv' || a === 'tab-char' || a === 'tab-skill') { pinvPage(a.slice(4)); return; }
-  if (a === 'fs') { toggleFS(); return; }
   if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'help') renderPauseMenu(true); else if (a === 'quit') doQuit(); });
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
@@ -486,30 +485,8 @@ function ammoRows() { // reserve rounds by family, over the guns in hand and in 
   const by = {}; for (const w of [...player.slots, ...player.bag]) if (w) { const k = CAT[w.base.id], e = by[k] || (by[k] = { n: 0, max: 0, guns: [] }); e.n += w.reserve; e.max += resMax(w); e.guns.push(w.base.name); }
   return Object.entries(by).map(([k, e]) => `<div class="amr" style="--ac:${AMMO_COL[k]}"><div><b>${CAT_NAMES[k].replace(/^./, c => c.toUpperCase())}</b><span>${e.n} / ${e.max}</span></div><i><em style="width:${e.max ? e.n / e.max * 100 : 0}%"></em></i><small>${e.guns.join(', ')}</small></div>`).join('') || '<p class="note">Nincs fegyvered.</p>';
 }
-// an accidental Ctrl+W, F5 or closed tab: during a job the browser asks first; in real fullscreen the keys are caught outright (Chrome, Edge)
+// an accidental Ctrl+W, F5 or closed tab: the browser asks first
 addEventListener('beforeunload', e => { if (profile) { e.preventDefault(); e.returnValue = ''; } }); // always ask once a character is loaded, in the hub too
-let wantFS = false; // fullscreen was asked for with Y: an Esc that drops it (the browser does that, no page can stop it) is undone on the next click or key
-function toggleFS(quiet) {
-  if (document.fullscreenElement && !quiet) { wantFS = false; return document.exitFullscreen(); }
-  const el = document.documentElement; if (!el.requestFullscreen) return; wantFS = true;
-  el.requestFullscreen().then(() => {
-    if (quiet) { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(() => {}); return; }
-    if (!(navigator.keyboard && navigator.keyboard.lock)) return toast('TELJES KÉPERNYŐ', ['Ez a böngésző nem tudja elkapni a Ctrl+W-t (csak Chrome, Edge, Opera, Brave).', 'Kilépéskor a játék rákérdez, mielőtt bezárnád.'], '#ff8a30', 7000);
-    navigator.keyboard.lock().then(() => toast('BILLENTYŰZÁR BE', ['A Ctrl+W, Ctrl+T, Ctrl+N most a játéké, nem zár be semmit.', 'Kilépés a teljes képernyőből: tartsd nyomva az Esc-et, vagy Y.'], '#6fd08a', 6000))
-      .catch(err => toast('A BILLENTYŰZÁR NEM ÁLLT BE', [`A böngésző elutasította (${err && err.name || 'ismeretlen ok'}).`, 'Kilépéskor a játék rákérdez, mielőtt bezárnád.'], '#ff5a4a', 8000));
-  }).catch(err => toast('NINCS TELJES KÉPERNYŐ', [`A böngésző nem engedte (${err && err.name || 'ismeretlen ok'}).`], '#ff5a4a', 6000));
-}
-document.addEventListener('fullscreenchange', () => document.querySelectorAll('.fslbl').forEach(s => { const hub = !!s.closest('.hsys'); s.textContent = document.fullscreenElement ? (hub ? 'KILÉPÉS' : 'Kilépés a teljes képernyőből') : (hub ? 'TELJES KÉPERNYŐ' : 'Teljes képernyő'); }));
-document.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-fs]')) toggleFS(); });
-document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && wantFS && !toggleFS.told) { toggleFS.told = true; toast('KILÉPTÉL A TELJES KÉPERNYŐBŐL', ['Az Esc-et a böngésző nem engedi elkapni.', 'A következő kattintásra vagy gombnyomásra visszaáll. Végleg kikapcsolni: Y.'], '#f0a024', 6000); } });
-['pointerdown', 'keydown'].forEach(t => addEventListener(t, e => { // any click or key (not Esc, not Y itself) brings it back
-  if (wantFS && !document.fullscreenElement && !(e.code === 'Escape' || e.code === 'KeyY')) toggleFS(true);
-}, true));
-// F11 is the browser's own fullscreen: it doesn't catch Ctrl+W. Say so, and point at Y
-const IN_APP = /DeadAcreApp/.test(navigator.userAgent); // the desktop app: F11 is its own fullscreen there, and no browser shortcut closes it
-const fsWarn = () => { if (IN_APP || performance.now() - (fsWarn.t || -1e9) < 4000) return; fsWarn.t = performance.now(); toast('NE AZ F11-ET HASZNÁLD', ['A böngésző teljes képernyője nem véd: a Ctrl+W így is bezárja a játékot.', 'Nyomd meg az Y gombot: a játék saját teljes képernyője a billentyűket is elkapja.'], '#ff8a30', 7000); SND.deny && SND.deny(); };
-addEventListener('keydown', e => { if (e.code === 'F11') { e.preventDefault(); fsWarn(); } }, true);
-addEventListener('resize', () => { if (!document.fullscreenElement && innerHeight >= screen.height - 2 && innerWidth >= screen.width - 2) fsWarn(); }); // F11 got through anyway
 let pinvTab = 'inv';
 const syncGearBag = () => { if (mission) profile.gearBag = mission.gear.filter(it => !it.found); }; // a save mid-job keeps the armour bag right
 function pinvPage(t) { pinvTab = t; invSel = ''; document.querySelectorAll('.pinvtabs button').forEach(x => x.classList.toggle('on', x.dataset.pm === 'tab-' + t)); renderPauseInv(); } // the in-game inventory's pages: the kit, or your character in what you wear
@@ -599,7 +576,6 @@ addEventListener('keydown', e => {
   if (document.activeElement === $('chatIn')) return; // typing in the chat
   if (!$('settings').hidden) { if (!bindKey(e) && e.code === 'Escape') closeSettings(); return; }
   const c = keyCode(e.code) || ''; if (c) keys[c] = true;
-  if (e.code === 'KeyY' && !e.repeat && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { toggleFS(); return; } // Y: fullscreen, anywhere
   if (state === 'hub' && (e.code === 'KeyQ' || e.code === 'KeyE') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { hubCycle(e.code === 'KeyE' ? 1 : -1); return; }
   if (state === 'hub' && invKey(e, $('hubBody'))) return;
   if (state === 'hub' && e.code === 'Enter' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { const b = document.querySelector(hubTab === 'jobs' ? '#hubBody .jc-foot .sbtn' : hubTab === 'skills' ? '#hubBody .ksfoot .sbtn' : null); if (b) { if (!b.disabled) b.click(); else SND.deny(); return; } }

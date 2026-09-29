@@ -3,8 +3,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=147">
-<link rel="stylesheet" href="css/ui.css?v=147">
+<link rel="stylesheet" href="css/legacy.css?v=148">
+<link rel="stylesheet" href="css/ui.css?v=148">
 
 <!-- boot screen: painted before any script, gone once every script is in -->
 <div id="boot" style="position:fixed;inset:0;z-index:9999;background:#0e0f0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s">
@@ -82,7 +82,6 @@
           <button class="pmb main" data-pm="resume">Folytatás<kbd>Esc</kbd></button>
           <button class="pmb" data-pm="inv">Leltár<kbd>Tab</kbd></button>
           <button class="pmb" data-pm="settings">Beállítások</button>
-          <button class="pmb" data-pm="fs"><span class="fslbl">Teljes képernyő</span><kbd>Y</kbd></button>
           <button class="pmb" data-pm="help">Irányítás<kbd>F1</kbd></button>
           <button class="pmb quit" data-pm="quit" id="quitBtn2">Munka feladása</button>
           <p class="note" id="pauseNote"></p>
@@ -105,7 +104,7 @@
           <div class="hlvl" id="hubLvlBox"><span>SZINT<b id="hubLvl">1</b></span><small id="hubXpTxt"></small><i class="xpbar"><i id="hubXp"></i></i></div>
           <i class="hsep"></i><b id="hubCash" class="hcash">$0</b><span id="hubParts"></span><span class="hr htok" data-tip="Érdemérem: minden szintlépés egyet ad, a képességfába költheted"><i>●</i><b id="hubTokens">0</b></span>
         </div>
-        <div class="hsys"><button class="hfs" data-fs title="Teljes képernyő: a Ctrl+W sem zárja be a játékot"><kbd>Y</kbd><span class="fslbl">TELJES KÉPERNYŐ</span></button><button class="hgear" data-settings title="Beállítások">⚙</button><button id="hubMenuBtn">FŐMENÜ</button></div>
+        <div class="hsys"><button class="hgear" data-settings title="Beállítások">⚙</button><button id="hubMenuBtn">FŐMENÜ</button></div>
       </header>
       <nav id="hubSub" hidden></nav>
       <section id="hubBody" class="hubbody"></section>
@@ -168,7 +167,7 @@ T.Material.prototype.dispose = function () {}; // ponytail: a material's shader 
 window.THREE = THREE;
 const hold = e => { e.stopImmediatePropagation(); e.preventDefault(); }, HOLD = ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']; // no input until every script is in
 HOLD.forEach(t => addEventListener(t, hold, true));
-const LIST =  ["js/icons.js?v=147", "js/data.js?v=147", "js/audio.js?v=147", "js/music.js?v=147", "js/world.js?v=147", "js/maps.js?v=147", "js/fx.js?v=147", "js/gfx.js?v=147", "js/player.js?v=147", "js/zombies.js?v=147", "js/loot.js?v=147", "js/upgrades.js?v=147", "js/gear.js?v=147", "js/vet.js?v=147", "js/inv.js?v=147", "js/save.js?v=147", "js/menu.js?v=147", "js/skills.js?v=147", "js/necro.js?v=147", "js/hub.js?v=147", "js/book.js?v=147", "js/game.js?v=147", "js/jobs.js?v=147", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=147", "js/net.js?v=147", "js/avatar.js?v=147"];
+const LIST =  ["js/icons.js?v=148", "js/data.js?v=148", "js/audio.js?v=148", "js/music.js?v=148", "js/world.js?v=148", "js/maps.js?v=148", "js/fx.js?v=148", "js/gfx.js?v=148", "js/player.js?v=148", "js/zombies.js?v=148", "js/loot.js?v=148", "js/upgrades.js?v=148", "js/gear.js?v=148", "js/vet.js?v=148", "js/inv.js?v=148", "js/save.js?v=148", "js/menu.js?v=148", "js/skills.js?v=148", "js/necro.js?v=148", "js/hub.js?v=148", "js/book.js?v=148", "js/game.js?v=148", "js/jobs.js?v=148", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=148", "js/net.js?v=148", "js/avatar.js?v=148"];
 const bar = p => { const f = document.getElementById('bootFill'); if (f) f.style.width = Math.round(15 + 85 * p) + '%'; };
 try {
   for (let i = 0; i < LIST.length; i++) { await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = LIST[i]; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); }); bar((i + 1) / LIST.length); }
