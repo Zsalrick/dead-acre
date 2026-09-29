@@ -980,3 +980,8 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .knode.aug.alock{opacity:.5}
 .knode.aug.alock .kh em{display:flex;align-items:center;color:var(--tx3)}
 .knode .apg{display:block;height:3px;background:rgba(255,255,255,.08)}.knode .apg u{display:block;height:100%;background:var(--kc)}
+
+/* each challenge: its own +1 token, lit when done */
+.kcq{position:relative;padding-right:48px}
+.kcq u{position:absolute;right:10px;top:10px;text-decoration:none;font-family:var(--fd);font-weight:900;font-size:18px;color:var(--tx4);border:1px dashed var(--ln2);padding:0 6px}
+.kcq.done u{color:#15130e;background:var(--pos);border-color:var(--pos)}

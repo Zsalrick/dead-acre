@@ -266,7 +266,7 @@ function skillsTab() {
   const augRow = augs.length ? `<div class="krow"><div class="klab"><b>Módosítók</b></div>${augs.map(([id, name, desc], ai) => { const own = (P.augOwn || []).includes(id), on = (P.aug || {})[V] === id, need = AUG_AT[ai], lock = !own && spent < need;
     return `<button class="knode aug${id === skNode ? ' on' : ''}${own ? ' has' : ''}${on ? ' max' : ''}${lock ? ' alock' : ''}" data-act="sknode:${id}"><span class="kh"><b>${name}</b><em>${on ? 'aktív' : own ? 'megvan' : lock ? `<span class="klk"></span>${spent} / ${need}` : ''}</em></span>${lock ? `<i class="apg"><u style="width:${Math.min(100, spent / need * 100)}%"></u></i>` : ''}<small>${desc}</small></button>`; }).join('')}</div>` : '';
   // the tree's three challenges
-  const ch = `<div class="kchal">${(CLASS_CH[V] || []).map(([id, txt, n]) => { const v = Math.min(n, Math.floor(chVal(id))); return `<div class="kcq${v >= n ? ' done' : ''}"><span>${txt}</span><i><em style="width:${v / n * 100}%"></em></i><b>${v >= n ? '' : `${v.toLocaleString('hu-HU')} / ${n.toLocaleString('hu-HU')}`}</b></div>`; }).join('')}<div class="kcrw${chDone(V) ? ' on' : ''}">+2</div></div>`;
+  const ch = `<div class="kchal">${(CLASS_CH[V] || []).map(([id, txt, n]) => { const v = Math.min(n, Math.floor(chVal(id))); return `<div class="kcq${v >= n ? ' done' : ''}"><span>${txt}</span><i><em style="width:${v / n * 100}%"></em></i><b>${v >= n ? '' : `${v.toLocaleString('hu-HU')} / ${n.toLocaleString('hu-HU')}`}</b><u>+1</u></div>`; }).join('')}<div class="kcrw${chDone(V) ? ' on' : ''}">+1</div></div>`;
   // right: the picked node
   const isAug = augs.some(t => t[0] === skNode), ri = isAug ? -1 : C.tree.indexOf(sel), row = Math.floor(ri / 3), l = isAug ? 0 : lvOf(sel[0]), max = isAug ? 1 : sel[2];
   let cta = '', info = '';
@@ -293,7 +293,7 @@ const PASSIVE_AT = 5;
 const treeOf = id => Object.keys(CLASSES).find(k => CLASSES[k].tree.some(t => t[0] === id) || (AUGMENTS[k] || []).some(t => t[0] === id));
 const treePts = k => CLASSES[k] ? CLASSES[k].tree.reduce((a, [id]) => a + rk(id), 0) : 0;
 const hasPassive = k => isCls(k) || treePts(k) >= PASSIVE_AT;
-// class challenges: three a tree, all tied to its ability, all doable alone; all three done = +2 tokens
+// class challenges: three a tree, all tied to its ability, all doable alone; +1 token each, and +1 more when all three are done
 const CLASS_CH = {
   soldier: [['storm_k', 'Ölj meg 2000 zombit Tűzvihar alatt', 2000], ['rifle_k', 'Ölj meg 3000 zombit gépkarabéllyal vagy nehézfegyverrel', 3000], ['soldier_use', 'Használd a Tűzvihart 30-szor', 30]],
   hunter: [['eye_head', '2000 fejlövéses ölés Halálszem alatt', 2000], ['eye_elite', 'Ölj meg 200 elitet Halálszem alatt', 200], ['hunter_use', 'Használd a Halálszemet 30-szor', 30]],
@@ -303,12 +303,12 @@ const CLASS_CH = {
 };
 const chVal = id => ((profile && profile.cc) || {})[id] || 0;
 const chDone = k => (CLASS_CH[k] || []).every(([id, , n]) => chVal(id) >= n);
-const chPoints = () => Object.keys(CLASS_CH).filter(chDone).length * 2;
+const chPoints = () => Object.values(CLASS_CH).flat().filter(([id, , n]) => chVal(id) >= n).length + Object.keys(CLASS_CH).filter(chDone).length;
 function chAdd(id, v = 1) {
   const P = profile; if (!P || !mission || mission.job.test) return; P.cc = P.cc || {};
   const k = Object.keys(CLASS_CH).find(c => CLASS_CH[c].some(x => x[0] === id)), def = k && CLASS_CH[k].find(x => x[0] === id); if (!def) return;
   const was = P.cc[id] || 0; if (was >= def[2]) return; P.cc[id] = was + v;
-  if (P.cc[id] >= def[2]) { toast('KIHÍVÁS TELJESÍTVE', [`${CLASSES[k].name}: ${def[1]}`, chDone(k) ? '+2 érdemérem' : `${CLASS_CH[k].filter(([i, , n]) => chVal(i) >= n).length} / 3`], CLASSES[k].color); if (chDone(k)) { syncTokens(); SND.legend && SND.legend(); } }
+  if (P.cc[id] >= def[2]) { toast('KIHÍVÁS TELJESÍTVE', [`${CLASSES[k].name}: ${def[1]}`, chDone(k) ? '+1 érdemérem, és +1 mindhárom kihívásért' : '+1 érdemérem'], CLASSES[k].color); syncTokens(); SND.legend && SND.legend(); }
 }
 function chKill(z, o) { // one kill, every challenge it counts toward
   const w = o.w, c = w && CAT[w.base.id];
