@@ -271,6 +271,7 @@ function updateMission(dt) {
 }
 function extract() {
   if (!mission || mission.phase !== 'evac' || mission.leaving) return;
+  if (mission.esc && mission.esc.ph !== 'in') return popText('Előbb a túlélő üljön be a furgonba!', '#ff8a70');
   if (NET.client) { if (!truck.parked) return popText('A furgon még nem állt meg.', '#ff8a70'); if (!(mission.boardT > 0)) { netAct('board'); banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); } return; }
   if (NET.mode && mission.boarded && !netExtractOk()) banner('LEMARADTÁL', 'A furgon nélküled ment el.');
   if (!mission.boarded) { // first press: start loading
@@ -358,7 +359,7 @@ function finishJob(success, abandoned) {
   NET.revs = 0;
   delete P.inMission;
   const deep = deepFinished(J, success); saveProfile(); // the dive's progress and reward are saved right away
-  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, bd, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash: payC, xp: payX, dHold, levelUps, tokens, ...w });
+  showResults({ deep, xpFrom, xpTo: P.xp / xpNeed(P.level), hostEnd: !!M.hostEnd, failNote: M.failNote, tierBonus, acc: player.shotsN ? Math.min(100, Math.round(player.hitsN / player.shotsN * 100)) : 0, dmg: Math.round(player.dmgDone || 0), parts, fabric, bd, partsLost: success ? 0 : M.parts || 0, board, job: J, success, abandoned, kills: player.kills, heads: player.heads, time: M.t, cash: payC, xp: payX, dHold, levelUps, tokens, ...w });
 }
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {

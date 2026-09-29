@@ -6,7 +6,7 @@ const JOB_TYPES = {
   survive:     { name: 'Túlélés', label: null },
   exterminate: { name: 'Irtás', label: 'IRTÁS', desc: j => `Ölj meg ${j.goal} zombit. Nincs időkorlát.` },
   defense:     { name: 'Védelem', label: null, desc: j => `Védd meg a generátort ${fmtTime(j.dur)}-ig. Ha elpusztul, a munka elbukik.` },
-  escort:      { name: 'Kíséret', label: 'KÍSÉRET', desc: j => 'Kísérd el a túlélőt a furgonig. Csak akkor megy, ha valaki mellette van; ha meghal, a munka elbukik.' },
+  escort:      { name: 'Kíséret', label: 'KÍSÉRET', desc: j => 'Egy túlélő ragadt a pályán, egy pisztollyal védekezik. Vidd a holmiját az asztalra, aztán várd meg vele a furgont, és ültesd be. Ha meghal, a munka elbukik.' },
   test:        { name: 'Lőtér', label: 'LŐTÉR', desc: () => 'Célbábuk, végtelen lőszer, csere a társakkal.' },
   supply:      { name: 'Utánpótlás', label: 'UTÁNPÓTLÁS', desc: j => `Gyűjts össze ${j.goal} utánpótlás-ládát. Nincs időkorlát.` },
 };
@@ -96,11 +96,11 @@ function pickDropSpot(M) { // somewhere clear, not on top of the start
 function crateTake(i, by) { const c = mission.crates[i]; if (!c || c.st !== 0 || mission.crates.some(o => o.st === 1 && o.by === by)) return; c.st = 1; c.by = by; }
 function crateDrop(i, x, z) { const c = mission.crates[i]; if (!c || c.st !== 1) return; c.st = 0; c.by = ''; c.pos.set(x, 0, z); }
 function crateDeliver(i) { const c = mission.crates[i], M = mission; if (!c || c.st !== 1 || !M.drop) return; c.st = 2; c.by = ''; burst(M.drop.pos.clone().setY(1.2), 0xf2c12a, 18, 3, .6); SND.buy();
-  popText(`Láda leadva · ${M.crates.filter(o => o.st === 2).length}/${M.crates.length}`, '#f2c12a'); }
+  popText(`${M.drop.table ? `${c.name || 'Holmi'} az asztalon` : 'Láda leadva'} · ${M.crates.filter(o => o.st === 2).length}/${M.crates.length}`, M.drop.table ? '#9dff6a' : '#f2c12a'); }
 function crateAct(i, act, x, z) { if (!NET.client) { if (act === 't') crateTake(i, myCarryId()); else if (act === 'd') crateDrop(i, x, z); else if (act === 'v') crateDeliver(i); } else netAct('crate', [i, act, Math.round(x * 10), Math.round(z * 10)]); }
 function carryAct() { // E while carrying: hand it in at the van, or set it down just in front of you
   const M = mission, i = player.carry; if (i == null || !M.crates[i]) return;
-  if (M.drop && Math.hypot(M.drop.pos.x - player.pos.x, M.drop.pos.z - player.pos.z) < 5) { crateAct(i, 'v'); if (!NET.client) player.carry = null; return; }
+  if (M.drop && Math.hypot(M.drop.pos.x - player.pos.x, M.drop.pos.z - player.pos.z) < (M.drop.table ? 3 : 5)) { crateAct(i, 'v'); if (!NET.client) player.carry = null; return; }
   const f = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), p = player.pos.clone().addScaledVector(f, 1.3); clampBounds(p, .6);
   crateAct(i, 'd', p.x, p.z); if (!NET.client) player.carry = null; SND.pickup(0);
 }
@@ -161,7 +161,7 @@ function holdRepair(gi, dt) { // hold E at a generator: 5% a second, paid by the
 function takeCrate(i) { // E on a crate: both hands on it (no shooting, sprinting or jumping)
   const c = mission && mission.crates && mission.crates[i]; if (!c || c.st !== 0) return;
   crateAct(i, 't', c.pos.x, c.pos.z); if (!NET.client) player.carry = i;
-  if (!NET.client) { SND.pickup(2); popText(mission.drop ? 'Vidd a lerakó furgonhoz · E: letétel' : 'A lerakó furgon még nem jött meg · E: letétel', '#f2c12a'); } // a member hears it when the host confirms
+  if (!NET.client) { SND.pickup(2); popText(mission.drop && mission.drop.table ? 'Vidd az asztalhoz (zöld fény) · E: letétel' : mission.drop ? 'Vidd a lerakó furgonhoz · E: letétel' : 'A lerakó furgon még nem jött meg · E: letétel', '#f2c12a'); } // a member hears it when the host confirms
 }
 
 // ---------- every frame (solo or host) ----------
@@ -172,11 +172,11 @@ function updateObjective(M, dt) {
     G.lampM.color.setHex(G.hp <= 0 ? 0x333333 : hurt ? 0xff4a3a : G.hp < G.max * .3 ? 0xffa03a : 0x6aff6a);
     G.light.intensity = G.hp <= 0 ? 0 : hurt ? 2.5 : 1.2;
     if (hurt && Math.random() < dt * 20) burst(G.pos.clone().setY(1.2), 0xffc070, 1, 2, .3);
-    if (G.hp <= 0 && !NET.client) { G.target.alive = false; banner(`A ${G.name} GENERÁTOR ELPUSZTULT`, 'A munka elbukott.'); SND.explode(); return 'fail'; }
+    if (G.hp <= 0 && !NET.client) { G.target.alive = false; M.failNote = `A ${G.name} generátor elpusztult. A munka közben talált fegyverek odavesztek.`; banner(`A ${G.name} GENERÁTOR ELPUSZTULT`, 'A munka elbukott.'); SND.explode(); return 'fail'; }
   }
-  if (M.esc) { updateEscortLook(M, dt); if (!NET.client && M.esc.hp <= 0) { M.esc.target.alive = false; banner('A TÚLÉLŐ MEGHALT', 'A munka elbukott.'); SND.roar(); return 'fail'; } }
+  if (M.esc) { updateEscortLook(M, dt); if (!NET.client && M.esc.hp <= 0 && M.esc.ph !== 'in') { M.esc.target.alive = false; M.failNote = 'A túlélő meghalt. A munka közben talált fegyverek odavesztek.'; banner('A TÚLÉLŐ MEGHALT', 'A munka elbukott.'); SND.roar(); return 'fail'; } }
+  if (M.esc && !NET.client) updateEscort(M, dt); // the survivor keeps going after the goal: packing, the van, the seat
   if (objDone(M) || NET.client) return;
-  if (M.esc) updateEscort(M, dt);
   if (J.type === 'exterminate' && M.kc >= J.goal) objectiveDone(M, 'TISZTA A TEREP');
   if (J.type === 'supply' && M.crates && M.crates.length && M.crates.every(c => c.st === 2)) objectiveDone(M, 'MINDEN LÁDA LEADVA');
 }
@@ -196,7 +196,8 @@ function objectiveLine(M) {
     if (M.bountyDone) return M.bountyEnd ? `Fejvadászat 3/3 · tarts ki a furgonig · ${fmtTime(Math.max(0, M.bountyEnd - M.t))}` : 'Fejvadászat 3/3 · tarts ki, amíg a furgon jön';
     if (boss || M.t >= bountyPre(J)) return `Fejvadászat 2/3 · győzd le: ${B.name}`;
     return `Fejvadászat 1/3 · tarts ki · ${B.name} ${fmtTime(Math.max(0, bountyPre(J) - M.t))} múlva érkezik`; }
-  if (J.type === 'escort' && M.esc && !objDone(M)) return `Kíséret · túlélő ${Math.max(0, Math.round(M.esc.hp / M.esc.max * 100))}% · ${M.esc.leg === 1 ? 'a holmijáért' : 'a furgonig'} ${Math.round(NET.client ? M.esc.netDist || 0 : M.esc.pos.distanceTo(M.esc.end))} m${M.esc.waiting ? ' · VÁR RÁD' : ''}`;
+  if (J.type === 'escort' && M.esc && M.esc.ph !== 'in') { const E = M.esc, hp = `túlélő ${Math.max(0, Math.round(E.hp / E.max * 100))}%`, n = M.crates ? M.crates.filter(c => c.st === 2).length : 0;
+    return E.ph === 'hold' ? `Kíséret · ${hp} · holmik az asztalon ${n} / ${M.crates.length}${player.carry != null ? ' · vidd az asztalhoz (zöld fény)' : ''}` : E.ph === 'table' ? `Kíséret · ${hp} · összepakol, fedezd` : E.ph === 'wait' ? `Kíséret · ${hp} · jön a furgon, védd meg` : `Kíséret · ${hp} · a furgonhoz megy`; }
   if (J.type === 'exterminate' && !objDone(M)) return `Irtás · ${Math.min(M.kc || 0, J.goal)} / ${J.goal} zombi`;
   if (J.type === 'supply' && !objDone(M)) return `Utánpótlás · ${M.crates ? M.crates.filter(c => c.st === 2).length : 0} / ${J.goal} leadva · ${player.carry != null ? (M.drop ? 'vidd a zöld fényű furgonhoz' : 'a lerakó még nem jött meg') : M.drop ? 'hozd a ládákat (sárga fény) a lerakóhoz' : `a lerakó furgon ${Math.max(0, Math.ceil(DROP_AT - M.t))} mp múlva jön · gyűjtsd a ládákat`}`;
   if (J.type === 'defense' && M.gens && M.phase !== 'evac') return `Generátorok · ${M.gens.map(G => `${G.name} ${Math.max(0, Math.round(G.hp / G.max * 100))}%`).join(' · ')} · ${M.wave}. hullám · E nyomva: javítás`;
@@ -228,43 +229,92 @@ function updateTestGround(M, dt) {
   M.dummyQ = M.dummyQ.filter(q => q.t > 0 || (zombies.some(z => z.dummy && !z.dead && z.spot[0] === q.spot[0] && z.spot[1] === q.spot[1]) || spawnDummy(q.spot[0], q.spot[1]), false)); // never two on one spot
 }
 
-// ---------- escort: a survivor walks to the pickup van, but only with someone beside them; zombies want them too ----------
-function buildEscort(M) {
-  const a = makeAvatar({ n: 'Túlélő', c: null }); scene.add(a.g); a.gunG.visible = false;
-  const start = new V3(truck.pos.x, 0, truck.pos.z - Math.sign(truck.pos.z || 1) * 4.5), [gx, gz] = MAP.vans[M.pickup];
-  const max = 900 * (1 + .3 * (M.job.diff - 1)) * Math.pow(1.035, jobLvl() - 1);
-  const end = new V3(gx, 0, gz - Math.sign(gz || 1) * 3), far = BOX_SPOTS.map(([x, z]) => new V3(x, 0, z)).sort((p, q) => Math.min(q.distanceTo(start), q.distanceTo(end)) - Math.min(p.distanceTo(start), p.distanceTo(end)))[0];
-  const p1 = gridPath(start, far || end), p2 = far ? gridPath(far, end) : [];
-  M.esc = { a, pos: a.pos.copy(start), vel: new V3(), goal: p1.shift(), path: p1, path2: p2, end: far || end, leg: far ? 1 : 2, hp: max, max, hitT: -9, side: 0, sideT: 0, last: start.clone(), lastT: 0, waiting: false };
+// ---------- escort: a survivor holed up on the map with a weak pistol. Their things lie around: carry them to a table.
+// Then they pack at the table, the van is called, and when it's parked they walk over and take the passenger seat.
+// Phases: hold (fights where they stand) · table (walks to the table) · wait (by the table, the van is coming) · van · in
+const ESC_PH = ['hold', 'table', 'wait', 'van', 'in'];
+const ESC_ITEMS = [['HÁTIZSÁK', 0x5a6a3a], ['RUHACSOMAG', 0x6a4a6a], ['GYÓGYSZER', 0xd8d8d0], ['KONZERVEK', 0x8a8a8a], ['RÁDIÓ', 0x3a3c40], ['FOTÓALBUM', 0x7a4a2a], ['SZERSZÁMOK', 0x9a2a1a], ['TAKARÓ', 0x3a5a8a]];
+function buildEscort(M) { // same on every machine: seeded from the map
+  const R = MAIN_RECT, rng = mulberry(mapSeed + 3131);
+  const spot = (away, r, avoid = []) => { for (let k = 0; k < 600; k++) { const x = R.minX + 6 + rng() * (R.maxX - R.minX - 12), z = R.minZ + 6 + rng() * (R.maxZ - R.minZ - 12);
+    if (!blockedAt(x, z, r) && Math.hypot(x - truck.pos.x, z - truck.pos.z) > away && avoid.every(p => Math.hypot(p.x - x, p.z - z) > 10)) return new V3(x, 0, z); } return new V3(rng() * 10 - 5, 0, rng() * 10 - 5); };
+  // the table (where their things go)
+  const tp = spot(16, 2.2), tg = new THREE.Group(), wood = new THREE.MeshLambertMaterial({ map: woodTex, color: 0x9a7a4a });
+  const tb = (sx, sy, sz, x, y, z) => { const b = new THREE.Mesh(unitBox, wood); b.scale.set(sx, sy, sz); b.position.set(x, y, z); b.castShadow = true; tg.add(b); };
+  tb(2.2, .12, 1.1, 0, .9, 0); for (const [x, z] of [[-1, -.45], [1, -.45], [-1, .45], [1, .45]]) tb(.1, .9, .1, x, .45, z);
+  const tbeam = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, 30, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x9dff6a, transparent: true, opacity: .1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); tbeam.position.y = 15; tg.add(tbeam);
+  tg.position.copy(tp); tg.rotation.y = rng() * Math.PI; put(tg); label(['ASZTAL'], '#9dff6a', 1.1, tp.x, 2.4, tp.z);
+  obstacles.push({ minX: tp.x - 1.1, maxX: tp.x + 1.1, minZ: tp.z - 1.1, maxZ: tp.z + 1.1, h: 1 });
+  M.drop = { pos: tp.clone(), g: tg, table: true };
+  // the survivor, with a grey pistol
+  const sp = spot(14, 1.2, [tp]), a = makeAvatar({ n: 'Túlélő', c: null }); scene.add(a.g);
+  const gun = buildGun({ base: BASES.find(b => b.id === 'pistol') || BASES[0], q: 0 }, true); gun.scale.setScalar(1.25); a.gunG.add(gun); a.gunG.visible = true;
+  const max = 1350 * (1 + .3 * (M.job.diff - 1)) * Math.pow(1.035, jobLvl() - 1); // they hold out the whole job now, not just a walk
+  M.esc = { a, pos: a.pos.copy(sp), vel: new V3(), hp: max, max, hitT: -9, ph: 'hold', path: null, goal: null, shootT: 1, aimAt: null, packT: 0, side: 0, sideT: 0, last: sp.clone(), lastT: 0 };
   M.esc.target = { pos: M.esc.pos, vel: M.esc.vel, alive: true, gen: true, esc: true };
-  const tag = textSprite(['TÚLÉLŐ'], '#7dff7a', .6); tag.position.y = 2.3; a.g.add(tag);
+  a.g.children.forEach(o => { if (o.isSprite && o.position.y > 2) o.visible = false; }); // no name over their head: the HUD tag shows who and how far
+  // their things, spread out, away from the table and from them
+  const n = Math.min(8, 3 + (M.job.diff || 1)), pts = [];
+  for (let k = 0; k < n; k++) pts.push(spot(8, 1.2, [tp, sp, ...pts]));
+  M.crates = pts.map((p, k) => {
+    const [name, col] = ESC_ITEMS[k % ESC_ITEMS.length], g = new THREE.Group(), m = new THREE.MeshLambertMaterial({ color: col });
+    const b = new THREE.Mesh(unitBox, m); b.scale.set(.8, .5, .55); b.position.y = .25; b.castShadow = true; g.add(b);
+    const strap = new THREE.Mesh(unitBox, new THREE.MeshLambertMaterial({ color: 0x2a2218 })); strap.scale.set(.82, .08, .57); strap.position.y = .4; g.add(strap);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, 14, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x9dff6a, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    beam.position.y = 7; g.add(beam);
+    const t = textSprite([name], '#cfe8c0', .35); t.position.y = 1.1; g.add(t);
+    g.position.copy(p); put(g);
+    return { pos: p.clone(), st: 0, by: '', g, beam, name };
+  });
+  M.job.goal = M.crates.length;
 }
-function updateEscort(M, dt) { // host / solo: walk, wait, sidestep when stuck, arrive
-  const E = M.esc, near = [player, ...NET.avatars.values()].some(p => !p.down && Math.hypot(p.pos.x - E.pos.x, p.pos.z - E.pos.z) < 10);
-  E.waiting = !near;
-  const to = E.goal.clone().sub(E.pos); to.y = 0; const d = to.length();
-  if (d < (E.path.length ? 1.3 : 2.5)) { // along the route: the next point, then their things, then the van
-    if (E.path.length) { E.goal = E.path.shift(); return; }
-    if (E.leg === 1) { E.leg = 2; E.path = E.path2; E.end = E.path[E.path.length - 1] || E.goal; E.goal = E.path.shift() || E.goal; banner('MEGVAN A HOLMIJA', 'Most irány a furgon!'); SND.power(); return; }
-    E.target.alive = false; E.vel.set(0, 0, 0); return objectiveDone(M, 'A TÚLÉLŐ BIZTONSÁGBAN');
-  }
-  if ((E.ambushT = (E.ambushT == null ? 18 : E.ambushT) - dt) <= 0) { // an ambush every 20 s: they come for the survivor
-    E.ambushT = 20; const s = activeSpawns().reduce((b, q) => Math.hypot(q[0] - E.pos.x, q[1] - E.pos.z) < Math.hypot(b[0] - E.pos.x, b[1] - E.pos.z) ? q : b);
+function escWalk(E, to, dt, speed = 1.9) { // along a grid path to `to`; true on arrival
+  if (!E.path || !E.dest || E.dest.distanceTo(to) > .5) { E.dest = to.clone(); E.path = gridPath(E.pos, to); E.goal = E.path.shift() || to.clone(); }
+  const d = Math.hypot(E.goal.x - E.pos.x, E.goal.z - E.pos.z);
+  if (d < (E.path.length ? 1.2 : 1.8)) { if (E.path.length) { E.goal = E.path.shift(); return false; } E.vel.set(0, 0, 0); return true; }
+  const dir = new V3(E.goal.x - E.pos.x, 0, E.goal.z - E.pos.z).divideScalar(d);
+  if (E.sideT > 0) { E.sideT -= dt; dir.set(dir.x - dir.z * E.side * 1.6, 0, dir.z + dir.x * E.side * 1.6).normalize(); }
+  E.vel.copy(dir).multiplyScalar(speed); E.pos.addScaledVector(E.vel, dt); collide(E.pos, .4); clampBounds(E.pos, .4);
+  if ((E.lastT += dt) > .8) { if (E.pos.distanceTo(E.last) < .6 && E.sideT <= 0) { E.side = Math.random() < .5 ? -1 : 1; E.sideT = 1.4; } E.last.copy(E.pos); E.lastT = 0; }
+  return false;
+}
+function escShoot(E, dt) { // a weak pistol: the nearest zombie in sight within 16 m, about once a second
+  if ((E.shootT -= dt) > 0) return;
+  const eye = new V3(E.pos.x, 1.5, E.pos.z); let best = null, bd = 16;
+  for (const z of zombies) { if (z.dead || z.rise > .3 || z.dummy) continue; const d = Math.hypot(z.pos.x - E.pos.x, z.pos.z - E.pos.z); if (d < bd && hasSight(eye, new V3(z.pos.x, 1.2 * z.scale, z.pos.z))) { bd = d; best = z; } }
+  if (!best) { E.shootT = .4; E.aimAt = null; return; }
+  E.shootT = rand(.8, 1.3); E.aimAt = best;
+  const to = new V3(best.pos.x + rand(-.3, .3), 1.2 * best.scale, best.pos.z + rand(-.3, .3)), from = eye.clone().add(to.clone().sub(eye).normalize().multiplyScalar(.6));
+  tracer(from, to, 0xc8c8c8, .012); burst(from, 0xffe0a0, 3, 1.2, .15);
+  SND.zshot(clamp(.45 - Math.hypot(E.pos.x - player.pos.x, E.pos.z - player.pos.z) / 60, .05, .45));
+  if (Math.random() < .75) hurtZombie(best, zombieHp() * .12, { esc: true, color: '#c8c8c8' }); // weak, and misses a quarter of the time
+}
+function updateEscort(M, dt) { // host / solo
+  const E = M.esc; if (E.ph === 'in') return;
+  if (E.ph !== 'van') escShoot(E, dt);
+  if ((E.ambushT = (E.ambushT == null ? 25 : E.ambushT) - dt) <= 0) { // an ambush every 25 s: they come for the survivor
+    E.ambushT = 25; const s = activeSpawns().reduce((b, q) => Math.hypot(q[0] - E.pos.x, q[1] - E.pos.z) < Math.hypot(b[0] - E.pos.x, b[1] - E.pos.z) ? q : b);
     for (let k = 0; k < 2 + M.job.diff; k++) { const z = spawnZombieAt(pick(['runner', 'walker', 'walker']), s[0] + rand(-2, 2), s[1] + rand(-2, 2)); z.tgt = E.target; z.tgtT = 6; }
     popText('Rajtaütés! A túlélőre mennek.', '#ff8a70');
   }
-  if (!near) { E.vel.set(0, 0, 0); return; }
-  to.divideScalar(d);
-  if (E.sideT > 0) { E.sideT -= dt; to.set(to.x + -to.z * E.side * 1.6, 0, to.z + to.x * E.side * 1.6).normalize(); }
-  E.vel.copy(to).multiplyScalar(1.7); E.pos.addScaledVector(E.vel, dt); collide(E.pos, .4); clampBounds(E.pos, .4);
-  if ((E.lastT += dt) > .8) { if (E.pos.distanceTo(E.last) < .6 && E.sideT <= 0) { E.side = Math.random() < .5 ? -1 : 1; E.sideT = 1.4; } E.last.copy(E.pos); E.lastT = 0; }
+  if (E.ph === 'hold') { E.vel.set(0, 0, 0); if (M.crates.length && M.crates.every(c => c.st === 2)) { E.ph = 'table'; banner('MINDEN AZ ASZTALON', 'A túlélő odamegy összepakolni. Fedezd!'); SND.power(); } return; }
+  if (E.ph === 'table') { if (escWalk(E, M.drop.pos, dt)) { if ((E.packT += dt) > 2.5) { E.ph = 'wait'; objectiveDone(M, 'A TÚLÉLŐ ÖSSZEPAKOLT'); } } return; }
+  if (E.ph === 'wait') { E.vel.set(0, 0, 0); if (truck.parked) { E.ph = 'van'; E.path = null; popText('A túlélő a furgonhoz indul', '#7dff7a'); } return; }
+  const tp = new V3(truck.pos.x, 0, truck.pos.z);
+  if (E.ph === 'van' && !E.vanSpot) E.vanSpot = E.pos.clone().sub(tp).setY(0).normalize().multiplyScalar(3).add(tp); // beside the van, on their side of it
+  if (E.ph === 'van' && (Math.hypot(E.pos.x - tp.x, E.pos.z - tp.z) < 3.8 || escWalk(E, E.vanSpot, dt, 2.4))) { // in the passenger seat: safe
+    E.ph = 'in'; E.vel.set(0, 0, 0); E.target.alive = false; E.a.g.visible = false; banner('A TÚLÉLŐ BESZÁLLT', 'Az anyósülésen ül. Most ti jöttök!'); SND.buy();
+  }
 }
-function updateEscortLook(M, dt) { // everyone: the figure walks, flinches when hit
-  const E = M.esc, a = E.a, speed = NET.client ? (E.moving ? 2.3 : 0) : Math.hypot(E.vel.x, E.vel.z);
+function updateEscortLook(M, dt) { // everyone: walks, turns to shoot, flinches when hit, gone once seated
+  const E = M.esc, a = E.a; if (E.ph === 'in') { a.g.visible = false; return; }
+  const speed = NET.client ? (E.moving ? 2.1 : 0) : Math.hypot(E.vel.x, E.vel.z);
   if (NET.client && E.net) E.pos.lerp(E.net, Math.min(1, dt * 8));
   a.walkT += dt * (2 + speed * 1.9); const sw = Math.sin(a.walkT) * Math.min(.7, speed * .14);
-  a.g.position.set(E.pos.x, 0, E.pos.z); a.legL.rotation.x = sw; a.legR.rotation.x = -sw; a.armL.rotation.x = -sw * .8; a.armR.rotation.x = sw * .8;
-  const to = NET.client && E.net ? E.net : E.goal; if (speed > .1 && Math.hypot(to.x - E.pos.x, to.z - E.pos.z) > .05) a.g.rotation.y = Math.atan2(-(to.x - E.pos.x), -(to.z - E.pos.z));
+  a.g.position.set(E.pos.x, 0, E.pos.z); a.legL.rotation.x = sw; a.legR.rotation.x = -sw; a.armL.rotation.x = -sw * .8;
+  const Z = E.aimAt && !E.aimAt.dead ? E.aimAt.pos : null, to = Z || (NET.client ? E.net : E.goal);
+  a.armR.rotation.x = Z ? -1.5 : sw * .8; // the pistol comes up when there's something to shoot
+  if (to && (Z || speed > .1) && Math.hypot(to.x - E.pos.x, to.z - E.pos.z) > .05) a.g.rotation.y = Math.atan2(-(to.x - E.pos.x), -(to.z - E.pos.z));
   if (now - E.hitT < .2 && Math.random() < dt * 30) burst(new V3(E.pos.x, 1.2, E.pos.z), 0x8a0a0a, 1, 2, .3);
 }
 

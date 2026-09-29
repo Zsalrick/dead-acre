@@ -30,8 +30,7 @@ function gfxInit() {
     const c = new T.EffectComposer(renderer, rt);
     c.addPass(new T.RenderPass(scene, camera));
     const vp = new T.RenderPass(vmScene, vmCamera); vp.clear = false; vp.clearDepth = true; c.addPass(vp);
-    const bloom = new T.UnrealBloomPass(new T.Vector2(s.x, s.y), .6, .45, .8); c.addPass(bloom);
-    const setSize = bloom.setSize.bind(bloom); bloom.setSize = (w, h) => { const k = GFX.q === 1 ? .5 : 1; setSize(Math.round(w * k), Math.round(h * k)); };
+    const bloom = null; // no bloom: the glow around lamps, labels and signs was more distracting than pretty
     c.addPass(new T.OutputPass()); // tone mapping and colour space happen here (r153+ only tone-maps on the way to the screen)
     const grade = new T.ShaderPass(GRADE_SHADER); c.addPass(grade);
     Object.assign(GFX, { composer: c, bloom, grade, vmPass: vp });

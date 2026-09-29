@@ -315,7 +315,7 @@ function chKill(z, o) { // one kill, every challenge it counts toward
   const w = o.w, c = w && CAT[w.base.id];
   if (player.stormT > 0) chAdd('storm_k'); if (c === 'rifle' || c === 'heavy') chAdd('rifle_k');
   if (player.eyeT > 0) { if (o.head) chAdd('eye_head'); if (z.elite) chAdd('eye_elite'); }
-  if (o.turret) chAdd('tur_k'); else if (!w && !o.melee && !o.dot && !o.minion) chAdd('boom_k');
+  if (o.turret) chAdd('tur_k'); else if (!w && !o.melee && !o.dot && !o.minion && !o.esc) chAdd('boom_k');
   if (inHolyAura()) chAdd('aura_k');
   if (o.minion) chAdd('min_k'); if (typeof minions !== 'undefined' && minions.some(m => !m.dead)) chAdd('min_alive_k');
 }

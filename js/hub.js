@@ -605,7 +605,7 @@ function showResults(r) {
   const wl = (list, cls) => list.map(w => `<li class="${cls}" style="color:${rarColor(w)}">${w.name} <small>Lv ${w.level} ${w.base.name}</small></li>`).join('');
   $('resultsBody').innerHTML = `<div class="eyebrow">${r.job.title} · ${MAPS[r.job.map].name}</div>
     <div class="title">${r.success ? 'MUNKA KÉSZ' : 'ELBUKTÁL'}</div>
-    <p class="lede">${r.success ? 'Beültél a furgonba, és elhajtottál. A megbízó fizet.' : r.hostEnd ? 'A csapatvezető befejezte a munkát. Részfizetést kapsz.' : r.abandoned ? 'Feladtad a munkát. A megbízó nem fizet.' : 'Elestél. Kimentettek, de a munka közben talált fegyverek odavesztek.'}</p>
+    <p class="lede">${r.success ? 'Beültél a furgonba, és elhajtottál. A megbízó fizet.' : r.hostEnd ? 'A csapatvezető befejezte a munkát. Részfizetést kapsz.' : r.abandoned ? 'Feladtad a munkát. A megbízó nem fizet.' : r.failNote ? r.failNote : 'Elestél. Kimentettek, de a munka közben talált fegyverek odavesztek.'}</p>
     <div class="stats"><div>Ölés<strong>${r.kills}</strong></div><div>Fejlövés<strong>${r.heads}</strong></div><div>Kibírt idő<strong>${fmtTime(r.time)}</strong></div>
       <div>Pontosság<strong>${r.acc}%</strong></div><div>Sebzés<strong>${r.dmg.toLocaleString('hu-HU')}</strong></div>
       <div>Pénz<strong>+$${r.cash}</strong></div><div>XP<strong>+${r.xp}</strong></div>${r.tokens ? `<div>Érdemérem<strong>+${r.tokens}</strong></div>` : ''}</div>

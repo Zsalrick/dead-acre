@@ -374,7 +374,7 @@ function buildSnapshot() {
     t: Math.round(M.t * 10) / 10, ph: M.phase, pt: Math.round((M.phaseT || 0) * 10) / 10, w: M.wave, r: round, cl: M.cleared ? 1 : 0,
     ew: M.evacWarn ? 1 : 0, pk: M.pickup, vo: Math.round((truck.g.position.x - truck.pos.x) * truck.dir * 100) / 100, bt: Math.round((M.boardT || 0) * 10) / 10,
     pa: Math.round((M.parkT || 0) * 10) / 10, lv: M.leaving ? 1 : 0, ar: keys.reduce((m, k, i) => m | (AREAS[k].unlocked ? 1 << i : 0), 0),
-    kc: M.kc || 0, rt: M.rt || 0, be: NET.bev, ca: M.cache && M.cache.t > 0 ? [Math.round(M.cache.x * 10), Math.round(M.cache.z * 10), Math.round(M.cache.t)] : null, tl: NET.tel, gh: M.gens ? M.gens.map(G => Math.round(G.hp / G.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, M.esc.leg, Math.round(M.esc.pos.distanceTo(M.esc.end))] : null, cr: M.crates ? M.crates.map(c => [Math.round(c.pos.x * 10), Math.round(c.pos.z * 10), c.st, c.by || '']) : null, dv: M.drop ? [Math.round(M.drop.pos.x * 10), Math.round(M.drop.pos.z * 10)] : null, od: M.objDone ? 1 : 0,
+    kc: M.kc || 0, rt: M.rt || 0, be: NET.bev, ca: M.cache && M.cache.t > 0 ? [Math.round(M.cache.x * 10), Math.round(M.cache.z * 10), Math.round(M.cache.t)] : null, tl: NET.tel, gh: M.gens ? M.gens.map(G => Math.round(G.hp / G.max * 1000) / 1000) : null, es: M.esc ? [Math.round(M.esc.pos.x * 10), Math.round(M.esc.pos.z * 10), Math.round(M.esc.hp / M.esc.max * 1000), Math.hypot(M.esc.vel.x, M.esc.vel.z) > .1 ? 1 : 0, ESC_PH.indexOf(M.esc.ph), M.esc.aimAt && !M.esc.aimAt.dead ? M.esc.aimAt.id || 0 : 0] : null, cr: M.crates ? M.crates.map(c => [Math.round(c.pos.x * 10), Math.round(c.pos.z * 10), c.st, c.by || '']) : null, dv: M.drop ? [Math.round(M.drop.pos.x * 10), Math.round(M.drop.pos.z * 10)] : null, od: M.objDone ? 1 : 0,
     tr: trapState.map(T => T.active > 0 ? Math.round(T.active * 10) / 10 : -Math.round((T.cd || 0) * 10) / 10), z: zs, k: NET.kills, d: NET.dmgs, bk: M.bountyAt ? M.bountyAt.map(v => Math.round(v * 10) / 10) : null,
     bb: (b => b ? [b.id, b.bounty, b.phase || 1, b.invulnT > 0 ? 1 : 0] : null)(zombies.find(z => z.bounty && !z.dead)),
     hz: fireZones.filter(F => F.hazard).map(F => [Math.round(F.pos.x * 10), Math.round(F.pos.z * 10), Math.round(F.r * 10)]),
@@ -474,7 +474,7 @@ function promoteToHost() { // this member becomes the leader: the proxies become
   for (const z of zombies) if (z.bounty && !z.dead && !z.bInit) { z.bInit = 1; for (const [k, v] of [['sumT', 6], ['novaT', 8], ['blinkT', 10], ['throwT', 4], ['slamT', 6]]) if (!(z[k] >= 0)) z[k] = v; z.phase = z.phase || 1; z.dmg *= 1.2; } // the bounty's tricks
   if (M.crates) M.crates.forEach((c, i) => { if (c.st === 1 && c.by === 'H') crateDrop(i, c.pos.x, c.pos.z); else if (c.st === 1 && c.by === NET.me) c.by = 'H'; }); // the old leader's crate falls, mine is now the leader's
   if (M.phase === 'evac' && M.arriveT < 0 && !M.leaving) { const vo = Math.max(0, (truck.g.position.x - truck.pos.x) * truck.dir); if (vo > .05) M.arriveT = ARRIVE_T * (1 - Math.sqrt(clamp(vo / vanRun(), 0, 1))); } // the van was still backing in
-  if (M.esc) { const E = M.esc; if (E.net) E.pos.copy(E.net); if (E.leg !== 1) E.end = E.path2.length ? E.path2[E.path2.length - 1] : E.end; E.path = gridPath(E.pos, E.end); E.goal = E.path.shift() || E.end.clone(); if (E.leg !== 1) E.path2 = []; } // the survivor walks on from where they are
+  if (M.esc) { const E = M.esc; if (E.net) E.pos.copy(E.net); E.path = null; E.shootT = 1; } // the survivor carries on from where they are
   banner('TE LETTÉL A VEZETŐ', 'A csapatvezető kiesett, a munka folytatódik.'); SND.power();
   try { NET.pr.presence({ g: buildSnapshot() }).catch(() => {}); } catch (e) {} // the first snapshot goes out with (before) the leader flag
   publishMember(); setLobby();
@@ -488,7 +488,7 @@ function netHostAct(type, arg, peer) {
   if (type === 'conv') { const z = NET.zById.get(arg); if (z && !z.dead && !z.K.boss && !z.bounty) convertZombie(z); } // a necromancer's cross
   if (type === 'mark' && Array.isArray(arg)) for (const id of arg.slice(0, 40)) { const z = NET.zById.get(id); if (z && !z.dead) z.markT = 10; }
   if (type === 'repair') { if (Array.isArray(arg) && M.gens) { const G = M.gens[arg[0] | 0]; if (G && G.hp > 0) G.hp = Math.min(G.max, G.hp + Math.min(+arg[1] || 0, G.max * .2)); } else { const T = M.esc; if (T && T.hp > 0) T.hp = Math.min(T.max, T.hp + T.max * .25); } }
-  if (type === 'board' && M.phase === 'evac' && truck.parked && !(M.boardT > 0) && !M.leaving) { M.boardT = BOARD_T; banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); }
+  if (type === 'board' && M.phase === 'evac' && truck.parked && !(M.boardT > 0) && !M.leaving && !(M.esc && M.esc.ph !== 'in')) { M.boardT = BOARD_T; banner('BESZÁLLÁS', `Tartsatok ki ${BOARD_T} mp-ig a furgon mellett!`); }
 }
 
 // ---------- client: follow the host's world ----------
@@ -562,7 +562,7 @@ function applySnapshot(g, hostPeer) {
   }
   M.kc = +g.kc || 0;
   if (g.rt != null && M.rt != null && g.rt !== M.rt && (player.down || player.ffyl > 0)) netRevive(); M.rt = g.rt;
-  if (M.esc && Array.isArray(g.es)) { const E = M.esc, hp = (+g.es[2] || 0) / 1000 * E.max; if (hp < E.hp - 1) E.hitT = now; E.hp = hp; E.net = new V3((+g.es[0] || 0) / 10, 0, (+g.es[1] || 0) / 10); E.moving = !!g.es[3]; E.leg = +g.es[4] || E.leg; E.netDist = +g.es[5] || 0; }
+  if (M.esc && Array.isArray(g.es)) { const E = M.esc, hp = (+g.es[2] || 0) / 1000 * E.max; if (hp < E.hp - 1) E.hitT = now; E.hp = hp; E.net = new V3((+g.es[0] || 0) / 10, 0, (+g.es[1] || 0) / 10); E.moving = !!g.es[3]; E.ph = ESC_PH[+g.es[4]] || E.ph; E.aimAt = +g.es[5] ? NET.zById.get(+g.es[5]) || null : null; }
   if (M.gens && Array.isArray(g.gh)) M.gens.forEach((G, k) => { const hp = (+g.gh[k] || 0) * G.max; if (hp < G.hp - 1) G.hitT = now; G.hp = hp; });
   if (M.crates && Array.isArray(g.cr)) { const had = player.carry; player.carry = null; M.crates.forEach((c, i) => { const e = g.cr[i]; if (!e) return; if (c.st !== 2 && +e[2] === 2) { burst(new V3(c.pos.x, 1.2, c.pos.z), 0xf2c12a, 14, 3, .5); popText(`Láda leadva · ${g.cr.filter(q => +q[2] === 2).length}/${g.cr.length}`, '#f2c12a'); SND.buy(); } if (+e[2] === 1 && e[3] === NET.me && had !== i) { SND.pickup(2); popText('Vidd a lerakó furgonhoz · E: letétel', '#f2c12a'); } c.st = +e[2] || 0; c.by = e[3] || ''; if (!(c.st === 1 && c.by === NET.me)) c.pos.set(e[0] / 10, 0, e[1] / 10); if (c.st === 1 && c.by === NET.me) player.carry = i; }); }
   if (g.dv && !M.drop) buildDropVan(M, g.dv[0] / 10, g.dv[1] / 10);
