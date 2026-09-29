@@ -74,7 +74,6 @@ const VEND = { med: 350, gren: 300, knife: 250, adren: 450 };
 let stSel = null;
 const fpts = (c, x) => Math.max(50, Math.round(((c.parts || 0) * 80 + (c.fab || 0) * 90 + (c.cash || 0) * .5) * forgeMul(x) / 50) * 50); // parts, fabric and cash, turned into points
 const forgeMul = x => x ? (1 + .45 * Math.min(5, x.unique ? 5 : x.q || 0)) * (1 + (x.level || 1) / 12) : 1; // the better and higher the piece, the dearer the field smith
-const FOC = { first: 4000, re: 1600 };
 function forgeItem() { // [slot, index, item] of the picked piece: a gun in hand or bag, or worn armour
   const P = player, G0 = profile.gear; let [sl, si] = (stSel || `L:${P.cur}`).split(':');
   const get = () => sl === 'L' ? P.slots[+si] : sl === 'B' ? P.bag[+si] : sl === 'W' ? G0[si] : null;
@@ -94,8 +93,7 @@ function fieldForge() {
         ${w.q >= 2 ? card('Felkenés', '', w.anoPend ? `<div class="anopend"><small>Új felkenés dobva</small><b>${anoName(w.anoPend)}: ${ANOINTS[w.anoPend]}</b><span>Most: ${w.anoint ? `${anoName(w.anoint)}: ${ANOINTS[w.anoint]}` : 'nincs'}</span><button class="sbtn" data-act="fano:acc">Elfogadom</button><button class="sbtn" data-act="fano:rej">Elutasítom</button></div>`
           : `<p class="amb">${w.anoint ? `${anoName(w.anoint)}: ${ANOINTS[w.anoint]}` : 'Nincs felkenése.'}</p>${btn('Újradobás', 'fano:roll', fpts({ parts: HFORGE.anoint(w) }, w))}`) : ''}
         ${card('Szakértelem', `${ex}/10 · most +${2 * ex}% sebzés`, `<div class="fexp">${expPips(ex)}</div>${ex >= 10 ? '<button class="sbtn" disabled>Szakértelem: max</button>' : btn(`Szakértelem ${ex + 1}/10`, 'fexp', fpts({ parts: expCost(w) }, w))}`)}
-        ${card('Elem beégetése', w.element ? ELEMENTS[w.element].name : 'munkánként egyszer', w.element ? '<button class="sbtn" disabled>Van eleme</button>' : btn('Véletlen elem', 'forge:elem', Math.round(FORGE.elem() * forgeMul(w) / 50) * 50, forgedOn(w, 'elem')))}</div>
-      ${card('Túlhajtás', '', `<div class="ocrow">${Object.entries(OVERCLOCKS).filter(([k]) => ocFits(w, k)).map(([k, O]) => `<span class="chip${w.oc === k ? ' on' : ''}" data-tip="${O.desc}">${O.name}</span>`).join('')}</div>${btn(w.oc ? 'Újradobás' : 'Beszerelés', 'foc', Math.round((w.oc ? FOC.re : FOC.first) * forgeMul(w) / 50) * 50)}`, 'wide')}</div>`;
+        ${card('Elem beégetése', w.element ? ELEMENTS[w.element].name : 'munkánként egyszer', w.element ? '<button class="sbtn" disabled>Van eleme</button>' : btn('Véletlen elem', 'forge:elem', Math.round(FORGE.elem() * forgeMul(w) / 50) * 50, forgedOn(w, 'elem')))}</div></div>`;
   } else if (it) {
     const ex = it.exp || 0;
     bench = `<div class="fgrid">${card('Optimalizálás', '', opt(gRolls(it), 'fgopt', pr => fpts(gOptCost(it, pr), it)))}
@@ -117,7 +115,6 @@ function forgeAct(kind, key, pay) { // true: handled (and re-rendered, or a dial
     if ((key === 'acc' || key === 'rej') && w.anoPend) { if (key === 'acc') w.anoint = w.anoPend; delete w.anoPend; return done(); }
   }
   if (kind === 'fexp' && w && (w.exp || 0) < 10 && pay(fpts({ parts: expCost(w) }, w))) { w.exp = (w.exp || 0) + 1; return done(); }
-  if (kind === 'foc' && w) { const k = pick(Object.keys(OVERCLOCKS).filter(o => ocFits(w, o) && o !== w.oc)); if (k && pay(Math.round((w.oc ? FOC.re : FOC.first) * forgeMul(w) / 50) * 50)) { setOverclock(w, k); return done(); } }
   if (kind === 'fgopt' && it) { const r = gRolls(it).find(q => q[0] === key); if (r && r[2] < .999 && player.points >= fpts(gOptCost(it, r[2]), it) && gOptimize(it, key)) { pay(fpts(gOptCost(it, r[2]), it)); return done(); } }
   if (kind === 'fgexp' && it && (it.exp || 0) < 10 && pay(fpts({ parts: expCost(it) }, it))) { it.exp = (it.exp || 0) + 1; return done(); }
   if (kind === 'forge' && key === 'elem' && w && !w.element && !forgedOn(w, 'elem') && pay(Math.round(FORGE.elem() * forgeMul(w) / 50) * 50)) { w.element = pick(Object.keys(ELEMENTS)); markForged(w, 'elem'); return done(); }
