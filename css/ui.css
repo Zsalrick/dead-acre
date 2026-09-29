@@ -1051,3 +1051,8 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 #card .gck .rtag{font-size:15px;padding:0 6px;margin-left:8px;letter-spacing:0}
 
 .cmax{color:#6fd08a}
+
+/* the skill trees inside the in-game inventory: look, don't touch */
+.pskill{height:100%;min-height:0}.pskill .ktab{height:100%}
+.pskill .khead h2,.pskill .kside h2{font-family:var(--fd);font-weight:800;font-size:36px;text-transform:none;line-height:1.05}
+.tpic:has(.tkey) .tbadge{right:auto;left:6px;top:auto;bottom:6px} /* a hand tile: the badge moves off the hand number */

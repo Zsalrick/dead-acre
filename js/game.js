@@ -447,7 +447,7 @@ function doQuit() { // giving up needs a second click; it counts as a failed job
   $('pause').hidden = true; finishJob(false, true);
 }
 $('pause').addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; const a = b.dataset.pm;
-  if (a === 'tab-inv' || a === 'tab-char') { pinvPage(a.slice(4)); return; }
+  if (a === 'tab-inv' || a === 'tab-char' || a === 'tab-skill') { pinvPage(a.slice(4)); return; }
   if (a === 'resume') resume(); else if (a === 'inv') pauseMode('inv'); else if (a === 'menu') pauseMode('menu'); else if (a === 'settings') openSettings(); else if (a === 'help') renderPauseMenu(true); else if (a === 'quit') doQuit(); });
 function pause(note) {
   if (state !== 'playing' || (mission && mission.leaving)) return;
@@ -478,7 +478,14 @@ function renderPauseChar() {
   const mid = `<div class="lview pchar"><div id="lookCv"></div></div>`;
   const lo = $('loadout'); keepScroll(lo, () => { lo.innerHTML = invLayout(left, detail, mid); markCta(lo); }); updateKeybar(lo); lookPreview();
 }
+function renderPauseSkills() { // the skill trees, to look at only: nothing to spend or switch in the field
+  const lo = $('loadout'); keepScroll(lo, () => { lo.innerHTML = `<div class="pskill">${skillsTab()}</div>`; });
+  lo.querySelectorAll('[data-act]').forEach(b => { const k = b.dataset.act.split(':')[0]; if (k !== 'skview' && k !== 'sknode') { b.disabled = true; b.removeAttribute('data-key'); } });
+  lo.querySelectorAll('.ksfoot .sbtn, .kbuild .sbtn, .khead .sbtn, .kabil .sbtn').forEach(b => b.remove()); // no spending, no switching
+  updateKeybar(lo);
+}
 function renderPauseInv() {
+  if (pinvTab === 'skill') return renderPauseSkills();
   if (pinvTab === 'char') return renderPauseChar();
   const L = player.slots, B = player.bag, bagFull = B.length >= bagMax(), lone = L.filter(Boolean).length < 2, MG = mission.gear;
   let [sl, si] = invSel.split(':');
@@ -506,6 +513,7 @@ enableDrag($('pause'), $('loadout'), true);
 $('loadout').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled || state !== 'paused') return;
   const [kind, f, i, t, j] = b.dataset.act.split(':'), held = curW();
+  if (pinvTab === 'skill') { if (kind === 'skview' || kind === 'sknode') { skillAction(kind, f); renderPauseInv(); } return; } // looking only
   if (kind === 'sel') { invSel = b.dataset.act.slice(4); renderPauseInv(); return selDbl($('loadout'), invSel); }
   if (kind === 'mv') moveGun({ L: player.slots, B: player.bag }, f, +i, t, +j);
   if (kind === 'gdrop') { setTimeout(syncGearBag); const it = mission.gear.splice(+f, 1)[0]; if (it) itemFeed('eldobta', it.name, it.q); if (it) netShareDrop('g', it, spawnGearDrop(it, player.pos.clone().add(new V3(rand(-.6, .6), 0, rand(-.6, .6))))); invSel = ''; }
@@ -549,7 +557,7 @@ addEventListener('keydown', e => {
   if (state === 'hub' && hubTab === 'swheel' && e.code === 'Space') { e.preventDefault(); const b = document.querySelector('#hubBody [data-act="slot"]'); if (b && !b.disabled) b.click(); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'menu' && e.code === 'Escape' && performance.now() - pausedAt > 400) { resume(); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && e.code === 'Escape') { closePauseForClick(); return; } // Esc closes the inventory (the mouse comes back on the next click)
-  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && (e.code === 'KeyQ' || e.code === 'KeyE')) { pinvPage(pinvTab === 'inv' ? 'char' : 'inv'); return; }
+  if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && (e.code === 'KeyQ' || e.code === 'KeyE')) { const T = ['inv', 'char', 'skill']; pinvPage(T[(T.indexOf(pinvTab) + (e.code === 'KeyE' ? 1 : 2)) % 3]); return; }
   if (state === 'paused' && !$('pause').hidden && $('pause').dataset.mode === 'inv' && invKey(e, $('loadout'))) return;
   if (state === 'station' && (e.code === 'Escape' || e.code === 'KeyE')) { closeStation(e.code === 'Escape'); return; }
   if (state === 'paused' && (e.code === 'Escape' || e.code === 'KeyP') && noLock) { resume(); return; }
