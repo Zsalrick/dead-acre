@@ -1029,3 +1029,18 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 .dgo{display:flex;gap:8px;align-items:center}.dgo .sbtn{height:52px}
 
 .vdesc{max-width:640px;margin:16px auto 0;text-align:center;color:var(--tx2);font-size:15px;line-height:1.5}
+
+/* the ground card while holding X (take apart) or F (swap) */
+#card.hx::after,#card.hf::after{content:'';position:absolute;left:0;top:0;bottom:0;width:calc(var(--hp) * 100%);pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,60,50,.4));border-right:4px solid #ff4a3a}
+#card.hf::after{background:linear-gradient(90deg,transparent,rgba(90,230,120,.35));border-right-color:#5ae678}
+
+/* the field smith: the base's workbench layout inside the station screen */
+#station.wide .panel{max-width:1500px}
+#station.wide .inv{height:calc(100vh - 260px);min-height:420px}
+#station .fgrid .sbtn{white-space:nowrap}
+#station.wide .inv{display:grid;grid-template-columns:320px minmax(0,1fr) 400px;gap:22px;align-items:stretch;max-width:none}
+#station.wide .invl,#station.wide .invm{min-height:0;overflow:auto}
+#station.wide .invd{position:relative;top:auto;display:flex;flex-direction:column;min-height:0;max-height:100%;overflow:auto;background:var(--pan);border:1px solid var(--ln);border-top:3px solid var(--rc,var(--ln3))}
+#station.wide .invl h3{font-family:var(--fc);font-weight:700;font-size:15px;letter-spacing:.16em;text-transform:uppercase;color:var(--tx);margin:14px 0 8px}
+#station.wide .invl .tiles{grid-template-columns:1fr}
+#station.wide .fgrid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}

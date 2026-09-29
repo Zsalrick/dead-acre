@@ -91,7 +91,7 @@ function makeBounty() {
 function newCounts() {
   const P = profile, wc = {}, gs = {}; let w = 0, g = 0;
   for (const o of [...(P.stash || []), ...(P.bag || [])]) if (o && o.isNew) { w++; const c = CAT[typeof o.base === 'string' ? o.base : o.base && o.base.id]; if (c) wc[c] = (wc[c] || 0) + 1; }
-  for (const it of P.gearStash || []) if (it && it.isNew) { g++; gs[it.slot] = (gs[it.slot] || 0) + 1; }
+  for (const it of [...(P.gearStash || []), ...(P.gearBag || [])]) if (it && it.isNew) { g++; gs[it.slot] = (gs[it.slot] || 0) + 1; }
   return { w, g, wc, gs, tok: P.cls && P.tokens > 0 ? P.tokens : 0 };
 }
 function rollShop() {
@@ -225,7 +225,7 @@ function trashBar(kind) { // bulk sell / salvage everything marked as trash
   return `<div class="trashbar"><b>🗑 Kukában: ${items.length} db</b>${hbtn(`Összes eladása · $${cash}`, `trashsell:${kind}`)}${hbtn(`Összes szétszedése · +${parts} ${kind === 'w' ? '⚙' : FAB}`, `trashsalv:${kind}`)}</div>`;
 }
 // calibration: roll new stats, show old against new, keep whichever the player picks
-function showRecal(w, list, i) {
+function showRecal(w, list, i, onDone) { // onDone(newGun | null) instead of writing the list (the field smith)
   const c = unpackW(packW(w)), b = BASES.find(x => x.id === w.base.id) || w.base, n = makeWeapon(b, Math.min(4, w.q), w.level, w.mk), k = w.unique ? 1.12 : 1;
   ocStrip(c); Object.assign(c, { dmg: Math.round(n.dmg * k), rpm: n.rpm, mag: n.mag, reload: n.reload, spread: n.spread, roll: n.roll, crit: n.crit, cdmg: n.cdmg }); ocApply(c);
   const rows = [['DPS', x => dps(x)], ['Sebzés', x => x.dmg], ['Tűzgyorsaság', x => x.rpm, '/p'], ['Tár', x => x.mag], ['Újratöltés', x => x.reload, ' mp', true, 2], ['Pontosság', x => accuracy(x), '%'],
@@ -238,7 +238,7 @@ function showRecal(w, list, i) {
   const yes = box.querySelector('[data-yes]'), no = box.querySelector('[data-no]'), labels = [yes.innerHTML, no.innerHTML];
   yes.innerHTML = '<kbd>Enter</kbd>OK'; no.innerHTML = '<kbd>Esc</kbd>✕ Régi marad'; box.hidden = false;
   const done = ok => { box.hidden = true; box.classList.remove('recal'); yes.innerHTML = labels[0]; no.innerHTML = labels[1]; removeEventListener('keydown', key, true);
-    if (ok) { list[i] = packW(c); SND.explode(); } saveProfile(); renderHub(); };
+    if (onDone) return onDone(ok ? c : null); if (ok) { list[i] = packW(c); SND.explode(); } saveProfile(); renderHub(); };
   const key = e => { e.stopPropagation(); e.preventDefault(); if (e.code === 'Enter') done(true); else if (e.code === 'Escape') done(false); };
   addEventListener('keydown', key, true); yes.onclick = () => done(true); no.onclick = () => done(false);
 }
@@ -518,7 +518,7 @@ $('hubBody').addEventListener('click', e => {
     P.cash -= price; list.splice(+c, 1); delete x.found; if (a === 'w') P.stash.push(x); else P.gearStash.push(x); if (!L.w.length && !L.g.length) P.lost = null;
     toast('VISSZAVÁSÁROLVA', [`<i style="color:${a === 'w' ? rarColor(it) : gCol(it)}">${it.name}</i> · −$${price}`, a === 'w' ? 'A raktárba került.' : 'A páncélraktárba került.'], '#9dff6a'); saveProfile(); return renderHub(); }
   if (kind === 'goforge') { hubTab = 'forge'; return renderHub(); }
-  if (kind === 'sel') { invSel = b.dataset.act.slice(4); const [l, k] = invSel.split(':'), L = { L: P.loadout, B: P.bag, S: P.stash }[l]; if (L && L[+k] && L[+k].isNew) delete L[+k].isNew; const g = l === 'G' ? P.gearStash[+k] : l === 'W' ? P.gear[k] : null; if (g && g.isNew) delete g.isNew; renderHub(); return selDbl($('hubBody'), invSel); } // seen: no longer new
+  if (kind === 'sel') { invSel = b.dataset.act.slice(4); clearNew(invSel); renderHub(); return selDbl($('hubBody'), invSel); } // seen: no longer new
   if (kind === 'jsel') { jobSel = a === 'range' ? 'range' : +a; if (NET.host) publishMember(); return renderHub(); }
   if (kind === 'claim') claimContract(a);
   if (kind === 'gexp') { const it = a === 'W' ? P.gear[c] : a === 'G' ? P.gearStash[+c] : null; if (it && (it.exp || 0) < 10 && (P.parts || 0) >= expCost(it)) { P.parts -= expCost(it); it.exp = (it.exp || 0) + 1; gearChanged(); SND.explode(); } }
@@ -751,6 +751,10 @@ function hostPick() {
   return `<div class="hostpick"><small>A VEZETŐ VÁLASZTÁSA</small><b>${esc(String(s.t || ''))}</b><span>${M ? M.name : ''} · ${DIFF_NAMES[d - 1]}${+s.tr ? ` · Rémálom +${+s.tr}` : ''} · $${+s.r || 0}</span></div>`;
 }
 
+function clearNew(sel) { // looked at or moved: no longer new, wherever it is
+  const P = profile, [l, k] = sel.split(':'), L = { L: P.loadout, B: P.bag, S: P.stash, G: P.gearStash, Z: P.gearBag || [] }[l], x = l === 'W' ? P.gear[k] : L && L[+k];
+  if (x && x.isNew) delete x.isNew;
+}
 function hubCycle(d) { // Q / E: previous / next top tab
   if (hubTab === 'deep') return;
   const tops = [...document.querySelectorAll('.mbtn[data-hub]')], i = tops.findIndex(b => b.classList.contains('on'));

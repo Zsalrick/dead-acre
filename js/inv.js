@@ -350,7 +350,7 @@ function enableDrag(root, fireRoot = root, ground = false) {
   });
   root.addEventListener('drop', e => {
     if (!from) return; e.preventDefault();
-    const act = dropAct(from, target(e.target) || ''); from = null; root.classList.remove('ground');
+    const act = dropAct(from, target(e.target) || ''); if (act && state === 'hub') clearNew(from); from = null; root.classList.remove('ground'); // moved it: seen
     if (act) fireAct(fireRoot, act);
   });
 }

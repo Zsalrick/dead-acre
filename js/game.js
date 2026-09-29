@@ -742,6 +742,7 @@ function updateHUD() {
   }
   setHTML('card', card); $('card').hidden = !card;
   if (focus && (focus.w || focus.it)) $('card').style.setProperty('--rc', focus.w ? rarColor(focus.w) : gCol(focus.it));
+  { const hp = xHold > 0 ? xHold / HOLD_T : fHold > .12 && !fLatch ? fHold / SWAP_HOLD : 0, C = $('card'); C.style.setProperty('--hp', Math.min(1, hp)); C.classList.toggle('hx', xHold > 0); C.classList.toggle('hf', !(xHold > 0) && hp > 0); } // red sweep: taking it apart, green: swapping
   setHTML('prompt', prompt.replace(/<b>\[(\w+)\]<\/b>/g, '<kbd class="pk">$1</kbd>')); $('prompt').hidden = !prompt; // [E] as a key cap
 
   setHTML('points', `${Math.floor(player.points).toLocaleString('hu-HU')}<small>PONT</small>`);

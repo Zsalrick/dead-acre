@@ -751,7 +751,7 @@ function buildArea(a) {
   }
   g.position.copy(a.gate); if (!alongX) g.rotation.y = Math.PI / 2;
   a.barricade = put(g);
-  a.sign = label([a.name.toUpperCase(), `${a.cost} PONT`], '#f2a33a', 3.2, a.gate.x, 3.3, a.gate.z);
+  a.sign = label([a.name.toUpperCase(), `${SK.gate(a.cost)} PONT`], '#f2a33a', 3.2, a.gate.x, 3.3, a.gate.z);
   if (a.graves) for (let x = a.core.minX + 5; x <= a.core.maxX - 4; x += 3) for (let z = a.core.minZ + 3; z <= a.core.maxZ - 3; z += 4) grave(x + rand(-.5, .5), z + rand(-.5, .5));
   // the unique station
   const [type, x, z] = a.station, pos = new V3(x, 0, z), c = a.core, cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;

@@ -23,6 +23,12 @@ const KINDS = {
                 skin: 0x8f9a3c, bloat: true, speed: () => 1.7, scale: () => 1.1 },
   gunslinger: { name: 'Pisztolyos', desc: 'Revolvere van. Célozni nem tud.', min: 4, w: r => 1.3 + r * .05, max: 3, hp: 1.1, dmg: 34, eye: 0xff8a1a, lean: .06,
                 ranged: [8, 15], gun: true, speed: () => 2.3, scale: () => 1 },
+  shotgunner: { name: 'Sörétes', desc: 'Ritkán lő, de közelről nagyon fáj. Előtte felhúzza: hallod.', min: 7, w: r => .8 + r * .04, max: 2, hp: 1.5, dmg: 34, eye: 0xff5a2a, lean: .08,
+                ranged: [5, 11], gun: 'shotgun', speed: () => 2.1, scale: () => 1.05 },
+  crossbow:   { name: 'Számszeríjas', desc: 'Messziről lő. A vessző repül: ki lehet térni előle.', min: 9, w: r => .7 + r * .03, max: 2, hp: 1.1, dmg: 30, eye: 0x9fe8ff, lean: .04,
+                ranged: [16, 30], gun: 'crossbow', speed: () => 2.2, scale: () => 1 },
+  burner:     { name: 'Lángszórós', desc: 'Nagydarab, a hátán tartály. Közelről éget; ha meghal, a tartály felrobban.', min: 11, w: r => .5 + r * .02, max: 1, hp: 3.2, dmg: 40, eye: 0xffa030, lean: .02,
+                ranged: [3, 6], gun: 'flame', speed: () => 1.9, scale: () => 1.4 },
   spitter:    { name: 'Köpködő', desc: 'Savat köp. Ne állj a tócsában.', min: 6, w: () => 1.3, max: 3, hp: 1, dmg: 34, eye: 0x9dff3a, lean: .2,
                 ranged: [9, 16], spit: true, speed: () => 2, scale: () => 1 },
   brute:      { name: 'Behemót', desc: 'Sokat bír, nagyot üt. Mindig ritka zsákmányt ejt.', min: 5, w: r => Math.min(1.5, .4 * (r - 4)), hp: 4.5, dmg: 55,
@@ -114,7 +120,13 @@ function mkZombie(kind) {
     add(unitBox, new THREE.MeshLambertMaterial({ color: 0x3a2a1c }), armR, 0, -.78, 0).scale.set(.06, .22, .06);
     add(unitBox, steel, armR, 0, -.98, .12).scale.set(.03, .32, .3);
   }
-  if (K.gun) {
+  if (K.gun === 'shotgun') { add(unitBox, revolverMat, armR, 0, -1.02, .05).scale.set(.08, .6, .09); add(unitBox, hatMat, armR, 0, -.72, .05).scale.set(.07, .2, .12); }
+  else if (K.gun === 'crossbow') { add(unitBox, hatMat, armR, 0, -.95, .05).scale.set(.06, .46, .07); add(unitBox, hatMat, armR, 0, -1.1, .05).scale.set(.62, .05, .05); }
+  else if (K.gun === 'flame') {
+    const red = new THREE.MeshLambertMaterial({ color: 0x8a2a1a });
+    add(unitBox, red, upper, -.12, .55, -.3).scale.set(.2, .6, .2); add(unitBox, red, upper, .12, .55, -.3).scale.set(.2, .6, .2);
+    add(unitBox, revolverMat, armR, 0, -.98, .05).scale.set(.07, .46, .07);
+  } else if (K.gun) {
     add(unitBox, hatMat, upper, 0, 1.25, .02).scale.set(.66, .04, .66);
     add(unitBox, hatMat, upper, 0, 1.37, .02).scale.set(.36, .22, .36);
     add(unitBox, revolverMat, armR, 0, -.8, .02).scale.set(.05, .24, .06);
@@ -245,6 +257,7 @@ function killZombie(z, o) {
   if (mission) mission.kc = (mission.kc || 0) + 1; // the whole party's kills (objective jobs)
   z.dead = true; z.deathT = 0; z.fallDir = Math.random() < .5 ? 1 : -1; bloodPool(z.pos.x, z.pos.z, z.scale);
   for (const k of z.traits || []) if (AFFIX[k].die) AFFIX[k].die(z);
+  if (z.K.gun === 'flame' && !o.remote) explode(new V3(z.pos.x, 1, z.pos.z), { r: 4, zdmg: 60 + zombieHp() * .6, pr: 3.5, pdmg: 30 * zDmgMul(), color: 0xff7a20 }); // the tank
   if (z.bounty) bountyKilled(z);
   if (o.remote) { // a party member's kill: they get the points and roll the loot
     burst(new V3(z.pos.x, 1.2 * z.scale, z.pos.z), 0x5a0a0a, 14, 3.5);
@@ -287,7 +300,7 @@ function dropLoot(z, p) {
     if (Math.random() < .2) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(1, rollRarity(.3))), lootLvl()), p);
     if (Math.random() < .15) spawnPower(p.clone().add(new V3(1.2, 0, 0)));
   }
-  else if (z.K.gun && Math.random() < .06) spawnDrop(makeWeapon(BASES.find(b => b.id === 'revolver'), rollRarity(.1), lootLvl()), p);
+  else if (z.K.gun && Math.random() < .06) spawnDrop(makeWeapon(BASES.find(b => b.id === ({ shotgun: 'shotgun', crossbow: 'crossbow', flame: 'flamer' }[z.K.gun] || 'revolver')), rollRarity(.1), lootLvl()), p);
   else if (Math.random() < .015 * SK.drop()) spawnDrop(makeWeapon(pick(BASES), uq(Math.max(round >= 6 ? 1 : 0, rollRarity(Math.min(.4, .02 * round) + SK.luck() + dLuck))), lootLvl()), p);
   else if (Math.random() < (round <= 3 ? .07 : .025)) spawnPower(p, 'ammo'); // ammo packs: plenty early on, when the starter guns run dry
   else if (Math.random() < .02) spawnPower(p);
@@ -304,11 +317,32 @@ function hasSight(from, to) {
   ray.set(from, d.normalize()); ray.far = len;
   return ray.intersectObjects(rayBlockers, false).length === 0;
 }
-function gunslingerFire(z, dmg = 9) {
+const GUNZ = {
+  revolver: { range: 30, cd: [1.5, 2.6], tell: .35, mag: 6, reload: 2.6, fire: z => gunslingerFire(z) },
+  shotgun:  { range: 16, cd: [3.6, 5.2], tell: .75, mag: 2, reload: 3.2, fire: z => { for (let k = 0; k < 7; k++) gunslingerFire(z, 8, .35 + z.pos.distanceTo(player.pos) * .09, k > 0); }, pre: () => SND.pump() }, // seven pellets: close up nearly all of them hit
+  crossbow: { range: 44, cd: [3, 4.2], tell: .8, mag: 1, reload: 1.6, fire: z => boltFire(z) },
+};
+function boltFire(z) { // a visible bolt: fast, but you can step out of its way
+  z.armR.updateMatrixWorld(true);
+  const from = z.armR.localToWorld(new V3(0, -1.05, .1)), to = new V3(player.pos.x, player.pos.y + 1.2, player.pos.z), dir = to.sub(from).normalize();
+  ray.set(from, dir); ray.far = 60; const wall = ray.intersectObjects(rayBlockers, false)[0], v = dir.clone().multiplyScalar(30);
+  const m = new THREE.Mesh(unitBox, new THREE.MeshBasicMaterial({ color: 0xd8c49a })); m.scale.set(.03, .03, .7); m.position.copy(from); m.lookAt(from.clone().add(dir)); scene.add(m);
+  zProjs.push({ bolt: true, m, v, life: (wall ? wall.distance : 60) / 30, dmg: 26 * zDmgMul(), tgt: zTarget && zTarget.remote ? zTarget : null });
+  tn(700, .05, clamp(.35 - z.pos.distanceTo(player.pos) / 120, .05, .35), 'triangle', 200); z.gunKick = .4;
+}
+function flameTick(z, dt, dist) { // the burner: short bursts, a cone of fire; standing in it hurts every quarter second
+  z.fCyc = (z.fCyc || 0) + dt; const on = z.fCyc % 4 < 2.4 && dist < 7.5;
+  if (!on) return;
+  z.armR.updateMatrixWorld(true);
+  const from = z.armR.localToWorld(new V3(0, -1.2, .05)), dir = new V3(player.pos.x - from.x, player.pos.y + 1 - from.y, player.pos.z - from.z).normalize();
+  for (let k = 0; k < 3; k++) burst(from.clone().addScaledVector(dir, rand(.5, 6.5)).add(new V3(rand(-.5, .5), rand(-.3, .4), rand(-.5, .5))), pick([0xff7a20, 0xffb040, 0xff4a10]), 1, 1.2, .35);
+  if ((z.fTick = (z.fTick || 0) - dt) <= 0) { z.fTick = .25; if (dist < 7.2 && hasSight(from, new V3(player.pos.x, player.pos.y + 1.2, player.pos.z)) && liveWorld()) hurtPlayer(6 * zDmgMul()); if (Math.random() < .3) SND.zshot(clamp(.25 - dist / 60, .05, .25)); }
+}
+function gunslingerFire(z, dmg = 9, spread = 1.2, quiet = false) {
   z.armR.updateMatrixWorld(true);
   const from = z.armR.localToWorld(new V3(0, -.95, 0));
   // aims roughly at you, misses a lot
-  const aim = new V3(player.pos.x + rand(-1.2, 1.2), player.pos.y + rand(.2, 2.2), player.pos.z + rand(-1.2, 1.2));
+  const aim = new V3(player.pos.x + rand(-spread, spread), player.pos.y + 1.1 + rand(-spread, spread) * .75, player.pos.z + rand(-spread, spread));
   const dir = aim.sub(from).normalize();
   ray.set(from, dir); ray.far = 60;
   const wall = ray.intersectObjects(rayBlockers, false)[0];
@@ -322,9 +356,9 @@ function gunslingerFire(z, dmg = 9) {
   burst(from, 0xffc070, 4, 1.5, .2);
   if (!hit && wall) burst(end, 0xffc070, 4, 2, .3);
   const dist = z.pos.distanceTo(player.pos);
-  SND.zshot(clamp(.7 - dist / 45, .12, .7));
+  if (!quiet) SND.zshot(clamp(.7 - dist / 45, .12, .7));
   if (hit) { if (liveWorld()) hurtPlayer(dmg * zDmgMul()); }
-  else if (t > 0 && miss < 2.5) SND.whiz();
+  else if (t > 0 && miss < 2.5 && !quiet) SND.whiz();
   z.gunKick = .5;
 }
 const zProjs = [], puddles = [];
@@ -342,6 +376,13 @@ function spit(z) {
 function updateZProjs(dt) {
   for (let i = zProjs.length - 1; i >= 0; i--) {
     const p = zProjs[i], pos = p.m.position;
+    if (p.bolt) {
+      pos.addScaledVector(p.v, dt); p.life -= dt;
+      const tp = p.tgt ? p.tgt.pos : player.pos, hit = pos.distanceTo(new V3(tp.x, (tp.y || 0) + 1.1, tp.z)) < .8;
+      if (hit) { if (p.tgt) pushRoll(NET.dmgs, [++NET.seq, p.tgt.peer, Math.round(p.dmg), 'Számszeríjas'], 16); else if (liveWorld()) hurtPlayer(p.dmg); }
+      if (hit || p.life <= 0) { burst(pos, 0xd8c49a, 5, 2, .3); scene.remove(p.m); zProjs.splice(i, 1); }
+      continue;
+    }
     p.v.y -= 12 * dt; pos.addScaledVector(p.v, dt);
     if (Math.random() < dt * 20) burst(pos, 0x9dff3a, 1, .5, .3);
     const tp = p.tgt ? p.tgt.pos : player.pos, direct = !p.remote && pos.distanceTo(new V3(tp.x, (tp.y || 0) + 1, tp.z)) < .7;
@@ -487,17 +528,21 @@ function updateZombies(dt) {
       else {
         z.armR.rotation.x += (-1.5 - z.gunKick - z.armR.rotation.x) * Math.min(1, dt * 14);
         z.armR.rotation.z += (0 - z.armR.rotation.z) * Math.min(1, dt * 10);
+        if (K.gun === 'flame') flameTick(z, dt, dist);
+        else {
+        const G = GUNZ[K.gun === true ? 'revolver' : K.gun]; if (z.ammo > G.mag) z.ammo = G.mag;
         z.shootT -= dt;
         const eye = new V3(z.pos.x, 1.6, z.pos.z);
-        if (z.shootT < .35 && !z.told && dist < 30) { // aim tell: a glint and the hammer click just before the shot
+        if (z.shootT < G.tell && !z.told && dist < G.range) { // aim tell: a glint and a click (the shotgun racks) just before the shot
           z.told = true;
           burst(new V3(z.pos.x + Math.sin(z.heading) * .5, 1.55 * z.scale, z.pos.z + Math.cos(z.heading) * .5), 0xfff0a0, 4, .3, .25);
-          tn(1500, .03, clamp(.25 - dist / 150, .04, .25), 'square');
+          if (G.pre) G.pre(); else tn(1500, .03, clamp(.25 - dist / 150, .04, .25), 'square');
         }
-        if (z.shootT <= 0 && dist < 30) {
-          z.shootT = rand(1.5, 2.6); z.told = false;
-          if (hasSight(eye, new V3(player.pos.x, player.pos.y + 1.4, player.pos.z))) gunslingerFire(z);
-          if (--z.ammo <= 0) { z.ammo = 6; z.gunReload = 2.6; z.armR.rotation.z = 0; }
+        if (z.shootT <= 0 && dist < G.range) {
+          z.shootT = rand(G.cd[0], G.cd[1]); z.told = false;
+          if (hasSight(eye, new V3(player.pos.x, player.pos.y + 1.4, player.pos.z))) G.fire(z);
+          if (--z.ammo <= 0) { z.ammo = G.mag; z.gunReload = G.reload; z.armR.rotation.z = 0; }
+        }
         }
       }
     } else if (K.scream) {

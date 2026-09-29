@@ -46,7 +46,7 @@ function updateVitals(dt) {
 // ================= STATION MODAL =================
 let stationKind = null;
 function openStation(kind) {
-  stationKind = kind; state = 'station'; mouseDown = rmb = false;
+  stationKind = kind; state = 'station'; mouseDown = rmb = false; stSel = null;
   if (document.pointerLockElement) document.exitPointerLock();
   renderStation(); $('station').hidden = false; $('hud').hidden = true;
 }
@@ -70,6 +70,59 @@ const FORGE = { // points in a job: dear, and each upgrade only once per gun per
 const forgedOn = (w, k) => !!(mission && mission.forged && mission.forged.get(w) && mission.forged.get(w).has(k));
 function markForged(w, k) { mission.forged = mission.forged || new WeakMap(); if (!mission.forged.get(w)) mission.forged.set(w, new Set()); mission.forged.get(w).add(k); }
 const VEND = { med: 350, gren: 300, knife: 250, adren: 450 };
+// ---------- the field smith: everything the base's smith does, for points, on what you carry ----------
+let stSel = null;
+const fpts = (c, x) => Math.max(50, Math.round(((c.parts || 0) * 80 + (c.fab || 0) * 90 + (c.cash || 0) * .5) * forgeMul(x) / 50) * 50); // parts, fabric and cash, turned into points
+const forgeMul = x => x ? (1 + .45 * Math.min(5, x.unique ? 5 : x.q || 0)) * (1 + (x.level || 1) / 12) : 1; // the better and higher the piece, the dearer the field smith
+const FOC = { first: 4000, re: 1600 };
+function forgeItem() { // [slot, index, item] of the picked piece: a gun in hand or bag, or worn armour
+  const P = player, G0 = profile.gear; let [sl, si] = (stSel || `L:${P.cur}`).split(':');
+  const get = () => sl === 'L' ? P.slots[+si] : sl === 'B' ? P.bag[+si] : sl === 'W' ? G0[si] : null;
+  if (!get()) { sl = 'L'; si = String(P.slots[P.cur] ? P.cur : P.slots.findIndex(Boolean)); }
+  stSel = `${sl}:${si}`; return [sl, si, get()];
+}
+function fieldForge() {
+  const P = player, pts = P.points, G0 = profile.gear, [sl, si, x] = forgeItem(), w = sl !== 'W' ? x : null, it = sl === 'W' ? x : null;
+  const card = (t, sm, b, cls = '') => `<section class="fcard${cls ? ' ' + cls : ''}"><h4>${t}${sm ? `<small>${sm}</small>` : ''}</h4>${b}</section>`;
+  const btn = (label, act, c, off) => `<button class="sbtn" data-act="${act}"${off || pts < c ? ' disabled' : ''}>${label} · ${c} pont</button>`;
+  const opt = (rows, key, cost) => rows.map(([k, n, pr]) => `<div class="optrow"><span>${n}</span>${rbarP(pr)}<b>${Math.round(pr * 100)}%</b>${pr >= .999 ? '<button class="sbtn" disabled>Tökéletes</button>' : btn('+10%', `${key}:${k}`, cost(pr))}</div>`).join('');
+  let bench = '<p class="note">Válassz egy fegyvert vagy páncélt.</p>';
+  if (w) {
+    const rows = OPT_STATS.map(([k, n]) => [k, n, rollOf(w, k)]).filter(r => r[2] != null), ex = w.exp || 0;
+    bench = `<div class="fgrid">${card('Optimalizálás', '', opt(rows, 'fopt', pr => fpts(optCost(w, pr), w)))}
+      <div class="fcol">${card('Kalibrálás', '', btn('Új dobás', 'frecal', fpts({ parts: HFORGE.recal(w) }, w)))}
+        ${w.q >= 2 ? card('Felkenés', '', w.anoPend ? `<div class="anopend"><small>Új felkenés dobva</small><b>${anoName(w.anoPend)}: ${ANOINTS[w.anoPend]}</b><span>Most: ${w.anoint ? `${anoName(w.anoint)}: ${ANOINTS[w.anoint]}` : 'nincs'}</span><button class="sbtn" data-act="fano:acc">Elfogadom</button><button class="sbtn" data-act="fano:rej">Elutasítom</button></div>`
+          : `<p class="amb">${w.anoint ? `${anoName(w.anoint)}: ${ANOINTS[w.anoint]}` : 'Nincs felkenése.'}</p>${btn('Újradobás', 'fano:roll', fpts({ parts: HFORGE.anoint(w) }, w))}`) : ''}
+        ${card('Szakértelem', `${ex}/10 · most +${2 * ex}% sebzés`, `<div class="fexp">${expPips(ex)}</div>${ex >= 10 ? '<button class="sbtn" disabled>Szakértelem: max</button>' : btn(`Szakértelem ${ex + 1}/10`, 'fexp', fpts({ parts: expCost(w) }, w))}`)}
+        ${card('Elem beégetése', w.element ? ELEMENTS[w.element].name : 'munkánként egyszer', w.element ? '<button class="sbtn" disabled>Van eleme</button>' : btn('Véletlen elem', 'forge:elem', Math.round(FORGE.elem() * forgeMul(w) / 50) * 50, forgedOn(w, 'elem')))}</div>
+      ${card('Túlhajtás', '', `<div class="ocrow">${Object.entries(OVERCLOCKS).filter(([k]) => ocFits(w, k)).map(([k, O]) => `<span class="chip${w.oc === k ? ' on' : ''}" data-tip="${O.desc}">${O.name}</span>`).join('')}</div>${btn(w.oc ? 'Újradobás' : 'Beszerelés', 'foc', Math.round((w.oc ? FOC.re : FOC.first) * forgeMul(w) / 50) * 50)}`, 'wide')}</div>`;
+  } else if (it) {
+    const ex = it.exp || 0;
+    bench = `<div class="fgrid">${card('Optimalizálás', '', opt(gRolls(it), 'fgopt', pr => fpts(gOptCost(it, pr), it)))}
+      <div class="fcol">${card('Szakértelem', `${ex}/10 · most +${3 * ex}% minden értékre`, `<div class="fexp">${expPips(ex)}</div>${ex >= 10 ? '<button class="sbtn" disabled>Szakértelem: max</button>' : btn(`Szakértelem ${ex + 1}/10`, 'fgexp', fpts({ parts: expCost(it) }, it))}`)}</div></div>`;
+  }
+  const left = `<h3>Kézben</h3><div class="tiles">${P.slots.map((q, k) => q ? wTile(`L:${k}`, q, { n: `${k + 1}` }) : '').join('')}</div>
+    ${P.bag.length ? `<h3>Táska</h3><div class="tiles">${P.bag.map((q, k) => wTile(`B:${k}`, q, { sub: q.base.name })).join('')}</div>` : ''}
+    <h3>Viselt páncél</h3><div class="tiles">${GEAR_KEYS.map(k => G0[k] ? gTile(`W:${k}`, G0[k]) : '').join('') || emptyTile('Nincs rajtad páncél', '')}</div>`;
+  const sel = `<style>#stationBody .tile[data-act="sel:${stSel}"]{outline:2px solid var(--amb)}</style>`;
+  return sel + invLayout(left, w ? weaponDetail(w, null, '') : it ? gearDetail(it, null, '') : noDetail(''), bench);
+}
+function forgeAct(kind, key, pay) { // true: handled (and re-rendered, or a dialog opened)
+  const [sl, , x] = forgeItem(), w = sl !== 'W' ? x : null, it = sl === 'W' ? x : null; if (!x) return false;
+  const done = () => { if (w) { trackBest(w); if (w === curW()) equipView(); renderSlots(); } else { const hpF = player.hp / maxHp(); gearChanged(); player.hp = Math.max(1, maxHp() * hpF); } SND.explode(); renderStation(); return true; };
+  if (kind === 'fopt' && w) { const pr = rollOf(w, key); if (pr != null && pr < .999 && player.points >= fpts(optCost(w, pr), w) && optimize(w, key)) { pay(fpts(optCost(w, pr), w)); return done(); } }
+  if (kind === 'frecal' && w && pay(fpts({ parts: HFORGE.recal(w) }, w))) { showRecal(w, null, 0, c => { if (c) { Object.assign(w, c); done(); } else renderStation(); }); return true; } // the same old/new table as at the base
+  if (kind === 'fano' && w && w.q >= 2) {
+    if (key === 'roll' && !w.anoPend && pay(fpts({ parts: HFORGE.anoint(w) }, w))) { w.anoPend = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); w.anoN = (w.anoN || 0) + 1; return done(); }
+    if ((key === 'acc' || key === 'rej') && w.anoPend) { if (key === 'acc') w.anoint = w.anoPend; delete w.anoPend; return done(); }
+  }
+  if (kind === 'fexp' && w && (w.exp || 0) < 10 && pay(fpts({ parts: expCost(w) }, w))) { w.exp = (w.exp || 0) + 1; return done(); }
+  if (kind === 'foc' && w) { const k = pick(Object.keys(OVERCLOCKS).filter(o => ocFits(w, o) && o !== w.oc)); if (k && pay(Math.round((w.oc ? FOC.re : FOC.first) * forgeMul(w) / 50) * 50)) { setOverclock(w, k); return done(); } }
+  if (kind === 'fgopt' && it) { const r = gRolls(it).find(q => q[0] === key); if (r && r[2] < .999 && player.points >= fpts(gOptCost(it, r[2]), it) && gOptimize(it, key)) { pay(fpts(gOptCost(it, r[2]), it)); return done(); } }
+  if (kind === 'fgexp' && it && (it.exp || 0) < 10 && pay(fpts({ parts: expCost(it) }, it))) { it.exp = (it.exp || 0) + 1; return done(); }
+  if (kind === 'forge' && key === 'elem' && w && !w.element && !forgedOn(w, 'elem') && pay(Math.round(FORGE.elem() * forgeMul(w) / 50) * 50)) { w.element = pick(Object.keys(ELEMENTS)); markForged(w, 'elem'); return done(); }
+  return false;
+}
 function renderStation() {
   const P = player, pts = P.points;
   let title, lede, body;
@@ -81,12 +134,7 @@ function renderStation() {
         maxed ? 'MAX' : `${upCost(k)} pont`, `up:${k}`, maxed || pts < upCost(k), maxed ? 'Kész' : 'Fejlesztés');
     }).join('');
   } else if (stationKind === 'forge') {
-    const w = curW();
-    title = 'Kovácsműhely'; lede = `A kézben lévő fegyveren dolgozik: <b style="color:${rarColor(w)}">${w.name}</b> · Lv ${w.level} · ${RARITIES[w.q].name}`;
-    body =
-      (w.element ? srow('Elem beégetése', `Már van eleme: ${ELEMENTS[w.element].name}.`, '—', 'none', true, 'Kész')
-        : srow('Elem beégetése', 'Véletlen elem: tűz, villám, fagy, maró, salak vagy életszívó. Munkánként egyszer.', `${FORGE.elem()} pont`, 'forge:elem', forgedOn(w, 'elem') || pts < FORGE.elem(), 'Kovácsolás')) +
-      `<div class="wcard" style="--rc:${rarColor(w)};margin-top:18px;max-width:320px">${cardHTML(w, '', null)}</div>`;
+    title = 'Kovácsműhely'; lede = ''; body = fieldForge();
   } else if (stationKind === 'desk') {
     const S = mission.range, chip = (act, on, txt) => `<button class="chip${on ? ' on' : ''}" data-act="${act}">${txt}</button>`;
     title = 'Lőtér-vezérlő'; lede = `Állítsd be a célbábukat: öt sáv, 10, 20, 30, 40 és 55 méteren. Pont annyi életerejük van, mint egy munkán a ${jobLvl()}. szinten, a ${S.wave}. hullámban. Minden változtatás után újra felállnak.`;
@@ -103,16 +151,18 @@ function renderStation() {
     }).join('') + (maxShield() ? srow('Pajzs feltöltése', `Most: ${Math.round(P.shield)}/${maxShield()}`, '200 pont', 'vend:shield', P.shield >= maxShield() || pts < 200, 'Feltöltés') : '');
   }
   $('stationBody').innerHTML = `<div class="shop-top"><div><div class="eyebrow">Állomás</div><div class="title st-title">${title}</div><p class="lede">${lede}</p></div>
-    ${stationKind === 'desk' ? '' : `<div class="purse"><small>Pontjaid</small><strong>${pts}</strong></div>`}</div><div class="slist">${body}</div>`;
+    ${stationKind === 'desk' ? '' : `<div class="purse"><small>Pontjaid</small><strong>${pts}</strong></div>`}</div>${stationKind === 'forge' ? body : `<div class="slist">${body}</div>`}`;
+  $('station').classList.toggle('wide', stationKind === 'forge');
 }
 $('stationBody').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const [kind, key, val] = b.dataset.act.split(':'), P = player, w = curW();
   if (kind === 'desk') { const S = mission.range; if (key === 'rank') S.rank = +val; if (key === 'wave') S.wave = clamp(+val || 1, 1, 60); if (key === 'kind' && KINDS[val]) S.kind = val; if (key === 'trait') S.trait = val || null; resetDummies(mission); SND.buy(); return renderStation(); }
   const pay = c => { if (P.points < c) return false; P.points -= c; return true; };
+  if (stationKind === 'forge') { if (kind === 'sel') { stSel = b.dataset.act.slice(4); return renderStation(); } if (!forgeAct(kind, key, pay)) SND.deny(); return; }
   if (kind === 'up') { if (U(key) < UPGRADES[key].max && pay(upCost(key))) { P.up[key] = U(key) + 1; if (key === 'maxHp') P.hp += 20; if (key === 'shield') P.shield += 25; } }
   else if (kind === 'forge') {
-    if (key === 'elem' && !w.element && !forgedOn(w, 'elem') && pay(FORGE.elem())) { w.element = pick(Object.keys(ELEMENTS)); markForged(w, 'elem'); }
+    if (key === 'elem' && !w.element && !forgedOn(w, 'elem') && pay(Math.round(FORGE.elem() * forgeMul(w) / 50) * 50)) { w.element = pick(Object.keys(ELEMENTS)); markForged(w, 'elem'); }
     trackBest(w); equipView(); renderSlots(); SND.explode();
   } else if (kind === 'vend') {
     if (key === 'shield') { if (pay(200)) P.shield = maxShield(); }

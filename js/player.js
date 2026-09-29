@@ -332,7 +332,7 @@ function knife() {
   });
 }
 function updateWeapon(dt) {
-  const w = curW(); if (!w || player.down) return;
+  const w = curW(); if (!w || player.down || (mission && mission.leaving)) return; // riding out in the van: hands off the gun
   player.fireCd -= dt; player.switchT = Math.max(0, player.switchT - dt); player.knifeCd -= dt; player.knifeT = Math.max(0, player.knifeT - dt);
   player.bloom = Math.max(0, player.bloom - dt * w.spread * 2.5);
   clickQueued -= dt;
@@ -471,7 +471,7 @@ function updateVM(dt) {
   if (vm.flashT > 0) { vm.flashT -= dt; if (vm.flashT <= 0) vm.flash.visible = false; }
   muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 60);
   const scoped = w.base.scopeView && ads > .85;
-  vmRoot.visible = !scoped; $('scope').hidden = !scoped;
+  vmRoot.visible = !scoped && !(mission && mission.leaving); $('scope').hidden = !scoped;
 }
 
 // ================= FIGHT FOR YOUR LIFE (Borderlands) =================
