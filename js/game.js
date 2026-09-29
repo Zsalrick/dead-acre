@@ -470,7 +470,8 @@ function toggleFS() {
   const el = document.documentElement; if (!el.requestFullscreen) return;
   el.requestFullscreen().then(() => { if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(() => {}); }).catch(() => {});
 }
-document.addEventListener('fullscreenchange', () => { const b = $('fsBtn'); if (b) b.textContent = document.fullscreenElement ? 'Kilépés a teljes képernyőből' : 'Teljes képernyő'; });
+document.addEventListener('fullscreenchange', () => document.querySelectorAll('.fslbl').forEach(s => { const hub = !!s.closest('.hsys'); s.textContent = document.fullscreenElement ? (hub ? 'KILÉPÉS' : 'Kilépés a teljes képernyőből') : (hub ? 'TELJES KÉPERNYŐ' : 'Teljes képernyő'); }));
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-fs]')) toggleFS(); });
 let pinvTab = 'inv';
 const syncGearBag = () => { if (mission) profile.gearBag = mission.gear.filter(it => !it.found); }; // a save mid-job keeps the armour bag right
 function pinvPage(t) { pinvTab = t; invSel = ''; document.querySelectorAll('.pinvtabs button').forEach(x => x.classList.toggle('on', x.dataset.pm === 'tab-' + t)); renderPauseInv(); } // the in-game inventory's pages: the kit, or your character in what you wear
@@ -560,6 +561,7 @@ addEventListener('keydown', e => {
   if (document.activeElement === $('chatIn')) return; // typing in the chat
   if (!$('settings').hidden) { if (!bindKey(e) && e.code === 'Escape') closeSettings(); return; }
   const c = keyCode(e.code) || ''; if (c) keys[c] = true;
+  if (e.code === 'KeyY' && !e.repeat && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { toggleFS(); return; } // Y: fullscreen, anywhere
   if (state === 'hub' && (e.code === 'KeyQ' || e.code === 'KeyE') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { hubCycle(e.code === 'KeyE' ? 1 : -1); return; }
   if (state === 'hub' && invKey(e, $('hubBody'))) return;
   if (state === 'hub' && e.code === 'Enter' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { const b = document.querySelector(hubTab === 'jobs' ? '#hubBody .jc-foot .sbtn' : hubTab === 'skills' ? '#hubBody .ksfoot .sbtn' : null); if (b) { if (!b.disabled) b.click(); else SND.deny(); return; } }
