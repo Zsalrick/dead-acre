@@ -87,6 +87,13 @@ function makeBounty() {
   return { map, diff, dur: 0, mod: null, boss: false, bounty: key, title: `Fejvadászat: ${B.name}`, client: 'Megyei seriff',
     reward: Math.round((700 + 300 * diff + lvl * 60) * 1.6 / 10) * 10, xp: Math.round(jobXp(diff, 300) * 1.1 / 10) * 10, lvl: Math.min(LEVEL_CAP, lvl) }; // ×1.6: a bounty out-pays a regular job
 }
+// what is new, and where: weapons by kind, armor by slot, unspent merit tokens
+function newCounts() {
+  const P = profile, wc = {}, gs = {}; let w = 0, g = 0;
+  for (const o of [...(P.stash || []), ...(P.bag || [])]) if (o && o.isNew) { w++; const c = CAT[typeof o.base === 'string' ? o.base : o.base && o.base.id]; if (c) wc[c] = (wc[c] || 0) + 1; }
+  for (const it of P.gearStash || []) if (it && it.isNew) { g++; gs[it.slot] = (gs[it.slot] || 0) + 1; }
+  return { w, g, wc, gs, tok: P.cls && P.tokens > 0 ? P.tokens : 0 };
+}
 function rollShop() {
   const lvl = profile.level;
   const more = 2 * Math.floor(Math.min(30, lvl) / 10); // +2 guns and +2 armor pieces at levels 10, 20 and 30
@@ -171,12 +178,12 @@ function renderHub() {
   $('hubCash').textContent = `$${P.cash}`; $('hubParts').innerHTML = `<span data-tip="Alkatrész: fegyverek szétszedéséből. A kovácsnál költheted."><i>⚙</i>${P.parts || 0}</span><span data-tip="Anyag: páncél szétszedéséből. A páncél optimalizálására."><i>${FAB}</i>${P.fabric || 0}</span><span data-tip="Túlhajtás-mag: fejvadász első legyőzése, heti kontrakt, Mélyfúrás. Túlhajtás beszereléséhez."><i>◆</i>${P.oc || 0}</span>`;
   rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
-  { const nw = [...P.stash, ...P.bag].filter(o => o && o.isNew).length + P.gearStash.filter(it => it && it.isNew).length; document.querySelector('[data-hub="arsenal"]').dataset.badge = nw || ''; }
+  { const N = newCounts(); document.querySelector('[data-hub="arsenal"]').dataset.badge = N.w + N.g || ''; document.querySelector('[data-hub="skills"]').dataset.badge = N.tok || ''; }
   document.querySelector('[data-hub="shop"]').dataset.badge = P.lost ? P.lost.w.length + P.lost.g.length : ''; // something to buy back
   $('hubTokens').textContent = P.tokens || 0;
   $('hubCls').textContent = P.cls ? CLASSES[P.cls].name : 'nincs kaszt'; $('hubCls').style.setProperty('--cc', P.cls ? CLASSES[P.cls].color : '');
   document.querySelectorAll('.mbtn[data-hub]').forEach(b => b.classList.toggle('on', !!(b.dataset.hub === hubTab || (b.dataset.group && HUB_GROUPS[b.dataset.group].some(([k]) => k === hubTab)))));
-  const grp = Object.values(HUB_GROUPS).find(g => g.some(([k]) => k === hubTab)); $('hubSub').hidden = !grp; $('hubSub').innerHTML = grp ? grp.map(([k, t]) => `<button class="sbtab${k === hubTab ? ' on' : ''}" data-sub="${k}">${t}</button>`).join('') : '';
+  const grp = Object.values(HUB_GROUPS).find(g => g.some(([k]) => k === hubTab)); $('hubSub').hidden = !grp; $('hubSub').innerHTML = grp ? grp.map(([k, t]) => `<button class="sbtab${k === hubTab ? ' on' : ''}" data-sub="${k}" data-badge="${({ arsenal: 'w', gear: 'g', skills: 'tok' })[k] ? newCounts()[({ arsenal: 'w', gear: 'g', skills: 'tok' })[k]] || '' : ''}">${t}</button>`).join('') : ''; // which sub-page has something new
   if (P.abandonNote) { const n = P.abandonNote; delete P.abandonNote; saveProfile();
     if (n === 'lost') toast('A MUNKÁT FÉLBEHAGYTAD', ['Kiléptél munka közben: a kézben és a táskában lévő fegyvereid és a páncélod elveszett.', 'Bolt → Elveszett bolt: drágán visszavásárolhatod őket.'], '#ff5a4a', 9000);
     else { toast('KIESTÉL A CSAPATBÓL', ['A hátizsákod tartalma a csapatnál maradt, a pályán.', P.rejoin ? 'Visszacsatlakozhatsz: Csapat fül.' : ''], '#ff8a70', 9000); if (P.rejoin) hubTab = 'party'; } }
@@ -361,7 +368,7 @@ const HUB = {
     const left = `<h3>Kézben <small>${lists.L.filter(Boolean).length} / 2</small></h3><div class="tiles" data-drop="L">${hands}</div>
       <h3>Táska <small>${lists.B.length} / ${bagMax()} · a munkára is jön</small></h3><div class="tiles" data-drop="B">${lists.B.map((x, k) => wTile(`B:${k}`, x, { cmp: c0, sub: x.base.name })).join('')}${Array.from({ length: Math.min(2, bagFree) }, () => emptyTile('Üres hely', 'Húzz ide egy fegyvert', null, 'B')).join('')}</div>`;
     const junk = `<span class="junk"><b>Auto-szétszedés</b>${['Ki', 'Közönséges', 'Nem mindennapi', 'Ritka'].map((t, q) => `<button class="chip${(P.junkQ == null ? -1 : P.junkQ) === q - 1 ? ' on' : ''}" data-act="junk:${q - 1}" data-tip="${q ? `Kijutáskor a talált ${t.toLowerCase()} és gyengébb fegyvereket magától alkatrészre szedi.` : 'Nincs automatikus szétszedés.'}">${t}${q ? '-ig' : ''}</button>`).join('')}</span>`;
-    const mid = `<div class="itools"><button class="chip${wFilter === 'all' ? ' on' : ''}" data-act="wfilt:all">Mind</button>${Object.keys(CAT_NAMES).filter(k => cats.includes(k)).map(k => `<button class="chip${wFilter === k ? ' on' : ''}" data-act="wfilt:${k}">${CAT_NAMES[k][0].toUpperCase() + CAT_NAMES[k].slice(1)}</button>`).join('')}<span class="sp"></span>${trashBar('w')}</div>
+    const mid = `<div class="itools"><button class="chip${wFilter === 'all' ? ' on' : ''}" data-act="wfilt:all">Mind</button>${Object.keys(CAT_NAMES).filter(k => cats.includes(k)).map(k => `<button class="chip${wFilter === k ? ' on' : ''}" data-act="wfilt:${k}" data-badge="${newCounts().wc[k] || ''}">${CAT_NAMES[k][0].toUpperCase() + CAT_NAMES[k].slice(1)}</button>`).join('')}<span class="sp"></span>${trashBar('w')}</div>
       <h3>Raktár <small>${lists.S.length} / ${stashMax()} · a bázison marad</small></h3><div class="tiles" data-drop="S">${lists.S.map((x, k) => fit(x) ? wTile(`S:${k}`, x, { cmp: c0 }) : '').join('') || emptyTile('Üres', wFilter === 'all' ? 'A vett és talált fegyverek ide kerülnek' : 'Ebből a fajtából nincs a raktárban')}</div>
       <h3>Karakterek közti láda <small>${SH.w.length} / ${SHARED_MAX} · a többi mentésed is eléri</small></h3><div class="tiles shared" data-drop="K">${lists.K.map((x, k) => fit(x) ? wTile(`K:${k}`, x, { cmp: c0 }) : '').join('') || emptyTile('Üres', 'Tegyél ide fegyvert, és a másik mentésed is eléri')}</div>
       ${buildsRow(junk)}`;
@@ -378,7 +385,7 @@ const HUB = {
     const fit = x => gFilter === 'all' || x.slot === gFilter;
     const sorted = st.map((x, k) => [x, k]).filter(([x]) => fit(x)).sort((a, b) => GEAR_KEYS.indexOf(a[0].slot) - GEAR_KEYS.indexOf(b[0].slot) || b[0].q - a[0].q);
     const left = `<h3>Viselt <small>${GEAR_KEYS.filter(k => P.gear[k]).length} / ${GEAR_KEYS.length}</small></h3><div class="tiles worn" data-drop="W">${worn}</div>`;
-    const mid = `<div class="itools"><button class="chip${gFilter === 'all' ? ' on' : ''}" data-act="gfilt:all">Mind</button>${GEAR_KEYS.map(k => `<button class="chip${gFilter === k ? ' on' : ''}" data-act="gfilt:${k}">${GEAR_SLOTS[k]}</button>`).join('')}<span class="sp"></span>${trashBar('g')}</div>
+    const mid = `<div class="itools"><button class="chip${gFilter === 'all' ? ' on' : ''}" data-act="gfilt:all">Mind</button>${GEAR_KEYS.map(k => `<button class="chip${gFilter === k ? ' on' : ''}" data-act="gfilt:${k}" data-badge="${newCounts().gs[k] || ''}">${GEAR_SLOTS[k]}</button>`).join('')}<span class="sp"></span>${trashBar('g')}</div>
       <h3>Páncélraktár <small>${st.length} / ${gearMax()}</small></h3><div class="tiles" data-drop="G">${sorted.map(([x, k]) => gTile(`G:${k}`, x, { cmp: P.gear[x.slot] || null })).join('') || emptyTile('Üres', 'A munkán talált páncél ide kerül')}</div>
       <h3>Karakterek közti láda <small>${SH.g.length} / ${SHARED_MAX}</small></h3><div class="tiles shared" data-drop="H">${SH.g.map((x, k) => fit(x) ? gTile(`H:${k}`, x, { cmp: P.gear[x.slot] || null }) : '').join('') || emptyTile('Üres', 'Tegyél ide páncélt a többi karakterednek')}</div>
       ${buildsRow()}`;
