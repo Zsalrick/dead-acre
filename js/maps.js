@@ -263,7 +263,7 @@ const MAPS = {
     clear: [[40, 24, 11], [-38, 24, 10], [0, 16, 6.5], [-12, 32, 5], [56, 2, 3], [18, 2, 3.5]],
     props: [['crate', 3], ['stack', 1.5], ['hay', 3], ['barrel', 2], ['boom', 1.2], ['car', .8], ['logs', 1]], propN: [18, 24],
     power: { turret: [0, 16], gens: [[-62, -12], [16, -58], [62, -30], [-62, 2]], boxes: [[-50, 38], [34, 38], [60, 36], [-30, 2], [10, 2], [-40, -52], [0, -20], [50, -16], [-56, -30], [34, -54]] },
-    quest: { radio: [40, 17.6], parts: [[-56, -44], [-36, -36], [-14, -30], [14, -48], [34, -30], [58, -52], [-60, 40], [60, 40]] },
+    quest: { radio: [40, 17.6], parts: [[-56, -44], [-36, -36], [-14, -30], [2, -47], [34, -30], [58, -52], [-60, 40], [60, 40]] },
     build() {
       // the yard: farmhouse (the radio is on its porch), machine shed with a tractor, hay, the gun emplacement in the middle
       house(40, 24, 16, 10, 6, matStd({ color: 0xcfc6b0 }), 0x3a2420, 'n');
@@ -313,8 +313,8 @@ const MAPS = {
     lamps: [[-6, 20], [6, 20], [-24, 12], [24, 12], [-16, 33], [16, 33]],
     clear: [[0, 5, 12], [0, 24, 6], [16, 26, 4], [34, -4, 4], [-14, 20, 3]],
     props: [['crate', 1], ['barrel', 1], ['stack', 1], ['logs', 1]], propN: [6, 9],
-    power: { turret: [0, 24], gens: [[-42, -52], [42, -14], [-18, 66], [-44, 2]], boxes: [[-30, 34], [30, 34], [-42, -8], [42, 30], [-10, -8], [20, -40], [-24, -30], [10, 64], [-8, 44], [40, -52]] },
-    quest: { radio: [3.6, -2.4], drop: [-2, 2], parts: [[-40, -18], [-24, -52], [-10, -40], [12, -48], [40, -30], [-18, 52], [16, 68], [-42, 30]],
+    power: { turret: [0, 24], gens: [[-42, -52], [42, -14], [-18, 66], [-44, 2]], boxes: [[-30, 34], [30, 34], [-42, -8], [42, 30], [-10, -8], [20, -40], [-20, -26], [10, 64], [-4, 48], [40, -52]] },
+    quest: { radio: [3.6, -2.4], drop: [-2, 2], parts: [[-40, -18], [-21, -50], [-6, -40], [12, -48], [40, -30], [-18, 52], [16, 68], [-42, 30]],
       txt: { names: ['HARANGKÖTÉL', 'HARANGNYELV', 'CSAPSZEG'], part: 'harangalkatrész', broken: 'Néma harang', use: 'Harang megkongatása', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Kongasd meg a harangot a templomban, a torony alatt.'],
         call: ['A HARANG SZÓL…', 'Az egész környék felébredt. Egy különleges csapat tart feléd!'], done: 'A HARANG ELHALLGATOTT', where: 'a templomban' } },
     build() {
@@ -400,7 +400,7 @@ const MAPS = {
     lamps: [[-16, 13], [16, 13], [-40, 20], [40, 21], [-36, -8], [34, -9]],
     clear: [[0, 4, 12], [-28, 2, 10], [0, 17, 6], [26, 14, 9], [24, 24, 3], [0, 30, 5]],
     props: [['car', 2.5], ['barrel', 2], ['boom', 2.5], ['crate', 1.5], ['stack', 1]], propN: [12, 16],
-    power: { turret: [0, 17], gens: [[-46, -50], [46, -16], [18, 68], [-47, -2]], boxes: [[-34, 26], [34, 26], [-44, -10], [44, 12], [-6, -10], [20, -40], [-26, -36], [8, 64], [-16, 44], [40, -52]] },
+    power: { turret: [0, 17], gens: [[-46, -50], [46, -16], [18, 68], [-47, -2]], boxes: [[-34, 26], [34, 26], [-44, -10], [44, 12], [-6, -10], [20, -40], [-26, -36], [8, 64], [-16, 44], [40, -43]] },
     quest: { radio: [19, 11.6], drop: [-2, -1], parts: [[-40, -24], [-20, -52], [-8, -30], [12, -28], [44, -44], [-16, 66], [18, 46], [-46, 12]],
       txt: { names: ['AKKUMULÁTOR', 'INDÍTÓKULCS', 'ÉKSZÍJ'], part: 'kamionalkatrész', broken: 'Lerobbant kamion', use: 'Kamion beindítása (duda)', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Indítsd be a kamiont a töltőállomás mellett.'],
         call: ['A DUDA VÉGIGBŐGI A VIDÉKET…', 'Egy különleges csapat tart feléd. Öld meg mindet!'], done: 'A KAMION MOTORJA LEFULLADT', where: 'a kamion mellett' } },
@@ -479,7 +479,7 @@ const MAPS = {
     lamps: [[-6, 20], [6, 20], [-34, 30], [30, 26], [-40, 0], [40, 2]],
     clear: [[-18, 12, 12], [14, 2, 7], [34, 14, 7], [0, 24, 6], [-38, 28, 4], [-12, 31, 4], [24, 31, 4]],
     props: [['logs', 3], ['stack', 2], ['crate', 1.5], ['barrel', 1.5], ['boom', 1]], propN: [10, 14],
-    power: { turret: [0, 24], gens: [[-88, 20], [88, -4], [20, -48], [-46, -2]], boxes: [[-30, 36], [30, 36], [-46, 12], [46, 12], [-4, -6], [-70, -4], [70, 20], [-20, -30], [20, -20], [-86, 6]] },
+    power: { turret: [0, 24], gens: [[-88, 20], [88, -4], [20, -48], [-46, -2]], boxes: [[-38, 36], [30, 36], [-46, 12], [46, 12], [-4, -6], [-70, -4], [70, 20], [-20, -30], [20, -20], [-86, 6]] },
     quest: { radio: [12, 4], drop: [0, -2], parts: [[-80, 18], [-56, -7], [-20, -46], [22, -40], [60, 20], [86, 0], [-44, 14], [44, 34]],
       txt: { names: ['SZELEP', 'NYOMÁSMÉRŐ', 'SÍPFEJ'], part: 'gőzgépalkatrész', broken: 'Hideg gőzgép', use: 'Gőzsíp megfújása', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Fújd meg a gőzsípot a gépházban.'],
         call: ['A GŐZSÍP VÉGIGSIVÍT AZ ERDŐN…', 'Egy különleges csapat tart feléd. Öld meg mindet!'], done: 'A GŐZSÍP ELHALLGATOTT', where: 'a gépházban' } },
@@ -535,49 +535,79 @@ const MAPS = {
       east: { side: 'e', at: 8, name: 'A szárítóudvar', cost: 1250, core: { minX: 48, maxX: 92, minZ: -8, maxZ: 24 }, spawns: [[90, -6], [90, 22]], station: ['trap', 54, 14] },
     },
   },
-  town: {
-    name: 'Dead Acre főutca', desc: 'Elhagyott westernváros: széles főutca, két oldalt boltok, köztük sikátorok, mögöttük udvarok.', minLevel: 4,
-    main: { minX: -45, maxX: 45, minZ: -30, maxZ: 30 }, look: { tex: 'dirt', ground: 0xb8a07a, fog: 0x1a130d, fogD: [.018, .026], fence: 0xb09878 },
-    vans: [[-30, 5], [30, -5], [-42, -25], [40, 26]], ammo: [0, -4.5], boxSpots: [[8, 2], [-26, -24], [26, -24], [-26, 24], [6, 23]],
-    spawns: [[-43, -7], [-43, -14], [-42, 24], [-26, -28], [8, -28], [43, -24], [43, 6], [26, 28], [-25, 28]],
-    lamps: [[-26, -7], [-9, 7], [8, -7], [26, 7], [-33, -22], [36, -22]],
-    // alleys between the storefronts stay open, and so does the lot under the water tower
-    clear: [[0, 16, 6], [-20, 2, 3], [24, 3, 3], ...[-42, -26, -9, 8, 24.5, 41.5].flatMap(x => [-10, -13, -16].map(z => [x, z, 2.5])),
-      ...[-41.5, -25, 25.75, 41.75].flatMap(x => [10, 13, 16].map(z => [x, z, 2.5]))],
-    props: [['car', 1.5], ['barrel', 2], ['boom', 1.5], ['crate', 2], ['stack', 1.5], ['hay', 1.5]], propN: [22, 30],
+  town: { // core + three wings: Main Street with the saloon you walk into; the railway depot, the sheriff's jail and Boot Hill open it up
+    name: 'Dead Acre főutca', desc: 'Elhagyott westernváros: széles főutca, boltok, bejárható szalon. Palánkon túl nyitható: a vasútállomás, a seriffiroda és a Csizmadomb.', minLevel: 4,
+    noScale: true, innerFence: 'picket',
+    main: { minX: -56, maxX: 56, minZ: -14, maxZ: 26 }, look: { tex: 'dirt', ground: 0xb8a07a, fog: 0x1a130d, fogD: [.018, .026], fence: 0xb09878 },
+    vans: [[-50, 6], [50, 6]], ammo: [-26, 11], boxSpots: [[18, 12], [-14, 0], [36, 1], [-38, 12]],
+    spawns: [[-55, -10], [55, -10], [-55, 22], [55, 22]],
+    lamps: [[-20, -.5], [20, -.5], [-34, 12.5], [34, 12.5], [-8, 12.5], [8, -.5]],
+    clear: [[0, 6, 6], [0, -8, 7], [-8, 21, 4]],
+    props: [['barrel', 2], ['crate', 2], ['hay', 1.5], ['stack', 1], ['boom', 1]], propN: [8, 12],
+    power: { turret: [0, 6], gens: [[-52, -54], [52, -20], [-20, 62], [30.5, 22]], boxes: [[-40, 11], [40, 1], [-14, -1], [18, 12], [-30, -40], [-10, -52], [20, -24], [48, -40], [-16, 44], [16, 62]] },
+    quest: { radio: [4.5, -9.6], drop: [-2, 1.6], parts: [[-40, -20], [-18, -50], [12, -20], [50, -54], [-18, 56], [20, 40], [30.5, 18], [-54.5, 20]],
+      txt: { names: ['KOTTATEKERCS', 'RUGÓ', 'BILLENTYŰ'], part: 'zongoraalkatrész', broken: 'Néma pianola', use: 'Pianola beindítása', all: ['MEGVAN MIND A HÁROM ALKATRÉSZ', 'Indítsd be a pianolát a szalonban.'],
+        call: ['A PIANOLA RÁZENDÍT…', 'A zene az egész várost felverte. Egy különleges csapat tart feléd!'], done: 'A PIANOLA ELHALLGATOTT', where: 'a szalonban' } },
     build() {
-      const plank = c => matStd({ map: plankTex, color: c });
-      storefront(-34, -13, 10, 8, 5.5, plank(0x9a8a70), 'SZATÓCS', 1, 1);
-      storefront(-18, -13, 10, 8, 6, matStd({ map: stoneTex, color: 0xb0a898 }), 'BANK', 1, 4, '#e8d070');
-      storefront(0, -13, 10, 8, 7, plank(0x8a5a3a), 'SALOON', 1, 7, '#ff9a4a');
-      storefront(16, -13, 10, 8, 8, plank(0x6a7a7a), 'HOTEL', 1, 2);
-      storefront(33, -13, 10, 8, 5, plank(0xa09a88), 'BORBÉLY', 1, 0);
-      storefront(-33, 13, 10, 8, 5.5, plank(0x7a8a9a), 'POSTA', -1, 2);
-      storefront(-17, 13, 10, 8, 5, plank(0x8a9a78), 'PATIKA', -1, 5, '#9fe0a0');
-      storefront(17, 13, 10, 8, 6, barnMat, 'ISTÁLLÓ', -1, 0);
-      waterTower(0, 16);
-      // the church at the east end: white boards, a steeple and a cross
-      const white = plank(0xd8d4c8);
-      house(34, 15, 8, 11, 6.5, white, 0x2a2224, 'n');
-      addBox(34, 11.2, 3, 3, 11, white);
-      put(new THREE.Mesh(new THREE.ConeGeometry(2.4, 4, 4), roofMat)).position.set(34, 13, 11.2);
-      addBox(34, 11.2, .25, .25, 2, basic(0x3a3230), 15, false); addBox(34, 11.2, 1.2, .25, .25, basic(0x3a3230), 16.2, false);
-      put(new THREE.Mesh(new THREE.CircleGeometry(.8, 16), basic(0xffc070))).position.set(34, 8.5, 9.68);
-      wagon(-20, 2, false); wagon(24, 3, false);
-      // hitching rails and a trough along the boardwalks
+      const plank = c => matStd({ map: plankTex, color: c }), wood = matStd({ map: woodTex, color: 0x6a5038 }), dark = matStd({ color: 0x1a1612 }), stone = matStd({ map: stoneTex, color: 0x9a948a });
+      // Main Street: storefronts facing each other, alleys between them where the wings' gates are
+      [[-48, 'SZATÓCS', 0x9a8a70, 1], [-38, 'FEGYVERBOLT', 0x7a6a5a, 0], [-21, 'BANK', null, 4], [-11, 'PATIKA', 0x8a9a78, 5], [11, 'HOTEL', 0x6a7a7a, 2], [21, 'BORBÉLY', 0xa09a88, 0], [38, 'POSTA', 0x7a8a9a, 2], [48, 'TEMETKEZŐ', 0x5a5a5a, 0]]
+        .forEach(([x, n, c, lit]) => storefront(x, -8, 10, 8, 5 + (Math.abs(x) % 3), c == null ? stone : plank(c), n, 1, lit, n === 'BANK' ? '#e8d070' : '#e8c890'));
+      [[-46, 'ISTÁLLÓ', null, 0, 12], [-30, 'SZABÓ', 0x8a7a9a, 1, 10], [-18, 'NYOMDA', 0x9a8a6a, 0, 10], [11, 'ÁRUHÁZ', 0xa89a7a, 3, 12], [23, 'ÜGYVÉD', 0x6a7a6a, 1, 10], [38, 'JÁTÉKTEREM', 0x7a3a3a, 7, 10], [48, 'KOCSIS', 0x8a7a5a, 0, 8]]
+        .forEach(([x, n, c, lit, w]) => storefront(x, 20, w, 8, 5 + (Math.abs(x) % 2), c == null ? barnMat : plank(c), n, -1, lit, n === 'JÁTÉKTEREM' ? '#ff9a4a' : '#e8c890'));
+      waterTower(-8, 21);
+      // the saloon: swing doors off the boardwalk, the bar, tables, the pianola (the map's challenge)
+      const sal = plank(0x8a5a3a);
+      hollow(0, -8, 12, 8, 5.4, sal, { s: [[0, 2.4]] }, 0x2a2420);
+      addBox(0, -3.85, 12.4, .3, 2.8, sal, 5.4, false); addBox(0, -2.7, 12, 2.6, .16, boardMat, 0, false); addBox(0, -2.6, 12, 2.6, .14, roofMat, 3.1, false);
+      for (const s of [-1, 1]) addBox(s * 5.8, -1.5, .2, .2, 3.1, poleMat);
+      for (const s of [-1, 1]) addBox(s * .6, -3.95, 1.1, .06, 1.1, wood, 1, false); // the swing doors
+      for (const s of [-1, 1]) addBox(s * 3.6, -3.95, 1.8, .06, 1.2, glassLit, 1.4, false);
+      { const s = textSprite(['SALOON'], '#ff9a4a', 3.4), sm = new THREE.MeshBasicMaterial({ map: s.material.map, transparent: true, depthWrite: false }), sg = put(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sm));
+        sg.scale.set(s.scale.x, s.scale.y, 1); sg.position.set(0, 6.8, -3.65); sg.onBeforeRender = () => { if (sm.map !== s.material.map) { sm.map = s.material.map; sm.needsUpdate = true; } }; }
+      addBox(-4.4, -8.6, 1, 5.4, 1.15, wood); addBox(-5.6, -8.6, .3, 5.4, 2.4, dark, 0, false); for (let k = 0; k < 8; k++) addBox(-5.5, -10.8 + k * .6, .12, .12, .35, basic([0x3a6a2a, 0x8a3a1a, 0xc8a050][k % 3]), 1.3, false);
+      for (const [x, z] of [[.6, -6.2], [1.8, -9.4], [-1.4, -11]]) { cylinderSolid(x, z, .55, .8, wood); for (let k = 0; k < 3; k++) addBox(x + Math.cos(k * 2.1) * 1, z + Math.sin(k * 2.1) * 1, .4, .4, .5, wood, 0, false); }
+      addBox(4.5, -11, 1.8, .8, 1.4, matStd({ color: 0x3a2014 })); addBox(4.5, -10.55, 1.5, .1, .3, basic(0xe8e2d0), .9, false); // the pianola, keys yellowed
+      pointLight(0xffb060, 1.3, 12, 0, 4.2, -8); glowSprite(0xffc070, 1.2, new V3(0, 4.6, -8));
+      // hitching rails, a trough, a wagon, barrels on the boardwalks
       const rail = matStd({ map: woodTex, color: 0x6a5038 });
-      [[-26, -5.2], [8, 5.2]].forEach(([x, z]) => { addBox(x, z, 3.4, .15, .12, rail, 1, false); [-1.6, 1.6].forEach(d => addBox(x + d, z, .15, .15, 1.1, rail)); });
-      addBox(-9, 5.6, 2.6, .8, .6, rail);
-      // in the areas: the bank's vault, the sheriff's jail
-      addBox(-63, 0, 4, 10, 4.5, matStd({ map: stoneTex, color: 0x9a948a }));
-      const vd = put(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, .3, 20), matStd({ color: 0x8a8e94, metalness: .7, roughness: .35 }))); vd.rotation.z = Math.PI / 2; vd.position.set(-60.9, 2, 0);
-      house(55, -8, 8, 5, 4, plank(0x8a7a60), 0x2b2a2c, 'n');
-      label(['SERIFF'], '#e8c890', 2, 55, 5.6, -5);
+      [[-26, -.8], [26, -.8], [-34, 12.8], [30, 12.8]].forEach(([x, z]) => { addBox(x, z, 3.4, .15, .12, rail, 1, false); [-1.6, 1.6].forEach(d => addBox(x + d, z, .15, .15, 1.1, rail)); });
+      addBox(-16, 12.8, 2.6, .8, .6, rail); wagon(24, 9, false);
+      // --- north-west wing, A vasútállomás: walk through the depot onto the platform; a loco and a boxcar on the track, the water tank
+      hollow(-30, -24, 16, 7, 4.6, plank(0x8a6a4a), { s: [[0, 2.4]], n: [[3, 2.4]] }, 0x2a2420);
+      addBox(-34, -24, 4, 1, 1.1, wood); label(['DEAD ACRE ÁLLOMÁS'], '#e8c890', 1.6, -30, 5.8, -20.3); for (const x of [-35, -25]) addBox(x, -20.47, 1.6, .06, 1.2, glassLit, 1.2, false);
+      addBox(-30, -31, 40, 5, .45, stone, 0, false); // the platform
+      for (let x = -55; x <= -5; x += 1.2) addBox(x, -38, .28, 2.6, .1, wood, .04, false); for (const o of [-.72, .72]) addBox(-30, -38 + o, 52, .1, .12, steelMat, .12, false);
+      const loco = matStd({ color: 0x1c1c20, metalness: .4, roughness: .6 });
+      { const b = put(new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 6, 16), loco)); b.rotation.z = Math.PI / 2; b.position.set(-44, 2.2, -38); rayBlockers.push(b); }
+      addBox(-40, -38, 3, 2.6, 3.4, loco, .6); addBox(-44, -38, 8, 2.4, .6, dark, .5); addBox(-46.4, -38, .7, .7, 2, loco, 3.2, false); addBox(-48, -38, .6, 2.4, .9, matStd({ color: 0x8a2a1c }), .3, false);
+      for (const x of [-46, -43.5, -41]) for (const z of [-39.2, -36.8]) { const w = put(new THREE.Mesh(new THREE.CylinderGeometry(.7, .7, .2, 14), matStd({ color: 0x8a2a1c }))); w.rotation.x = Math.PI / 2; w.position.set(x, .75, z); }
+      obstacles.push({ minX: -48.4, maxX: -38.5, minZ: -39.4, maxZ: -36.6, h: 3.8 });
+      addBox(-26, -38, 10, 2.8, 2.8, plank(0x6a3a24), .9); addBox(-26, -39.43, 3, .06, 2.2, dark, 1, false); // a boxcar, door open
+      waterTower(-48, -50); for (const [x, z] of [[-14, -50], [-8, -30]]) addBox(x, z, 1.4, 1.4, 1, wood);
+      // --- north-east wing, A seriffiroda: the jail you walk into (three cells), the gallows, a corral
+      hollow(30, -26, 16, 9, 4.4, stone, { s: [[-4, 2]], w: [[2, 2]] }, 0x2b2a2c); label(['SERIFF · BÖRTÖN'], '#e8c890', 1.8, 30, 5.6, -21.2);
+      addBox(25, -24, 2.2, 1, .9, wood); addBox(25, -25.2, .6, .6, .9, wood);
+      for (let k = 0; k < 3; k++) { const x0 = 29 + k * 3; for (let b = 0; b <= 12; b++) addBox(x0 + b * .24, -26.5, .05, .05, 2.6, blackIron, 0, b === 0 || b === 12); addBox(x0 + 1.5, -26.5, 3, .1, .1, blackIron, 2.6, false);
+        obstacles.push({ minX: x0, maxX: x0 + 2.9, minZ: -26.6, maxZ: -26.4, h: 2.6 }); addBox(x0 + 1.5, -29.6, 2, .8, .4, wood, .3); } // bars, a bunk in each cell
+      for (const x of [26, 34]) addBox(x, -21.47, 1.4, .06, 1, glassLit, 1.3, false);
+      addBox(46, -46, 5, 5, 2.4, wood); addBox(46, -46, .3, .3, 6, wood, 2.4, false); addBox(47, -46, 2.4, .3, .3, wood, 8, false); addBox(48, -46, .04, .04, 1.4, matStd({ color: 0x8a7a5a }), 6.6, false); // the gallows
+      for (let k = 0; k < 5; k++) addBox(49, -43.8 + k * .5, 1.2, .5, .2, wood, k * .5, false); // steps up
+      const corral = [[10, -52, 22, -52], [10, -52, 10, -42], [22, -52, 22, -42], [10, -42, 14, -42], [18, -42, 22, -42]]; corral.forEach(([a, b, c, d]) => railFence(a, b, c, d));
+      addBox(16, -48, 2.4, .8, .6, rail);
+      // --- south wing, A csizmadomb: the little white church, wooden crosses in crooked rows, the undertaker's shed
+      const white = plank(0xd8d4c8);
+      house(12, 52, 8, 11, 6, white, 0x2a2224, 'n'); addBox(12, 47.8, 3, 3, 11, white); put(new THREE.Mesh(new THREE.ConeGeometry(2.4, 4, 4), roofMat)).position.set(12, 13, 47.8);
+      addBox(12, 47.8, .25, .25, 2, basic(0x3a3230), 15, false); addBox(12, 47.8, 1.2, .25, .25, basic(0x3a3230), 16.2, false);
+      put(new THREE.Mesh(new THREE.CircleGeometry(.8, 16), basic(0xffc070))).position.set(12, 8.5, 46.28);
+      for (let x = -21; x <= 2; x += 2.4) for (let z = 32; z <= 62; z += 3.2) { if (Math.hypot(x + 12, z - 40) < 4 || z > 58 && x < -13 || Math.random() < .25) continue; const cx = x + rand(-.4, .4); addBox(cx, z, .14, .14, 1.4, railWood, 0, false).rotation.z = rand(-.15, .15); addBox(cx, z, .7, .1, .1, railWood, 1.05, false); graveSpots.push([cx, z + .6]); }
+      shed(-18, 62, 6, 4, 2.8); for (let k = 0; k < 3; k++) addBox(-20 + k * 1.8, 62, .8, 2, .6, matStd({ color: 0x3a2a1a }), 0);
+      for (const [x, z] of [[20, 30], [-22, 50], [22, 64]]) deadTree(x, z);
     },
     areas: {
-      bank:     { side: 'w', at: 0, name: 'Bankszéf', cost: 1000, core: { minX: -67, maxX: -45, minZ: -12, maxZ: 12 }, spawns: [[-64, -9], [-64, 9]], station: ['forge', -56, -6] },
-      sheriff:  { side: 'e', at: 0, name: 'Seriffiroda', cost: 1250, core: { minX: 45, maxX: 67, minZ: -12, maxZ: 12 }, spawns: [[64, -9], [64, 9]], station: ['tower', 49, 7] },
-      cemetery: { side: 's', at: 0, name: 'Csizmadomb', cost: 750, core: { minX: -12, maxX: 12, minZ: 30, maxZ: 52 }, spawns: [[-9, 49], [9, 49]], station: ['trap', 6, 34], graves: true },
+      west: { side: 'n', at: -30, name: 'A vasútállomás', cost: 1000, core: { minX: -56, maxX: -4, minZ: -58, maxZ: -14 }, spawns: [[-54, -56], [-6, -56]], station: ['tower', -14, -24] },
+      east: { side: 'n', at: 30, name: 'A seriffiroda', cost: 1250, core: { minX: 4, maxX: 56, minZ: -58, maxZ: -14 }, spawns: [[6, -56], [54, -56]], station: ['forge', 12, -32] },
+      south: { side: 's', at: 0, name: 'A csizmadomb', cost: 750, core: { minX: -24, maxX: 24, minZ: 26, maxZ: 66 }, spawns: [[-22, 64], [22, 38]], station: ['well', -12, 40] },
     },
   },
   quarry: {
@@ -1552,6 +1582,8 @@ function keepClearPoints() {
     pts.push([x, z - Math.sign(z || 1) * 2.8, 2.5]);
   });
   BOX_SPOTS.forEach(([x, z]) => pts.push([x, z, 3.2]));
+  if (MAP.power) [...MAP.power.boxes, ...MAP.power.gens].forEach(([x, z]) => pts.push([x, z, 2])); // the power box and the generator need room
+  if (MAP.quest) MAP.quest.parts.forEach(([x, z]) => pts.push([x, z, 1.5]));
   SPAWNS.forEach(([x, z]) => pts.push([x, z, 3]));
   lamps.forEach(l => pts.push([l.x, l.z, 1.5]));
   for (const k in AREAS) { const a = AREAS[k]; pts.push([a.gate.x, a.gate.z, 5], [a.st.pos.x, a.st.pos.z, 4]); if (a.perk) pts.push([a.perk.pos.x, a.perk.pos.z, 2.5]); if (a.chest) pts.push([a.chest.pos.x, a.chest.pos.z, 2.5]); a.spawns.forEach(([x, z]) => pts.push([x, z, 3])); }
