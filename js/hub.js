@@ -175,7 +175,7 @@ function renderHub() {
   $('hubLvl').textContent = P.level;
   $('hubXp').style.width = P.xp / xpNeed(P.level) * 100 + '%';
   $('hubXpTxt').textContent = `${P.xp} / ${xpNeed(P.level)}`; $('hubLvlBox').dataset.tip = `${P.xp} / ${xpNeed(P.level)} XP${P.level >= LEVEL_CAP ? ' a következő veterán pontig' : ' a következő szintig'}${vetOpen() ? ` · veterán ${vetEarned()}${vetAvail() ? ` (+${vetAvail()} elkölthető)` : ''}` : ''}`;
-  $('hubCash').textContent = `$${P.cash}`; $('hubParts').innerHTML = `<span data-tip="Alkatrész: fegyverek szétszedéséből. A kovácsnál költheted."><i>⚙</i>${P.parts || 0}</span><span data-tip="Anyag: páncél szétszedéséből. A páncél optimalizálására."><i>${FAB}</i>${P.fabric || 0}</span><span data-tip="Túlhajtás-mag: fejvadász első legyőzése, heti kontrakt, Mélyfúrás. Túlhajtás beszereléséhez."><i>◆</i>${P.oc || 0}</span>`;
+  $('hubCash').textContent = `$${P.cash}`; $('hubParts').innerHTML = `<span data-tip="Alkatrész: fegyverek szétszedéséből. A kovácsnál költheted."><i>⚙</i>${P.parts || 0}</span><span data-tip="Anyag: páncél szétszedéséből. A páncél optimalizálására."><i>${FAB}</i>${P.fabric || 0}</span><span data-tip="Túlhajtás-mag: fejvadász első legyőzése, heti kontrakt, Hétvégi Meló. Túlhajtás beszereléséhez."><i>◆</i>${P.oc || 0}</span>`;
   rollContracts(); const claimable = [...P.daily.list.map(c => [c, false]), [P.weekly.c, true]].filter(([c, w]) => !c.got && cProg(c, w) >= c.n).length;
   document.querySelector('[data-hub="jobs"]').dataset.badge = claimable || '';
   { const N = newCounts(); document.querySelector('[data-hub="arsenal"]').dataset.badge = N.w + N.g || ''; document.querySelector('[data-hub="skills"]').dataset.badge = N.tok || ''; }
@@ -203,7 +203,7 @@ const miniCard = (w, acts) => `<div class="wcard mini" style="--rc:${rarColor(w)
   <div class="sub" style="color:#9fd0ff">${w.maker}: ${mkOf(w).perk || ''}</div></div>
   <div class="act">${acts}</div></div>`;
 // key: optional shortcut (KeyboardEvent.code) shown on the button and in the key bar
-const OC_HELP = 'A túlhajtás-mag (◆) ritka nyersanyag: minden fejvadász első legyőzése, a heti kontrakt és a Mélyfúrás ad belőle. Egy túlhajtás beszereléséhez kell egy.';
+const OC_HELP = 'A túlhajtás-mag (◆) ritka nyersanyag: minden fejvadász első legyőzése, a heti kontrakt és a Hétvégi Meló ad belőle. Egy túlhajtás beszereléséhez kell egy.';
 const KEY_LABEL = { KeyU: 'U', KeyO: 'O', KeyJ: 'J', KeyM: 'M', KeyC: 'C', KeyK: 'K', KeyF: 'F', KeyR: 'R', KeyT: 'T', KeyX: 'X', KeyG: 'G', KeyV: 'V', KeyB: 'B', KeyN: 'N', Digit1: '1', Digit2: '2' };
 // selling and salvaging: weapons from the hands, bag or stash, armor worn or stored; favourites are locked, trash goes in bulk
 const wList = sl => ({ L: profile.loadout, B: profile.bag, S: profile.stash })[sl] || [];
@@ -298,7 +298,7 @@ const TIPS = {
   gun: 'Megveszed: a raktárba kerül.', gbuy: 'Megveszed: a páncélraktárba kerül.', item: 'Megveszed a munkákra.', drop: 'Eldobod a földre: a csapattársad felveheti.',
   tier: 'Rémálom-fokozat: erősebb zombik, cserébe több XP, pénz és jobb zsákmány.', job: 'Elindítod ezt a munkát.', reroll: 'Új munkaajánlatok a térképre.',
   testground: 'Lőtér: próbáld ki a fegyvereidet bábukon, és cserélj a csapattal. Nincs veszély.',
-  deep: 'Heti Mélyfúrás: 3 egymás utáni, egyre nehezebb munka. A végén egzotikus tárgy, 2 mag és 60 ⚙.', deepnext: 'A Mélyfúrás következő szakasza.',
+  deep: 'Hétvégi Meló: 3 egymás utáni, egyre nehezebb munka. A végén egzotikus tárgy, 2 mag és 60 ⚙.', deepnext: 'A Hétvégi Meló következő szakasza.',
   respec: 'Visszakapod a fába tett érdemérmeket, és újraoszthatod őket.', sk: 'Egy szinttel fejleszted ezt a képességet (1 érdemérem).', cls: 'Ezt a kasztot választod.',
   aug: 'A képesség-módosító megváltoztatja a kasztképességed működését. Egyszerre egy lehet aktív, szabadon váltható.', swcls: 'Átváltasz erre a kasztra. Ingyenes, a pontjaid kasztonként megmaradnak.',
   claim: 'Beváltod a teljesített kontrakt jutalmát.', bsave: 'A mostani fegyvereidet és páncélodat elmented ebbe a buildbe.', bload: 'Felveszed a buildbe mentett felszerelést.',
@@ -579,7 +579,7 @@ function showResults(r) {
     ${r.board ? `<h3>Csapat</h3><table class="mtable"><tr><th>Játékos</th><th>Ölés</th><th>Sebzés</th><th>Felélesztés</th></tr>${(() => { const top = Math.max(...r.board.map(p => p.d || 0)); return r.board.sort((a, b) => (b.d || 0) - (a.d || 0) || b.k - a.k).map(p => `<tr><td>${top > 0 && p.d === top ? '★ ' : ''}${esc(p.n)}${p.me ? ' (te)' : ''}</td><td>${p.k}</td><td>${(p.d || 0).toLocaleString('hu-HU')}</td><td>${p.r}</td></tr>`).join(''); })()}</table>` : ''}
     ${profile.tokens > 0 || (vetOpen() && vetAvail() > 0) ? `<p class="note nudge">Elkölthető: ${profile.tokens > 0 ? `${profile.tokens} érdemérem (Fejlődés → Képességek)` : ''}${profile.tokens > 0 && vetOpen() && vetAvail() > 0 ? ' · ' : ''}${vetOpen() && vetAvail() > 0 ? `${vetAvail()} veterán pont (Fejlődés → Veterán)` : ''}</p>` : ''}
     ${r.levelUps ? `<p class="lvlup">Szintet léptél: ${profile.level}. szint! +${r.levelUps} érdemérem a képességfához. ${MAP_IDS.filter(id => MAPS[id].minLevel === profile.level).map(id => `Új pálya: ${MAPS[id].name}.`).join(' ')}</p>` : ''}
-    ${r.deep ? `<p class="deepres">${r.deep.fail ? 'A mélyfúrás megszakadt: legközelebb elölről kezded.' : r.deep.next ? `Mélyfúrás: ${r.deep.next}/3 szakasz kész. ${NET.code && !NET.host ? hbtn('A vezető indítja a következőt', 'deepnext', true) : hbtn('Következő szakasz', 'deepnext')}` : `A HETI MÉLYFÚRÁS KÉSZ! ${r.deep.reward.name} (egzotikus${r.deep.sold ? ', a teli raktár miatt eladva' : ''}), 2 túlhajtás-mag, 60 ⚙.`}</p>` : ''}
+    ${r.deep ? `<p class="deepres">${r.deep.fail ? 'A Hétvégi Meló megszakadt: legközelebb elölről kezded.' : r.deep.next ? `Hétvégi Meló: ${r.deep.next}/3 szakasz kész. ${NET.code && !NET.host ? hbtn('A vezető indítja a következőt', 'deepnext', true) : hbtn('Következő szakasz', 'deepnext')}` : `A HÉTVÉGI MELÓ KÉSZ! ${r.deep.reward.name} (egzotikus${r.deep.sold ? ', a teli raktár miatt eladva' : ''}), 2 túlhajtás-mag, 60 ⚙.`}</p>` : ''}
     ${r.tierBonus ? `<h3>${r.job.tier ? 'Rémálom-jutalom' : 'Az első munkád jutalma'}</h3><ul class="wlist"><li style="color:${rarColor(r.tierBonus)}">${r.tierBonus.name} <small>Lv ${r.tierBonus.level} ${r.tierBonus.base.name} · a raktárba került</small></li></ul>` : ''}
     ${(() => { const best = [...r.kept].sort((a, b) => (b.unique ? 9 : b.q) - (a.unique ? 9 : a.q) || dps(b) - dps(a))[0]; return best && best.q >= 2 ? `<div class="bestdrop" style="--rc:${rarColor(best)}"><small>A MUNKA LEGJOBB ZSÁKMÁNYA</small><img src="${wPic(best)}" alt=""><b>${best.name}</b><span>${best.unique ? 'Egzotikus' : RARITIES[best.q].name} · Lv ${best.level} ${best.base.name} · ${dps(best)} DPS</span></div>` : ''; })()}
     ${r.kept.length ? `<h3>Hazavitt új fegyverek</h3><ul class="wlist">${wl(r.kept, '')}</ul>` : ''}

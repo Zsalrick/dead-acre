@@ -76,7 +76,7 @@ const MUSIC = {
   quarry: [
     { name: 'Kőpor', bpm: 84, root: 38, scale: MIN, prog: [0, 0, 5, 6], pad: 'saw', cut: 600, bass: { wave: 'sawtooth', pat: '1000000010000000', vol: .1 }, lead: { wave: 'sine', dens: .08 }, drums: { kick: '1000000000100000', tom: '0000000100000001' }, seed: 91 },
     { name: 'Robbantás', bpm: 128, root: 41, scale: PHR, prog: [0, 1, 0, 1, 5, 5, 6, 6], cut: 1500, bass: { wave: 'sawtooth', pat: '1011101110111011', vol: .05 }, arp: { wave: 'square', every: 2, vol: .02 }, lead: { wave: 'square', dens: .1 }, drums: { kick: '1000100010001000', hat: '1010101010101010', snare: '0000100000001000' }, seed: 92 },
-    { name: 'Mélyfúrás', bpm: 62, root: 36, scale: HMIN, prog: [0, 5, 3, 4], pad: 'organ', cut: 1200, bass: { wave: 'sine', pat: '1000000000000000' }, arp: { wave: 'triangle', every: 4, vol: .04 }, lead: { wave: 'sine', dens: .07, bell: true }, seed: 93 },
+    { name: 'Hétvégi Meló', bpm: 62, root: 36, scale: HMIN, prog: [0, 5, 3, 4], pad: 'organ', cut: 1200, bass: { wave: 'sine', pat: '1000000000000000' }, arp: { wave: 'triangle', every: 4, vol: .04 }, lead: { wave: 'sine', dens: .07, bell: true }, seed: 93 },
   ],
 };
 const mhz = m => 440 * Math.pow(2, (m - 69) / 12);

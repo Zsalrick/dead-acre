@@ -124,7 +124,7 @@ function deepJob(i) { // build stage i as a normal job, flagged as part of the d
   if (S.type === 'bounty') { j = Object.assign(makeBounty(), { map: S.map, bounty: S.bounty, mod: S.mod }); j.diff = 5; j.title = `Fejvadászat: ${BOUNTIES[S.bounty].name}`; }
   else { j = Object.assign(makeJob(), { map: S.map, diff: S.diff, type: S.type, mod: S.mod }); j.dur = 300 + (S.diff - 1) * 45; j.goal = S.type === 'exterminate' ? 50 + 25 * S.diff : S.type === 'supply' ? 5 + S.diff : 0; j.boss = S.diff >= 4; }
   const [t0] = j.bounty ? [j.title.replace(/^.*?: /, '')] : (JOB_TEXT[S.map] ? JOB_TEXT[S.map][Math.floor(mulberry(D.wk + i)() * JOB_TEXT[S.map].length)] : [j.title]);
-  j.title = `Mélyfúrás ${i + 1}/3 · ${t0}`; j.deep = { stage: i, wk: D.wk }; j.reward = Math.round(j.reward * 1.3 / 10) * 10; j.xp = Math.round(j.xp * 1.3);
+  j.title = `Hétvégi Meló ${i + 1}/3 · ${t0}`; j.deep = { stage: i, wk: D.wk }; j.reward = Math.round(j.reward * 1.3 / 10) * 10; j.xp = Math.round(j.xp * 1.3);
   return j;
 }
 function deepState() { const P = profile, d = P.deep && P.deep.wk === weekKey() ? P.deep : (P.deep = { wk: weekKey(), stage: 0, done: false }); return d; }
@@ -133,7 +133,7 @@ function deepCard() {
   const D = deepDive(), st = deepState(), off = NET.code && !NET.host;
   const rows = D.stages.map((S, i) => `<li class="${i < st.stage || st.done ? 'ok' : i === st.stage ? 'cur' : ''}"><b>${i + 1}.</b> ${MAPS[S.map].name} · ${S.type === 'bounty' ? BOUNTIES[S.bounty].name : JOB_TYPES[S.type].name} · ${stars(S.diff)}</li>`).join('');
   const left = Math.ceil(7 - ((Date.now() / 864e5 + 3) % 7));
-  return `<div class="deep"><div class="ctop"><b>HETI MÉLYFÚRÁS</b><small>még ${left} nap</small></div><div class="ctit">3 egymás utáni, egyre nehezebb munka</div>
+  return `<div class="deep"><div class="ctop"><b>HÉTVÉGI MELÓ</b><small>még ${left} nap</small></div><div class="ctit">3 egymás utáni, egyre nehezebb munka</div>
     <div class="dbars">${[0, 1, 2].map(i => `<i class="${i < st.stage || st.done ? 'ok' : ''}"></i>`).join('')}</div><ul>${rows}</ul>
     <div class="cfoot"><small>Egzotikus · 2 mag · 60 ⚙</small>${st.done ? '<em class="ok">✓ E heti kész</em>' : hbtn(st.stage ? `${st.stage + 1}. szakasz ›` : 'Indítás ›', `deep:${st.stage}`, off)}</div></div>`;
 }
