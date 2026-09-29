@@ -29,12 +29,12 @@ function buildRig(look, gv = [], clsCol = '#9aa0a6') {
   const shirt = rigMat(shirtC), sleeve = rigMat(darker(shirtC, .85)), pants = rigMat(LOOK.pa.opts[L.pa]), dark = rigMat('#1c1d1c'), strap = rigMat('#2a2620');
   const boot = G.boots ? rigMat(darker(G.boots[2], .45)) : rigMat('#1a1612'), glove = G.gloves ? rigMat(darker(G.gloves[2], .5)) : skin;
   const g = new THREE.Group();
-  const box = (p, m, sx, sy, sz, x, y, z) => { const b = new THREE.Mesh(unitBox, m); b.scale.set(sx, sy, sz); b.position.set(x, y, z); b.castShadow = true; p.add(b); return b; };
+  const box = (p, m, sx, sy, sz, x, y, z, tp = 1, ax = 'y') => { const b = new THREE.Mesh(rboxGeo(sx, sy, sz, undefined, 3, tp, ax), m); b.position.set(x, y, z); b.castShadow = true; p.add(b); return b; }; // rounded pieces
   const ball = (p, m, r, x, y, z, sx = 1, sy = 1, sz = 1, part) => { const b = new THREE.Mesh(part || new THREE.SphereGeometry(r, 14, 10), m); b.position.set(x, y, z); b.scale.set(sx, sy, sz); b.castShadow = true; p.add(b); return b; };
   // legs
   const hips = new THREE.Group(); hips.position.y = .92; g.add(hips);
   const leg = x => { const Lg = new THREE.Group(); Lg.position.set(x, 0, 0); hips.add(Lg);
-    box(Lg, pants, .2, .48, .22, 0, -.24, 0); box(Lg, pants, .18, .42, .2, 0, -.66, 0); box(Lg, strap, .06, .14, .12, x > 0 ? .11 : -.11, -.3, 0); // cargo pocket
+    box(Lg, pants, .21, .48, .23, 0, -.24, 0, .82); box(Lg, pants, .18, .42, .2, 0, -.66, 0, .78); box(Lg, strap, .06, .14, .12, x > 0 ? .11 : -.11, -.3, 0); // cargo pocket
     box(Lg, boot, .21, G.boots ? .2 : .13, .3, 0, G.boots ? -.83 : -.87, -.04); if (G.boots) box(Lg, rigMat(G.boots[2]), .22, .04, .22, 0, -.72, 0);
     if (G.legs) { const c = rigMat(G.legs[2], { roughness: .6 }); box(Lg, c, .16, .16, .06, 0, -.46, -.12); box(Lg, dark, .21, .04, .23, 0, -.4, 0); box(Lg, dark, .21, .04, .23, 0, -.52, 0); } // knee pads
     return Lg; };
@@ -42,7 +42,7 @@ function buildRig(look, gv = [], clsCol = '#9aa0a6') {
   box(hips, pants, .42, .16, .25, 0, .02, 0); box(hips, strap, .44, .06, .27, 0, .1, 0); box(hips, rigMat('#b89a4a', { metalness: .6, roughness: .4 }), .07, .05, .02, 0, .1, -.14); // belt and buckle
   // torso
   const torso = new THREE.Group(); torso.position.y = .95; g.add(torso);
-  box(torso, shirt, .4, .26, .23, 0, .13, 0); box(torso, shirt, .48, .34, .26, 0, .4, 0); box(torso, sleeve, .56, .1, .24, 0, .54, 0); // waist, chest, shoulders
+  box(torso, shirt, .4, .28, .23, 0, .13, 0, .92); box(torso, shirt, .5, .36, .27, 0, .4, 0, .84); // waist, chest
   if (G.chest) { const c = rigMat(G.chest[2], { roughness: .55 }), dc = rigMat(darker(G.chest[2], .55));
     box(torso, c, .5, .36, .3, 0, .36, 0); box(torso, dc, .1, .12, .08, -.15, .24, -.18); box(torso, dc, .1, .12, .08, 0, .24, -.18); box(torso, dc, .1, .12, .08, .15, .24, -.18);
     box(torso, dc, .08, .2, .3, -.18, .56, 0); box(torso, dc, .08, .2, .3, .18, .56, 0); if (G.chest[3]) box(torso, rigMat('#ff6a3a', { emissive: 0x6a1a08 }), .3, .03, .01, 0, .46, -.16); }
@@ -54,7 +54,7 @@ function buildRig(look, gv = [], clsCol = '#9aa0a6') {
     else if (k === 'neck') { box(torso, ac, .06, .06, .01, 0, .45, -.15); } }
   // head
   const head = new THREE.Group(); head.position.set(0, .72, 0); torso.add(head);
-  ball(head, skin, .135, 0, .1, 0, 1, 1.12, 1.02);
+  box(head, skin, .26, .29, .25, 0, .1, 0, .74); box(head, skin, .21, .035, .05, 0, .145, -.11); // the skull narrowing to the jaw, a brow ridge
   ball(head, skin, .03, -.135, .09, 0); ball(head, skin, .03, .135, .09, 0); // ears
   const eye = x => { box(head, rigMat('#e8e4d8'), .05, .028, .01, x, .12, -.13); box(head, dark, .022, .026, .012, x, .12, -.134); box(head, hair, .06, .014, .012, x, .155, -.13); };
   eye(-.05); eye(.05); box(head, skin, .03, .05, .035, 0, .08, -.145); box(head, rigMat('#5a2a24'), .06, .012, .01, 0, .035, -.135); // eyes, brows, nose, mouth
@@ -77,7 +77,7 @@ function buildRig(look, gv = [], clsCol = '#9aa0a6') {
       else if (k === 'helmet') box(head, rigMat('#1a2226', { roughness: .1, metalness: .5 }), .2, .04, .03, 0, .135, -.155); } }
   // arms, hands (or gloves)
   const arm = (x, left) => { const A = new THREE.Group(); A.position.set(x, .5, 0); torso.add(A);
-    box(A, sleeve, .14, .14, .3, 0, 0, -.12); box(A, L.sh ? skin : sleeve, .11, .11, .26, 0, -.02, -.38); box(A, glove, .12, .1, .12, 0, -.03, -.56);
+    ball(A, sleeve, .085, 0, 0, 0); box(A, sleeve, .14, .14, .3, 0, 0, -.12, .82, 'z'); box(A, L.sh ? skin : sleeve, .115, .115, .26, 0, -.02, -.38, .8, 'z'); box(A, glove, .12, .11, .12, 0, -.03, -.56); box(A, glove, .04, .05, .06, x > 0 ? -.07 : .07, -.01, -.54); // shoulder, upper arm, forearm, hand and thumb
     if (G.gloves) box(A, rigMat(G.gloves[2]), .125, .03, .05, 0, .02, -.49);
     if (left && G.acc && G.acc[1] === 'watch') box(A, rigMat(G.acc[2], { metalness: .6, roughness: .3 }), .12, .05, .05, 0, -.02, -.47);
     return A; };

@@ -152,6 +152,17 @@ scene.add(ground); rayBlockers.push(ground);
 let mapGroup = new THREE.Group(); scene.add(mapGroup); // everything a map builds lives here so loading another map is one swap
 
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
+// rounded boxes, optionally tapered (people and zombies are built from these): r the edge radius, tp the far end's scale along the axis
+const RBOX = new Map();
+function rboxGeo(w, h, d, r = Math.min(w, h, d) * .3, seg = 3, tp = 1, ax = 'y') {
+  const key = [w, h, d, r, seg, tp, ax].map(v => typeof v === 'number' ? v.toFixed(3) : v).join(); if (RBOX.has(key)) return RBOX.get(key);
+  const g = new THREE.BoxGeometry(w, h, d, seg, seg, seg), p = g.attributes.position, v = new THREE.Vector3(), inn = new THREE.Vector3(); r = Math.min(r, w / 2, h / 2, d / 2);
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); inn.set(THREE.MathUtils.clamp(v.x, -w / 2 + r, w / 2 - r), THREE.MathUtils.clamp(v.y, -h / 2 + r, h / 2 - r), THREE.MathUtils.clamp(v.z, -d / 2 + r, d / 2 - r));
+    const n = v.clone().sub(inn); if (n.lengthSq() > 1e-12) n.setLength(r); v.copy(inn).add(n);
+    if (tp !== 1) { if (ax === 'y') { const k = THREE.MathUtils.lerp(tp, 1, (v.y + h / 2) / h); v.x *= k; v.z *= k; } else { const k = THREE.MathUtils.lerp(tp, 1, (v.z + d / 2) / d); v.x *= k; v.y *= k; } }
+    p.setXYZ(i, v.x, v.y, v.z); }
+  g.computeVertexNormals(); RBOX.set(key, g); return g;
+}
 function addBox(x, z, w, d, h, mat, y = 0, collide = true) {
   const m = new THREE.Mesh(unitBox, mat);
   m.scale.set(w, h, d); m.position.set(x, y + h / 2, z);

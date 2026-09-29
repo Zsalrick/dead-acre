@@ -1,8 +1,8 @@
 ﻿// ================= ZOMBIES =================
 const zombies = [];
 const ZG = {
-  torso: new THREE.BoxGeometry(.62, .8, .36), head: new THREE.BoxGeometry(.42, .42, .42),
-  arm: new THREE.BoxGeometry(.16, .72, .16), leg: new THREE.BoxGeometry(.21, .8, .22), eye: new THREE.BoxGeometry(.09, .05, .02),
+  torso: rboxGeo(.62, .8, .36, .15, 5, .8), head: rboxGeo(.42, .44, .42, .17, 5, .74), // rounded, the waist and the jaw narrower
+  arm: rboxGeo(.16, .72, .16, .075, 4, .68), leg: rboxGeo(.22, .8, .23, .09, 4, .76), eye: new THREE.BoxGeometry(.09, .05, .02),
   pus: new THREE.SphereGeometry(.09, 8, 6),
 };
 const SKIN = [0x6f8a5c, 0x7c8f6a, 0x8a9a74, 0x5f7456, 0x94a07c];
@@ -78,6 +78,12 @@ function mkZombie(kind) {
   if (!K.ghost) { // decoration: no shadows, not hit boxes
     const deco = (mat, parent, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(unitBox, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); decos.push(m); return m; };
     deco(zMouth, upper, 0, .93, .215, .24, .08, .02); deco(zBone, upper, 0, .958, .222, .18, .022, .01); // a gaping mouth with teeth
+    deco(skin, upper, 0, 1.14, .19, .38, .06, .1); deco(zMouth, upper, -.1, 1.07, .222, .13, .09, .02); deco(zMouth, upper, .1, 1.07, .222, .13, .09, .02); deco(zMouth, upper, 0, 1.0, .23, .07, .06, .02); // heavy brow, sunken sockets, the nose gone
+    deco(skin, upper, 0, .84, .12, .3, .08, .26).rotation.x = .35; deco(zBone, upper, 0, .87, .245, .2, .02, .02).rotation.x = .35; // the jaw hangs open
+    for (const s of [-1, 1]) deco(cloth, upper, s * .34, .72, 0, .2, .16, .34); // shoulders
+    for (let i = 0; i < 4; i++) deco(cloth, upper, -.22 + i * .15, -.02 - (i % 2) * .05, .01, .12, .1 + (i % 2) * .06, .36); // a ragged hem
+    for (const arm of [armL, armR]) { deco(skin, arm, 0, -.76, 0, .15, .12, .12); for (let f = 0; f < 3; f++) deco(skin, arm, -.045 + f * .045, -.87, .02, .03, .12, .03); } // hands, bony fingers
+    const bare = Math.random() < .5 ? legL : legR; for (const lg of [legL, legR]) deco(lg === bare ? skin : pants, lg, 0, -.82, .06, .22, .1, .34); // feet: one of them bare
     head.rotation.z = rand(-.18, .18); head.rotation.x = rand(-.1, .15);
     if (Math.random() < .55) deco(zHair, upper, rand(-.04, .04), 1.255, -.03, .44, .07, rand(.3, .44));
     if (Math.random() < .5) { deco(zGore, upper, rand(-.12, .12), .56, .183, .3, .3, .01); for (let i = 0; i < 3; i++) deco(zBone, upper, 0, .46 + i * .09, .19, .26, .025, .02); } // an open chest
@@ -117,6 +123,7 @@ function mkZombie(kind) {
   head.userData.head = true;
   const mats = [skin, cloth, pants];
   if (K.ghost) mats.forEach(m => { m.transparent = true; m.opacity = .12; m.depthWrite = false; });
+  g.traverse(o => { if (o.isMesh && o.geometry === unitBox) { o.geometry = rboxGeo(o.scale.x, o.scale.y, o.scale.z, Math.min(o.scale.x, o.scale.y, o.scale.z) * .35, 2); o.scale.set(1, 1, 1); } }); // hair, armor, hats, wounds: rounded like the body
   const merged = mergeZombieBits([upper, armL, armR, legL, legR], parts); // fewer draw calls: one mesh per material per limb
   return { decos: merged, g, parts, legL, legR, armL, armR, upper, torso, mats, armorParts };
 }
