@@ -437,9 +437,9 @@ const HUB = {
   },
   upgrades() {
     const bars = (l, m) => `<span class="kbars">${Array.from({ length: m }, (_, k) => `<i class="${k < l ? 'on' : ''}"></i>`).join('')}</span>`;
-    return `<div class="hubhead"><h2>Fejlesztések</h2><p class="lede">Tartós fejlesztések dollárért. Minden munkára veled jönnek.</p></div>
-      <div class="upg">${Object.entries(UPGRADES).map(([k, u]) => { const l = U(k), maxed = l >= u.max, c = upCost(k);
-        return `<div class="upc"><div><div class="upn"><b>${u.name}</b>${bars(l, u.max)}<small>${l}/${u.max}</small></div><p>${u.desc}</p><p class="upv">${u.val(l)}${maxed ? '' : ` → <span>${u.val(l + 1)}</span>`}</p></div>${hbtn(maxed ? 'Kész' : `$${c}`, `up:${k}`, maxed || profile.cash < c)}</div>`; }).join('')}</div>`;
+    return `<div class="hubhead"><h2>Fejlesztések</h2><p class="lede">Tartós fejlesztések. Minden munkára veled jönnek. A 3. szinttől alkatrész (⚙), az 5. szinttől anyag (${FAB}) is kell hozzájuk.</p></div>
+      <div class="upg">${Object.entries(UPGRADES).map(([k, u]) => { const l = U(k), maxed = l >= u.max, c = upPrice(k);
+        return `<div class="upc"><div><div class="upn"><b>${u.name}</b>${bars(l, u.max)}<small>${l}/${u.max}</small></div><p>${u.desc}</p><p class="upv">${u.val(l)}${maxed ? '' : ` → <span>${u.val(l + 1)}</span>`}</p></div>${hbtn(maxed ? 'Kész' : `$${c.cash}${c.parts ? ` · ${c.parts} ⚙` : ''}${c.fab ? ` · ${c.fab} ${FAB}` : ''}`, `up:${k}`, maxed || !canPay(c))}</div>`; }).join('')}</div>`;
   },
   shop() { return shopPage('P'); }, sgear() { return shopPage('Q'); }, skit() { return shopPage('I'); }, slost() { return shopPage('X'); },
   swheel() {
@@ -524,7 +524,7 @@ $('hubBody').addEventListener('click', e => {
     const ok = what === 'recal' ? !!w : what === 'exp' ? w && (w.exp || 0) < 10 : w && w.q >= 2 && !w.anoPend, cost = w && what === 'exp' ? expCost(w) : w && HFORGE[what] ? HFORGE[what](w) : 1e9;
     if (ok && (P.parts || 0) >= cost) { P.parts -= cost; if (what === 'recal') { list[+i] = packW(w); return showRecal(w, list, +i); } else if (what === 'exp') w.exp = (w.exp || 0) + 1; else { w.anoPend = pick(Object.keys(ANOINTS).filter(k => k !== w.anoint)); w.anoN = (w.anoN || 0) + 1; } list[+i] = packW(w); SND.explode(); }
   }
-  if (kind === 'up' && U(a) < UPGRADES[a].max && pay(upCost(a))) P.up[a] = U(a) + 1;
+  if (kind === 'up' && U(a) < UPGRADES[a].max) { const c = upPrice(a); if (canPay(c)) { P.cash -= c.cash; P.parts = (P.parts || 0) - c.parts; P.fabric = (P.fabric || 0) - c.fab; P.up[a] = U(a) + 1; } }
   if (kind === 'item') { const n = a === 'knife' ? 3 : 1; if (P.inv[a] < itemMax(a) && pay(ITEM_PRICE[a])) P.inv[a] = Math.min(itemMax(a), P.inv[a] + n); }
   if (kind === 'ttype') { // ttype:g|k:kind
     const T = P.throw, D = TYPE_LISTS[a] && TYPE_LISTS[a][c];

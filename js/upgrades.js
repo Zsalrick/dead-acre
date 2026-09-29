@@ -19,6 +19,9 @@ const UPGRADES = {
 };
 const U = k => (player.up && player.up[k]) || 0;
 const upCost = k => Math.round(UPGRADES[k].base * 1.25 * Math.pow(1.38, U(k)) / 50) * 50;
+// the base's price: steeper dollars, and from level 3 parts, from level 5 fabric too (the first levels stay cheap)
+const upPrice = k => { const l = U(k), b = UPGRADES[k].base; return { cash: Math.round(b * 1.6 * Math.pow(1.5, l) / 50) * 50, parts: l >= 3 ? Math.round(4 * Math.pow(l - 2, 1.5)) : 0, fab: l >= 5 ? Math.round(5 * Math.pow(l - 4, 1.4)) : 0 }; };
+const canPay = c => profile.cash >= c.cash && (profile.parts || 0) >= c.parts && (profile.fabric || 0) >= c.fab;
 // G(k): bonuses from worn gear (gear.js) · mkOf(w): the held gun's maker perk
 const perk = k => !!(player.perks && player.perks[k]);
 const maxHp = () => Math.round((100 + 20 * U('maxHp') + SK.hp() + G('hp')) * (perk('jug') ? 1.5 : 1) * (exoOn('glass') ? .75 : 1));
