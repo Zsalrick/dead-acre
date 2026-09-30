@@ -225,6 +225,7 @@ function hurtZombie(z, amt, o = {}) {
   if (o.w && o.w.element && !o.chain) applyElement(z, o.w, amt);
   if (o.burnDps) { z.burnT = Math.max(z.burnT, o.burnT || 3); z.burnDps = Math.max(z.burnDps, o.burnDps); z.burnBy = o.remote || null; z.burnW = o.w || z.burnW; }
   if (!o.remote) weaponOnHit(z, amt, o);
+  if (o.stag && z.hp > 0) staggerZ(z, o.stag, o.from);
   if (o.head && !o.remote && brand4('ranger')) z.markT = Math.max(z.markT || 0, 5);
   if (z.hp <= 0) killZombie(z, o);
   else if (!o.dot && !o.remote) addPoints(10);

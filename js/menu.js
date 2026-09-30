@@ -27,7 +27,7 @@ function snapshot(key, build, view) {
   S.remove(obj);
   return shots[key];
 }
-const gunShot = (b, q) => snapshot(`g${b.id}${q}`, () => buildGun({ base: b, q }, false), { dist: 1.45, dir: [.9, .25, .12] });
+const gunShot = (b, q) => snapshot(`g${b.id}${q}`, () => buildGun({ base: b, q }, false, true), { dist: 1.45, dir: [.9, .25, .12] });
 const zombieShot = k => snapshot(`z${k}`, () => { const m = mkZombie(k); m.armL.rotation.x = m.armR.rotation.x = -1.3; m.upper.rotation.x = KINDS[k].lean; return m.g; }, k === 'crawler' ? { dist: 1.1, dir: [.85, .35, .45] } : { dist: .95, dir: [.45, .12, .9] });
 
 // ---------- tabs ----------
@@ -111,7 +111,7 @@ const TABS = {
   },
   controls() {
     const K = d => keyName(boundKey(d));
-    const k = [[`${K('KeyW')} ${K('KeyA')} ${K('KeyS')} ${K('KeyD')}`, 'mozgás'], [K('ShiftLeft'), 'sprint'], [K('Space'), 'ugrás'], ['Bal egér', 'lövés'], ['Jobb egér', 'célzás'], [K('KeyR'), 'újratöltés'],
+    const k = [[`${K('KeyW')} ${K('KeyA')} ${K('KeyS')} ${K('KeyD')}`, 'mozgás'], [K('ShiftLeft'), 'sprint'], [K('Space'), 'ugrás'], ['Bal egér', 'lövés · közelharci fegyverrel csapás, nyomva tartva erős csapás'], ['Jobb egér', 'célzás · közelharci fegyverrel blokk (kitartásba kerül), + bal egér: lökés'], [K('KeyR'), 'újratöltés'],
       [`${K('Digit1')} · ${K('Digit2')} · görgő`, 'fegyverváltás'], [K('KeyE'), 'vásárlás, kapuk, állomások, furgon'], [K('KeyF'), 'földön lévő fegyver a táskába'], [`${K('KeyF')} (nyomva)`, 'csere: a kézben lévő a táskába megy (ha tele, a földre)'], [`${K('KeyF')} (páncélnál)`, 'földön lévő páncél a zsákba'], [K('KeyV'), 'kés'],
       [K('KeyH'), 'gyógyítás'], [K('KeyG'), 'gránát'], [K('KeyQ'), 'dobókés'], [K('KeyT'), 'stimuláns'], ['X (nyomva)', 'szétszedés: a földön lévő tárgy alkatrészre / anyagra'], [K('KeyC'), 'kasztképesség'], [`${K('KeyZ')} · középső egérgomb`, 'pingelés: megjelöl egy helyet vagy zombit a csapatnak'], [`${K('KeyI')} · Tab`, 'leltár: kéz és táska'], ['Esc', 'szünet, leltár, munka feladása']];
     return `<h2>Irányítás</h2><div class="keys big">${k.map(([a, b]) => `<kbd>${a}</kbd><span>${b}</span>`).join('')}</div>

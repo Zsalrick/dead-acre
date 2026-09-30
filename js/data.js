@@ -36,21 +36,21 @@ const CAT = { carbine: 'rifle', sawed: 'shotgun', plasma: 'energy', ar: 'rifle',
   smg: 'smg', mpistol: 'smg', pistol: 'pistol', deagle: 'pistol', revolver: 'pistol', shotgun: 'shotgun', autoshot: 'shotgun', dbarrel: 'shotgun',
   launcher: 'explosive', raygun: 'energy', tesla: 'energy', flamer: 'energy',
   autopistol: 'pistol', magnum: 'pistol', pdw: 'smg', blitz: 'smg', bullpup: 'rifle', heavyar: 'rifle', scout: 'marks', antimat: 'marks', hmg: 'heavy', squad: 'heavy',
-  slug: 'shotgun', drumshot: 'shotgun', laser: 'energy', arc: 'energy', rocket: 'explosive' };
+  slug: 'shotgun', drumshot: 'shotgun', laser: 'energy', arc: 'energy', rocket: 'explosive', knife: 'melee', axe: 'melee', maul: 'melee', chainsaw: 'melee' };
 // makers: every gun a maker builds carries its signature perk; one base can come from several makers.
 // rpm/mag/reload/res/acc are baked into the rolled stats, dmg/head/crit/critDmg apply live when the gun hits
 const MAKERS = {
   xfcv:       { name: 'XFCV Tactical',     perk: '+10% fejlövés-sebzés',       head: .1,    cats: ['rifle', 'marks', 'pistol', 'smg'] },
-  kessler:    { name: 'Kessler Arms',      perk: '+8% sebzés',                 dmg: .08,    cats: ['rifle', 'heavy', 'pistol', 'shotgun', 'explosive'] },
-  voss:       { name: 'Voss & Sons',       perk: '+10% tűzgyorsaság',          rpm: .1,     cats: ['smg', 'rifle', 'heavy', 'shotgun', 'energy'] },
-  harrow:     { name: 'Harrow Ordnance',   perk: '+5% kritikus esély',         crit: .05,   cats: ['marks', 'rifle', 'pistol', 'explosive'] },
+  kessler:    { name: 'Kessler Arms',      perk: '+8% sebzés',                 dmg: .08,    cats: ['rifle', 'heavy', 'pistol', 'shotgun', 'explosive', 'melee'] },
+  voss:       { name: 'Voss & Sons',       perk: '+10% tűzgyorsaság',          rpm: .1,     cats: ['smg', 'rifle', 'heavy', 'shotgun', 'energy', 'melee'] },
+  harrow:     { name: 'Harrow Ordnance',   perk: '+5% kritikus esély',         crit: .05,   cats: ['marks', 'rifle', 'pistol', 'explosive', 'melee'] },
   ironmark:   { name: 'Ironmark',          perk: '+25% tárkapacitás',          mag: .25,    cats: ['heavy', 'smg', 'rifle', 'shotgun', 'energy'] },
   novak:      { name: 'Novak Works',       perk: '+15% gyorsabb újratöltés',   reload: .15, cats: ['pistol', 'smg', 'shotgun', 'marks', 'explosive'] },
-  crane:      { name: 'Crane & Rook',      perk: '+20% kritikus sebzés',       critDmg: .2, cats: ['marks', 'pistol', 'rifle', 'shotgun'] },
+  crane:      { name: 'Crane & Rook',      perk: '+20% kritikus sebzés',       critDmg: .2, cats: ['marks', 'pistol', 'rifle', 'shotgun', 'melee'] },
   bellwether: { name: 'Bellwether',        perk: '+30% tartalék lőszer',       res: .3,     cats: ['heavy', 'shotgun', 'smg', 'energy', 'explosive'] },
   ostrava:    { name: 'Ostrava Precision', perk: '+20% pontosság',             acc: .2,     cats: ['rifle', 'marks', 'smg', 'energy', 'pistol'] },
 };
-const CAT_NAMES = { rifle: 'gépkarabély', heavy: 'nehézfegyver', marks: 'mesterlövész', smg: 'géppisztoly', pistol: 'pisztoly', shotgun: 'sörétes', explosive: 'robbanó', energy: 'energia' };
+const CAT_NAMES = { rifle: 'gépkarabély', heavy: 'nehézfegyver', marks: 'mesterlövész', smg: 'géppisztoly', pistol: 'pisztoly', shotgun: 'sörétes', explosive: 'robbanó', energy: 'energia', melee: 'közelharci' };
 const makersFor = b => Object.keys(MAKERS).filter(k => MAKERS[k].cats.includes(CAT[b.id]) && !(b.fixedMag && MAKERS[k].mag));
 const mkOf = w => (w && MAKERS[w.mk]) || {};
 const PREFIX = {
@@ -143,6 +143,15 @@ const BASES = [
     model: { len: .2, h: .12, barrel: .1, br: .026, coil: true } },
   { id: 'rocket', name: 'Rocket Launcher', dmg: 480, rpm: 40, mag: 1, fixedMag: true, res: 12, reload: 2.8, spread: .5, mode: 'semi', range: 120, zoom: 1.4, snd: 'thump', kick: .07, splash: 6, rl: 'mag',
     model: { len: .6, h: .14, barrel: .5, br: .06, stock: .1 } },
+  // melee: rpm = swings a minute, range = reach; light = the chain of light swings, heavy = its multiplier, cleave = how many one swing goes through
+  { id: 'knife', name: 'Combat Knife', dmg: 95, rpm: 150, mag: 1, fixedMag: true, res: 0, reload: .5, spread: 0, mode: 'semi', range: 2, zoom: 1, snd: 'knife', kick: 0, headMult: 2.2,
+    melee: { hold: 'up', light: ['rl', 'lr', 'stab'], heavyPat: 'stab', heavy: 2.6, cleave: 1, heavyCleave: 1, reach: 2, stagger: .2 }, model: { len: .3, h: .05, barrel: 0, melee: 'knife' } },
+  { id: 'axe', name: 'Fire Axe', dmg: 190, rpm: 72, mag: 1, fixedMag: true, res: 0, reload: .5, spread: 0, mode: 'semi', range: 2.4, zoom: 1, snd: 'knife', kick: 0, headMult: 1.8,
+    melee: { hold: 'up', light: ['rl', 'lr', 'ov'], heavyPat: 'ov', heavy: 2.3, cleave: 3, heavyCleave: 4, reach: 2.4, stagger: .5 }, model: { len: .8, h: .1, barrel: 0, melee: 'axe' } },
+  { id: 'maul', name: 'Sledgehammer', dmg: 250, rpm: 52, mag: 1, fixedMag: true, res: 0, reload: .5, spread: 0, mode: 'semi', range: 2.5, zoom: 1, snd: 'knife', kick: 0, headMult: 1.6,
+    melee: { hold: 'up', light: ['rl', 'ov'], heavyPat: 'ov', heavy: 2.2, cleave: 5, heavyCleave: 6, reach: 2.5, stagger: .9, blunt: true }, model: { len: .8, h: .12, barrel: 0, melee: 'maul' } },
+  { id: 'chainsaw', name: 'Chainsaw', dmg: 120, rpm: 90, mag: 100, res: 200, reload: 3, spread: 0, mode: 'semi', range: 2.3, zoom: 1, snd: 'knife', kick: 0, headMult: 1.4, rl: 'box',
+    melee: { hold: 'fwd', light: ['rl', 'lr'], heavyPat: 'saw', heavy: 1, cleave: 2, heavyCleave: 6, reach: 2.3, stagger: .3, saw: true }, model: { len: .6, h: .16, barrel: 0, melee: 'saw' } },
 ];
 
 function rollRarity(luck = 0) {
@@ -217,6 +226,8 @@ const UNIQUES = {
   spike:     { base: 'dmr',      name: 'Sínszög',         text: 'Ahová egyszer beverték, ott is marad.', trick: 'Ugyanazt a célt minden újabb találat 25%-kal jobban sebzi (5-ször halmozódik).' },
   howl:      { base: 'shotgun',  name: 'Farkasüvöltés',   text: 'A falka sosem vadászik egyedül.', trick: 'Ölés után 4 mp-ig 30%-kal gyorsabban futsz és töltesz újra.' },
   venom:     { base: 'pdw',      name: 'Méregfog',        text: 'Egy harapás elég. A többi csak ráadás.', trick: 'A találatok mérget halmoznak: a tizediknél a cél méregfelhőben szétrobban.', element: 'corrosive' },
+  headsman:  { base: 'axe',      name: 'Hóhér',           text: 'Egy suhintás, egy fej. Aztán a következő.', trick: 'Minden ölés 3 mp-ig 15%-kal gyorsítja a csapásaidat (5-ször halmozódik), és 3% életerőt ad vissza.' },
+  thunder:   { base: 'maul',     name: 'Mennydörgés',     text: 'Előbb villan, aztán dörög.', trick: 'Az erős csapás villámló lökéshullámot kelt: 5 méteren belül mindenkit megsebez és megtántorít.', element: 'shock' },
   bigbang:   { base: 'launcher', name: 'A Nagy Bumm',     text: 'Minek célozni?', trick: 'Minden gránát három kisebb bombára esik szét.' },
 };
 function makeUnique(key, level) {
@@ -243,7 +254,7 @@ const ANOINTS = {
 const fireRate = w => w.base.mode === 'burst' ? w.base.burst / (w.base.burstDelay + (w.base.burst - 1) * 60 / w.rpm) : w.rpm / 60;
 // sustained DPS: a full magazine plus its reload, so a double barrel doesn't look like the best gun in the game
 const wDmg = w => Math.round(w.dmg * (1 + .02 * (w.exp || 0))); // a shot's damage with the gun's expertise (+2% a level) in it
-const dps = w => Math.round(wDmg(w) * w.pellets * w.mag / (w.mag / fireRate(w) + (w.base.single ? w.reload * w.mag : w.reload)));
+const dps = w => w.base.melee ? Math.round(wDmg(w) * w.rpm / 60 * (1 + .25 * (w.base.melee.cleave - 1))) : Math.round(wDmg(w) * w.pellets * w.mag / (w.mag / fireRate(w) + (w.base.single ? w.reload * w.mag : w.reload)));
 const accuracy = w => Math.round(clamp(100 - w.spread * 9, 5, 99));
 const rarColor = w => RARITIES[w.q].color;
 const sellValue = w => Math.round([60, 150, 320, 650, 1300, 2600][w.q] * (1 + .08 * (w.level - 1)));

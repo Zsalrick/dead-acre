@@ -203,10 +203,11 @@ function weaponDetail(w, cmp, actions) {
       <div class="srows">
         ${srw('DPS', A.dps, x('dps'), w.roll != null ? w.roll / 100 : null, 'Másodpercenkénti sebzés egy teljes tárral és újratöltéssel. A csík: a véletlen értékek összesített minősége.')}
         ${srw('Sebzés', w.pellets > 1 ? `${wDmg(w)}×${w.pellets}` : wDmg(w), x('dmg'), RL.dmg, `alap ${b.dmg} · szint ${pctS(A.lv)} · ritkaság ${pctS(A.rq)} · véletlen ${pctS(A.roll)}${w.exp ? ` · szakértelem +${2 * w.exp}%` : ''}`)}
-        ${srw('Tűzgyorsaság', `${w.rpm}/p`, c ? dlt(w.rpm, c.rpm) : '', RL.rate)}
-        ${srw('Tár', w.mag, c ? dlt(w.mag, c.mag) : '', RL.mag)}
+        ${srw(b.melee ? 'Csapás / perc' : 'Tűzgyorsaság', `${w.rpm}/p`, c ? dlt(w.rpm, c.rpm) : '', RL.rate)}
+        ${b.melee ? `${srw('Átvágás', `${b.melee.cleave} cél · erős ${b.melee.heavyCleave}`, '', null, 'ennyi zombin megy át egy csapás, az első kapja a legtöbbet')}${srw('Erős csapás', `×${b.melee.heavy}`, '', null, 'bal gomb nyomva: feltöltött csapás')}${srw('Megtántorítás', ['gyenge', 'közepes', 'erős'][b.melee.stagger < .35 ? 0 : b.melee.stagger < .7 ? 1 : 2], '', null, 'megszakítja a zombi támadását')}`
+          : `${srw('Tár', w.mag, c ? dlt(w.mag, c.mag) : '', RL.mag)}
         ${srw(b.single ? 'Töltés / db' : 'Újratöltés', `${w.reload.toFixed(2)} mp`, c ? dlt(w.reload, c.reload, true, 2) : '', RL.reload, `gyorsaság ${pctS(reloadMul() - 1)}`)}
-        ${srw('Pontosság', `${A.acc}%`, x('acc'), RL.acc)}
+        ${srw('Pontosság', `${A.acc}%`, x('acc'), RL.acc)}`}
         ${srw('Kritikus esély', A.critRaw > CRIT_CAP ? `<span class="cmax">${Math.round(CRIT_CAP * 100)}% (max)</span>` : `${Math.round(A.crit * 100)}%`, C ? dlt(Math.round(A.crit * 100), Math.round(C.crit * 100)) : '', clamp((wCrit(w) - R[0]) / (R[1] + .016 - R[0]), 0, 1), `fegyver ${Math.round(wCrit(w) * 1000) / 10}% · a többi: felszerelés, képességek, gyártó`)}
       </div>
       <div class="srows">
@@ -214,7 +215,7 @@ function weaponDetail(w, cmp, actions) {
         ${srw('Fejlövés-szorzó', `×${A.head.toFixed(2)}`, x('head', false, 2), null, '', 'minor')}
         ${srw('Sebzésbónusz', pctS(A.bonus), x('bonus', false, 2), null, 'kaszt, képességek, páncél, gyártó, mesterség', 'minor')}
         ${srw('Hatótáv', `${b.range} m`, c ? dlt(b.range, c.base.range) : '', null, '', 'minor')}
-        ${srw('Tartalék lőszer', A.res, x('res'), null, '', 'minor')}
+        ${b.melee && !b.melee.saw ? '' : srw(b.melee ? 'Üzemanyag' : 'Tartalék lőszer', A.res, x('res'), null, '', 'minor')}
       </div>
       <div class="dboxes">
         ${w.unique && UNIQUES[w.unique] ? dbox('Egzotikus tehetség', UNIQUES[w.unique].name, UNIQUES[w.unique].trick, '#ff5a4a') : ''}

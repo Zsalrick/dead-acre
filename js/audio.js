@@ -76,6 +76,13 @@ const SND = {
   dry() { tn(1200, .02, .08); },
   reload() { nz(.05, 3000, .3, 'bandpass', 2); nz(.05, 2200, .3, 'bandpass', 2, .35); },
   knife() { nz(.12, 4000, .3, 'highpass', 1); },
+  swing(h, charge, miss) { if (charge) return nz(.3, 900, .08, 'bandpass', 1); nz(h ? .26 : .16, h ? 900 : 1500, h ? .34 : .24, 'bandpass', .7); if (miss) nz(.1, 2400, .06, 'highpass', 1, .08); }, // a whoosh
+  chop() { nz(.1, 420, .55, 'lowpass', 1.2); tn(140, .1, .3, 'square', 60); nz(.08, 2400, .22, 'bandpass', 3, .02); }, // a blade biting in
+  blunt() { nz(.16, 240, .7, 'lowpass', 1); tn(70, .2, .5, 'sine', 32); nz(.06, 1200, .15, 'bandpass', 2); }, // a heavy thud
+  block() { tn(1900, .09, .12, 'square', 900); nz(.12, 3200, .22, 'bandpass', 4); tn(300, .1, .12, 'triangle', 200); },
+  push() { nz(.16, 620, .3, 'lowpass', 1); tn(160, .12, .2, 'triangle', 80); },
+  saw(r) { tn(95 + r * 70, .11, .06, 'sawtooth', 120 + r * 80); nz(.1, 2600, .04, 'bandpass', 2); },
+  sawHit() { nz(.09, 1600, .2, 'bandpass', 1.5); tn(150, .09, .1, 'sawtooth', 120); },
   legend(u) { [0, 1, 2, 3, 4].forEach(i => tn((u ? 330 : 392) * Math.pow(1.335, i % 3) * (i > 2 ? 2 : 1), .5, .07, 'triangle', 0, i * .09)); nz(1.2, 5000, .05, 'highpass', .5, .1); },
   threat(t = 2) { tn(55, 1.1, .16, 'sawtooth', 38); tn(82, .9, .1, 'square', 60, .04); nz(.7, 380, .14, 'lowpass', 1); if (t >= 3) { tn(110, 1.4, .1, 'sawtooth', 70, .25); nz(1, 200, .12, 'lowpass', 1, .2); } }, // something strong has arrived
   salvage(kind) { if (kind === 'g') { nz(.32, 2600, .2, 'bandpass', 2.5); nz(.22, 1400, .14, 'bandpass', 2, .1); tn(260, .12, .05, 'triangle', 180, .18); } // cloth tearing

@@ -295,7 +295,32 @@ function roundBox(w, h, d, r) {
 const cylGeo = (r, len, seg = 18) => gunGeo[`c${r.toFixed(4)},${len.toFixed(4)},${seg}`] || (gunGeo[`c${r.toFixed(4)},${len.toFixed(4)},${seg}`] = new THREE.CylinderGeometry(r, r, len, seg));
 const torusGeo = (r, t, arc) => gunGeo[`t${r},${t},${arc}`] || (gunGeo[`t${r},${t},${arc}`] = new THREE.TorusGeometry(r, t, 6, 16, arc));
 
-function buildGun(w, world) {
+// melee weapons, built upright with the grip at the origin (the viewmodel swings them); lying along -z like a gun for the world and icons
+function buildMelee(w, flat) {
+  const b = w.base, kind = b.model.melee, M = gunMats(rarColor(w), flat), g = new THREE.Group(), U = g.userData;
+  const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const e = new THREE.Mesh(geo, mat); e.position.set(x, y, z); e.rotation.set(rx, ry, rz); g.add(e); return e; };
+  const bx = (sx, sy, sz, mat, x, y, z, rx, ry, rz) => { const e = add(unitBox, mat, x, y, z, rx, ry, rz); e.scale.set(sx, sy, sz); return e; };
+  const cy = (r, h, mat, x, y, z) => add(new THREE.CylinderGeometry(r, r, h, 10), mat, x, y, z);
+  const red = new (flat ? THREE.MeshLambertMaterial : THREE.MeshStandardMaterial)(Object.assign({ color: w.unique === 'thunder' ? 0x2a3a5a : 0x9a1c14 }, flat ? {} : { metalness: .4, roughness: .5 }));
+  if (kind === 'knife') {
+    bx(.03, .13, .036, M.rub, 0, -.01, 0); bx(.07, .014, .045, M.steel, 0, .06, 0);
+    bx(.008, .19, .038, M.steel, 0, .16, -.004); bx(.009, .05, .026, M.steel, 0, .27, -.01, .45); bx(.01, .1, .006, M.accent, 0, .14, .018);
+  } else if (kind === 'axe' || kind === 'maul') {
+    cy(.02, .82, M.wood, 0, .17, 0); bx(.046, .09, .046, M.rub, 0, -.2, 0); bx(.044, .05, .044, M.accent, 0, .02, 0);
+    if (kind === 'axe') { bx(.04, .11, .09, red, 0, .52, -.03); bx(.022, .17, .08, M.steel, 0, .52, -.11); bx(.03, .05, .07, red, 0, .52, .06, 0, 0, 0); }
+    else { bx(.12, .13, .3, w.unique === 'thunder' ? red : M.metal, 0, .54, 0); bx(.124, .02, .304, M.accent, 0, .54, 0); if (w.unique === 'thunder') bx(.13, .06, .06, M.accent, 0, .54, -.13); }
+  } else { // chainsaw: the body round the grip, the bar out front
+    bx(.12, .15, .3, M.accent, 0, .02, .04); bx(.13, .06, .2, M.dark, 0, -.07, .06); bx(.03, .12, .03, M.rub, 0, .13, -.02);
+    add(new THREE.TorusGeometry(.07, .012, 6, 14, Math.PI), M.rub, 0, .1, -.02, 0, Math.PI / 2, 0);
+    bx(.03, .08, .5, M.steel, 0, .0, -.35); bx(.034, .1, .5, M.dark, 0, .0, -.35).scale.set(.02, .1, .52); cy(.035, .04, M.steel, 0, 0, -.6).rotation.x = Math.PI / 2;
+  }
+  U.sightY = .1; U.muzzleZ = -.3; U.muzzleY = .1; U.port = new THREE.Object3D(); g.add(U.port);
+  if (flat && b.melee.hold !== 'fwd') { const o = new THREE.Group(); o.add(g); g.rotation.x = -Math.PI / 2; Object.assign(o.userData, U); return o; }
+  if (!flat) g.scale.setScalar(.62); // in the hands: the viewmodel is drawn close to the eye
+  return g;
+}
+function buildGun(w, world, icon) {
+  if (w.base.melee) return buildMelee(w, world || icon);
   const b = w.base, m = b.model, M = gunMats(rarColor(w), world), g = new THREE.Group(), U = g.userData;
   const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, p = g) => { const e = new THREE.Mesh(geo, mat); e.position.set(x, y, z); e.rotation.set(rx, ry, rz); p.add(e); return e; };
   const rb = (w_, h, d, r, mat, x, y, z, rx, ry, rz, p) => add(roundBox(w_, h, d, r), mat, x, y, z, rx, ry, rz, p);

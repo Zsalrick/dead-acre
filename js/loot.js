@@ -86,7 +86,7 @@ function ammoCanvas(cat, ring = true) {
 }
 const ammoURL = cat => ammoURLs[cat] || (ammoURLs[cat] = ammoCanvas(cat, false).toDataURL());
 function ammoIcon(cat) { return ammoMats[cat] || (ammoMats[cat] = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(ammoCanvas(cat)), transparent: true, depthWrite: false })); }
-function ammoCat() { const mine = [...player.slots, ...player.bag].filter(Boolean).map(w => CAT[w.base.id]).filter(Boolean); return mine.length && Math.random() < .7 ? pick(mine) : pick([...new Set(Object.values(CAT))]); }
+function ammoCat() { const mine = [...player.slots, ...player.bag].filter(Boolean).map(w => CAT[w.base.id]).filter(c => c && c !== 'melee'); return mine.length && Math.random() < .7 ? pick(mine) : pick([...new Set(Object.values(CAT).filter(c => c !== 'melee'))]); }
 function spawnPower(pos, type) {
   type = type || pick(Object.keys(POWERS).filter(k => !POWERS[k].small));
   let s, cat = null;

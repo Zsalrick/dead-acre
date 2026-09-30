@@ -320,7 +320,7 @@ function netHit(z, amt, o) {
   z.hp -= z.armor > 0 && !o.head && !o.dot && !o.melee && !insta ? amt * .25 : amt; z.flash = .08; z.hitT = now;
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit);
-  let burn = 0, fl = (o.head ? 1 : 0) | (o.crit ? 2 : 0) | (o.melee ? 4 : 0) | (o.dot ? 8 : 0) | (insta ? 32 : 0);
+  let burn = 0, fl = (o.head ? 1 : 0) | (o.crit ? 2 : 0) | (o.melee ? 4 : 0) | (o.dot ? 8 : 0) | (insta ? 32 : 0) | (o.stag ? 256 : 0);
   if (o.burnDps) burn = Math.round(o.burnDps);
   NET.lastHit.set(z.id, { w: o.w, head: !!o.head });
   if (o.w && o.w.element && !o.chain) {
@@ -445,7 +445,7 @@ function netTick(dt) {
         else if (burn > 0) { z.burnT = 3; z.burnDps = Math.max(z.burnDps, Math.min(+burn, 1e6)); z.burnBy = p.peer; }
         if (fl & 128) z.slagT = 5;
         if (fl & 16) z.slowT = 2.5;
-        hurtZombie(z, clamp(+dmg || 0, 0, 1e7), { remote: p.peer, head: !!(fl & 1), crit: !!(fl & 2), melee: !!(fl & 4), dot: !!(fl & 8), insta: !!(fl & 32) });
+        hurtZombie(z, clamp(+dmg || 0, 0, 1e7), { remote: p.peer, head: !!(fl & 1), crit: !!(fl & 2), melee: !!(fl & 4), dot: !!(fl & 8), insta: !!(fl & 32), stag: fl & 256 ? 1 : 0 });
       }
       for (const [, type, arg] of fresh('a' + p.peer, p.presence.p.a)) netHostAct(type, arg, p.peer);
     }

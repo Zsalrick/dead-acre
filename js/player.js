@@ -33,13 +33,18 @@ function addHands(g, b) {
   else { l.position.set(-.03, -H * 1.1, L * .24); l.rotation.set(.75, -.35, .15); } // cupping the pistol grip
   g.add(l); g.userData.leftHand = l;
 }
+function addMeleeHands(g, b) { // the grip hand at the origin; a two-hander gets the other hand lower on the haft
+  const r = makeArm(); r.rotation.set(.95, .15, 0); g.add(r);
+  if (b.melee.hold === 'fwd') { const l = makeArm(); l.position.set(-.02, .14, -.04); l.rotation.set(1.1, -.3, .1); g.add(l); g.userData.leftHand = l; }
+  else if (b.model.melee !== 'knife') { const l = makeArm(); l.position.set(-.01, -.2, .02); l.rotation.set(.95, -.15, 0); g.add(l); g.userData.leftHand = l; }
+}
 const SWITCH_T = .45;
 function equipView() {
   if (vm.gun) vmRoot.remove(vm.gun);
   vm.pending = false;
   const w = curW(); if (!w) return;
   vm.gun = buildGun(w, false);
-  addHands(vm.gun, w.base);
+  if (w.base.melee) addMeleeHands(vm.gun, w.base); else addHands(vm.gun, w.base);
   vm.flash = new THREE.Sprite(flashMat); vm.flash.scale.set(.22, .22, 1);
   vm.flash.position.set(0, vm.gun.userData.muzzleY, vm.gun.userData.muzzleZ - .04); vm.flash.visible = false;
   vm.gun.add(vm.flash);
@@ -50,7 +55,7 @@ function trackBest(w) { if (!player.best || w.q > player.best.q || (w.q === play
 function reloaded(w) { w.fired = 0; (player.buf || (player.buf = {})).reload = 5; }
 function beginSwitch() {
   (player.buf || (player.buf = {})).swap = 4;
-  stopReload(); player.burstLeft = 0; player.spin = 0; player.switchT = exoOn('grip') ? 0 : SWITCH_T; // Acélmarok: an instant swap
+  stopReload(); melReset(); player.burstLeft = 0; player.spin = 0; player.switchT = exoOn('grip') ? 0 : SWITCH_T; // Acélmarok: an instant swap
   if (vm.gun) vm.pending = true; else equipView();
   renderSlots();
 }
@@ -319,6 +324,7 @@ function shoot() {
   if (tally.size) { hitmarker(false); [...tally.values()].some(t => t.head) ? SND.head() : SND.hit(); }
 }
 function knife() {
+  if (isMelee(curW())) { clickQueued = .15; return; } // a melee weapon in hand: V is just another swing
   if (player.knifeCd > 0 || armAnim) return;
   stopReload(); player.knifeCd = .6; SND.knife();
   startArm('slash', 'blade', () => {
@@ -352,6 +358,7 @@ function updateWeapon(dt) {
     }
   }
   const busy = player.reloading || player.switchT > 0 || player.knifeT > 0;
+  if (w.base.melee) return updateMelee(dt, w, busy);
   const B = player.buf || (player.buf = {}); for (const k in B) B[k] = Math.max(0, B[k] - dt);
   if (w.unique === 'haystack') player.uHeat = clamp((player.uHeat || 0) + (mouseDown && !busy && w.ammo > 0 ? dt / 4 : -dt / 1.5), 0, 1);
   if (w.base.spin) { // minigun spins up before it fires
@@ -418,7 +425,7 @@ function updatePlayer(dt) {
   if (!ff && rk('e_drone') && turrets.some(t => Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 6)) player.hp = Math.min(maxHp(), player.hp + 6 * rk('e_drone') * dt); // Javítódrón
   // ads
   const w = curW();
-  const adsTarget = rmb && !player.sprint && player.knifeT <= 0 && !player.reloading && !(player.cycT > 0) && player.carry == null ? 1 : 0; // no scope while reloading or working the bolt / pump; holding the button brings it back after
+  const adsTarget = rmb && !isMelee(w) && !player.sprint && player.knifeT <= 0 && !player.reloading && !(player.cycT > 0) && player.carry == null ? 1 : 0; // no scope while reloading or working the bolt / pump; holding the button brings it back after
   player.ads += (adsTarget - player.ads) * Math.min(1, dt * 13);
   camera.fov = lerp(SET.fov, SET.fov / w.base.zoom, player.ads); camera.updateProjectionMatrix();
   // recoil recovery
@@ -457,7 +464,9 @@ function updateVM(dt) {
   if (player.switchT > 0) { const p = Math.sin((1 - player.switchT / SWITCH_T) * Math.PI); y -= .32 * p; rx -= .45 * p; }
   if (vm.pending && player.switchT <= SWITCH_T / 2) equipView();
   if (armAnim) { y -= .06; x += .05; rz -= .12; }
-  const k = 1 - Math.exp(-dt * (ads > .5 ? 24 : player.reloading ? 9 : 14)), b = vm.blend || (vm.blend = { p: new V3(x, y, z), r: new V3() });
+  const mp = w.base.melee && !player.reloading && player.switchT <= 0 && meleePose(w); // melee: the swing sets the pose, and fast
+  if (mp) [x, y, z, rx, ry, rz] = mp;
+  const k = 1 - Math.exp(-dt * (mp && MEL.ph !== 'idle' ? 34 : ads > .5 ? 24 : player.reloading ? 9 : 14)), b = vm.blend || (vm.blend = { p: new V3(x, y, z), r: new V3() });
   b.p.x += (x - b.p.x) * k; b.p.y += (y - b.p.y) * k; b.p.z += (z - b.p.z) * k;
   b.r.x += (rx - b.r.x) * k; b.r.y += (ry - b.r.y) * k; b.r.z += (rz - b.r.z) * k;
   // additive layers on top: walk bob, mouse sway, recoil kick

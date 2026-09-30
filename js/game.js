@@ -424,7 +424,7 @@ function hurtPlayer(d, quiet) {
   if (netRedirectHurt(d)) return; // a host zombie hit another player
   if (!liveWorld() || (mission && mission.leaving) || player.down) return;
   if (player.ffyl > 0) { player.ffyl = Math.max(.05, player.ffyl - .4); return; } // hits on the ground eat into the clock
-  d *= SK.taken();
+  d *= SK.taken(); d = melBlocked(d, from);
   const hadShield = player.shield > 0;
   let absorbed = 0; if (player.shield > 0) { absorbed = Math.min(player.shield, d); player.shield -= absorbed; d -= absorbed; }
   if (hadShield && player.shield <= 0 && (rk('m_burst') || exoOn('nova'))) explode(player.pos.clone().setY(1), { r: 5, zdmg: 150 + zombieHp(), pr: .01, pdmg: .001, color: 0xf2d27a });
@@ -835,13 +835,14 @@ function updateHUD() {
       setHTML('objL', `<li><span>${main[0]}</span><b>${main[1]}</b></li>${secRows(J, mission)}${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}`);
       setHTML('objD', [...(J.dir || []).filter(k => DIRECTIVES[k]).map(k => `<i data-tip="${DIRECTIVES[k].desc}">${DIRECTIVES[k].name}</i>`), J.mod && MODS[J.mod] ? `<i class="mod" data-tip="${MODS[J.mod].sub}">${MODS[J.mod].label}</i>` : '', J.tier ? `<i class="nm">Rémálom +${J.tier}</i>` : ''].join(''));
     }
-    updateEvacMark(M.phase === 'evac' || !!M.evacWarn); updateQuestMark();
+    updateEvacMark(M.phase === 'evac' || !!M.evacWarn); updateQuestMark(); updateMeleeHud();
   }
   setHTML('wname', `<span class="lvtag" style="--rc:${rarColor(w)}">Lv ${w.level}</span><span style="color:${rarColor(w)}">${w.name}</span>`);
   setHTML('wsub', `${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · ${w.base.name}${w.element ? ` · <span style="color:${ELEMENTS[w.element].color}">${ELEMENTS[w.element].name}</span>` : ''}`);
   const lowAmmo = w.ammo === 0 || (w.mag > 3 && w.ammo <= Math.ceil(w.mag * .25)); // a one-bolt crossbow is never 'low'
-  setHTML('mag', w.ammo); $('mag').classList.toggle('low', lowAmmo);
-  setHTML('res', '/ ' + w.reserve); $('res').classList.toggle('none', w.reserve === 0);
+  const mel = w.base.melee && !w.base.melee.saw; // a blade needs no ammo; the chainsaw shows its fuel
+  setHTML('mag', mel ? '—' : Math.ceil(w.ammo)); $('mag').classList.toggle('low', lowAmmo && !mel);
+  setHTML('res', mel ? '' : '/ ' + w.reserve); $('res').classList.toggle('none', w.reserve === 0);
   $('magfill').style.width = clamp(w.ammo / Math.max(1, w.mag), 0, 1) * 100 + '%'; $('magbar').classList.toggle('low', lowAmmo);
   const hint = player.reloading ? 'Újratöltés…' : w.ammo === 0 && w.reserve === 0 ? 'Nincs lőszer' : lowAmmo && w.reserve > 0 ? 'R · Újratöltés' : '';
   setHTML('hint', hint);
