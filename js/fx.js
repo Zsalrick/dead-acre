@@ -287,19 +287,28 @@ function faceSplat(power = 1) {
   const W = innerWidth, H = innerHeight, r = (38 + Math.random() * 80) * power * Math.min(W, H) / 900;
   const a = Math.random() * 6.28, d = .3 + Math.random() * .62, x = W / 2 + Math.cos(a) * d * W / 2, y = H / 2 + Math.sin(a) * d * H / 2; // round the edges, off the crosshair
   const S = Math.ceil(r * 3.2), c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), m = S / 2;
-  const col = al => `rgba(${70 + Math.random() * 40 | 0},${Math.random() * 6 | 0},${Math.random() * 5 | 0},${al})`, gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
-  g.filter = 'blur(.8px)';
-  for (let i = 0; i < 70; i++) { const px = m + gauss() * r * .7, py = m + gauss() * r * .7; g.fillStyle = col(.55 + Math.random() * .3); g.beginPath(); g.arc(px, py, r * (.08 + Math.random() * .2), 0, 7); g.fill(); } // the body: a noisy clump, not a circle
-  const sa = Math.random() * 6.28;
-  for (let i = 0; i < 9; i++) { const q = sa + (Math.random() - .5) * 2.4, len = r * (.5 + Math.random() * .9), wd = r * (.04 + Math.random() * .06); // streaks flung outward
-    g.save(); g.translate(m + Math.cos(q) * r * .45, m + Math.sin(q) * r * .45); g.rotate(q); g.fillStyle = col(.6); g.beginPath(); g.ellipse(len / 2, 0, len / 2, wd, 0, 0, 7); g.fill(); g.restore(); }
-  for (let i = 0; i < 30; i++) { const q = sa + (Math.random() - .5) * 2, dd = r * (.7 + Math.random() * .9); g.fillStyle = col(.7); g.beginPath(); g.arc(m + Math.cos(q) * dd, m + Math.sin(q) * dd, 1 + Math.random() * r * .05, 0, 7); g.fill(); } // droplets
+  const col = al => `rgba(${70 + Math.random() * 40 | 0},${Math.random() * 6 | 0},${Math.random() * 5 | 0},${al})`;
+  g.filter = 'blur(.5px)';
+  g.fillStyle = col(.85); g.beginPath(); // the core: a small ragged blot, not a round one
+  for (let k = 0; k <= 30; k++) { const q = k / 30 * 6.283, rr = r * .2 * (.6 + Math.random() * .8); k ? g.lineTo(m + Math.cos(q) * rr, m + Math.sin(q) * rr) : g.moveTo(m + Math.cos(q) * rr, m + Math.sin(q) * rr); }
+  g.fill();
+  const sa = Math.random() * 6.28, n = 14 + Math.random() * 12 | 0;
+  for (let i = 0; i < n; i++) { // the streaks: tapered spikes flung out, bent a little, most of them one way
+    const q = Math.random() < .3 ? Math.random() * 6.28 : sa + (Math.random() - .5) * 2.2, len = r * (.45 + Math.random() * 1.15), w0 = r * (.03 + Math.random() * .07), s0 = r * .08;
+    const cx = Math.cos(q), cy = Math.sin(q), px = -cy, py = cx, bend = (Math.random() - .5) * len * .25;
+    const x0 = m + cx * s0, y0 = m + cy * s0, x1 = m + cx * (s0 + len), y1 = m + cy * (s0 + len), mx = (x0 + x1) / 2 + px * bend, my = (y0 + y1) / 2 + py * bend;
+    g.fillStyle = col(.62 + Math.random() * .25); g.beginPath();
+    g.moveTo(x0 + px * w0, y0 + py * w0); g.quadraticCurveTo(mx + px * w0 * .5, my + py * w0 * .5, x1, y1); g.quadraticCurveTo(mx - px * w0 * .5, my - py * w0 * .5, x0 - px * w0, y0 - py * w0); g.fill();
+    if (Math.random() < .55) { g.beginPath(); g.arc(x1, y1, w0 * (.5 + Math.random() * .6), 0, 7); g.fill(); } // a bead at the tip
+    for (let k = 0; k < (Math.random() * 4 | 0); k++) { const t = 1.08 + Math.random() * .35; g.beginPath(); g.arc(m + cx * (s0 + len * t) + px * (Math.random() - .5) * w0 * 3, m + cy * (s0 + len * t) + py * (Math.random() - .5) * w0 * 3, .8 + Math.random() * w0 * .5, 0, 7); g.fill(); } // flung past it
+  }
+  for (let i = 0; i < 40; i++) { const q = sa + (Math.random() - .5) * 2.6, dd = r * (.3 + Math.random() * 1.4); g.fillStyle = col(.5 + Math.random() * .3); g.beginPath(); g.arc(m + Math.cos(q) * dd, m + Math.sin(q) * dd, .6 + Math.random() * 1.6, 0, 7); g.fill(); } // a fine mist
   g.filter = 'none';
   const gr = g.createRadialGradient(m, m, 0, m, m, r * .7); gr.addColorStop(0, 'rgba(25,0,0,.5)'); gr.addColorStop(1, 'rgba(25,0,0,0)');
   g.globalCompositeOperation = 'source-atop'; g.fillStyle = gr; g.fillRect(0, 0, S, S);
   const hl = g.createRadialGradient(m - r * .25, m - r * .3, 0, m - r * .25, m - r * .3, r * .35); hl.addColorStop(0, 'rgba(255,190,190,.16)'); hl.addColorStop(1, 'rgba(255,190,190,0)'); g.fillStyle = hl; g.fillRect(0, 0, S, S); // a wet sheen
   g.globalCompositeOperation = 'source-over';
-  const drips = Math.random() < .75 ? Array.from({ length: 1 + (Math.random() * 3 | 0) }, () => ({ x: m + (Math.random() - .5) * r, y: m + r * .3, w: (2.5 + Math.random() * 4) * power, len: 0, max: 40 + Math.random() * 130, v: 12 + Math.random() * 30 })) : [];
+  const drips = Math.random() < .75 ? Array.from({ length: 1 + (Math.random() * 3 | 0) }, () => ({ x: m + (Math.random() - .5) * r * .35, y: m + r * .12, w: (2.5 + Math.random() * 4) * power, len: 0, max: 40 + Math.random() * 130, v: 12 + Math.random() * 30 })) : [];
   splats.push({ c, x: x - m, y: y - m, drips, t: 0, life: 3.5 + Math.random() * 2.2 });
 }
 function faceSplatHit(z, o) { // how close, how hard: a point-blank shot sometimes, a melee blow often, a heavy one nearly always
