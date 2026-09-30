@@ -62,7 +62,7 @@ const gPic = it => gearIcon(it.slot, BRANDS[it.brand].color, it.name);
 function tile(sel, pic, name, sub, color, o = {}) {
   const badge = `<span class="tbadges">${o.lockLv ? `<i class="tbadge lock">${o.lockLv}. szinttől</i>` : ''}${(o.badge || o.tag) ? `<i class="tbadge${o.badgeCls ? ' ' + o.badgeCls : ''}">${o.badge || o.tag}</i>` : ''}</span>`; // level lock on top, new / favourite / trash under it
   return `<button class="tile${invSel === sel ? ' on' : ''}${o.cant ? ' cant' : ''}" data-act="sel:${sel}" draggable="true" style="--rc:${color}${o.bc ? `;--bc:${o.bc}` : ''}">
-    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lockLv ? ' lock' : ''}">${o.lv}</i>` : ''}${badge}${o.n ? `<kbd class="tkey">${o.n}</kbd>` : ''}${o.exp && !o.n ? `<i class="texp" title="Szakértelem ${o.exp}/10">✦${o.exp}</i>` : ''}</span>
+    <span class="tpic"><img src="${pic}" alt="">${o.lv ? `<i class="tlv${o.lockLv ? ' lock' : ''}">${o.lv}</i>` : ''}${badge}${o.n ? `<kbd class="tkey">${o.n}</kbd>` : ''}${o.exp ? `<i class="texp" title="Szakértelem ${o.exp}/10">+${o.exp}</i>` : ''}</span>
     <span class="ttx">${o.rar ? `<small class="trar">${o.rar}</small>` : ''}<b class="tn">${name}</b><span class="tmeta"><small class="ts">${sub}</small>${o.val != null ? `<b class="tv">${o.val}</b>` : ''}</span></span></button>`;
 }
 const delta = (d, lowBetter, fmt = v => Math.round(v)) => !d ? '' : `<em class="${(lowBetter ? d < 0 : d > 0) ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${fmt(Math.abs(d))}</em>`;

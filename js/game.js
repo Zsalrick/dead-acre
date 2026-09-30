@@ -376,7 +376,7 @@ function finishJob(success, abandoned) {
   P.inv = player.inv;
   const bm = stats.byMap[J.map] || (stats.byMap[J.map] = { done: 0, fail: 0 });
   if (success) { stats.jobs++; bm.done++; if (J.diff >= 4 && !J.test) stats.hard = (stats.hard || 0) + 1; } else { stats.fails++; bm.fail++; }
-  rollBoard(); rollShop(); saveProfile();
+  rollBoard(); saveProfile(); // the shop restocks on the clock (hub.js)
   clearZombieStuff();
   NET.revs = 0;
   delete P.inMission;
@@ -693,7 +693,7 @@ const hudCache = {};
 function setHTML(id, html) { if (hudCache[id] !== html) { hudCache[id] = html; $(id).innerHTML = html; } }
 function renderSlots() {
   $('slots').innerHTML = player.slots.map((w, i) => w
-    ? `<div class="slot${i === player.cur ? ' on' : ''}" style="--sc:${rarColor(w)}"><b>${i + 1}</b>${w.base.name} <em>Lv ${w.level}</em></div>`
+    ? `<div class="slot${i === player.cur ? ' on' : ''}" style="--sc:${rarColor(w)}"><b>${i + 1}</b>${w.base.name}${w.exp ? ` <em class="sexp">+${w.exp}</em>` : ''} <em>Lv ${w.level}</em></div>`
     : `<div class="slot"><b>${i + 1}</b>üres</div>`).join('');
 }
 function gearGroundCard(it, act) { // armor on the ground: the same card as a gun, with its armor against what you wear

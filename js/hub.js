@@ -101,6 +101,21 @@ function rollShop() {
   profile.gshop = Array.from({ length: 3 + more }).map(() => makeGear(null, rollRarity(.15 + lvl * .02), lvl));
   profile.shopMore = more;
 }
+// the shop restocks at every :00 and :30 by the server's clock (the host's Date header), not the machine's; a steady clock runs on from there
+const NETCLK = { t: null, p: 0 }, SHOP_SLOT = 30 * 60e3;
+async function syncClock() {
+  try { const r = await fetch(location.pathname, { method: 'HEAD', cache: 'no-store' }), d = Date.parse(r.headers.get('Date')); if (d) return Object.assign(NETCLK, { t: d, p: performance.now() }); } catch (e) {}
+  try { const j = await (await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC', { cache: 'no-store' })).json(); if (j.unixtime) Object.assign(NETCLK, { t: j.unixtime * 1000, p: performance.now() }); } catch (e) {}
+}
+const netNow = () => NETCLK.t == null ? null : NETCLK.t + performance.now() - NETCLK.p;
+const shopLeft = () => { const t = netNow(); if (t == null) return '—'; const s = Math.ceil((SHOP_SLOT - t % SHOP_SLOT) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+function checkShopClock() {
+  const t = netNow(); if (t == null || !profile) return; const s = Math.floor(t / SHOP_SLOT);
+  if (profile.shopSlot == null) { profile.shopSlot = s; return saveProfile(); } // first time on the clock: keep what's on the shelf
+  if (s !== profile.shopSlot) { profile.shopSlot = s; rollShop(); saveProfile(); toast('A BOLT FRISSÜLT', ['Új fegyverek és ruhák a kínálatban.'], '#9fe0a0'); if (state === 'hub') renderHub(); }
+}
+syncClock(); setInterval(syncClock, 10 * 60e3);
+setInterval(() => { checkShopClock(); document.querySelectorAll('.shopclk').forEach(e => e.textContent = shopLeft()); }, 1000);
 function topUpShop() { // reached level 10/20/30 since the last restock: the new places fill now (bought ones stay bought)
   const lvl = profile.level, more = 2 * Math.floor(Math.min(30, lvl) / 10), had = profile.shopMore ?? Math.max(0, (profile.shop || []).length - 4); // older saves don't know: guess from what is on the shelf
   if (more <= had || !profile.shop) return;
@@ -654,9 +669,9 @@ function shopPage(tab) {
   if (tab === 'P') cmpCol = `<h3>Kézben · összevetéshez</h3><div class="tiles ro">${P.loadout.map((o, k) => o ? wTile(`cmp:${k}`, unpackW(o), { n: `${k + 1}` }) : '').join('')}</div>`;
   if (tab === 'Q') cmpCol = `<h3>Viselt · összevetéshez</h3><div class="tiles ro worn">${GEAR_KEYS.map(k => P.gear[k] ? gTile(`cmp:${k}`, P.gear[k]) : emptyTile(`${GEAR_SLOTS[k]} · üres`, '')).join('')}</div>`;
   if (tab === 'P') { head = 'Fegyverek'; lede = 'A kínálat minden munka után megújul. A vett fegyver a raktárba kerül.';
-    left = `<h3>Kínálat <small>${P.stash.length} / ${stashMax()}</small></h3><div class="tiles">${P.shop.map((o, k) => { if (!o) return ''; const w = unpackW(o), c = shopPrice(w); return wTile(`P:${k}`, w, { cmp: L0, price: `$${c}`, cant: P.cash < c }); }).join('') || soon}</div>`; }
+    left = `<h3>Kínálat <small>frissül: <b class="shopclk">${shopLeft()}</b> · ${P.stash.length} / ${stashMax()}</small></h3><div class="tiles">${P.shop.map((o, k) => { if (!o) return ''; const w = unpackW(o), c = shopPrice(w); return wTile(`P:${k}`, w, { cmp: L0, price: `$${c}`, cant: P.cash < c }); }).join('') || soon}</div>`; }
   if (tab === 'Q') { head = 'Páncél'; lede = 'A kínálat minden munka után megújul. A vett páncél a páncélraktárba kerül.';
-    left = `<h3>Kínálat <small>${P.gearStash.length} / ${gearMax()}</small></h3><div class="tiles">${P.gshop.map((it, k) => it ? gTile(`Q:${k}`, it, { cmp: P.gear[it.slot] || null, price: `$${gearPrice(it)}`, cant: P.cash < gearPrice(it) }) : '').join('') || soon}</div>`; }
+    left = `<h3>Kínálat <small>frissül: <b class="shopclk">${shopLeft()}</b> · ${P.gearStash.length} / ${gearMax()}</small></h3><div class="tiles">${P.gshop.map((it, k) => it ? gTile(`Q:${k}`, it, { cmp: P.gear[it.slot] || null, price: `$${gearPrice(it)}`, cant: P.cash < gearPrice(it) }) : '').join('') || soon}</div>`; }
   if (tab === 'I') { head = 'Felszerelés'; lede = 'Mindegyik tárgyból több fajta van. A fajtát egyszer kell megvenned, utána szabadon választhatsz; munkára mindig a kiválasztott fajta jön veled.';
     left = ITEM_KEYS.map(k => { const s = TYPE_SLOT[k], c = ITEM_PRICE[k], n = k === 'knife' ? 3 : 1;
       return `<h3 class="kith"><img class="sico" src="${ICONS[k]}" alt="">${ITEMS[k].name} <kbd>${ITEMS[k].key}</kbd> <small>nálad ${P.inv[k]}/${itemMax(k)} · most: ${itemName(k)}</small></h3>

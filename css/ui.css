@@ -1064,3 +1064,7 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 #dmgdir svg{width:100%;height:100%;overflow:visible}
 #dmgdir path{fill:#ff3a2a;filter:drop-shadow(0 0 6px rgba(255,40,20,.8))}
 #dmgdir .dd.sh path{fill:#4ab4ff;filter:drop-shadow(0 0 6px rgba(60,160,255,.8))}
+
+.tpic:has(.tkey) .texp{bottom:28px} /* a hand tile: expertise sits above the hand number */
+.slot .sexp{color:#ffd23f;font-style:normal;font-weight:700}
+.jsvg .loc>rect{transform-origin:center} /* the diamond turns round its middle, inside the featured ring */
