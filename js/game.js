@@ -352,7 +352,7 @@ function finishJob(success, abandoned) {
   mission = null; state = 'results';
   netJobEnded();
   $('flash').style.opacity = 0; $('flash').style.background = '';
-  truck.beacon.visible = truck.beam.visible = false; $('evacMark').hidden = true; $('intro').hidden = true;
+  truck.beacon.visible = truck.beam.visible = false; $('evacMark').hidden = true; $('questMark').hidden = true; $('intro').hidden = true;
   clearGearDrops(); clearFx(); if (M.esc) scene.remove(M.esc.a.g); if (M.cache && M.cache.g) scene.remove(M.cache.g);
   const w = settleWeapons(success, M);
   const secB = secBonus(J, M, success);
@@ -386,7 +386,7 @@ function finishJob(success, abandoned) {
 // back from the testing ground: whatever you carry comes home (that's how trading works), nothing is earned
 function leaveTest(M) {
   mission = null; netJobEnded(); clearGearDrops(); clearFx(); settleWeapons(true, M); clearZombieStuff();
-  $('flash').style.opacity = 0; $('intro').hidden = true; $('evacMark').hidden = true;
+  $('flash').style.opacity = 0; $('intro').hidden = true; $('evacMark').hidden = true; $('questMark').hidden = true;
   profile.inv = player.inv; saveProfile(); showHub();
 }
 function hurtAt(pos, r, d) {
@@ -835,7 +835,7 @@ function updateHUD() {
       setHTML('objL', `<li><span>${main[0]}</span><b>${main[1]}</b></li>${secRows(J, mission)}${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}`);
       setHTML('objD', [...(J.dir || []).filter(k => DIRECTIVES[k]).map(k => `<i data-tip="${DIRECTIVES[k].desc}">${DIRECTIVES[k].name}</i>`), J.mod && MODS[J.mod] ? `<i class="mod" data-tip="${MODS[J.mod].sub}">${MODS[J.mod].label}</i>` : '', J.tier ? `<i class="nm">Rémálom +${J.tier}</i>` : ''].join(''));
     }
-    updateEvacMark(M.phase === 'evac' || !!M.evacWarn);
+    updateEvacMark(M.phase === 'evac' || !!M.evacWarn); updateQuestMark();
   }
   setHTML('wname', `<span class="lvtag" style="--rc:${rarColor(w)}">Lv ${w.level}</span><span style="color:${rarColor(w)}">${w.name}</span>`);
   setHTML('wsub', `${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · ${w.base.name}${w.element ? ` · <span style="color:${ELEMENTS[w.element].color}">${ELEMENTS[w.element].name}</span>` : ''}`);
@@ -863,15 +863,25 @@ function updateHUD() {
 // green marker on the van; slides to the screen edge and points the way when it is off screen
 function updateEvacMark(on) {
   const el = $('evacMark'); el.hidden = !on; if (!on) return;
-  const v = truck.pos.clone().setY(2.8).project(camera);
+  const dist = Math.round(Math.hypot(truck.pos.x - player.pos.x, truck.pos.z - player.pos.z));
+  placeMark(el, truck.pos, 2.8, truck.parked && dist < 5 ? '[E] Beszállás' : `Furgon · ${dist} m`);
+}
+// the map challenge: once every part is in, where to take them; once it's beaten, where the reward lies
+function updateQuestMark() {
+  const el = $('questMark'), Q = QST, rw = Q.reward && Q.reward.find(d => resDrops.includes(d) || drops.includes(d) || gearDrops.includes(d));
+  const on = !!(mission && Q.radio && (Q.stage === 0 && Q.parts.length && Q.parts.every(q => q.got) || Q.stage === 2 && rw)); el.hidden = !on; if (!on) return;
+  const at = Q.stage === 2 ? rw.pos : Q.radio.pos, dist = Math.round(Math.hypot(at.x - player.pos.x, at.z - player.pos.z));
+  placeMark(el, at, 2.4, `${Q.stage === 2 ? 'Jutalom' : qt().use} · ${dist} m`);
+}
+function placeMark(el, p, h, text) {
+  const v = new V3(p.x, h, p.z).project(camera);
   let x = v.x, y = v.y; const behind = v.z > 1;
   if (behind) { x = -x; y = -y; }
   const k = Math.max(Math.abs(x) / .9, Math.abs(y) / .8), off = behind || k > 1;
   if (off) { x /= k; y /= k; }
   el.style.transform = `translate(${(x + 1) / 2 * innerWidth}px,${(1 - y) / 2 * innerHeight}px) translate(-50%,-50%)`;
   const b = el.firstChild, want = off ? 'arrow' : 'down'; if (b.dataset.ic !== want) { b.dataset.ic = want; b.innerHTML = ic(want); } b.style.transform = off ? `rotate(${Math.atan2(-y, x)}rad)` : '';
-  const dist = Math.round(Math.hypot(truck.pos.x - player.pos.x, truck.pos.z - player.pos.z));
-  el.lastChild.textContent = truck.parked && dist < 5 ? '[E] Beszállás' : `Furgon · ${dist} m`;
+  el.lastChild.textContent = text;
 }
 
 // ================= LOOP =================

@@ -67,7 +67,7 @@ function makeGear(slot, q, level, brand) {
   return { slot, brand, q, level, armor, stats, name: q === 4 ? GEAR_LEGENDS[slot] : `${BRANDS[brand].name.split(' ')[0]} ${pick(GEAR_NAMES[slot])}` };
 }
 // ---------- exotic armor (The Division): one talent that changes how you play; bosses drop them ----------
-const EXO_COL = '#ff5a3a';
+const EXO_COL = RARITIES[5].color; // exotic armour is simply exotic: the same colour as an exotic gun
 const EXOTICS = {
   vamp:    { slot: 'chest', name: 'Vérszívó kabát',    talent: 'Minden ölés a max életerőd 8%-át visszatölti.' },
   nova:    { slot: 'chest', name: 'Pajzsnóva mellvért', talent: 'Ha a pajzsod elfogy, lökéshullám robban körülötted.' },
@@ -147,7 +147,8 @@ function spawnGearDrop(it, pos) {
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 2 + it.q * .8, 6, 1, true),
     new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 1 + it.q * .4; g.add(beam);
-  g.position.set(pos.x + rand(-.5, .5), 0, pos.z + rand(-.5, .5)); scene.add(g);
+  if (it.exo) exoBeacon(g, beam, col); else if (it.q >= 4) { lootRing(g, col, .95); beam.scale.set(3, 2, 3); beam.position.y *= 2; }
+  const at = lootSpot(pos); g.position.set(at.x, 0, at.z); scene.add(g);
   const lv = textSprite([`${it.exo ? 'Egzotikus' : RARITIES[it.q].name} · ${it.name} · Lv ${it.level} · ${gRoll(it)}%`], gCol(it), .5); lv.position.y = 1.05; lv.material.sizeAttenuation = false; lv.scale.multiplyScalar(.045); g.add(lv);
   const d = { it, g, m, t: 90, pos: g.position }; gearDrops.push(d); return d;
 }

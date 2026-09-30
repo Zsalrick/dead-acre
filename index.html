@@ -3,8 +3,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=164">
-<link rel="stylesheet" href="css/ui.css?v=164">
+<link rel="stylesheet" href="css/legacy.css?v=165">
+<link rel="stylesheet" href="css/ui.css?v=165">
 
 <!-- boot screen: painted before any script, gone once every script is in -->
 <div id="boot" style="position:fixed;inset:0;z-index:9999;background:#0e0f0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s">
@@ -47,28 +47,22 @@
     <div id="pings"></div>
     <div id="mates" hidden></div>
     <div id="evacMark" hidden><b>&#9660;</b><span></span></div>
+    <div id="questMark" hidden><b>&#9660;</b><span></span></div>
     <div id="flash"></div>
   </div>
   <div id="loadscr" hidden><img id="lsImg" alt=""><div class="lsin"><div class="lsl"><small id="lsEy"></small><h1 id="lsT"></h1><div id="lsS"></div><ul id="lsF"></ul></div><div class="lsr"><h4>Csapat</h4><div id="lsP"></div></div></div><div class="lsbar"><i id="lsFill"></i><span id="lsTxt"></span></div></div>
   <div id="intro" hidden><div class="t" id="introT"></div><div class="s" id="introS"></div><div class="s2" id="introS2"></div></div>
 
   <div id="menu" class="screen">
-    <nav class="mnav">
+    <nav class="mmnav">
       <div class="eyebrow">Kooperatív zombi-zsákmányvadászat</div>
       <div class="title">DEAD<br>ACRE</div>
-      <p class="note">Zombiirtó vállalkozás. Válassz karaktert:</p>
-      <div id="slotList" class="slotlist"></div>
-      <div class="msep"></div>
-      <div class="mgrid">
-        <button class="mbtn" data-tab="arsenal">Fegyvertár<small id="mArsN">fegyvertípusok</small></button>
-        <button class="mbtn" data-tab="bestiary">Bestiárium<small id="mBesN">zombifajták</small></button>
-        <button class="mbtn" data-tab="guide">Kézikönyv<small>hogyan megy</small></button>
-        <button class="mbtn" data-tab="controls">Irányítás<small>billentyűk</small></button>
-        <button class="mbtn" data-settings>Beállítások<small>hang, grafika, egér</small></button>
-      </div>
+      <div class="mmlist" id="mmList"></div>
       <p class="mver" id="menuVer">Billentyűzet és egér szükséges</p>
     </nav>
+    <section class="mmpanel" id="mmPanel"></section>
     <section class="mpanel" id="mpanel" hidden></section>
+    <div class="mmkeys"><span><kbd>↑↓</kbd>Menü</span><span><kbd>Enter</kbd>Kiválasztás</span><span><kbd>Esc</kbd>Vissza</span></div>
   </div>
 
   <div id="station" class="screen" hidden>
@@ -167,7 +161,7 @@ T.Material.prototype.dispose = function () {}; // ponytail: a material's shader 
 window.THREE = THREE;
 const hold = e => { e.stopImmediatePropagation(); e.preventDefault(); }, HOLD = ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']; // no input until every script is in
 HOLD.forEach(t => addEventListener(t, hold, true));
-const LIST =  ["js/icons.js?v=164", "js/data.js?v=164", "js/audio.js?v=164", "js/music.js?v=164", "js/world.js?v=164", "js/maps.js?v=164", "js/fx.js?v=164", "js/gfx.js?v=164", "js/player.js?v=164", "js/zombies.js?v=164", "js/loot.js?v=164", "js/upgrades.js?v=164", "js/gear.js?v=164", "js/vet.js?v=164", "js/inv.js?v=164", "js/save.js?v=164", "js/menu.js?v=164", "js/skills.js?v=164", "js/necro.js?v=164", "js/hub.js?v=164", "js/book.js?v=164", "js/game.js?v=164", "js/jobs.js?v=164", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=164", "js/net.js?v=164", "js/avatar.js?v=164"];
+const LIST =  ["js/icons.js?v=165", "js/data.js?v=165", "js/audio.js?v=165", "js/music.js?v=165", "js/world.js?v=165", "js/maps.js?v=165", "js/fx.js?v=165", "js/gfx.js?v=165", "js/player.js?v=165", "js/zombies.js?v=165", "js/loot.js?v=165", "js/upgrades.js?v=165", "js/gear.js?v=165", "js/vet.js?v=165", "js/inv.js?v=165", "js/save.js?v=165", "js/menu.js?v=165", "js/skills.js?v=165", "js/necro.js?v=165", "js/hub.js?v=165", "js/book.js?v=165", "js/game.js?v=165", "js/jobs.js?v=165", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=165", "js/net.js?v=165", "js/avatar.js?v=165"];
 const bar = p => { const f = document.getElementById('bootFill'); if (f) f.style.width = Math.round(15 + 85 * p) + '%'; };
 try {
   for (let i = 0; i < LIST.length; i++) { await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = LIST[i]; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); }); bar((i + 1) / LIST.length); }

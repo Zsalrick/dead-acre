@@ -54,6 +54,21 @@ function buildGenerator(M) {
 }
 // ---------- supply: crates in seeded spots; carry them one at a time, in both hands, to a drop-off van that turns up later ----------
 const DROP_AT = 40; // seconds before the drop-off van arrives
+const supplyTex = canvasTex(256, (g, S) => {
+  g.fillStyle = '#4c5436'; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '0,0,0' : '255,255,230'},${Math.random() * .06})`; g.fillRect(Math.random() * S, Math.random() * S, 3, 3); }
+  g.strokeStyle = '#2c3120'; g.lineWidth = 14; g.strokeRect(7, 7, S - 14, S - 14); g.lineWidth = 5; g.strokeRect(24, 24, S - 48, S - 48);
+  g.fillStyle = '#e8b82a'; for (const [x, y, dx, dy] of [[14, 14, 1, 1], [S - 14, 14, -1, 1], [14, S - 14, 1, -1], [S - 14, S - 14, -1, -1]]) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 34 * dx, y); g.lineTo(x, y + 34 * dy); g.fill(); }
+  g.fillStyle = 'rgba(232,226,208,.85)'; g.font = 'bold 30px Impact, sans-serif'; g.textAlign = 'center'; g.fillText('UTÁNPÓTLÁS', S / 2, S / 2 - 6); g.font = 'bold 20px monospace'; g.fillText('DA-0714 · 25 KG', S / 2, S / 2 + 26);
+  g.fillStyle = 'rgba(232,226,208,.5)'; g.fillRect(S / 2 - 60, S / 2 + 40, 120, 4);
+});
+const supplyMat = () => new THREE.MeshStandardMaterial({ map: supplyTex, roughness: .8, metalness: .1 });
+function crateModel(sx, sy, sz, mat) { // a stencilled crate with a lid rim and handles
+  const g = new THREE.Group(), b = new THREE.Mesh(unitBox, mat); b.scale.set(sx, sy, sz); b.position.y = sy / 2; b.castShadow = true; g.add(b);
+  const dark = new THREE.MeshLambertMaterial({ color: 0x23271a }), lid = new THREE.Mesh(unitBox, dark); lid.scale.set(sx + .06, .07, sz + .06); lid.position.y = sy * .82; g.add(lid);
+  for (const s of [-1, 1]) { const h = new THREE.Mesh(unitBox, dark); h.scale.set(.05, .08, sz * .45); h.position.set(s * (sx / 2 + .03), sy * .6, 0); g.add(h); }
+  return g;
+}
 function buildCrates(M) {
   const R = MAIN_RECT, rng = mulberry(mapSeed + 991), n = Math.min(M.job.goal || 6, 3 + (M.job.diff || 1)), pts = [];
   for (let tries = 0; pts.length < n && tries < 600; tries++) {
@@ -61,10 +76,9 @@ function buildCrates(M) {
     if (blockedAt(x, z, 1.4) || pts.some(p => Math.hypot(p[0] - x, p[1] - z) < 10)) continue;
     pts.push([x, z]);
   }
-  const wood = new THREE.MeshLambertMaterial({ map: woodTex, color: 0xb89a5a }), stripe = new THREE.MeshBasicMaterial({ color: 0xf2c12a });
+  const mat = supplyMat();
   M.crates = pts.map(([x, z]) => {
-    const g = new THREE.Group(), b = new THREE.Mesh(unitBox, wood); b.scale.set(1, .7, .7); b.position.y = .35; g.add(b);
-    const s = new THREE.Mesh(unitBox, stripe); s.scale.set(1.02, .12, .72); s.position.y = .5; g.add(s);
+    const g = crateModel(1, .7, .7, mat);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 14, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xf2c12a, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     beam.position.y = 7; g.add(beam);
     g.position.set(x, 0, z); put(g);
@@ -346,8 +360,8 @@ function midEvent(M) {
   banner('ELIT OSZTAG ÉS UTÁNPÓTLÁS', 'Egy láda érkezett a térkép túloldalára: 60 mp-ig nyitható. Az elitek már úton vannak.'); SND.roundStart();
 }
 function buildCache(C) {
-  const g = new THREE.Group(), m = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color: 0x3a3a2a, emissive: 0x6a4a00, roughness: .6 }));
-  m.scale.set(1.2, .7, .8); m.position.y = .35; g.add(m);
+  const mat = supplyMat(); mat.emissive.setHex(0x3a2a00);
+  const g = crateModel(1.3, .8, .9, mat), m = g.children[0];
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, 30, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: .18, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 15; g.add(beam); g.position.set(C.x, 0, C.z); scene.add(g); C.g = g;
 }
@@ -356,7 +370,7 @@ function cacheFocus() {
   return Math.hypot(C.x - player.pos.x, C.z - player.pos.z) < 2.2 ? { type: 'cache' } : null;
 }
 function openCache() { // each player opens it once and rolls their own loot
-  const C = mission.cache; if (!C || C.opened) return; C.opened = true; C.g.children[0].material.emissive.setHex(0x111111); C.g.children[1].visible = false;
+  const C = mission.cache; if (!C || C.opened) return; C.opened = true; C.g.children[0].material.emissive.setHex(0x000000); C.g.children.find(o => o.geometry && o.geometry.type === 'CylinderGeometry').visible = false;
   const p = new V3(C.x, 0, C.z);
   spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.6)), lootLvl(1)), p.clone().add(new V3(-1, 0, 1)));
   if (Math.random() < .5) spawnGearDrop(makeGear(null, Math.max(2, rollRarity(.5)), lootLvl(1)), p.clone().add(new V3(1, 0, 1)));

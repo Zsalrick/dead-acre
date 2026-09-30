@@ -1,5 +1,26 @@
 ﻿// ================= DROPS & POWER-UPS =================
 const drops = [];
+// loot doesn't pile up: the first free spot on a widening spiral round where it fell (a teammate's drop keeps its place)
+function lootSpot(pos) {
+  if (pos.exact) return pos;
+  const all = [...drops, ...gearDrops, ...resDrops].map(d => d.pos);
+  for (let n = 0; n < 30; n++) { const a = n * 2.4, r = n ? .6 + .5 * Math.sqrt(n) : 0, x = pos.x + Math.cos(a) * r, z = pos.z + Math.sin(a) * r;
+    if (all.some(p => Math.hypot(p.x - x, p.z - z) < 1.2)) continue;
+    if (mission && (!inBounds(x, z, .3) || blockedAt(x, z, .35))) continue;
+    return new V3(x, 0, z); }
+  return pos;
+}
+// exotics: the fattest beam there is, a ring, and an icon on top you can spot across the map (Division)
+const exoIconTex = canvasTex(128, (g) => { g.translate(64, 64); g.rotate(Math.PI / 4); g.fillStyle = 'rgba(24,4,4,.9)'; g.fillRect(-36, -36, 72, 72); g.strokeStyle = RARITIES[5].color; g.lineWidth = 9; g.strokeRect(-36, -36, 72, 72);
+  g.rotate(-Math.PI / 4); g.fillStyle = '#fff'; g.font = 'bold 58px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('★', 0, 4); });
+exoIconTex.userData.keep = true;
+function lootRing(g, col, r) { const ring = new THREE.Mesh(new THREE.RingGeometry(r * .75, r, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = .03; g.add(ring); }
+function exoBeacon(g, beam, col) {
+  const h = beam.geometry.parameters.height * 3.4; beam.scale.set(5.5, 3.4, 5.5); beam.position.y = h / 2; beam.material.opacity = .75;
+  lootRing(g, col, 1.4);
+  const ic = new THREE.Sprite(new THREE.SpriteMaterial({ map: exoIconTex, transparent: true, depthWrite: false, depthTest: false, sizeAttenuation: false }));
+  ic.scale.set(.07, .07, 1); ic.position.y = 2.4; ic.renderOrder = 7; g.add(ic); // just over the item, the same size at any distance
+}
 function spawnDrop(w, pos) {
   if (typeof player !== 'undefined' && Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z) < 35) SND.drop(w.unique ? 5 : w.q);
   const g = new THREE.Group();
@@ -12,13 +33,13 @@ function spawnDrop(w, pos) {
   halo.scale.set(1.6, 1.6, 1); halo.position.y = .7; g.add(halo);
   const better = canUse(w) && typeof curW === 'function' && player.slots && player.slots.some(Boolean) && dps(w) > Math.max(...player.slots.filter(Boolean).map(dps));
   const lv = textSprite([`${better ? 'JOBB · ' : ''}${w.unique ? 'Egzotikus' : RARITIES[w.q].name} · ${w.name} · Lv ${w.level}${w.roll != null ? ` · ${w.roll}%` : ''}`], canUse(w) ? rarColor(w) : '#ff5a4a', .5); lv.position.y = 1.45; lv.material.sizeAttenuation = false; lv.scale.multiplyScalar(.045); g.add(lv); // the same size at any distance
-  if (w.q >= 4) { // legendary and unique: a fat beam, a ring on the ground and a sound you learn to love
-    const ring = new THREE.Mesh(new THREE.RingGeometry(.7, .95, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .7, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2; ring.position.y = .03; g.add(ring);
+  if (w.unique) { exoBeacon(g, beam, col); halo.scale.set(3.4, 3.4, 1); if (typeof SND !== 'undefined' && mission) SND.legend(true); }
+  else if (w.q >= 4) { // legendary: a fat beam, a ring on the ground and a sound you learn to love
+    lootRing(g, col, .95);
     beam.scale.set(3.2, 2.2, 3.2); beam.position.y *= 2.2; halo.scale.set(3, 3, 1);
     if (typeof SND !== 'undefined' && mission) SND.legend(w.unique);
   }
-  g.position.set(pos.x, 0, pos.z); scene.add(g);
+  const at = lootSpot(pos); g.position.set(at.x, 0, at.z); scene.add(g);
   const d = { w, g, gun, t: 75, pos: g.position }; drops.push(d); return d;
 }
 function highlightDrops(fg) { // the piece you look at stays bright, every other beam, label and picture fades (Borderlands)
@@ -29,7 +50,7 @@ function highlightDrops(fg) { // the piece you look at stays bright, every other
 }
 function removeDrop(d) {
   scene.remove(d.g); d.g.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-  d.g.children.forEach(o => { if (o.material) { if (o.material.map && o.material.map !== glowTex) o.material.map.dispose(); o.material.dispose(); } });
+  d.g.children.forEach(o => { if (o.material) { if (o.material.map && o.material.map !== glowTex && !o.material.map.userData.keep) o.material.map.dispose(); o.material.dispose(); } });
   drops.splice(drops.indexOf(d), 1);
 }
 
@@ -86,23 +107,34 @@ function takePower(p) {
 
 // ================= INTERACTION =================
 let focus = null; // {type, drop?}
+// the loot the crosshair is on: the view ray has to pass through the item's own small box (not its beam); the nearest one along the ray wins
+const _aimD = new V3();
+function aimLoot() {
+  camera.getWorldDirection(_aimD); const o = camera.position; let best = null, bt = 3.6;
+  const test = (px, py, pz, r, f) => { const vx = px - o.x, vy = py - o.y, vz = pz - o.z, t = vx * _aimD.x + vy * _aimD.y + vz * _aimD.z; if (t <= 0 || t > bt) return;
+    const mx = vx - _aimD.x * t, my = vy - _aimD.y * t, mz = vz - _aimD.z * t; if (mx * mx + my * my + mz * mz < r * r && Math.hypot(px - player.pos.x, pz - player.pos.z) < 3) { bt = t; best = f; } };
+  for (const d of drops) test(d.pos.x, .7, d.pos.z, .55, () => ({ type: 'drop', drop: d, w: d.w }));
+  for (const d of gearDrops) test(d.pos.x, .6, d.pos.z, .45, () => ({ type: 'gear', gd: d, it: d.it }));
+  for (const d of resDrops) test(d.pos.x, .9, d.pos.z, .45, () => ({ type: 'res', rd: d }));
+  return best && best();
+}
+function footLoot() { // not aiming at anything: what you stand on
+  let b = null, bd = 1.1; const n = d => Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z);
+  for (const d of drops) if (n(d) < bd) { bd = n(d); b = { type: 'drop', drop: d, w: d.w }; }
+  for (const d of gearDrops) if (n(d) < bd) { bd = n(d); b = { type: 'gear', gd: d, it: d.it }; }
+  for (const d of resDrops) if (n(d) < bd) { bd = n(d); b = { type: 'res', rd: d }; }
+  return b;
+}
 function findFocus() {
-  let best = null, bd = 2.3;
-  for (const d of drops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; best = d; } }
-  let bg = null; // whichever loot is nearest: a gun or a piece of armor
-  for (const d of gearDrops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; bg = d; } }
-  let br = null; for (const d of resDrops) { const dd = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z); if (dd < bd) { bd = dd; br = d; } }
-  if (br) return { type: 'res', rd: br };
-  if (bg) return { type: 'gear', gd: bg, it: bg.it };
-  if (best) return { type: 'drop', drop: best, w: best.w };
+  const al = aimLoot(); if (al) return al;
   const rf = reviveFocus(); if (rf) return rf;
   const ch = cacheFocus(); if (ch) return ch;
   const cf = crateFocus(); if (cf) return cf;
   const af = areaFocus(); if (af) return af;
-  if (MAP.range) return Math.hypot(RANGE_DESK[0] - player.pos.x, RANGE_DESK[1] - player.pos.z) < 2.6 ? { type: 'desk' } : null;
+  if (MAP.range && Math.hypot(RANGE_DESK[0] - player.pos.x, RANGE_DESK[1] - player.pos.z) < 2.6) return { type: 'desk' };
   if (Math.hypot(box.pos.x - player.pos.x, box.pos.z - player.pos.z) < 2.6) return { type: 'box', w: box.state === 'ready' ? box.weapon : null };
   if (Math.hypot(ammoBox.pos.x - player.pos.x, ammoBox.pos.z - player.pos.z) < 2.4) return { type: 'ammo' };
-  return null;
+  return footLoot();
 }
 function interact() {
   if (!focus) return;
@@ -324,7 +356,7 @@ function knifeHit(p, z, head, point) {
 // ---------- parts / fabric on the ground: picked up with F like any loot (a disconnected player's backpack) ----------
 const resDrops = [];
 function spawnResDrop(k, n, pos) {
-  const s = textSprite([`+${n}`, k === 'fabric' ? 'anyag' : 'alkatrész'], '#e8e2d0', .7, 'rgba(0,0,0,.55)'); s.position.set(pos.x, .9, pos.z); scene.add(s);
+  const at = lootSpot(pos), s = textSprite([`+${n}`, k === 'fabric' ? 'anyag' : 'alkatrész'], '#e8e2d0', .7, 'rgba(0,0,0,.55)'); s.position.set(at.x, .9, at.z); scene.add(s);
   const d = { k, n, s, pos: s.position, t: 180 }; resDrops.push(d); return d;
 }
 function removeResDrop(d) { scene.remove(d.s); if (d.s.material.map) d.s.material.map.dispose(); d.s.material.dispose(); const i = resDrops.indexOf(d); if (i >= 0) resDrops.splice(i, 1); }

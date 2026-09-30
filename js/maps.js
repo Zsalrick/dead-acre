@@ -1577,7 +1577,7 @@ const QTXT = { names: ['ELEKTRONCSŐ', 'AKKUMULÁTOR', 'ANTENNA'], part: 'rádi�
   call: ['VALAKI VÁLASZOLT A RÁDIÓN…', 'Egy különleges csapat tart feléd. Öld meg mindet!'], done: 'A RÁDIÓ ELHALLGATOTT', where: 'a tornácon' };
 const qt = () => Object.assign({}, QTXT, MAP.quest && MAP.quest.txt);
 function buildQuest() {
-  QST.parts = []; QST.stage = 0; QST.wave = []; QST.radio = null;
+  QST.parts = []; QST.stage = 0; QST.wave = []; QST.radio = null; QST.reward = null;
   const Q = MAP.quest; if (!Q) return;
   const rng = mulberry(mapSeed + 777), spots = Q.parts.slice(), names = qt().names;
   const [rx, rz] = Q.radio, radio = new THREE.Group(), brown = matStd({ color: 0x4a3020 });
@@ -1619,11 +1619,14 @@ function questFx() { // what the challenge sets off, for everyone
 }
 function updateQuest() { // host / solo: the answer beaten -> the reward on the porch
   if (QST.stage !== 1 || NET.client || QST.wave.some(z => !z.dead)) return;
-  QST.stage = 2; const M = mission, d = (M && M.job.diff) || 1, [ox, oz] = MAP.quest.drop || [0, -2], at = QST.radio.pos.clone().add(new V3(ox, 0, oz));
-  if (M) { M.parts = (M.parts || 0) + 20 + 8 * d; M.fabric = (M.fabric || 0) + 15 + 6 * d; }
-  if (Math.random() < .5) spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.5)), lootLvl(1)), at); else spawnGearDrop(makeGear(null, Math.max(2, rollRarity(.5)), lootLvl(1)), at);
+  QST.stage = 2; questReward();
+}
+function questReward() { // everyone's own: the reward drops by the challenge object, the materials as pickups too
+  const d = (mission && mission.job.diff) || 1, [ox, oz] = MAP.quest.drop || [0, -2], at = QST.radio.pos.clone().add(new V3(ox, 0, oz));
+  QST.reward = [spawnResDrop('parts', 20 + 8 * d, at.clone()), spawnResDrop('fabric', 15 + 6 * d, at.clone())];
+  QST.reward.push(Math.random() < .5 ? spawnDrop(makeWeapon(pick(BASES), Math.max(2, rollRarity(.5)), lootLvl(1)), at.clone()) : spawnGearDrop(makeGear(null, Math.max(2, rollRarity(.5)), lootLvl(1)), at.clone()));
   burst(at.clone().setY(1), 0x9fe8ff, 40, 5, .9); SND.legend && SND.legend(false);
-  banner(qt().done, `+${20 + 8 * d} ⚙ és +${15 + 6 * d} ${FAB} (kijutáskor) · egy ritka tárgy ${qt().where}`);
+  banner(qt().done, `A jutalom ${qt().where} vár: ${20 + 8 * d} ⚙, ${15 + 6 * d} ${FAB} és egy ritka tárgy. Szedd fel!`);
 }
 // the party: what the host sends, what a member does with it
 const pwState = () => PWR.gen ? [PWR.on ? 1 : 0, PWR.bi, PWR.uses, PWR.run ? Math.round(PWR.run.t) : 0, QST.parts.reduce((m, q, i) => m | (q.got ? 1 << i : 0), 0), QST.stage] : null;
@@ -1632,7 +1635,7 @@ function pwApply(s) {
   if (+s[0] && !PWR.on) powerOn();
   if (+s[1] >= 0 && +s[1] !== PWR.bi && MAP.power.boxes[+s[1]]) placePowerBox(+s[1]);
   PWR.uses = +s[2] || 0; if (+s[3] > 0 && !PWR.run) { PWR.run = { t: +s[3], remote: true }; banner('LÖVEGÁLLÁS AKTÍV', 'Egy társad bekapcsolta.'); } if (PWR.run && PWR.run.remote) PWR.run.t = +s[3]; if (!(+s[3] > 0) && PWR.run && PWR.run.remote) PWR.run = null;
-  QST.parts.forEach((q, i) => { if ((+s[4] & (1 << i)) && !q.got) questGot(i); }); if (!QST.stage && +s[5]) questFx(); QST.stage = +s[5] || QST.stage;
+  QST.parts.forEach((q, i) => { if ((+s[4] & (1 << i)) && !q.got) questGot(i); }); if (!QST.stage && +s[5]) questFx(); if (QST.stage < 2 && +s[5] === 2) { QST.stage = 2; questReward(); } QST.stage = +s[5] || QST.stage;
 }
 function pwAct(a) { // host: a member's request
   if (a === 'gen') { if (!PWR.on) powerOn(); }

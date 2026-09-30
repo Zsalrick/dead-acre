@@ -118,42 +118,95 @@ const TABS = {
       <p class="note">Ha a böngésző nem engedi befogni az egeret, az egér az ablakon belül is fordít, és a nyilakkal is lehet nézni.</p>`;
   },
 };
-let menuTab = null;
-function showTab(name) {
-  menuTab = menuTab === name ? null : name;
-  document.querySelectorAll('.mnav [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === menuTab));
-  const p = $('mpanel');
-  p.hidden = !menuTab;
-  if (menuTab) { p.innerHTML = '<button class="mclose" data-close title="Bezárás">✕</button>' + TABS[menuTab](); p.scrollTop = 0; }
+// ---------- the menu: big words on the left, the picked one's panel on the right ----------
+let menuTab = null, menuAct = 'continue', menuSel = 1, menuLatest = -1, holdRaf = 0;
+const MM = [['continue', 'Folytatás'], ['chars', 'Karakterek'], ['book', 'Kézikönyv'], ['settings', 'Beállítások'], ['quit', 'Kilépés']];
+const mmFmt = t => new Date(t).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const mmShort = t => { const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? `ma, ${d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }); };
+const mmGo = label => `<button class="mmgo" data-mmgo><b>${label}</b><kbd>Enter</kbd></button>`;
+const mmRows = rows => rows.map(([k, n, s]) => `<button class="mmrow" data-mmrow="${k}"><span><b>${n}</b><small>${s}</small></span><i>›</i></button>`).join('');
+const MMP = {
+  continue(ps) {
+    const p = ps[menuSel - 1], C = p && p.cls && CLASSES[p.cls];
+    if (!p) return `<div class="mmeye">Üres hely · ${menuSel}</div><h1 class="mmname sm">Új karakter</h1><p class="mmtxt">Kezdj egy pisztollyal és $300-ral. A kasztot a bázison választod ki.</p>${mmGo('Karakter létrehozása')}
+      <div class="mmfoot"><span></span><button class="mmlink" data-mm="chars">Másik karakter ›</button></div>`;
+    return `<div class="mmeye">${menuSel - 1 === menuLatest ? 'Utoljára játszott' : 'Kiválasztott karakter'}</div><h1 class="mmname">${esc(p.name || `Zsoldos ${menuSel}`)}</h1>
+      <div class="mmcls" style="color:${C ? C.color : 'var(--tx4)'}">${C ? `${C.name} — ${C.tag}` : 'Még nincs kaszt'}</div>
+      <div class="mmstats"><div><small>Szint</small><b>${p.level}</b></div><div><small>Pénz</small><b class="amb">$${p.cash.toLocaleString('hu-HU')}</b></div><div><small>Munka</small><b>${p.stats.jobs}</b></div><div><small>Képesség</small><b>${C ? C.ability.name : '—'}</b></div></div>
+      ${mmGo('Indulás a bázisra')}<div class="mmfoot"><span>Utoljára: ${mmFmt(p.at)}</span><button class="mmlink" data-mm="chars">Másik karakter ›</button></div>`;
+  },
+  chars(ps) {
+    const used = ps.filter(Boolean).length, p = ps[menuSel - 1];
+    return `<div class="mmhead"><h2>Karakterek</h2><small>${used} / 3 hely</small></div><div class="mmslots">${ps.map((q, i) => { const C = q && q.cls && CLASSES[q.cls];
+      return `<button class="mmslot${menuSel === i + 1 ? ' on' : ''}" data-mmsel="${i + 1}" style="--cc:${C ? C.color : q ? 'var(--tx4)' : 'rgba(255,255,255,.08)'}"><i></i><span class="n">${i + 1}</span>
+        <span class="t"><b${q ? '' : ' class="e"'}>${q ? esc(q.name || `Zsoldos ${i + 1}`) : '+ Új karakter'}</b><small>${q ? `${C ? `<em style="color:${C.color}">${C.name}</em> · ` : ''}${q.level}. szint · <em class="amb">$${q.cash.toLocaleString('hu-HU')}</em> · ${q.stats.jobs} munka` : 'Kezdj egy pisztollyal és $300-ral'}</small></span>
+        <span class="d">${q ? mmShort(q.at) : ''}</span></button>`; }).join('')}</div>
+      <div class="mmbar">${mmGo(!p ? 'Új karakter' : menuSel - 1 === menuLatest ? 'Folytatás' : 'Betöltés')}${p ? '<button class="mmdel" data-mmdel><i></i><span>Törlés · nyomva</span></button>' : ''}</div>`;
+  },
+  book: () => `<div class="mmhead"><h2>Kézikönyv</h2></div><div class="mmrows">${mmRows([['guide', 'Hogyan megy', 'munka, túlélés, evakuáció, zsákmány'], ['arsenal', 'Fegyvertár', `${BASES.length} fegyvertípus, ritkaság, gyártók`], ['bestiary', 'Bestiárium', `${Object.keys(KINDS).length} zombifajta`], ['maps', 'Pályák és állomások', 'területek, csapdák, kút, torony']])}</div>`,
+  settings: () => `<div class="mmhead"><h2>Beállítások</h2></div><div class="mmrows">${mmRows([['set', 'Hang', 'zene, effektek, hangerő'], ['set', 'Grafika', 'minőség, fényerő, FPS'], ['set', 'Egér és célzás', 'érzékenység, célzás, felület'], ['controls', 'Irányítás', 'billentyűk']])}</div>`,
+  quit: () => `<h2 class="mmq">Kilépsz a játékból?</h2><p class="mmtxt">A karaktereid el vannak mentve, bármikor folytathatod.</p><div class="mmbar"><button class="mmcancel" data-mm="continue"><b>Mégse</b><kbd>Esc</kbd></button><button class="mmgo" data-mmquit><b>Kilépés</b><kbd>Enter</kbd></button></div>`,
+  bye: () => `<h2 class="mmq">Bezárhatod a lapot</h2><p class="mmtxt">A böngésző nem engedi, hogy a játék maga zárja be a lapot. A mentésed megvan.</p><div class="mmbar"><button class="mmcancel" data-mm="continue"><b>Vissza a menübe</b><kbd>Esc</kbd></button></div>`,
+};
+function showTab(name) { // a handbook page takes the right side; Esc brings the panel back
+  menuTab = name; const p = $('mpanel'); p.hidden = !name; $('mmPanel').hidden = !!name;
+  if (!name) return;
+  p.innerHTML = '<button class="mclose" data-close title="Vissza (Esc)">✕</button>' + TABS[name === 'maps' ? 'guide' : name](); p.scrollTop = 0;
+  if (name === 'maps') { const h = [...p.querySelectorAll('h3')].find(h => /Pályák/.test(h.textContent)); if (h) h.scrollIntoView(); }
 }
-document.querySelectorAll('.mnav [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
-$('mpanel').addEventListener('click', e => { if (e.target.closest('[data-close]')) showTab(menuTab); });
-
-// three career slots; deleting one needs a second click
-let delArmed = 0;
+$('mpanel').addEventListener('click', e => { if (e.target.closest('[data-close]')) showTab(null); });
 function refreshMenu() {
-  const fmt = t => new Date(t).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const ps = [1, 2, 3].map(readProfile), latest = ps.reduce((b, p, i) => p && (b < 0 || p.at > ps[b].at) ? i : b, -1);
-  $('slotList').innerHTML = [1, 2, 3].map(n => {
-    const p = ps[n - 1], C = p && p.cls && CLASSES[p.cls], last = latest === n - 1;
-    return `<div class="slotrow${last ? ' last' : ''}${p ? '' : ' empty'}"><button class="mslot" data-slot="${n}"><span class="snum">${n}</span>
-      <span class="sinfo"><b>${p ? esc(p.name || `Zsoldos ${n}`) : '+ Új karakter'}</b>${p ? `<small><span>${p.level}. szint</span>${C ? `<span style="color:${C.color}">${C.name}</span>` : ''}<span class="cash">$${p.cash.toLocaleString('hu-HU')}</span><span>${p.stats.jobs} munka</span><span>${fmt(p.at)}</span></small>` : '<small>Kezdj egy pisztollyal és $300-ral</small>'}</span>
-      ${p ? `<span class="sgo">${last ? 'Folytatás' : 'Betöltés'} ›</span>` : ''}</button>${p ? `<button class="mdel" data-del="${n}">${delArmed === n ? 'Biztos?' : 'Törlés'}</button>` : ''}</div>`;
-  }).join('');
+  const ps = [1, 2, 3].map(readProfile); menuLatest = ps.reduce((b, p, i) => p && (b < 0 || p.at > ps[b].at) ? i : b, -1);
+  const p = ps[menuSel - 1], C = p && p.cls && CLASSES[p.cls];
+  $('mmList').innerHTML = MM.map(([k, n], i) => `<button class="mmi${menuAct === k || (k === 'quit' && menuAct === 'bye') ? ' on' : ''}${k === 'quit' ? ' quit' : ''}" data-mm="${k}"><span class="mmn">0${i + 1}</span><span><b>${n}</b>${k === 'continue' ? `<small>${p ? `${esc(p.name || `Zsoldos ${menuSel}`)} · ${p.level}. szint${C ? ' ' + C.name : ''}` : 'Új karakter'}</small>` : ''}</span></button>`).join('');
+  $('mmPanel').innerHTML = MMP[menuAct](ps);
   $('menuVer').textContent = `${GAME_VER} · Billentyűzet és egér szükséges`;
-  { const seenK = Object.keys(KINDS).filter(k => stats && stats.killsBy && stats.killsBy[k]).length; $('mBesN').textContent = `${Object.keys(KINDS).length} zombifajta`; $('mArsN').textContent = `${BASES.length} fegyvertípus`; }
-  if (menuTab) $('mpanel').innerHTML = '<button class="mclose" data-close title="Bezárás">✕</button>' + TABS[menuTab]();
 }
-$('slotList').addEventListener('click', e => {
-  const s = e.target.closest('[data-slot]'), d = e.target.closest('[data-del]');
-  if (d) { const n = +d.dataset.del; if (delArmed === n) { deleteProfile(n); delArmed = 0; } else delArmed = n; return refreshMenu(); }
-  if (s) { initAudio(); openProfile(+s.dataset.slot); showHub(); }
+const menuGo = () => { initAudio(); openProfile(menuSel); showHub(); };
+function menuQuit() { // the desktop build closes its window; a browser tab can't close itself, so say so
+  try { if (window.desktop && window.desktop.quit) return window.desktop.quit(); window.close(); } catch (e) {}
+  setTimeout(() => { if (state === 'menu') { menuAct = 'bye'; refreshMenu(); } }, 150);
+}
+function menuPick(k) { menuAct = k; showTab(null); refreshMenu(); }
+$('menu').addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('[data-mmgo]')) return menuGo();
+  if (t.closest('[data-mmquit]')) return menuQuit();
+  const s = t.closest('[data-mmsel]'); if (s) { menuSel = +s.dataset.mmsel; return refreshMenu(); }
+  const r = t.closest('[data-mmrow]'); if (r) { const k = r.dataset.mmrow; return k === 'set' ? openSettings() : showTab(k); }
+  const m = t.closest('[data-mm]'); if (m) menuPick(m.dataset.mm);
 });
+// deleting: hold the button 1.1 s while a red bar fills it; letting go early undoes it
+$('menu').addEventListener('pointerdown', e => {
+  const b = e.target.closest('[data-mmdel]'); if (!b) return; const t0 = performance.now(), bar = b.querySelector('i'), lab = b.querySelector('span');
+  const stop = () => { cancelAnimationFrame(holdRaf); bar.style.width = '0'; b.classList.remove('dark'); lab.textContent = 'Törlés · nyomva'; b.removeEventListener('pointerup', stop); b.removeEventListener('pointerleave', stop); };
+  b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop); lab.textContent = 'Tartsd nyomva…';
+  const f = () => { const k = Math.min(1, (performance.now() - t0) / 1100); bar.style.width = k * 100 + '%'; b.classList.toggle('dark', k > .55);
+    if (k >= 1) { stop(); deleteProfile(menuSel); return refreshMenu(); }
+    holdRaf = requestAnimationFrame(f); };
+  holdRaf = requestAnimationFrame(f);
+});
+addEventListener('keydown', e => {
+  if (state !== 'menu' || $('menu').hidden || !$('settings').hidden) return;
+  if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.code)) e.stopImmediatePropagation(); // the key is the menu's: the hub must not act on the same Enter
+  const i = MM.findIndex(([k]) => k === (menuAct === 'bye' ? 'quit' : menuAct));
+  if (e.code === 'ArrowDown' || e.code === 'ArrowUp') { e.preventDefault(); const d = e.code === 'ArrowDown' ? 1 : -1;
+    if (menuAct === 'chars' && !menuTab && menuSel + d >= 1 && menuSel + d <= 3) { menuSel += d; return refreshMenu(); } // through the slots, then on to the next menu item
+    return menuPick(MM[(i + MM.length + d) % MM.length][0]); }
+  if (e.code === 'Enter') { e.preventDefault();
+    if (menuAct === 'continue' || menuAct === 'chars') return menuGo();
+    if (menuAct === 'quit') return menuQuit();
+    if (menuAct === 'book') return showTab('guide');
+    if (menuAct === 'settings') return openSettings(); }
+  if (e.code === 'Escape') { if (menuTab) return showTab(null); return menuPick(menuAct === 'continue' ? 'quit' : 'continue'); }
+}, true);
 function openMenu() {
-  state = 'menu'; mission = null; delArmed = 0;
+  state = 'menu'; mission = null;
   if (NET.code) partyLeave();
   if (document.pointerLockElement) document.exitPointerLock();
   clearZombieStuff();
   ['hud', 'pause', 'results', 'station', 'hub'].forEach(id => $(id).hidden = true);
-  $('menu').hidden = false; refreshMenu();
+  const ps = [1, 2, 3].map(readProfile), latest = ps.reduce((b, p, i) => p && (b < 0 || p.at > ps[b].at) ? i : b, -1);
+  menuAct = 'continue'; menuSel = latest + 1 || 1;
+  $('menu').hidden = false; showTab(null); refreshMenu();
 }

@@ -751,7 +751,7 @@ const cleanStrs = o => { for (const k in o) if (typeof o[k] === 'string') o[k] =
 function netRemoteDrops(peer, P) {
   for (const [s, kind, o, x, z] of fresh('dr' + peer, P.dr)) {
     if (!o || typeof o !== 'object' || !(o.q >= 0 && o.q <= 5)) continue;
-    const pos = new V3(+x || 0, 0, +z || 0), nid = peer + ':' + s;
+    const pos = new V3(+x || 0, 0, +z || 0), nid = peer + ':' + s; pos.exact = true;
     if (kind === 'w' && BASES.some(b => b.id === o.base)) {
       const w = unpackW(cleanStrs(Object.assign({}, o))); w.owned = false; w.ammo = w.mag; w.reserve = resMax(w);
       spawnDrop(w, pos).nid = nid;
