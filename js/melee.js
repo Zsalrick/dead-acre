@@ -147,7 +147,7 @@ function melPushHit(w) { // a shove: everything close in front staggers back, no
 // the zombie reels: its swing is broken off, it slows, and a hard blow knocks it back a step
 function staggerZ(z, s, from) {
   if (z.dead || !(s > 0)) return; if (z.K && z.K.boss) s *= .25;
-  z.windup = 0; z.atkCd = Math.max(z.atkCd || 0, .5 + .6 * s); z.slowT = Math.max(z.slowT || 0, .4 + .6 * s); z.flinch = .3;
+  z.windup = 0; z.atkCd = Math.max(z.atkCd || 0, .5 + .6 * s); z.stagT = Math.max(z.stagT || 0, .4 + .6 * s); z.flinch = .3; // reeling: slowed, but not the blue of a freeze
   if (from && s >= 1) { const d = new V3(z.pos.x - from.x, 0, z.pos.z - from.z); if (d.lengthSq() > .001) { z.pos.add(d.setLength(.45 * Math.min(2, s))); collide(z.pos, .5); } }
 }
 // a blocked blow: only from the front, costs stamina (more for hard hits), and the attacker is thrown off a little

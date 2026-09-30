@@ -218,7 +218,7 @@ function hurtZombie(z, amt, o = {}) {
   if (!o.remote && exoOn('cryo') && (z.slowT > 0 || (z.net && z.net.fl & 32))) amt *= 1.3; // Kriosztát
   if (!o.remote && rk('h_bounty') && (z.elite || z.K.boss)) amt *= 1 + .12 * rk('h_bounty'); // Díjvadász
   if (!o.remote) hitPerks(z, amt, o);
-  z.hp -= amt; z.flash = .08; z.hitT = now; tallyHit(amt, o); if (!o.dot) z.flinch = .12;
+  z.hp -= amt; z.flash = o.melee && !o.dot ? .16 : .08; z.hitT = now; tallyHit(amt, o); if (!o.dot) z.flinch = .12;
   if (z.traits && z.traits.includes('rage') && !z.raged && z.hp > 0 && z.hp < z.maxHp * .25) { z.raged = true; z.speed *= 1.35; z.dmg *= 1.4; z.buffT = 1e6; popText(`${zName(z)} feldühödött!`, '#ff5a4a'); }
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   if (!o.remote) dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit, z);
@@ -478,9 +478,9 @@ function updateZombies(dt) {
       if (z.acidAcc >= z.acidDps * .5 || z.acidT <= 0) { const a = z.acidAcc; z.acidAcc = 0; if (a > 0) hurtZombie(z, a, { dot: true, color: ELEMENTS.corrosive.color, remote: z.acidBy || undefined, w: z.acidBy ? undefined : z.acidW }); if (z.dead) continue; }
     }
     z.slagT = (z.slagT || 0) - dt;
-    z.slowT -= dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
+    z.slowT -= dt; z.stagT = (z.stagT || 0) - dt; z.flash -= dt; z.buffT -= dt; z.markT = (z.markT || 0) - dt;
     const fuseBlink = z.fuse > 0 && Math.sin(now * 40) > 0;
-    const em = z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0x0d100b; // a faint glow so they read against the dark
+    const em = z.flash > .08 ? 0xb4b4b4 : z.flash > 0 || fuseBlink ? 0x777777 : z.burnT > 0 ? 0x4a1800 : z.slowT > 0 ? 0x10384a : z.buffT > 0 ? 0x4a0000 : z.markT > 0 ? 0x3a1450 : z.elite ? 0x3a2a00 : 0x0d100b; // a faint glow so they read against the dark
     for (const m of z.mats) m.emissive.setHex(player.eyeT > 0 && !(z.flash > 0) ? 0xb01818 : em); // Halálszem: every zombie lit red
     if (z.dummy) { z.g.position.set(z.pos.x, 0, z.pos.z); continue; } // a target dummy: it just stands there
 
@@ -527,7 +527,7 @@ function updateZombies(dt) {
     }
     let dh = ((ang - z.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     z.heading += dh * Math.min(1, dt * 7);
-    const sp = z.speed * spMul * (z.slowT > 0 ? .45 : 1) * (z.windup > 0 ? .35 : 1) * (z.fuse > 0 ? .3 : 1) * (z.buffT > 0 ? 1.45 : 1);
+    const sp = z.speed * spMul * (z.slowT > 0 ? .45 : 1) * (z.stagT > 0 ? .35 : 1) * (z.windup > 0 ? .35 : 1) * (z.fuse > 0 ? .3 : 1) * (z.buffT > 0 ? 1.45 : 1);
     let mx = 0, mz = 0;
     if (move) { mx = Math.sin(z.heading) * sp * dt; mz = Math.cos(z.heading) * sp * dt; }
     for (const o of zombies) {

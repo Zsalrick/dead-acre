@@ -832,7 +832,10 @@ function updateHUD() {
       setHTML('objK', `${J.test ? 'Lőtér' : MAPS[J.map].name} · ${T}${J.test ? '' : ` · ${'★'.repeat(J.diff)}`}`); setHTML('objN', J.title);
       const main = M.phase === 'evac' ? ['Szállj be a furgonba', M.boardT > 0 ? `${Math.ceil(M.boardT)} mp` : ''] : objectiveLine(M) ? (L => { const m = L.match(/^(.*?) · (\d+ \/ \d+[^·]*)(.*)$/); return m ? [m[1] + m[3], m[2]] : [L, '']; })(objectiveLine(M)) : ['Éld túl, amíg a furgon visszajön', fmtTime(left)];
       const P = profile, ct = !J.test && P.daily ? P.daily.list.map(c => [c, cProg(c, false)]).filter(([c, p]) => !c.got && p < c.n).sort((a, b) => b[1] / b[0].n - a[1] / a[0].n)[0] : null;
-      setHTML('objL', `<li><span>${main[0]}</span><b>${main[1]}</b></li>${secRows(J, mission)}${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}`);
+      const qn = QST.parts.filter(q => q.got).length, qa = QST.wave.filter(z => !z.dead).length;
+      const qRow = !MAP.quest ? '' : QST.stage === 1 ? `<li class="qw"><span>Különleges csapat: öld meg mindet</span><b>${QST.wave.length ? `${qa} / ${QST.wave.length}` : 'úton'}</b></li>`
+        : QST.stage === 0 && qn ? `<li class="qw"><span>${qn < 3 ? qt().part[0].toUpperCase() + qt().part.slice(1) + 'ek' : qt().use}</span><b>${qn < 3 ? `${qn} / 3` : 'kész'}</b></li>` : '';
+      setHTML('objL', `<li><span>${main[0]}</span><b>${main[1]}</b></li>${qRow}${secRows(J, mission)}${ct ? `<li class="ct"><span>Kontrakt: ${cDef(ct[0], false).txt(ct[0].n)}</span><b>${Math.floor(Math.max(0, ct[1]))} / ${ct[0].n}</b></li>` : ''}`);
       setHTML('objD', [...(J.dir || []).filter(k => DIRECTIVES[k]).map(k => `<i data-tip="${DIRECTIVES[k].desc}">${DIRECTIVES[k].name}</i>`), J.mod && MODS[J.mod] ? `<i class="mod" data-tip="${MODS[J.mod].sub}">${MODS[J.mod].label}</i>` : '', J.tier ? `<i class="nm">Rémálom +${J.tier}</i>` : ''].join(''));
     }
     updateEvacMark(M.phase === 'evac' || !!M.evacWarn); updateQuestMark(); updateMeleeHud();
