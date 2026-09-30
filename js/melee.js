@@ -4,7 +4,7 @@
 // heavies stagger. The chainsaw's heavy saws for as long as you hold it and burns fuel (reloaded like a flamethrower).
 const isMelee = w => !!(w && w.base.melee);
 const MEL = { ph: 'idle', t: 0, combo: 0, pat: null, heavy: false, hit: false, charge: 0, stam: 4, stamT: 0, block: false, hs: 0, sawT: 0, idleT: 0, fury: 0, furyT: 0, press: false };
-const MEL_STAM = () => 4; // block / push stamina pips
+const MEL_STAM = () => 4 + (hasPassive('barbarian') ? 1 : 0) + rk('b_stam'); // block / push stamina pips
 // poses of the viewmodel [x, y, z, rx, ry, rz]: where a swing starts (a) and ends (b); dir = which way it sweeps (for the cleave order)
 const MEL_UP = { // held upright: knife, axe, sledgehammer
   rest: [0.3, -0.4, -0.58, -0.18, -0.08, -0.32], block: [0.02, -0.32, -0.54, 0.06, 0, -1.45], push: [0.02, -0.24, -0.92, 0.04, 0, -1.4],
@@ -22,7 +22,7 @@ const MEL_FWD = { // held forward like a gun: the chainsaw
 const melPoses = w => w.base.melee.hold === 'fwd' ? MEL_FWD : MEL_UP;
 const melLerp = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
 const easeIn = k => k * k, easeOut = k => 1 - (1 - k) * (1 - k);
-function melSpeed(w) { return (player.stormT > 0 ? 1.25 : 1) * (1 + .15 * (w.unique === 'headsman' ? MEL.fury : 0)) * (typeof rateMul === 'function' ? rateMul(w) : 1); }
+function melSpeed(w) { return (player.stormT > 0 ? 1.25 : 1) * (player.rageT > 0 ? 1.3 : 1) * (1 + .06 * rk('b_swift')) * (1 + .15 * (w.unique === 'headsman' ? MEL.fury : 0)) * (typeof rateMul === 'function' ? rateMul(w) : 1); }
 function melReset() { Object.assign(MEL, { ph: 'idle', t: 0, combo: 0, pat: null, heavy: false, hit: false, charge: 0, block: false, hs: 0, press: false }); }
 
 // ---------- the frame ----------
@@ -76,6 +76,7 @@ function updateMelee(dt, w, busy) {
 }
 function melWind(w) {
   const M = w.base.melee, chain = M.light; MEL.pat = melPoses(w)[chain[MEL.combo % chain.length]]; MEL.combo++;
+  MEL.rush = player.sprint && rk('b_charge') > 0; // Roham: a swing out of a sprint
   Object.assign(MEL, { ph: 'wind', t: 0, heavy: false, hit: false, charge: 0, idleT: 0, from: null }); player.sprint = false;
 }
 function melStrike(w, heavy) {
@@ -85,8 +86,10 @@ function melStrike(w, heavy) {
   SND.swing(heavy ? 1 : 0); player.buf = player.buf || {};
 }
 function melSwingHit(w) {
-  const M = w.base.melee, H = MEL.heavy, c = .6 + .4 * MEL.charge;
-  melHit(w, MEL.pat, H ? { mul: M.heavy * c, cleave: M.heavyCleave, reach: M.reach * 1.12, stag: M.stagger * 1.6, heavy: true } : { mul: 1, cleave: M.cleave, reach: M.reach, stag: M.stagger });
+  const M = w.base.melee, H = MEL.heavy, c = .6 + .4 * MEL.charge, ch = MEL.rush ? 1.5 : 1, cl = rk('b_cleave'); MEL.rush = false;
+  const pat = H && rk('b_whirl') ? Object.assign({}, MEL.pat, { arc: 360, dir: 0 }) : MEL.pat; // Forgószél
+  melHit(w, pat, H ? { mul: M.heavy * c * (1 + .15 * rk('b_heavy')) * ch, cleave: M.heavyCleave + cl + (rk('b_whirl') ? 4 : 0), reach: M.reach * 1.12, stag: M.stagger * 1.6 + (ch > 1 ? 1 : 0), heavy: true }
+    : { mul: ch, cleave: M.cleave + cl, reach: M.reach, stag: M.stagger + (ch > 1 ? 1 : 0) });
 }
 // who a swing reaches: in front, within its arc, sorted the way the blade travels; the first takes it all, the rest a falling share
 function melTargets(reach, arc, dir) {
@@ -113,12 +116,14 @@ function melHit(w, pat, o) {
     const z = t.z, head = melAimHead(z) || (k === 0 && pat === melPoses(w).ov && player.pitch > -.05), crit = Math.random() < critChance();
     let amt = w.dmg * SK.dmg(w) * o.mul * Math.max(.4, 1 - .2 * k) * (fuelOut ? .45 : 1);
     if (head) amt *= (w.base.headMult || 1.5) * headBonus(); if (crit) amt *= critMult();
+    if (head && rk('b_exec') && z.hp < z.maxHp * .2) amt = Math.max(amt, z.hp + 1); // Lefejezés
     const hp0 = z.hp; hurtZombie(z, amt, { melee: true, w, head, crit, stag: o.stag * (k ? .7 : 1), from: player.pos, color: head ? null : '#ece6d4' });
     burst(zHeadPos(z).setY(head ? zHeadPos(z).y : 1.2 * (z.scale || 1)), 0x6a0a0a, o.saw ? 3 : 7, 3, .5);
     if (z.dead && w.unique === 'headsman') { MEL.fury = Math.min(5, MEL.fury + 1); MEL.furyT = 3; player.hp = Math.min(maxHp(), player.hp + maxHp() * .03); }
     if (k === 0) hitmarker(z.dead);
     if (hp0 > 0 && z.dead && !o.saw) player.shake = Math.max(player.shake, .06);
   });
+  if (player.rageT > 0) player.hp = Math.min(maxHp(), player.hp + maxHp() * (o.saw ? .004 : .02)); // Vérfürdő: every blow that lands heals
   if (o.saw) SND.sawHit(); else { blunt ? SND.blunt() : SND.chop(); MEL.hs = o.heavy ? .09 : .045; player.shake = Math.max(player.shake, o.heavy ? .12 : .05); vm.kick = o.heavy ? .05 : .025; }
   if (o.heavy && w.unique === 'thunder') thunderClap(w, T[0].z.pos);
 }
@@ -131,7 +136,8 @@ function melPush(w) {
   MEL.stam -= 1; MEL.stamT = 1; Object.assign(MEL, { ph: 'push', t: 0, hit: false, block: false }); SND.push();
 }
 function melPushHit(w) { // a shove: everything close in front staggers back, nobody is hurt much
-  for (const t of melTargets(2.6, 120, 0).slice(0, 6)) { const z = t.z; hurtZombie(z, Math.max(1, w.dmg * .08), { melee: true, w, stag: 1.3, from: player.pos, color: '#cfcabd' }); }
+  const sh = rk('b_push'); // Vállas lökés: it hurts, and it throws further
+  for (const t of melTargets(2.6, 120, 0).slice(0, 6)) { const z = t.z; hurtZombie(z, Math.max(1, w.dmg * (sh ? .5 * SK.dmg(w) : .08)), { melee: true, w, stag: sh ? 2.6 : 1.3, from: player.pos, color: '#cfcabd' }); }
   player.shake = Math.max(player.shake, .06);
 }
 // the zombie reels: its swing is broken off, it slows, and a hard blow knocks it back a step
@@ -147,8 +153,10 @@ function melBlocked(d, from) {
   const p = src && (src.pos || src); if (!p) return d;
   const dx = p.x - player.pos.x, dz = p.z - player.pos.z, ahead = (-dx * Math.sin(player.yaw) - dz * Math.cos(player.yaw)) / (Math.hypot(dx, dz) || 1);
   if (ahead < .35) return d;
-  MEL.stam = Math.max(0, MEL.stam - clamp(d / 30, .5, 2)); MEL.stamT = 1; SND.block(); vm.kick = .04;
-  if (src && src.z) { src.z.atkCd = Math.max(src.z.atkCd, .9); src.z.windup = 0; }
+  const free = player.rageT > 0 || Math.random() < .3 * rk('b_guard'); // Vérfürdő / Tökéletes hárítás: no stamina
+  if (!free) MEL.stam = Math.max(0, MEL.stam - clamp(d / 30, .5, 2)); MEL.stamT = 1; SND.block(); vm.kick = .04;
+  if (src && src.z) { src.z.atkCd = Math.max(src.z.atkCd, .9); src.z.windup = 0; if (free && rk('b_guard')) staggerZ(src.z, 1.2, player.pos); }
+  if (player.rageT > 0 && augOn('avatar')) return 0; // Élő bástya: the block takes it all
   if (MEL.stam <= 0) { popText('Kitartás elfogyott!', '#ff8a70'); MEL.block = false; }
   return d * .12;
 }

@@ -4,7 +4,7 @@
 const minions = [];
 let necroKills = [], minSeq = 0; // the last few you killed: { kind, x, z, elite }
 const minMax = () => augOn('legion') ? 3 : rk('n_twin') ? 2 : 1;
-const minDur = () => 60 + 15 * rk('n_time');
+const minDur = () => Math.round(60 * SK.abDur());
 function necroOnKill(kind, x, z, elite) {
   if (!isCls('necro')) return;
   if (KINDS[kind] && !KINDS[kind].boss) { necroKills.push({ kind, x, z, elite }); if (necroKills.length > 3) necroKills.shift(); }
@@ -16,7 +16,7 @@ function raiseMinion(kind, x, zz, o = {}) {
   const pw = (o.mul || 1) * (rk('n_elite') ? 1.5 : 1);
   const m = { kind, K, ...mkZombie(kind), pos: new V3(x, 0, zz), scale: K.scale(), heading: player.yaw + Math.PI, walkT: 0, atkCd: 0, rise: o.rise ?? 1, t: minDur(), id: ++minSeq, dead: false, deathT: 0, side: 1 };
   m.maxHp = m.hp = zombieHp() * Math.max(1, K.hp) * 1.25 * (1 + .2 * rk('n_bond')) * pw; // full health and a bit more
-  m.dmg = zombieHp() * .3 * Math.sqrt(Math.max(1, K.hp)) * 1.25 * (1 + .15 * rk('n_rage')) * pw;
+  m.dmg = zombieHp() * .3 * Math.sqrt(Math.max(1, K.hp)) * 1.25 * (1 + .15 * rk('n_rage')) * SK.abDmg() * pw;
   m.speed = K.speed(round) * 1.25;
   m.target = { pos: m.pos, vel: new V3(), alive: true, minion: m, taunt: rk('n_taunt') > 0 };
   for (const mt of m.mats) { mt.emissive.setHex(0x1c5a2c); mt.transparent = false; mt.opacity = 1; }

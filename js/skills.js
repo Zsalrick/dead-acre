@@ -15,13 +15,13 @@ const CLASSES = {
       ['s_ammo', 'Lőszerzsák', 2, r => `+${15 * r}% tartalék lőszer`],
       ['s_disc', 'Tűzfegyelem', 2, r => `-${30 * r}% szórásnövekedés sorozatlövésnél`],
       ['s_rage', 'Nem adom fel', 1, () => '30% élet alatt +25% sebzés'],
-      ['s_storm', 'Hosszabb vihar', 2, r => `a Tűzvihar +${3 * r} mp-ig tart`],
+      ['s_storm', 'Kitartó roham', 2, r => `+${12 * r}% képesség-időtartam (bármelyik képességre)`],
       ['s_heavy', 'Géppuskás', 1, () => 'nehézfegyverrel nem lassulsz, és +15% sebzés'],
       ['s_wind', 'Második szél', 1, () => 'munkánként egyszer a halálos ütést 1 életerővel túléled'],
-      ['s_supply', 'Utánpótlás', 1, () => 'a Tűzvihar minden fegyvered tartalékát feltölti'],
+      ['s_supply', 'Utánpótlás', 1, () => 'képességed használatakor minden fegyvered tartaléka feltöltődik'],
       ['s_pierce', 'Átütő erő', 1, () => 'minden golyó eggyel több zombin megy át'],
       ['s_blast', 'Robbanó hüvely', 2, r => `kritikus találatnál ${10 * r}% eséllyel kis robbanás`],
-      ['s_iron', 'Vasakarat', 2, r => `a Tűzvihar alatt -${15 * r}% elszenvedett sebzés`],
+      ['s_iron', 'Vasakarat', 2, r => `képességed használatakor a pajzsod ${50 * r}%-a azonnal visszatöltődik`],
     ],
   },
   hunter: {
@@ -37,7 +37,7 @@ const CLASSES = {
       ['h_scav', 'Zsákmányszimat', 2, r => `+${15 * r}% esély, hogy egy zombi fegyvert ejt`],
       ['h_deadly', 'Halálos pontosság', 2, r => `+${20 * r}% kritikus sebzés`],
       ['h_refund', 'Takarékos', 1, () => 'halálos fejlövés és kritikus fejlövés után egy töltény visszakerül a tárba'],
-      ['h_mark', 'Éles szem', 2, r => `a Halálszem +${2 * r} mp-ig tart, és ${8 * r} mp-cel hamarabb töltődik`],
+      ['h_mark', 'Vadászösztön', 2, r => `amíg a képességed aktív, minden ölés +${(.5 * r).toFixed(1)} mp-cel meghosszabbítja`],
       ['h_exec', 'Kivégzés', 1, () => 'dupla sebzés a 25% élet alatti zombikra'],
       ['h_boss', 'Nagyvad', 1, () => '+20% sebzés a Mészárosra'],
       ['h_luck', 'Zsákmányvadász', 1, () => 'jobb ritkaság a zombikból eső fegyvereken'],
@@ -52,12 +52,12 @@ const CLASSES = {
     ability: { name: 'Szerelőtorony', cd: 60, desc: 'Ingyen telepít egy lövegtornyot 25 mp-re.' },
     tree: [
       ['e_boom', 'Robbanóanyag', 3, r => `+${8 * r}% robbanás-sebzés (gránát, gránátvető, hordó)`],
-      ['e_tools', 'Szerszámos', 3, r => `+${10 * r}% toronysebzés, a Szerelőtorony +${5 * r} mp`],
+      ['e_tools', 'Szerszámos', 3, r => `+${10 * r}% képességsebzés (tornyok, szolgák, a szent kör égetése)`],
       ['e_belt', 'Gránátöv', 2, r => `+${r} gránát hely, és ennyivel többel kezdesz`],
       ['e_big', 'Nagyobb bumm', 2, r => `+${15 * r}% robbanási sugár`],
       ['e_barricade', 'Barikádbontó', 2, r => `-${15 * r}% a kapuk nyitási ára`],
       ['e_cells', 'Energiacellák', 3, r => `+${8 * r}% sebzés Ray Gunnal, Teslával és lángszóróval`],
-      ['e_last', 'Tartós torony', 1, () => 'a Szerelőtorony +15 mp-ig áll'],
+      ['e_last', 'Tartós gépezet', 1, () => '+20% képesség-időtartam'],
       ['e_barrel', 'Hordófelelős', 1, () => 'a robbanó hordók dupla sebzést okoznak'],
       ['e_quick', 'Gyors bevetés', 2, r => `-${10 * r}% képesség-töltődési idő`],
       ['e_fire', 'Gyújtólövedék', 1, () => 'a tornyok felgyújtják a célt'],
@@ -65,7 +65,7 @@ const CLASSES = {
       ['e_overload', 'Túlterhelés', 1, () => 'a Szerelőtorony kétszer olyan gyorsan lő'],
       ['e_chain', 'Láncrobbanás', 1, () => 'robbanással ölt zombi 30% eséllyel maga is felrobban'],
       ['e_drone', 'Javítódrón', 2, r => `a tornyaid 6 m-es körében +${6 * r} életerő/mp`],
-      ['e_overclock', 'Túlhajtás', 1, () => 'a Szerelőtorony után 8 mp-ig, gránátdobás után 4 mp-ig +40% tűzgyorsaság'],
+      ['e_overclock', 'Túlhajtás', 1, () => 'képességed használata után 8 mp-ig, gránátdobás után 4 mp-ig +40% tűzgyorsaság'],
     ],
   },
   medic: {
@@ -80,7 +80,7 @@ const CLASSES = {
       ['m_bless', 'Áldás', 2, r => `a gyógycsomag +${20 * r} életerőt ad`],
       ['m_zeal', 'Hitvalló', 3, r => `+${6 * r}% sebzés sörétessel és géppisztollyal`],
       ['m_burst', 'Pajzsrobbanás', 1, () => 'ha a pajzsod elfogy, a közeli zombikat szétveti'],
-      ['m_circle', 'Hosszabb kör', 2, r => `a Szentelt kör +${4 * r} mp és +${50 * r}% gyógyítás`],
+      ['m_circle', 'Áldott idő', 2, r => `+${10 * r}% képesség-időtartam, és a Szentelt kör +${50 * r}%-kal jobban gyógyít`],
       ['m_tithe', 'Adomány', 2, r => `+${10 * r}% pénz a munkákért`],
       ['m_revive', 'Feltámadás', 1, () => 'munkánként egyszer elesés helyett 50% élettel felállsz'],
       ['m_holy', 'Szentföld', 1, () => 'a Szentelt kör égeti a benne álló zombikat'],
@@ -98,18 +98,40 @@ const CLASSES = {
       ['n_bond', 'Erős kötelék', 3, r => `a szolgád +${20 * r}% életerőt kap`],
       ['n_rage', 'Vérszomj', 3, r => `a szolgád +${15 * r}% sebzést okoz`],
       ['n_toxic', 'Méregkeverő', 3, r => `+${6 * r}% sebzés maró fegyverrel`],
-      ['n_time', 'Hosszú szolgálat', 2, r => `a szolgád +${15 * r} mp-ig marad`],
-      ['n_quick', 'Gyors rítus', 2, r => `a Feltámasztás ${6 * r} mp-cel hamarabb töltődik`],
+      ['n_time', 'Hosszú szolgálat', 2, r => `+${10 * r}% képesség-időtartam`],
+      ['n_quick', 'Gyors rítus', 2, r => `-${6 * r}% képesség-töltődési idő`],
       ['n_leech', 'Lélekszívás', 3, r => `minden ölés további +${2 * r} életerő`],
       ['n_speed', 'Halotti lépés', 2, r => `+${4 * r}% mozgási sebesség`],
       ['n_shield', 'Csontpajzs', 2, r => `+${12 * r} pajzs`],
       ['n_taunt', 'Csali', 1, () => 'a zombik inkább a szolgádat támadják, mint téged'],
       ['n_twin', 'Kettős rítus', 1, () => 'egyszerre 2 szolgád lehet: a Feltámasztás az utolsó két áldozatodat hozza vissza'],
-      ['n_soul', 'Lélekvédő', 2, r => `amíg él szolgád, -${8 * r}% elszenvedett sebzés`],
+      ['n_soul', 'Lélekvédő', 2, r => `amíg a képességed aktív, -${8 * r}% elszenvedett sebzés`],
       ['n_blast', 'Hullarobbanás', 1, () => 'a szolgád a halálakor felrobban'],
       ['n_elite', 'Sötét áldás', 1, () => 'a szolgád +50% életet és sebzést kap, és minden ölésed gyógyítja'],
-      ['n_pact', 'Vérszerződés', 2, r => `amíg él szolgád, +${10 * r}% sebzés`],
+      ['n_pact', 'Vérszerződés', 2, r => `amíg a képességed aktív, +${10 * r}% sebzés`],
       ['n_plague', 'Dögvész', 1, () => 'a szolgád ütése a cél 4 m-es körében mindenkit sebez'],
+    ],
+  },
+  barbarian: {
+    name: 'Barbár', tag: 'Közelharc', color: '#e0643a', desc: 'Balta, pöröly, láncfűrész. Ott áll, ahol a legsűrűbb a horda, és nem hátrál.',
+    passive: '+15% közelharci sebzés, +1 blokk-kitartás, és minden közelharci ölés +2 életerőt ad.',
+    ability: { name: 'Vérfürdő', cd: 45, desc: '10 mp-ig vérszomjas leszel: +50% közelharci és +15% minden más sebzés, 30%-kal gyorsabb csapások, minden közelharci találat gyógyít, és a blokk nem fogyaszt kitartást.' },
+    tree: [
+      ['b_blade', 'Penge', 3, r => `+${8 * r}% közelharci sebzés`],
+      ['b_hide', 'Sebhelyes bőr', 3, r => `+${10 * r} max életerő`],
+      ['b_swift', 'Gyors kéz', 3, r => `+${6 * r}% csapássebesség`],
+      ['b_stam', 'Kitartás', 2, r => `+${r} blokk-kitartás`],
+      ['b_cleave', 'Széles ív', 2, r => `a csapások +${r} zombin mennek át`],
+      ['b_leech', 'Vérszívó', 2, r => `minden közelharci ölés +${3 * r} életerő`],
+      ['b_heavy', 'Nehéz kéz', 2, r => `+${15 * r}% erős csapás sebzés`],
+      ['b_guard', 'Tökéletes hárítás', 2, r => `a blokk ${30 * r}% eséllyel nem fogyaszt kitartást, és a támadót megtántorítja`],
+      ['b_thick', 'Vastagbőrű', 2, r => `-${5 * r}% elszenvedett sebzés`],
+      ['b_charge', 'Roham', 1, () => 'sprintből indított csapás +50% sebzés, és mindenkit megtántorít'],
+      ['b_push', 'Vállas lökés', 1, () => 'a lökés sebez (a csapás fele), és kétszer messzebbre lök'],
+      ['b_rage', 'Harci düh', 2, r => `minden ölés 5 mp-ig +${4 * r}% sebzés, 5-ször halmozódik (bármilyen fegyverrel)`],
+      ['b_exec', 'Lefejezés', 1, () => 'a közelharci fejtalálat a 20% élet alatti zombit azonnal megöli'],
+      ['b_ability', 'Vérszag', 2, r => `képességed használatakor +${15 * r}% életerő azonnal`],
+      ['b_whirl', 'Forgószél', 1, () => 'az erős csapás körben, mindenkit eltalál'],
     ],
   },
 };
@@ -120,6 +142,7 @@ const AUGMENTS = {
   hunter: [['plague', 'Járvány', 'Ha egy megjelölt zombi meghal, a 8 m-en belüli társai is megjelölődnek.'], ['execute', 'Kivégző', 'A megjelölt zombi 30% élet alatt egy találattól meghal.'], ['wide', 'Sasszem', 'Halálszem alatt a találat a cél 4 m-es körében mindenkit megjelöl.']],
   engineer: [['shieldtower', 'Pajzstorony', 'A torony 5 m-es pajzskupolát húz: benne 50%-kal kevesebb sebzést kapsz.'], ['twin', 'Ikertorony', 'Két kisebb tornyot telepít (60% sebzés darabonként).'], ['rocket', 'Rakétatorony', 'A torony lassabban lő, de robbanó rakétával.']],
   necro: [['cross', 'Megtérítés', 'Kapsz egy keresztet (3-as gomb, legfeljebb 1): egy élő zombit a szolgáddá térít. Főellenségre nem hat. Minden Feltámasztás ad egy új keresztet.'], ['legion', 'Légió', 'Az utolsó 3 áldozatod kel fel egyszerre, 60%-os erővel.'], ['soulswap', 'Lélekcsere', 'Ha egy szolgád meghal, 25% életet kapsz vissza, és a Feltámasztás 15 mp-cel hamarabb töltődik.']],
+  barbarian: [['bloodlust', 'Vérmámor', 'A Vérfürdő alatt minden ölés +1 mp-cel meghosszabbítja.'], ['warcry', 'Csatakiáltás', 'A Vérfürdő indításakor a 8 m-en belüli zombikat hátralöki és megtántorítja.'], ['avatar', 'Élő bástya', 'A Vérfürdő alatt 40%-kal kevesebb sebzést kapsz, és a blokk minden ütést teljesen elnyel.']],
   medic: [['revive', 'Feltámasztó kör', 'A körben dupla a gyógyítás, és az elesett társak felállnak benne.'], ['smite', 'Ítélet', 'A kör égeti és erősen lassítja a benne álló zombikat.'], ['bigcircle', 'Nagy szentély', 'A kör sugara 6 helyett 9 méter, és 5 mp-cel tovább tart.']],
 };
 const AUG_COST = 2;
@@ -148,26 +171,31 @@ const SK = {
     if (stimOn('berserk')) m += .3; // Berzerker-szérum
     if (inHolyAura()) m += .15; // Szentelt kör
     if (w.element === 'corrosive') m += (hasPassive('necro') ? .1 : 0) + .06 * rk('n_toxic');
-    if (rk('n_pact') && minions.some(q => !q.dead)) m += .1 * rk('n_pact'); // Vérszerződés
+    if (rk('n_pact') && abilActive()) m += .1 * rk('n_pact'); // Vérszerződés: while your ability runs
+    if (w.base.melee) m += (hasPassive('barbarian') ? .15 : 0) + .08 * rk('b_blade') + (player.rageT > 0 ? .5 : 0); else if (player.rageT > 0) m += .15; // the Barbarian; Vérfürdő
+    if (rk('b_rage') && now < (player.bFuryT || 0)) m += .04 * rk('b_rage') * (player.bFuryN || 0); // Harci düh
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
   crit: w => (stimOn('focus') ? .2 : 0) + .03 * rk('h_crit') + (w && w.base.mode === 'auto' ? .05 * rk('s_burst') : 0),
   critDmg: () => .2 * rk('h_deadly') + (exoOn('glass') ? .5 : 0),
   head: () => (hasPassive('hunter') ? .1 : 0) + .12 * rk('h_head') + (player.eyeT > 0 ? .5 : 0), // Halálszem: +50% on the head
-  hp: () => 8 * rk('s_hide'),
+  hp: () => 8 * rk('s_hide') + 10 * rk('b_hide'),
   shield: () => 15 * rk('m_shield') + 12 * rk('n_shield'),
   regen: () => 1 + (hasPassive('medic') ? .2 : 0) + .1 * rk('m_regen'),
   regenDelay: () => .3 * rk('m_rest'),
   speed: () => .04 * rk('h_light') + .04 * rk('n_speed') + (now < (player.howlUntil || 0) ? .3 : 0), // Farkasüvöltés
   reload: () => .08 * rk('s_hands') + (inHolyAura() ? .25 : 0),
   ammo: () => .15 * rk('s_ammo'),
-  taken: () => (stimOn('iron') ? .6 : 1) * (now < (player.guardT || 0) ? .5 : 1) * (dirOn('fragile') ? 1.3 : 1) * (player.stormT > 0 ? 1 - .15 * rk('s_iron') : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < aura.r ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .04 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
-    * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1) * (rk('n_soul') && minions.some(q => !q.dead) ? 1 - .08 * rk('n_soul') : 1),
+  taken: () => (stimOn('iron') ? .6 : 1) * (now < (player.guardT || 0) ? .5 : 1) * (dirOn('fragile') ? 1.3 : 1) * (1 - .05 * rk('b_thick')) * (player.rageT > 0 && augOn('avatar') ? .6 : 1) * (rk('m_sanct') && aura && Math.hypot(player.pos.x - aura.pos.x, player.pos.z - aura.pos.z) < aura.r ? .5 : 1) * (brand4('bulwark') && now - (player.stillT || 0) > 1 ? .65 : 1) * (brand4('sable') && player.sprint ? .7 : 1) * (1 - .04 * rk('s_armor')) * (1 - Math.min(.5, G('red'))) * (player.stormT > 0 && augOn('bulwark') ? .6 : 1)
+    * (turrets.some(t => t.shield && Math.hypot(t.g.position.x - player.pos.x, t.g.position.z - player.pos.z) < 5) ? .5 : 1) * (rk('n_soul') && abilActive() ? 1 - .08 * rk('n_soul') : 1),
   med: () => Math.round((70 + 20 * rk('m_bless')) * (hasPassive('medic') ? 1.5 : 1)),
   cash: () => 1 + .1 * rk('m_tithe'),
   explMul: () => 1 + (hasPassive('engineer') ? .2 : 0) + .08 * rk('e_boom') + G('expl'),
   explRadius: () => 1 + .15 * rk('e_big'),
   turret: () => 1 + .1 * rk('e_tools'),
+  abDur: () => 1 + .12 * rk('s_storm') + .2 * rk('e_last') + .1 * rk('m_circle') + .1 * rk('n_time'), // any ability lasts longer
+  abCd: () => (1 - .1 * rk('e_quick')) * (1 - .06 * rk('n_quick')),                                  // and comes back sooner
+  abDmg: () => 1 + .1 * rk('e_tools'),                                                                // what the ability itself deals
   cost: n => Math.round(n * (1 - .2 * rk('e_discount'))),
   gate: n => Math.round(n * 2.5 * (1 - .15 * rk('e_barricade')) / 50) * 50, // areas are a real decision
   drop: () => 1 + .15 * rk('h_scav'),
@@ -180,7 +208,7 @@ const SK = {
 const abilityCd = () => {
   if (!profile || !profile.cls) return 0;
   const base = CLASSES[profile.cls].ability.cd;
-  return (base - (profile.cls === 'hunter' ? 8 * rk('h_mark') : 0) - (profile.cls === 'necro' ? 6 * rk('n_quick') : 0)) * (1 - .1 * rk('e_quick'));
+  return base * SK.abCd();
 };
 let aura = null;
 // in a priest's circle (yours or a teammate's): +15% damage, twice the shield regen, +25% reload, healing
@@ -192,37 +220,44 @@ auraFill.rotation.x = -Math.PI / 2; auraMesh.add(auraFill); auraFill.rotation.x 
 function useAbility() {
   if (!profile || !profile.cls || state !== 'playing') return;
   if (player.abilCd > 0) return SND.deny();
-  const c = profile.cls;
-  if (c === 'engineer' && rk('e_overclock')) player.overT = now + 8; // Túlhajtás
+  const c = profile.cls, D = SK.abDur();
+  if (rk('e_overclock')) player.overT = now + 8; // Túlhajtás
+  if (rk('s_supply')) player.slots.forEach(w => { if (w) w.reserve = resMax(w); }); // Utánpótlás
+  if (rk('s_iron')) player.shield = Math.min(maxShield(), (player.shield || 0) + maxShield() * .5 * rk('s_iron')); // Vasakarat
+  if (rk('b_ability')) player.hp = Math.min(maxHp(), player.hp + maxHp() * .15 * rk('b_ability')); // Vérszag
   if (c === 'soldier') {
-    player.stormT = 8 + 3 * rk('s_storm');
-    if (rk('s_supply')) player.slots.forEach(w => { if (w) w.reserve = resMax(w); });
+    player.stormT = 8 * D;
     if (augOn('resupply')) { player.inv.gren = Math.min(itemMax('gren'), player.inv.gren + 2); [...player.slots, ...player.bag].forEach(w => { if (w) w.ammo = w.mag; }); renderInv(); }
     banner('TŰZVIHAR', `${Math.round(player.stormT)} mp végtelen tár`);
   } else if (c === 'hunter') {
-    player.eyeT = 8 + 2 * rk('h_mark'); player.eyeExt = 0; // Deadeye: see weaponOnHit / weaponOnKill
-    banner('HALÁLSZEM', `${player.eyeT} mp · a zombik pirosan látszanak, fejlövés +50%`); SND.threat(1);
+    player.eyeT = 8 * D; player.eyeExt = 0; // Deadeye: see weaponOnHit / weaponOnKill
+    banner('HALÁLSZEM', `${Math.round(player.eyeT)} mp · a zombik pirosan látszanak, fejlövés +50%`); SND.threat(1);
   } else if (c === 'engineer') {
     const twin = augOn('twin'), first = twin && !(player.twinWait > 0);
-    if (!deployTurret(0, 25 + 5 * rk('e_tools') + 15 * rk('e_last'), { rate: rk('e_overload') ? 2 : 1, n: 1, max: twin ? 2 : 1, dmgMul: twin ? .6 : 1, small: twin, shield: augOn('shieldtower'), rocket: augOn('rocket') })) return SND.deny();
+    if (!deployTurret(0, 25 * D, { rate: rk('e_overload') ? 2 : 1, n: 1, max: twin ? 2 : 1, dmgMul: twin ? .6 : 1, small: twin, shield: augOn('shieldtower'), rocket: augOn('rocket') })) return SND.deny();
     if (first) { player.twinWait = 12; banner('IKERTORONY', 'Tedd le a másodikat is máshova: [C], 12 mp-en belül'); return; } // the cooldown starts with the second
     player.twinWait = 0;
   } else if (c === 'medic') {
-    aura = { pos: player.pos.clone(), t: 20 + 4 * rk('m_circle') + (augOn('bigcircle') ? 5 : 0), r: augOn('bigcircle') ? 9 : 6 };
+    aura = { pos: player.pos.clone(), t: (20 + (augOn('bigcircle') ? 5 : 0)) * D, r: augOn('bigcircle') ? 9 : 6 };
     auraMesh.scale.setScalar(aura.r / 6);
     auraMesh.position.set(aura.pos.x, .04, aura.pos.z); auraMesh.visible = true;
     banner('SZENTELT KÖR', `${Math.round(aura.t)} mp · aki melletted áll, erősebb`);
   } else if (c === 'necro') { if (!useRaise()) return SND.deny(); renderInv(); }
+  else if (c === 'barbarian') {
+    player.rageT = 10 * D; if (typeof MEL !== 'undefined') MEL.stam = MEL_STAM();
+    if (augOn('warcry')) for (const z of zombies) if (!z.dead && Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z) < 8) staggerZ(z, 1.6, player.pos);
+    banner('VÉRFÜRDŐ', `${Math.round(player.rageT)} mp · +50% közelharc, gyorsabb csapások, a találat gyógyít`); SND.roar && SND.roar();
+  }
   if (c !== 'necro') chAdd(c + '_use'); // a class challenge (the necromancer's counts raised minions)
   player.abilCd = abilityCd(); SND.power(); pushFx(['ab', c]); if (c === 'medic' && aura) pushFx(['au', Math.round(aura.pos.x * 10), Math.round(aura.pos.z * 10), Math.round(aura.t)]);
   (player.buf || (player.buf = {})).ability = 8;
 }
-const abilActive = () => player.stormT > 0 || player.eyeT > 0 || !!aura || turrets.some(t => !t.station) || minions.some(m => !m.dead);
+const abilActive = () => player.rageT > 0 || player.stormT > 0 || player.eyeT > 0 || !!aura || turrets.some(t => !t.station) || minions.some(m => !m.dead);
 function updateSkills(dt) {
   if (player.eyeT > 0) player.eyeT -= dt;
   if (player.twinWait > 0 && (player.twinWait -= dt) <= 0) { player.twinWait = 0; player.abilCd = abilityCd(); } // the second twin turret never came
   if (!abilActive()) player.abilCd = Math.max(0, (player.abilCd || 0) - dt); // the cooldown starts when the ability is over
-  player.stormT = Math.max(0, (player.stormT || 0) - dt);
+  player.stormT = Math.max(0, (player.stormT || 0) - dt); player.rageT = Math.max(0, (player.rageT || 0) - dt);
   updateMinions(dt); updateRemoteMinions(dt);
   if (!aura) return;
   aura.t -= dt;
@@ -233,13 +268,13 @@ function updateSkills(dt) {
   for (const z of zombies) {
     if (z.dead || Math.hypot(z.pos.x - aura.pos.x, z.pos.z - aura.pos.z) > aura.r) continue;
     z.slowT = Math.max(z.slowT, augOn('smite') ? 1 : .3);
-    if (rk('m_holy') || augOn('smite')) { z.burnT = 1; z.burnDps = Math.max(z.burnDps, zombieHp() * (augOn('smite') ? .45 : .25)); }
+    if (rk('m_holy') || augOn('smite')) { z.burnT = 1; z.burnDps = Math.max(z.burnDps, zombieHp() * (augOn('smite') ? .45 : .25) * SK.abDmg()); }
   }
   if (Math.random() < dt * 20) burst(new V3(aura.pos.x + rand(-aura.r, aura.r) * .8, .1, aura.pos.z + rand(-aura.r, aura.r) * .8), 0xf2d27a, 1, 1, .6);
   if (aura.t <= 0) { aura = null; auraMesh.visible = false; }
 }
 function resetSkillsRun() {
-  player.abilCd = 0; player.stormT = 0; aura = null; auraMesh.visible = false; resetMinions();
+  player.abilCd = 0; player.stormT = 0; player.rageT = 0; player.bFuryN = 0; aura = null; auraMesh.visible = false; resetMinions();
 }
 
 // ---------- hub tab ----------
@@ -300,6 +335,7 @@ const CLASS_CH = {
   hunter: [['eye_head', '2000 fejlövéses ölés Halálszem alatt', 2000], ['eye_elite', 'Ölj meg 200 elitet Halálszem alatt', 200], ['hunter_use', 'Használd a Halálszemet 30-szor', 30]],
   engineer: [['tur_k', 'A tornyaid öljenek meg 2500 zombit', 2500], ['boom_k', 'Ölj meg 2000 zombit robbanással', 2000], ['engineer_use', 'Telepíts 30 Szerelőtornyot', 30]],
   medic: [['aura_heal', 'Gyógyíts 50 000 életerőt a Szentelt körrel', 50000], ['aura_k', 'Ölj meg 2500 zombit a Szentelt körben állva', 2500], ['medic_use', 'Használd a Szentelt kört 30-szor', 30]],
+  barbarian: [['rage_k', 'Ölj meg 2000 zombit Vérfürdő alatt', 2000], ['melee_k', 'Ölj meg 3000 zombit közelharci fegyverrel', 3000], ['barbarian_use', 'Használd a Vérfürdőt 30-szor', 30]],
   necro: [['min_k', 'A szolgáid öljenek meg 2000 zombit', 2000], ['necro_use', 'Támassz fel 40 szolgát', 40], ['min_alive_k', 'Ölj meg 3000 zombit, miközben él szolgád', 3000]],
 };
 const chVal = id => ((profile && profile.cc) || {})[id] || 0;
@@ -311,13 +347,22 @@ function chAdd(id, v = 1) {
   const was = P.cc[id] || 0; if (was >= def[2]) return; P.cc[id] = was + v;
   if (P.cc[id] >= def[2]) { toast('KIHÍVÁS TELJESÍTVE', [`${CLASSES[k].name}: ${def[1]}`, chDone(k) ? '+1 érdemérem, és +1 mindhárom kihívásért' : '+1 érdemérem'], CLASSES[k].color); syncTokens(); SND.legend && SND.legend(); }
 }
-function chKill(z, o) { // one kill, every challenge it counts toward
+function chKill(z, o) { // one kill, every challenge it counts toward (and the kill-driven skills)
   const w = o.w, c = w && CAT[w.base.id];
+  if (player.rageT > 0) chAdd('rage_k'); if (w && w.base.melee) chAdd('melee_k');
+  if (rk('b_rage')) { player.bFuryN = Math.min(5, (now < (player.bFuryT || 0) ? player.bFuryN || 0 : 0) + 1); player.bFuryT = now + 5; } // Harci düh
+  if (w && w.base.melee) player.hp = Math.min(maxHp(), player.hp + (hasPassive('barbarian') ? 2 : 0) + 3 * rk('b_leech')); // the Barbarian's passive, Vérszívó
+  if (player.rageT > 0 && augOn('bloodlust')) player.rageT += 1; // Vérmámor
+  if (rk('h_mark') && abilActive()) abExtend(.5 * rk('h_mark')); // Vadászösztön
   if (player.stormT > 0) chAdd('storm_k'); if (c === 'rifle' || c === 'heavy') chAdd('rifle_k');
   if (player.eyeT > 0) { if (o.head) chAdd('eye_head'); if (z.elite) chAdd('eye_elite'); }
   if (o.turret) chAdd('tur_k'); else if (!w && !o.melee && !o.dot && !o.minion && !o.esc) chAdd('boom_k');
   if (inHolyAura()) chAdd('aura_k');
   if (o.minion) chAdd('min_k'); if (typeof minions !== 'undefined' && minions.some(m => !m.dead)) chAdd('min_alive_k');
+}
+function abExtend(s) { // stretch whatever ability is running
+  if (player.stormT > 0) player.stormT += s; if (player.rageT > 0) player.rageT += s; if (player.eyeT > 0) player.eyeT += s; if (aura) aura.t += s;
+  turrets.forEach(t => { if (!t.station && !t.fixed) t.t += s; }); if (typeof minions !== 'undefined') minions.forEach(m => { if (!m.dead) m.t += s; });
 }
 const tokEarned = () => Math.max(0, profile.level - 1) + chPoints();
 const tokSpent = () => { let n = 0; for (const k in CLASSES) n += treePts(k); return n + (profile.augOwn || []).length * AUG_COST; };
