@@ -293,7 +293,7 @@ function shoot() {
         const crit = shotCrit; // one roll per shot: a shotgun's pellets crit together, so its chance means what it says
         t.amt += w.dmg * sm * SK.dmg(w) * fall * (head ? (b.headMult || 2) * headBonus() : 1) * (crit ? critMult() : 1) * (weak ? 3 : 1) * (rk('h_long') && h.distance > 25 ? 1 + .1 * rk('h_long') : 1) * pf;
         t.head = t.head || head || weak; t.crit = t.crit || crit; tally.set(z, t);
-        burst(h.point, 0x5a0a0a, 3, 2.2, .4);
+        burst(h.point, 0x6a0a0a, 9, 2.8, .45); burst(h.point, 0x3a0404, 5, 1.6, .6); // more blood: a bright spray and darker, heavier drops
         if (--pierce <= 0) { end = h.point; break; }
       } else {
         end = h.point;

@@ -122,7 +122,7 @@ function melHit(w, pat, o) {
     if (head) amt *= (w.base.headMult || 1.5) * headBonus(); if (crit) amt *= critMult();
     if (head && rk('b_exec') && z.hp < z.maxHp * .2) amt = Math.max(amt, z.hp + 1); // Lefejezés
     const hp0 = z.hp; hurtZombie(z, amt, { melee: true, w, head, crit, stag: o.stag * (k ? .7 : 1), from: player.pos, color: head ? null : '#ece6d4' });
-    burst(zHeadPos(z).setY(head ? zHeadPos(z).y : 1.2 * (z.scale || 1)), 0x6a0a0a, o.saw ? 3 : 7, 3, .5);
+    { const bp = zHeadPos(z).setY(head ? zHeadPos(z).y : 1.2 * (z.scale || 1)); burst(bp, 0x6a0a0a, o.saw ? 6 : 18, o.heavy ? 4.2 : 3.4, .55); burst(bp, 0x3a0404, o.saw ? 4 : 10, 2, .75); } // a gush of blood, more for a heavy
     if (z.dead && w.unique === 'headsman') { MEL.fury = Math.min(5, MEL.fury + 1); MEL.furyT = 3; player.hp = Math.min(maxHp(), player.hp + maxHp() * .03); }
     if (k === 0) hitmarker(z.dead);
     if (hp0 > 0 && z.dead && !o.saw) player.shake = Math.max(player.shake, .06);
