@@ -153,9 +153,10 @@ function melBlocked(d, from) {
   const p = src && (src.pos || src); if (!p) return d;
   const dx = p.x - player.pos.x, dz = p.z - player.pos.z, ahead = (-dx * Math.sin(player.yaw) - dz * Math.cos(player.yaw)) / (Math.hypot(dx, dz) || 1);
   if (ahead < .35) return d;
-  const free = player.rageT > 0 || Math.random() < .3 * rk('b_guard'); // Vérfürdő / Tökéletes hárítás: no stamina
+  const free = player.rageT > 0 || now < (player.ironT || 0) || Math.random() < .3 * rk('b_guard'); // Vérfürdő / Tökéletes hárítás: no stamina
   if (!free) MEL.stam = Math.max(0, MEL.stam - clamp(d / 30, .5, 2)); MEL.stamT = 1; SND.block(); vm.kick = .04;
   if (src && src.z) { src.z.atkCd = Math.max(src.z.atkCd, .9); src.z.windup = 0; if (free && rk('b_guard')) staggerZ(src.z, 1.2, player.pos); }
+  if (src && src.z && exoOn('gladiator')) hurtZombie(src.z, Math.max(d * 4, zombieHp() * .35), { melee: true, w, stag: 1.4, from: player.pos, color: '#ff9a6a' }); // Gladiátor-karvédő: the block hits back
   if (player.rageT > 0 && augOn('avatar')) return 0; // Élő bástya: the block takes it all
   if (MEL.stam <= 0) { popText('Kitartás elfogyott!', '#ff8a70'); MEL.block = false; }
   return d * .12;

@@ -172,7 +172,7 @@ const SK = {
     if (inHolyAura()) m += .15; // Szentelt kör
     if (w.element === 'corrosive') m += (hasPassive('necro') ? .1 : 0) + .06 * rk('n_toxic');
     if (rk('n_pact') && abilActive()) m += .1 * rk('n_pact'); // Vérszerződés: while your ability runs
-    if (w.base.melee) m += (hasPassive('barbarian') ? .15 : 0) + .08 * rk('b_blade') + (player.rageT > 0 ? .5 : 0); else if (player.rageT > 0) m += .15; // the Barbarian; Vérfürdő
+    if (w.base.melee) m += (hasPassive('barbarian') ? .15 : 0) + .08 * rk('b_blade') + (player.rageT > 0 ? .5 : 0) + G('melee') + (now < (player.ironT || 0) ? .25 : 0); else if (player.rageT > 0) m += .15; // the Barbarian; Vérfürdő
     if (rk('b_rage') && now < (player.bFuryT || 0)) m += .04 * rk('b_rage') * (player.bFuryN || 0); // Harci düh
     return m + (mkOf(w).dmg || 0) + G('dmg');
   },
@@ -351,6 +351,7 @@ function chKill(z, o) { // one kill, every challenge it counts toward (and the k
   const w = o.w, c = w && CAT[w.base.id];
   if (player.rageT > 0) chAdd('rage_k'); if (w && w.base.melee) chAdd('melee_k');
   if (rk('b_rage')) { player.bFuryN = Math.min(5, (now < (player.bFuryT || 0) ? player.bFuryN || 0 : 0) + 1); player.bFuryT = now + 5; } // Harci düh
+  if (w && w.base.melee && brand4('ironmaw')) player.ironT = now + 4; // Ironmaw: Vérvörös penge
   if (w && w.base.melee) player.hp = Math.min(maxHp(), player.hp + (hasPassive('barbarian') ? 2 : 0) + 3 * rk('b_leech')); // the Barbarian's passive, Vérszívó
   if (player.rageT > 0 && augOn('bloodlust')) player.rageT += 1; // Vérmámor
   if (rk('h_mark') && abilActive()) abExtend(.5 * rk('h_mark')); // Vadászösztön

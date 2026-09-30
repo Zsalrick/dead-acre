@@ -25,6 +25,7 @@ const GSTATS = {
   expl:    { name: 'Robbanás-sebzés',  roll: [.06, .14] },
   red:     { name: 'Sebzéscsökkentés', roll: [.02, .04] },
   points:  { name: 'Pont ölésért',     roll: [.04, .1] },
+  melee:   { name: 'Közelharci sebzés', roll: [.05, .12] },
 };
 const BRANDS = {
   ranger:    { t4: ['Célpont kijelölve', 'A fejlövés 5 mp-re megjelöli a zombit: +50% sebzést kap mindenkitől.'], name: 'Ranger Supply',      color: '#9fcf6a', tag: 'Mesterlövész',  core: ['head', .08],  sets: [[2, 'crit', .05], [3, 'critDmg', .2], [4, 'head', .3]] },
@@ -32,6 +33,7 @@ const BRANDS = {
   gravetide: { t4: ['Vérszomj', 'Minden ölés +5% sebzés 6 mp-ig, 10-szer halmozható. Ha megütnek, elveszik.'], name: 'Gravetide',          color: '#e06a58', tag: 'Sebzés',        core: ['dmg', .04],   sets: [[2, 'dmg', .08], [3, 'critDmg', .25], [4, 'dmg', .15]] },
   hollis:    { t4: ['Második lélegzet', 'Minden ölés a max életerőd 3%-át visszatölti.'], name: 'Hollis & Hart',      color: '#e8d08a', tag: 'Túlélő',        core: ['regen', .12], sets: [[2, 'hp', 25], [3, 'regen', .4], [4, 'red', .1]] },
   sable:     { t4: ['Szélvész', 'Sprint közben 30%-kal kevesebb sebzést kapsz, és az ölés visszatölti az állóképességet.'], name: 'Sable Line',         color: '#9a8aff', tag: 'Mozgékony',     core: ['speed', .03], sets: [[2, 'reload', .12], [3, 'speed', .08], [4, 'stam', 50]] },
+  ironmaw:   { t4: ['Vérvörös penge', 'Közelharci ölés után 4 mp-ig +25% közelharci sebzés, és a blokk nem fogyaszt kitartást.'], name: 'Ironmaw Outfitters', color: '#d8503a', tag: 'Közelharc', core: ['melee', .06], sets: [[2, 'melee', .1], [3, 'red', .08], [4, 'hp', 40]] },
   cinder:    { t4: ['Láncreakció', 'A robbanással ölt zombi 40% eséllyel maga is felrobban.'], name: 'Cinder Works',       color: '#ff9a4a', tag: 'Robbantó',      core: ['expl', .1],   sets: [[2, 'expl', .15], [3, 'ammo', .25], [4, 'points', .2]] },
 };
 // the brand bonus of one piece grows with its rarity
@@ -71,6 +73,7 @@ const EXO_COL = RARITIES[5].color; // exotic armour is simply exotic: the same c
 const EXOTICS = {
   vamp:    { slot: 'chest', name: 'Vérszívó kabát',    talent: 'Minden ölés a max életerőd 8%-át visszatölti.' },
   nova:    { slot: 'chest', name: 'Pajzsnóva mellvért', talent: 'Ha a pajzsod elfogy, lökéshullám robban körülötted.' },
+  gladiator: { slot: 'gloves', name: 'Gladiátor-karvédő', talent: 'A blokkolt ütés visszaüt: a támadó komoly sebzést kap, és megtántorodik.' },
   berserk: { slot: 'head',  name: 'Berzerker sisak',    talent: 'Minél kevesebb az életerőd, annál többet sebzel: legfeljebb +50%.' },
   glass:   { slot: 'head',  name: 'Üvegágyú',           talent: '+50% kritikus sebzés, de −25% max életerő.' },
   quick:   { slot: 'legs',  name: 'Gyorskezű nadrág',   talent: 'Fejlövéses ölés után a tár azonnal megtelik.' },
