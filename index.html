@@ -3,8 +3,8 @@
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Big+Shoulders+Display:wght@700;800;900&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/legacy.css?v=182">
-<link rel="stylesheet" href="css/ui.css?v=182">
+<link rel="stylesheet" href="css/legacy.css?v=183">
+<link rel="stylesheet" href="css/ui.css?v=183">
 
 <!-- boot screen: painted before any script, gone once every script is in -->
 <div id="boot" style="position:fixed;inset:0;z-index:9999;background:#0e0f0c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .5s">
@@ -162,7 +162,7 @@ T.Material.prototype.dispose = function () {}; // ponytail: a material's shader 
 window.THREE = THREE;
 const hold = e => { e.stopImmediatePropagation(); e.preventDefault(); }, HOLD = ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']; // no input until every script is in
 HOLD.forEach(t => addEventListener(t, hold, true));
-const LIST =  ["js/icons.js?v=182", "js/data.js?v=182", "js/audio.js?v=182", "js/music.js?v=182", "js/world.js?v=182", "js/maps.js?v=182", "js/fx.js?v=182", "js/gfx.js?v=182", "js/player.js?v=182", "js/melee.js?v=182", "js/zombies.js?v=182", "js/loot.js?v=182", "js/upgrades.js?v=182", "js/gear.js?v=182", "js/vet.js?v=182", "js/inv.js?v=182", "js/save.js?v=182", "js/menu.js?v=182", "js/skills.js?v=182", "js/necro.js?v=182", "js/hub.js?v=182", "js/book.js?v=182", "js/game.js?v=182", "js/jobs.js?v=182", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=182", "js/net.js?v=182", "js/avatar.js?v=182"];
+const LIST =  ["js/icons.js?v=183", "js/data.js?v=183", "js/audio.js?v=183", "js/music.js?v=183", "js/world.js?v=183", "js/maps.js?v=183", "js/fx.js?v=183", "js/gfx.js?v=183", "js/player.js?v=183", "js/melee.js?v=183", "js/zombies.js?v=183", "js/loot.js?v=183", "js/upgrades.js?v=183", "js/gear.js?v=183", "js/vet.js?v=183", "js/inv.js?v=183", "js/save.js?v=183", "js/menu.js?v=183", "js/skills.js?v=183", "js/necro.js?v=183", "js/hub.js?v=183", "js/book.js?v=183", "js/game.js?v=183", "js/jobs.js?v=183", "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js", "js/p2p.js?v=183", "js/net.js?v=183", "js/avatar.js?v=183"];
 const bar = p => { const f = document.getElementById('bootFill'); if (f) f.style.width = Math.round(15 + 85 * p) + '%'; };
 try {
   for (let i = 0; i < LIST.length; i++) { await new Promise((ok, bad) => { const e = document.createElement('script'); e.src = LIST[i]; e.async = false; e.charset = 'utf-8'; e.onload = ok; e.onerror = bad; document.head.appendChild(e); }); bar((i + 1) / LIST.length); }

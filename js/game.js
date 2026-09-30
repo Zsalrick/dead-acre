@@ -422,7 +422,7 @@ function updateDmgDirs(dt) { // every frame: turn with you, fade out
 function hurtPlayer(d, quiet) {
   const from = hurtFrom; hurtFrom = null;
   if (netRedirectHurt(d)) return; // a host zombie hit another player
-  if (!liveWorld() || (mission && mission.leaving) || player.down) return;
+  if (!liveWorld() || (mission && mission.leaving) || player.down || now < (player.godT || 0)) return;
   if (player.ffyl > 0) { player.ffyl = Math.max(.05, player.ffyl - .4); return; } // hits on the ground eat into the clock
   d *= SK.taken(); d = melBlocked(d, from);
   const hadShield = player.shield > 0;
@@ -963,7 +963,7 @@ function takeLoot(f, swap) {
   player.bag.push(w); trackBest(w); noteFound(w); SND.pickup(w.q);
   popText(ok ? `${w.name} a táskába (${player.bag.length}/${bagMax()})` : !exoOk ? `${w.name} a táskába · egyszerre csak 1 egzotikus fegyver lehet kézben` : `${w.name} a táskába · ${w.level}. szinttől használhatod`, ok ? rarColor(w) : '#ff8a70');
 }
-let reviveHold = 0, xHold = 0;
+let reviveHold = 0, xHold = 0, wellPress = false, wellHold = 0;
 const scrapHint = (q, gear) => mission && mission.job.test ? '' : `<span class="scrap"><kbd>X</kbd>tartsd: szétszedés +${fieldParts(Math.min(4, q))} ${gear ? FAB : '⚙'}</span>`;
 function scrapGround(f) { // parts are paid out only if you extract, like taking it apart from the bag
   const it = f.type === 'gear' ? f.gd.it : f.drop.w, q = it.unique ? 5 : it.q;
@@ -977,6 +977,12 @@ function updateSellHold(dt) {
     $('hold').hidden = reviveHold <= 0; $('holdLbl').textContent = 'Felélesztés…'; $('holdfill').style.width = reviveHold / reviveT() * 100 + '%'; return;
   }
   reviveHold = 0;
+  if (wellPress) { // at the well: let go early for the shop, hold on to buy all you can
+    if (!focus || focus.type !== 'well') wellPress = false;
+    else if (!keys.KeyE) { wellPress = false; wellHold = 0; $('hold').hidden = true; return openStation('well'); }
+    else { wellHold += dt; $('hold').hidden = false; $('holdLbl').textContent = 'Minden megvétele…'; $('holdfill').style.width = Math.min(1, wellHold / HOLD_T) * 100 + '%';
+      if (wellHold >= HOLD_T) { wellPress = false; wellHold = 0; $('hold').hidden = true; wellBuyAll(); } return; }
+  }
   const repOn = !!(focus && focus.type === 'repair' && focus.gi != null && keys.KeyE && mission.gens[focus.gi].hp < mission.gens[focus.gi].max); showWrench(repOn, dt);
   if (focus && focus.type === 'repair' && focus.gi != null) { const on = keys.KeyE && holdRepair(focus.gi, dt); $('hold').hidden = !on; if (on) { const G = mission.gens[focus.gi]; $('holdLbl').textContent = `${G.name} generátor javítása…`; $('holdfill').style.width = G.hp / G.max * 100 + '%'; } return; }
   if (focus && (focus.type === 'gear' || focus.type === 'drop') && !mission.job.test && keys.KeyX) { // hold X over loot on the ground: take it apart for parts

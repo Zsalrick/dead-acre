@@ -169,6 +169,13 @@ $('stationBody').addEventListener('click', e => {
   SND.buy(); renderStation();
 });
 $('stationClose').onclick = closeStation;
+function wellBuyAll() { // everything the points cover, cheapest refills first, then the shield
+  const P = player; let n = 0;
+  for (const [k, c] of Object.entries(VEND).sort((a, b) => a[1] - b[1])) while (P.inv[k] < itemMax(k) && P.points >= c) { P.points -= c; P.inv[k] = Math.min(itemMax(k), P.inv[k] + (k === 'knife' ? 3 : 1)); n++; }
+  if (maxShield() && P.shield < maxShield() && P.points >= 200) { P.points -= 200; P.shield = maxShield(); n++; }
+  if (!n) { SND.deny(); return popText('Nincs mit venni (tele vagy, vagy nincs elég pont)', '#ff8a70'); }
+  renderInv(); SND.buy(); popText(`Szent kút · ${n} vásárlás`, '#9fd8ff');
+}
 
 function levelUpWeapon(w, n) {
   ocStrip(w); w.dmg = Math.round(w.dmg * Math.pow(1.08, n));

@@ -1261,7 +1261,7 @@ function turretMesh(opts, small) { // the tripod turret; also the stand-in for a
   return { g, head };
 }
 function deployTurret(cost, dur = 60, opts = {}) {
-  if (opts.station ? turrets.some(t => t.station) : turrets.filter(t => !t.station).length >= (opts.max || 1)) return false;
+  if (opts.station ? turrets.some(t => t.station && !t.fixed) : turrets.filter(t => !t.station).length >= (opts.max || 1)) return false;
   if (player.points < cost) return false;
   player.points -= cost; SND.buy();
   const n = opts.n || 1, fwd = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), side = new V3(-fwd.z, 0, fwd.x);
@@ -1329,7 +1329,10 @@ function activateTrap(T) {
 }
 function updateAreas(dt) {
   updateTurret(dt); updateTraps(dt); updateQuest();
-  if (PWR.run && PWR.run.remote && (PWR.run.t -= dt) <= 0) PWR.run = null;
+  if (PWR.run && PWR.run.remote) { // a mate switched it on: the host does the shooting, we just see it swing round
+    const h = PWR.mount.head; if ((PWR.run.t -= dt) <= 0) { PWR.run = null; h.rotation.set(.35, h.rotation.y, 0); }
+    else { let best = null, bd = 28; for (const z of zombies) { if (z.dead || z.rise > .2) continue; const d = Math.hypot(z.pos.x - PWR.mount.pos.x, z.pos.z - PWR.mount.pos.z); if (d < bd) { bd = d; best = z; } }
+      if (best) h.lookAt(best.pos.x, 1.2 * best.scale, best.pos.z); else h.rotation.x = 0; } }
   for (const k in AREAS) {
     const a = AREAS[k];
     if (a.unlocked && a.st.type === 'well' && Math.hypot(player.pos.x - a.st.pos.x, player.pos.z - a.st.pos.z) < 3.4) {
@@ -1360,7 +1363,7 @@ function areaPrompt(f) {
   switch (f.type) {
     case 'gate': return `<b>[E]</b> ${a.name} megnyitása · ${SK.gate(a.cost)} pont${lack(SK.gate(a.cost))}`;
     case 'forge': return '<b>[E]</b> Kovácsműhely';
-    case 'well': return '<b>[E]</b> Szent kút · a víz gyógyít';
+    case 'well': return '<b>[E]</b> Szent kút · a víz gyógyít · <b>tartsd E</b>: minden megvétele';
     case 'trap': return st.active > 0 ? `Csapda ég · ${Math.ceil(st.active)} mp` : st.cd > 0 ? `Csapda töltődik · ${Math.ceil(st.cd)} mp` : `<b>[E]</b> Tűzcsapda · ${SK.cost(st.cost)} pont${lack(SK.cost(st.cost))}`;
     case 'tower': { const t = turrets.find(t => t.station); return t ? `Lövegtorony aktív · ${Math.ceil(t.t)} mp` : `<b>[E]</b> Lövegtorony telepítése · ${SK.cost(st.cost)} pont${lack(SK.cost(st.cost))}`; }
     case 'truck': return '<b>[E]</b> Beszállás és indulás';
@@ -1384,7 +1387,7 @@ function areaInteract(f) {
     case 'radio': return questRadio();
     case 'gate': return unlockArea(f.area);
     case 'forge': return openStation('forge');
-    case 'well': return openStation('well');
+    case 'well': wellPress = true; return; // a tap opens the shop, a hold buys everything (game.js updateSellHold)
     case 'trap': return activateTrap(st);
     case 'tower': return deployTurret(SK.cost(st.cost), 75, { station: true }) || SND.deny();
     case 'truck': return extract();
@@ -1637,7 +1640,7 @@ function pwApply(s) {
   if (!PWR.gen || !Array.isArray(s)) return;
   if (+s[0] && !PWR.on) powerOn();
   if (+s[1] >= 0 && +s[1] !== PWR.bi && MAP.power.boxes[+s[1]]) placePowerBox(+s[1]);
-  PWR.uses = +s[2] || 0; if (+s[3] > 0 && !PWR.run) { PWR.run = { t: +s[3], remote: true }; banner('LÖVEGÁLLÁS AKTÍV', 'Egy társad bekapcsolta.'); } if (PWR.run && PWR.run.remote) PWR.run.t = +s[3]; if (!(+s[3] > 0) && PWR.run && PWR.run.remote) PWR.run = null;
+  PWR.uses = +s[2] || 0; if (+s[3] > 0 && !PWR.run) { PWR.run = { t: +s[3], remote: true }; banner('LÖVEGÁLLÁS AKTÍV', 'Egy társad bekapcsolta.'); } if (PWR.run && PWR.run.remote) PWR.run.t = +s[3]; if (!(+s[3] > 0) && PWR.run && PWR.run.remote) { PWR.run = null; PWR.mount.head.rotation.set(.35, PWR.mount.head.rotation.y, 0); }
   QST.parts.forEach((q, i) => { if ((+s[4] & (1 << i)) && !q.got) questGot(i); }); if (!QST.stage && +s[5]) questFx(); if (QST.stage < 2 && +s[5] === 2) { QST.stage = 2; questReward(); } QST.stage = +s[5] || QST.stage;
 }
 function pwAct(a) { // host: a member's request

@@ -149,7 +149,7 @@ const zDmgMul = () => Math.pow(1.035, jobLvl() - 1) * (1 + .1 * (((mission && mi
 const zWave = () => 1 + .04 * (round - 1);
 const jobLvl = () => (mission && mission.job.lvl) || (profile ? profile.level : 1);
 const jobTier = () => (mission && mission.job.tier) || 0; // Rémálom +N: endless difficulty past 5 stars
-const lootLvl = (x = 0) => clamp(jobLvl() + x + Math.floor(Math.random() * 3) - 1, 1, LEVEL_CAP + 2 * jobTier()); // gear tops out at 30, Rémálom tiers push it past
+const lootLvl = (x = 0) => clamp(Math.min(jobLvl(), profile && profile.level < LEVEL_CAP ? profile.level : 999) /* a lower-level mate gets drops at their own level; max level keeps the Rémálom bonus */ + x + Math.floor(Math.random() * 3) - 1, 1, LEVEL_CAP + 2 * jobTier()); // gear tops out at 30, Rémálom tiers push it past
 // any kind can turn up at any threat; below its usual threat (min) it is rarer the further below it is
 function pickKind() {
   const opts = Object.keys(KINDS).filter(k => !KINDS[k].max || zombies.filter(z => !z.dead && z.kind === k).length < KINDS[k].max);

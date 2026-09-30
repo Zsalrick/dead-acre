@@ -219,6 +219,16 @@ function updateAvatars(dt, peers) {
       const b = BASES.find(b => b.id === P.wb);
       if (b) { a.gun = buildGun({ base: b, q: clamp(+P.wq || 0, 0, 5) }, true); a.gun.scale.setScalar(1.25); a.gunG.add(a.gun); a.flash.position.set(0, 0, -((b.model.len + b.model.barrel) * 1.25 * .5) - .1); a.base = b; }
     }
+    // their melee: a swing (light, alternating sides), a heavy overhead chop, a shove, or the chainsaw buzzing
+    if (Array.isArray(P.ml)) { const n = +P.ml[0] || 0; if (a.ml == null) a.ml = n; else if (n > a.ml && !a.down) { a.ml = n; a.swT = 0; a.swK = +P.ml[1] || 0; a.swN = (a.swN || 0) + 1; if (Math.hypot(a.pos.x - player.pos.x, a.pos.z - player.pos.z) < 25) a.swK === 2 ? SND.push() : SND.swing(a.swK); } }
+    { let ox = 0, oz = 0; const saw = Array.isArray(P.ml) && +P.ml[2];
+      if (a.swT != null) { const D = a.swK === 1 ? .6 : a.swK === 2 ? .35 : .42, s = (a.swT += dt) / D;
+        if (s >= 1) a.swT = null;
+        else if (a.swK === 2) ox = .4 * Math.sin(s * Math.PI); // the shove: both arms up and out
+        else { const up = a.swK === 1 ? 1.9 : 1.2, wind = .3; ox = s < wind ? up * Math.sin(s / wind * Math.PI / 2) : (up - (up + 1) * Math.sin(Math.min(1, (s - wind) / .35) * Math.PI / 2)) * (1 - Math.max(0, (s - .65) / .35)); // up, down through the target, back to rest
+          if (a.swK === 0) oz = (a.swN % 2 ? 1 : -1) * .8 * Math.sin(Math.min(1, s * 1.4) * Math.PI); } } // light swings cut across, alternating
+      else if (saw) { ox = -.25 + Math.sin(now * 60) * .04; oz = Math.sin(now * 47) * .05; }
+      a.armR.rotation.x += ox; a.armL.rotation.x += ox * (a.swK === 2 ? 1 : .8); a.gunG.rotation.x += ox; a.gunG.rotation.z = oz; }
     // their shots: flash, tracer toward where they aim, and the sound
     if (a.sh === null) { a.sh = +P.sh || 0; a.shPrev = a.sh; }
     if ((+P.sh || 0) > a.sh && !a.down) {
@@ -299,7 +309,7 @@ function netDown() {
 function netRevive(frac = .5) {
   if (!player.down && !(player.ffyl > 0)) return;
   const wasDown = player.down; endFFYLView();
-  player.down = false; player.hp = maxHp() * frac; player.lastHurt = now;
+  player.down = false; player.hp = maxHp() * frac; player.lastHurt = now; player.godT = now + 3; // 3 s untouchable after getting up
   const mates = [...NET.avatars.values()].filter(a => !a.down);
   if (wasDown && mates.length) { const a = pick(mates); player.pos.set(a.pos.x + rand(-1, 1), 0, a.pos.z + rand(-1, 1)); collide(player.pos, .42); }
   banner('VISSZATÉRTÉL', 'A csapat kitartott.'); SND.power();
@@ -384,7 +394,7 @@ function buildSnapshot() {
 function myPresence() {
   const w = curW();
   return { x: Math.round(player.pos.x * 100) / 100, y: Math.round(player.pos.y * 100) / 100, z: Math.round(player.pos.z * 100) / 100, yw: Math.round(player.yaw * 100) / 100,
-    pt: Math.round(player.pitch * 100) / 100, si: mission && mission.intro >= 0 && mission.goT < rideLen() ? (mission.seat | 0) + 1 : 0, sh: NET.shots || 0, kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
+    pt: Math.round(player.pitch * 100) / 100, si: mission && mission.intro >= 0 && mission.goT < rideLen() ? (mission.seat | 0) + 1 : 0, sh: NET.shots || 0, ml: [NET.mel || 0, NET.melK || 0, typeof MEL !== 'undefined' && MEL.ph === 'saw' ? 1 : 0], kc: player.kills, dd: Math.round(player.dmgDone || 0), rvc: NET.revs || 0, rl: player.reloading ? 1 : 0, pg: NET.ping || null,
     mn: minionPresence(), au: aura ? [Math.round(aura.pos.x * 10) / 10, Math.round(aura.pos.z * 10) / 10, augOn('revive') ? 1 : 0, aura.r] : null, rv: NET.rv,
     wb: w ? w.base.id : null, wq: w ? w.q : 0, hp: Math.ceil(player.hp), mh: maxHp(), dn: player.down || player.ffyl > 0 ? 1 : 0, dby: player.down || player.ffyl > 0 ? player.downBy : null, kf: NET.kf, fx: NET.fx, we: w ? w.element || '' : '', tu: turrets.filter(t => !t.station).map(t => [Math.round(t.g.position.x * 10), Math.round(t.g.position.z * 10), (t.rocket ? 1 : 0) | (t.shield ? 2 : 0) | (t.small ? 4 : 0), Math.round(t.head.rotation.y * 100) / 100]), h: NET.hits, a: NET.acts, dr: (NET.drops = (NET.drops || []).filter(e => performance.now() - e[5] < 4000)).map(e => e.slice(0, 5)), pk: NET.pks };
 }

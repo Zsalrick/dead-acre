@@ -87,7 +87,7 @@ function melStrike(w, heavy) {
   const dur = 60 / w.rpm / melSpeed(w);
   Object.assign(MEL, { ph: 'strike', t: 0, hit: false, heavy, strikeT: Math.max(.12, dur * (heavy ? .4 : .32)) });
   if (!heavy) MEL.pat = MEL.pat || melPoses(w)[w.base.melee.light[0]];
-  SND.swing(heavy ? 1 : 0); player.buf = player.buf || {};
+  SND.swing(heavy ? 1 : 0); player.buf = player.buf || {}; NET.mel = (NET.mel || 0) + 1; NET.melK = heavy ? 1 : 0; // partners see the swing
 }
 function melSwingHit(w) {
   const M = w.base.melee, H = MEL.heavy, c = .6 + .4 * MEL.charge, ch = MEL.rush ? 1.5 : 1, cl = rk('b_cleave'); MEL.rush = false;
@@ -138,7 +138,7 @@ function thunderClap(w, at) { // Mennydörgés: the heavy blow rings out, and ev
 }
 function melPush(w) {
   if (MEL.stam < 1) { SND.dry(); return; }
-  MEL.stam -= 1; MEL.stamT = 1.5; Object.assign(MEL, { ph: 'push', t: 0, hit: false, block: false }); SND.push();
+  MEL.stam -= 1; MEL.stamT = 1.5; Object.assign(MEL, { ph: 'push', t: 0, hit: false, block: false }); SND.push(); NET.mel = (NET.mel || 0) + 1; NET.melK = 2;
 }
 function melPushHit(w) { // a shove: everything close in front staggers back, nobody is hurt much
   const sh = rk('b_push'); // Vállas lökés: it hurts, and it throws further

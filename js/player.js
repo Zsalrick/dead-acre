@@ -508,7 +508,7 @@ function endFFYLView() { player.ffyl = 0; $('ffyl').hidden = true; renderer.domE
 function updateFFYL(dt) {
   if (player.kills > player.ffylK) { // second wind
     const L = U('swind'); endFFYLView();
-    player.hp = maxHp() * (.2 + .2 * L); if (L >= 2) player.shield = maxShield(); player.lastHurt = now;
+    player.hp = maxHp() * (.2 + .2 * L); if (L >= 2) player.shield = maxShield(); player.lastHurt = now; player.godT = now + 3;
     banner('ÚJRA TALPON!', 'Második szél.'); SND.power(); return;
   }
   player.ffyl -= dt;
