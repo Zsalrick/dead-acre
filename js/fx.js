@@ -305,8 +305,8 @@ function faceSplat(power = 1) {
 function faceSplatHit(z, o) { // how close, how hard: a point-blank shot sometimes, a melee blow often, a heavy one nearly always
   if (splatCd > 0 || !camera) return; const d = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z);
   if (d > 10) return; // up to 10 m; the closer, the likelier
-  const heavy = o.melee && typeof MEL !== 'undefined' && MEL.heavy, near = clamp(1.25 - d / 8, .25, 1), chance = (o.melee ? (heavy ? .7 : .35) : .16 * (1 + (o.w && o.w.pellets > 1 ? 1 : 0))) * near;
-  if (Math.random() > chance) return; splatCd = .22;
+  const heavy = o.melee && typeof MEL !== 'undefined' && MEL.heavy, near = clamp(1.25 - d / 8, .25, 1), chance = (o.melee ? (heavy ? .95 : .6) : .3 * (1 + (o.w && o.w.pellets > 1 ? 1 : 0))) * near;
+  if (Math.random() > chance) return; splatCd = .15;
   faceSplat((heavy ? 1.35 : o.melee ? 1.05 : .85) * (.6 + .4 * near)); if (heavy && Math.random() < .5) faceSplat(.7); // further off: smaller splashes
 }
 function updateFaceSplats(dt) {
