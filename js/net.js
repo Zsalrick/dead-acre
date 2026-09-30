@@ -589,7 +589,7 @@ function updateProxies(dt) {
   for (let i = zombies.length - 1; i >= 0; i--) {
     const z = zombies[i], K = z.K, s = z.net;
     if (z.dead) {
-      z.deathT += dt;
+      z.deathT += dt; z.flash -= dt; const df = z.flash > 0; if (z.dfl !== df || df) { z.dfl = df; for (const m of z.mats) m.emissive.setHex(!df ? 0x0d100b : z.flash > .08 ? 0xb4b4b4 : 0x777777); } // a killing blow still flashes it white
       z.upper.rotation.x = lerp(z.upper.rotation.x, K.crawl ? 1.5 : -1.4, dt * 6);
       z.g.rotation.z = lerp(z.g.rotation.z, (K.crawl ? .3 : 1.45) * z.fallDir, Math.min(1, dt * 5));
       z.g.position.y = z.deathT > 1.4 ? -(z.deathT - 1.4) * 1.2 : .2 * z.scale * Math.min(1, z.deathT * 4);

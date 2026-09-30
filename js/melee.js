@@ -30,7 +30,7 @@ function updateMelee(dt, w, busy) {
   const M = w.base.melee, P = melPoses(w), dur = 60 / w.rpm / melSpeed(w);
   if (MEL.furyT > 0 && (MEL.furyT -= dt) <= 0) MEL.fury = 0;
   if (MEL.hs > 0) { MEL.hs -= dt; return; } // hit-stop: the blade bites for a moment
-  MEL.stamT -= dt; if (MEL.stamT <= 0) MEL.stam = Math.min(MEL_STAM(), MEL.stam + dt * 1.2); // stamina comes back once you stop swinging and blocking
+  MEL.stamT -= dt; if (MEL.stamT <= 0) MEL.stam = Math.min(MEL_STAM(), MEL.stam + dt * 1.1); // stamina comes back only after 1.5 s without swinging, blocking or pushing
   const pressed = clickQueued > 0; // a fresh click this frame (or just now)
   if (w.base.melee.saw) SND.saw(MEL.ph === 'saw' ? 1 : .3); // the engine runs while it's in your hands
   if (busy) { if (MEL.ph !== 'idle') melReset(); MEL.rmbWas = rmb; return; }
@@ -46,7 +46,7 @@ function updateMelee(dt, w, busy) {
       break;
     case 'wind': { // winding up: let go early = a light swing, keep holding = it becomes a heavy
       MEL.t += dt; const windT = Math.max(.08, dur * .22);
-      if (mouseDown && MEL.t > .24) { MEL.ph = 'charge'; MEL.heavy = true; MEL.pat = P[M.heavyPat]; MEL.charge = 0; MEL.t = 0; SND.swing(1, true); MEL.tired = MEL.tired || MEL.stam < .5; MEL.stam = Math.max(0, MEL.stam - .5); MEL.stamT = .8; } // a heavy costs another half
+      if (mouseDown && MEL.t > .24) { MEL.ph = 'charge'; MEL.heavy = true; MEL.pat = P[M.heavyPat]; MEL.charge = 0; MEL.t = 0; SND.swing(1, true); MEL.tired = MEL.tired || MEL.stam < .5; MEL.stam = Math.max(0, MEL.stam - .5); MEL.stamT = 1.5; } // a heavy costs another half
       else if (!mouseDown && MEL.t >= windT) melStrike(w, false);
       break; }
     case 'charge':
@@ -79,7 +79,7 @@ function updateMelee(dt, w, busy) {
 }
 function melWind(w) {
   const M = w.base.melee, chain = M.light; MEL.pat = melPoses(w)[chain[MEL.combo % chain.length]]; MEL.combo++;
-  MEL.tired = MEL.stam < .5; MEL.stam = Math.max(0, MEL.stam - .5); MEL.stamT = .8; if (MEL.tired) SND.tired(); // a swing costs stamina; out of it you still swing, slow and weak
+  MEL.tired = MEL.stam < .5; MEL.stam = Math.max(0, MEL.stam - .5); MEL.stamT = 1.5; if (MEL.tired) SND.tired(); // a swing costs stamina; out of it you still swing, slow and weak
   MEL.rush = player.sprint && rk('b_charge') > 0; // Roham: a swing out of a sprint
   Object.assign(MEL, { ph: 'wind', t: 0, heavy: false, hit: false, charge: 0, idleT: 0, from: null }); player.sprint = false;
 }
@@ -137,7 +137,7 @@ function thunderClap(w, at) { // Mennydörgés: the heavy blow rings out, and ev
 }
 function melPush(w) {
   if (MEL.stam < 1) { SND.dry(); return; }
-  MEL.stam -= 1; MEL.stamT = 1; Object.assign(MEL, { ph: 'push', t: 0, hit: false, block: false }); SND.push();
+  MEL.stam -= 1; MEL.stamT = 1.5; Object.assign(MEL, { ph: 'push', t: 0, hit: false, block: false }); SND.push();
 }
 function melPushHit(w) { // a shove: everything close in front staggers back, nobody is hurt much
   const sh = rk('b_push'); // Vállas lökés: it hurts, and it throws further
@@ -158,7 +158,7 @@ function melBlocked(d, from) {
   const dx = p.x - player.pos.x, dz = p.z - player.pos.z, ahead = (-dx * Math.sin(player.yaw) - dz * Math.cos(player.yaw)) / (Math.hypot(dx, dz) || 1);
   if (ahead < .35) return d;
   const free = player.rageT > 0 || now < (player.ironT || 0) || Math.random() < .3 * rk('b_guard'); // Vérfürdő / Vérvörös penge / Tökéletes hárítás: no stamina
-  if (!free) MEL.stam = Math.max(0, MEL.stam - clamp(d / 40, .4, 1.5)); MEL.stamT = 1; SND.block(); vm.kick = .05; player.shake = Math.max(player.shake, .08);
+  if (!free) MEL.stam = Math.max(0, MEL.stam - clamp(d / 40, .4, 1.5)); MEL.stamT = 1.5; SND.block(); vm.kick = .05; player.shake = Math.max(player.shake, .08);
   burst(new V3(player.pos.x - Math.sin(player.yaw) * .9, 1.4, player.pos.z - Math.cos(player.yaw) * .9), 0xfff0c0, 10, 3, .25); // sparks off the blade
   if (src && src.z) { src.z.atkCd = Math.max(src.z.atkCd, 1.1); src.z.windup = 0; staggerZ(src.z, free && rk('b_guard') ? 1.4 : .8, player.pos); } // a caught blow throws the attacker off
   MEL.parryT = -9; // one catch per raise
