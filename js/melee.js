@@ -42,7 +42,7 @@ function updateMelee(dt, w, busy) {
       if (pressed || mouseDown && !MEL.press) { clickQueued = 0; melWind(w); }
       break;
     case 'wind': { // winding up: let go early = a light swing, keep holding = it becomes a heavy
-      MEL.t += dt; const windT = Math.max(.07, dur * .28);
+      MEL.t += dt; const windT = Math.max(.08, dur * .22);
       if (mouseDown && MEL.t > .24) { MEL.ph = 'charge'; MEL.heavy = true; MEL.pat = P[M.heavyPat]; MEL.charge = 0; MEL.t = 0; SND.swing(1, true); }
       else if (!mouseDown && MEL.t >= windT) melStrike(w, false);
       break; }
@@ -59,8 +59,8 @@ function updateMelee(dt, w, busy) {
       break;
     case 'strike': {
       const T = MEL.strikeT; MEL.t += dt;
-      if (!MEL.hit && MEL.t >= T * .45) { MEL.hit = true; melSwingHit(w); }
-      if (MEL.t >= T) { MEL.ph = 'rec'; MEL.t = 0; MEL.recT = dur * (MEL.heavy ? .55 : .42); MEL.from = MEL.pat.b; }
+      if (!MEL.hit && MEL.t >= T * .5) { MEL.hit = true; melSwingHit(w); } // the blade is at the middle of its arc: that's where it connects
+      if (MEL.t >= T + .06) { MEL.ph = 'rec'; MEL.t = 0; MEL.recT = dur * (MEL.heavy ? .5 : .38); MEL.from = MEL.pat.b; } // a beat of follow-through at the end
       break; }
     case 'rec': // recovering: a click from a third of the way in chains the next swing
       MEL.t += dt;
@@ -81,7 +81,7 @@ function melWind(w) {
 }
 function melStrike(w, heavy) {
   const dur = 60 / w.rpm / melSpeed(w);
-  Object.assign(MEL, { ph: 'strike', t: 0, hit: false, heavy, strikeT: Math.max(.08, dur * (heavy ? .34 : .26)) });
+  Object.assign(MEL, { ph: 'strike', t: 0, hit: false, heavy, strikeT: Math.max(.12, dur * (heavy ? .4 : .32)) });
   if (!heavy) MEL.pat = MEL.pat || melPoses(w)[w.base.melee.light[0]];
   SND.swing(heavy ? 1 : 0); player.buf = player.buf || {};
 }
@@ -167,10 +167,10 @@ function meleePose(w) {
   if (player.sprint && MEL.ph === 'idle') return [R[0] - .04, R[1] - .06, R[2], R[3] - .25, R[4] + .5, R[5]];
   if (MEL.block) return P.block;
   switch (MEL.ph) {
-    case 'wind': return melLerp(R, MEL.pat.a, easeOut(clamp(k / .16, 0, 1)));
+    case 'wind': return melLerp(R, MEL.pat.a, easeOut(clamp(k / .12, 0, 1)));
     case 'charge': { const a = MEL.pat.a, j = MEL.charge >= 1 ? Math.sin(now * 50) * .004 : 0; return melLerp(a, [a[0] + .06, a[1] + .08 + j, a[2] + .14, a[3] + .25, a[4] - .1, a[5] - .1], MEL.charge); }
     case 'saw': { const b = P.saw.b, j = Math.sin(now * 70) * .006; return [b[0] + j, b[1] + j, b[2], b[3], b[4], b[5]]; }
-    case 'strike': return melLerp(MEL.pat.a, MEL.pat.b, easeIn(clamp(k / MEL.strikeT, 0, 1)));
+    case 'strike': return melLerp(MEL.pat.a, MEL.pat.b, smooth(clamp(k / MEL.strikeT, 0, 1))); // speeds up into the target, slows through it
     case 'rec': return melLerp(MEL.from || R, R, easeOut(clamp(k / MEL.recT, 0, 1)));
     case 'push': return melLerp(R, P.push, Math.sin(clamp(k / .42, 0, 1) * Math.PI));
   }

@@ -474,7 +474,7 @@ function updateVM(dt) {
   if (armAnim) { y -= .06; x += .05; rz -= .12; }
   const mp = w.base.melee && !player.reloading && player.switchT <= 0 && meleePose(w); // melee: the swing sets the pose, and fast
   if (mp) [x, y, z, rx, ry, rz] = mp;
-  const k = 1 - Math.exp(-dt * (mp && MEL.ph !== 'idle' ? 34 : ads > .5 ? 24 : player.reloading ? 9 : 14)), b = vm.blend || (vm.blend = { p: new V3(x, y, z), r: new V3() });
+  const k = mp && MEL.ph !== 'idle' && !MEL.block ? 1 : 1 - Math.exp(-dt * (mp ? 18 : ads > .5 ? 24 : player.reloading ? 9 : 14)), b = vm.blend || (vm.blend = { p: new V3(x, y, z), r: new V3() });
   b.p.x += (x - b.p.x) * k; b.p.y += (y - b.p.y) * k; b.p.z += (z - b.p.z) * k;
   b.r.x += (rx - b.r.x) * k; b.r.y += (ry - b.r.y) * k; b.r.z += (rz - b.r.z) * k;
   // additive layers on top: walk bob, mouse sway, recoil kick

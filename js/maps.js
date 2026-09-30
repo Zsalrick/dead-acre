@@ -286,10 +286,10 @@ const MAPS = {
       // middle wing, A kukoricás: a maze of corn, loops round a clearing with the holy well
       { const r = mulberry(13), clearing = (x, z) => Math.hypot(x, z + 36) < 8;
         for (const zr of [-13, -21, -29, -43, -51]) {
-          const skip = new Set([Math.floor(r() * 9), Math.floor(r() * 9), zr === -13 ? 4 : Math.floor(r() * 9)]); // a few gaps a row; the first row always opens by the gate
+          const skip = new Set(zr === -13 ? [4] : []); while (skip.size < (zr === -13 ? 3 : 2)) skip.add(Math.floor(r() * 9)); // two real gaps a row at least; the first row always opens by the gate
           for (let k = 0; k < 9; k++) { const x = -18 + k * 4.5; if (skip.has(k) || clearing(x, zr)) continue; cornRow(x, zr, 4.2, 1.2, 2.6); }
         }
-        for (const [x, z] of [[-10, -17], [10, -25], [-10, -47], [10, -47], [-14, -36], [14, -36]]) if (!clearing(x, z)) cornRow(x, z, 1.2, 5, 2.6);
+        for (const [x, z] of [[-14, -36], [14, -36]]) if (!clearing(x, z)) cornRow(x, z, 1.2, 5, 2.6); // only pieces that can't seal a pocket
         scarecrow(7, -25); scarecrow(-9, -52); }
       // east wing, A temető: graves in two fields, a ruined chapel you can go into, a crypt
       for (const [x0, x1] of [[30, 42], [52, 64]]) for (let x = x0; x <= x1; x += 3) for (let z = -14; z >= -34; z -= 4) grave(x + rand(-.4, .4), z + rand(-.4, .4));
@@ -440,7 +440,7 @@ const MAPS = {
       const wreckC = [0x6a3a24, 0x4a4a4e, 0x3a4a5a, 0x5a2a24, 0x6a6a5a, 0x2e3a2a].map(c => matStd({ color: c, roughness: .9 }));
       const stack = (x, z, n, alongX) => { const w = alongX ? 4.2 : 1.9, d = alongX ? 1.9 : 4.2; for (let k = 0; k < n; k++) addBox(x + rand(-.15, .15), z + rand(-.1, .1), w, d, .9, wreckC[(k + Math.abs(x | 0)) % wreckC.length], k * .9, false).rotation.y = rand(-.06, .06);
         obstacles.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: n * .9 }); };
-      for (const [z, gaps] of [[-22, [2, 6]], [-33, [0, 5, 8]], [-44, [3, 7]]]) for (let k = 0; k < 9; k++) if (!gaps.includes(k)) stack(-46 + k * 4.4, z, 2 + (k * 7 + z) % 3, true);
+      for (const [z, gaps] of [[-22, [2, 6]], [-33, [0, 5, 8]], [-44, [3, 7]]]) for (let k = 0; k < 9; k++) if (!gaps.includes(k)) stack(-46 + k * 4.4, z, 2 + ((k * 7 + z) % 3 + 3) % 3, true); // (a negative z made the count 0: an invisible block)
       for (let k = 0; k < 6; k++) { const t = put(new THREE.Mesh(new THREE.TorusGeometry(.42, .16, 6, 12), dark)); t.rotation.x = Math.PI / 2; t.position.set(-8 + (k % 2) * .2, .16 + k * .3, -18); }
       addBox(-8, -18, 1, 1, 1.8, dark, 0, true).visible = false;
       addBox(-40, -50, 1.2, 1.2, 13, matStd({ color: 0xc8a020 })); addBox(-36, -50, 10, .7, .7, matStd({ color: 0xc8a020 }), 12.6, false);
@@ -1006,7 +1006,7 @@ function loadMap(id, seed) {
     if (d.side === 'n') rect.maxZ += 2; if (d.side === 's') rect.minZ -= 2; if (d.side === 'e') rect.minX -= 2; if (d.side === 'w') rect.maxX += 2;
     AREAS[k] = Object.assign({}, d, { core: c, rect, gate, out: new V3(ox, 0, oz), unlocked: false, desc: STATION_INFO[d.station[0]] });
   }
-  cornStalks.length = 0; MAP.build(); flushCorn();
+  cornStalks.length = 0; NAV.ok = false; MAP.build(); flushCorn();
   resolveVanLanes(); buildFences(); buildVanGates(); // lanes are checked against what the map built, then the fence gets its gaps
   MAP.lamps.filter(([x, z]) => !inVanLane(x, z, 1.5)).forEach(([x, z]) => lamp(x, z));
   SPAWNS.forEach(([x, z]) => { const m = put(new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.1, .12, 10), new THREE.MeshLambertMaterial({ color: 0x2a2116 }))); m.position.set(x, .06, z); });
@@ -1040,10 +1040,10 @@ function buildFences() {
     if (to > a) place(a, to);
   };
   const soft = s => MAP.innerFence && Object.values(AREAS).some(a => a.side === s); // a side the wings open off: the map's see-through fence, not boards
-  run(R.minX - e, R.maxX + e, gaps('n'), (a, b) => soft('n') ? fenceLine(a, R.minZ - e, b, R.minZ - e) : addBox((a + b) / 2, R.minZ - e, b - a, T, H, fenceMat));
-  run(R.minX - e, R.maxX + e, gaps('s'), (a, b) => soft('s') ? fenceLine(a, R.maxZ + e, b, R.maxZ + e) : addBox((a + b) / 2, R.maxZ + e, b - a, T, H, fenceMat));
-  run(R.minZ - e, R.maxZ + e, gaps('w'), (a, b) => soft('w') ? fenceLine(R.minX - e, a, R.minX - e, b) : addBox(R.minX - e, (a + b) / 2, T, b - a, H, fenceMat));
-  run(R.minZ - e, R.maxZ + e, gaps('e'), (a, b) => soft('e') ? fenceLine(R.maxX + e, a, R.maxX + e, b) : addBox(R.maxX + e, (a + b) / 2, T, b - a, H, fenceMat));
+  run(R.minX - e, R.maxX + e, gaps('n'), (a, b) => soft('n') ? fenceWall(a, R.minZ - e, b, R.minZ - e) : addBox((a + b) / 2, R.minZ - e, b - a, T, H, fenceMat));
+  run(R.minX - e, R.maxX + e, gaps('s'), (a, b) => soft('s') ? fenceWall(a, R.maxZ + e, b, R.maxZ + e) : addBox((a + b) / 2, R.maxZ + e, b - a, T, H, fenceMat));
+  run(R.minZ - e, R.maxZ + e, gaps('w'), (a, b) => soft('w') ? fenceWall(R.minX - e, a, R.minX - e, b) : addBox(R.minX - e, (a + b) / 2, T, b - a, H, fenceMat));
+  run(R.minZ - e, R.maxZ + e, gaps('e'), (a, b) => soft('e') ? fenceWall(R.maxX + e, a, R.maxX + e, b) : addBox(R.maxX + e, (a + b) / 2, T, b - a, H, fenceMat));
   if (fenceMat.map === plankTex) { fenceMat.map = plankTex.clone(); fenceMat.map.needsUpdate = true; } // its own tiling, not every plank's
   fenceMat.map.repeat.set(20, 1);
   for (const k in AREAS) { // outer fences of each area: visual + stop bullets (bounds already stop walking)
@@ -1491,6 +1491,9 @@ const FENCES = {
     for (const y of [.35, .95]) { const r = deco(unitBox, railWood, (x0 + x1) / 2, y, (z0 + z1) / 2, len, .08, .05); r.rotation.y = ang; }
   },
 };
+function fenceWall(x0, z0, x1, z1) { // the see-through fence between the yard and a wing: it still stops you (the gate is the way in)
+  fenceLine(x0, z0, x1, z1); obstacles.push({ minX: Math.min(x0, x1) - .15, maxX: Math.max(x0, x1) + .15, minZ: Math.min(z0, z1) - .15, maxZ: Math.max(z0, z1) + .15, h: 2.4 });
+}
 function fenceLine(x0, z0, x1, z1) { (FENCES[MAP.innerFence] || railFence)(x0, z0, x1, z1); }
 function lockGate(a) { // the locked way in, in the map's style
   const st = MAP.innerFence; if (st === 'rail' || !FENCES[st]) return barbGate(a);

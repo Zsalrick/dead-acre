@@ -413,7 +413,44 @@ function clearZombieStuff() {
   seenKinds.clear();
 }
 
+// ---------- a flow field: the walking distance to the nearest player on a 1 m grid, rebuilt a few times a second.
+// Zombies step toward the neighbouring cell that is closest, so they find the gates, the doors and the way out of the corn.
+const NAV = { ok: false, key: '' };
+function navBuild() {
+  const B = allRectsBound(), x0 = Math.floor(B.minX) - 1, z0 = Math.floor(B.minZ) - 1, W = Math.ceil(B.maxX) + 2 - x0, H = Math.ceil(B.maxZ) + 2 - z0, blk = new Uint8Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (!inBounds(x0 + i + .5, z0 + j + .5, .25)) blk[j * W + i] = 1; // outside the yard and the open wings
+  for (const o of obstacles) { const m = .55; // collide() stops a zombie at any obstacle, however low: so does the grid // anything a zombie can't step over, with room for its body round it
+    const i0 = Math.max(0, Math.ceil(o.minX - m - x0 - .5)), i1 = Math.min(W - 1, Math.floor(o.maxX + m - x0 - .5)), j0 = Math.max(0, Math.ceil(o.minZ - m - z0 - .5)), j1 = Math.min(H - 1, Math.floor(o.maxZ + m - z0 - .5));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) blk[j * W + i] = 1; }
+  Object.assign(NAV, { ok: true, x0, z0, W, H, blk, dist: new Float32Array(W * H), q: new Int32Array(W * H), t: 0, key: navKey() });
+}
+const navKey = () => MAP_ID + ':' + Object.keys(AREAS).filter(k => AREAS[k].unlocked).join(',') + ':' + obstacles.length;
+function navFlow(dt) { // breadth-first from every player (the host's and the party's), through the open cells
+  if (!NAV.ok || NAV.key !== navKey()) navBuild();
+  if ((NAV.t -= dt) > 0) return; NAV.t = .35;
+  const { W, H, blk, dist, q, x0, z0 } = NAV; dist.fill(Infinity); let h = 0, t = 0;
+  const srcs = [player.pos, ...((NET.targets || []).filter(T => T.alive && T.remote).map(T => T.pos))];
+  for (const p of srcs) { const i = Math.floor(p.x - x0), j = Math.floor(p.z - z0); if (i < 0 || j < 0 || i >= W || j >= H) continue; const c = j * W + i; if (dist[c]) { dist[c] = 0; q[t++] = c; } }
+  while (h < t) { const c = q[h++], d = dist[c] + 1, i = c % W;
+    if (i > 0 && !blk[c - 1] && dist[c - 1] > d) { dist[c - 1] = d; q[t++] = c - 1; }
+    if (i < W - 1 && !blk[c + 1] && dist[c + 1] > d) { dist[c + 1] = d; q[t++] = c + 1; }
+    if (c >= W && !blk[c - W] && dist[c - W] > d) { dist[c - W] = d; q[t++] = c - W; }
+    if (c < W * (H - 1) && !blk[c + W] && dist[c + W] > d) { dist[c + W] = d; q[t++] = c + W; } }
+}
+function navDir(p) { // the way to go from here, or null (off the grid, or nowhere to go): aim two cells down the slope, so corners aren't cut
+  if (!NAV.ok) return null; const { W, H, dist, blk, x0, z0 } = NAV;
+  const next = (i, j) => { let best = dist[j * W + i], bi = 0, bj = 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const c = (j + dj) * W + i + di;
+      if (blk[c] || (di && dj && (blk[j * W + i + di] || blk[(j + dj) * W + i]))) continue; // no cutting a corner
+      const v = dist[c] + (di && dj ? .41 : 0); if (v < best) { best = v; bi = di; bj = dj; } }
+    return bi || bj ? [i + bi, j + bj] : null; };
+  const i = Math.floor(p.x - x0), j = Math.floor(p.z - z0); if (i < 2 || j < 2 || i >= W - 2 || j >= H - 2) return null;
+  const a = next(i, j); if (!a) return null; const b = next(a[0], a[1]) || a;
+  const t = !blk[b[1] * W + b[0]] && b !== a && Math.abs(b[0] - i) + Math.abs(b[1] - j) <= 3 ? b : a;
+  return Math.atan2(x0 + t[0] + .5 - p.x, z0 + t[1] + .5 - p.z);
+}
 function updateZombies(dt) {
+  if (mission && !NET.client) navFlow(dt);
   let groanBudget = 1;
   aimSetup();
   for (let i = zombies.length - 1; i >= 0; i--) {
@@ -463,8 +500,10 @@ function updateZombies(dt) {
     if (K.leap && updateLeaper(z, dt, dist)) continue;
     if (K.boss && updateBoss(z, dt, dist, toPlayer)) continue;
     let ang = toPlayer, spMul = 1, move = dist > 1.05;
-    const via = routeTarget(z.pos); // player is behind a fence: walk through the gate
-    if (via) { ang = Math.atan2(via.x - z.pos.x, via.z - z.pos.z); move = true; }
+    const nd = dist > 2.2 && !(K.ranged && dist < K.ranged[1]) ? navDir(z.pos) : null; // the flow field: round the walls, through the gates
+    const via = nd == null && routeTarget(z.pos);
+    if (nd != null) { ang = nd; move = true; }
+    else if (via) { ang = Math.atan2(via.x - z.pos.x, via.z - z.pos.z); move = true; }
     else if (K.ranged) {
       z.strafeT -= dt; if (z.strafeT <= 0) { z.strafeT = rand(1.5, 4); z.side *= -1; }
       if (dist < K.ranged[0]) ang += Math.PI;                              // back off
