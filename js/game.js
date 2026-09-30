@@ -901,7 +901,7 @@ function gameStep(t) {
   let dt = Math.min(.05, (t - last) / 1000); last = t;
   fpsN++; if (t - fpsT > 500) { const e = $('fps'); e.hidden = !SET.showFps; if (SET.showFps) e.textContent = `${Math.round(fpsN * 1000 / (t - fpsT))} FPS`; fpsN = 0; fpsT = t; }
   if (slowmo > 0) { slowmo -= dt; dt *= .35; }
-  netTick(dt); updateHUDFx(dt);
+  netTick(dt); updateHUDFx(dt); updateFaceSplats(dt);
   if (state === 'menu' || state === 'hub' || state === 'results') {
     now += dt;
     camera.position.set(Math.sin(now * .05) * 22, 5.5, Math.cos(now * .05) * 22);

@@ -16,13 +16,14 @@ const skinMat = new THREE.MeshStandardMaterial({ color: 0xb98d6c, roughness: .85
 const gloveMat = new THREE.MeshStandardMaterial({ color: 0x24211e, roughness: .7 });
 const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x3c4634, roughness: .95 });
 // hand sits at the group origin; the forearm and sleeve run toward +z (back toward the camera)
-function makeArm() {
+function makeArm(long) {
   const g = new THREE.Group();
   const part = (mat, sx, sy, sz, z, tp = 1) => { const m = new THREE.Mesh(rboxGeo(sx, sy, sz, Math.min(sx, sy, sz) * .38, 3, tp, 'z'), mat); m.position.z = z; g.add(m); return m; }; // rounded, like your character
   part(gloveMat, .07, .085, .11, 0);
   part(gloveMat, .028, .03, .07, -.05).position.set(-.035, .03, -.02); // thumb
   part(skinMat, .062, .062, .2, .15, .85);
   part(sleeveMat, .092, .092, .5, .48, .88);
+  if (long) part(sleeveMat, .095, .095, 1.4, 1.4, .9); // melee: the sleeve runs on off screen, whatever the swing
   return g;
 }
 function addHands(g, b) {
@@ -33,10 +34,17 @@ function addHands(g, b) {
   else { l.position.set(-.03, -H * 1.1, L * .24); l.rotation.set(.75, -.35, .15); } // cupping the pistol grip
   g.add(l); g.userData.leftHand = l;
 }
-function addMeleeHands(g, b) { // the grip hand at the origin; a two-hander gets the other hand lower on the haft
-  const r = makeArm(); r.rotation.set(.95, .15, 0); g.add(r);
-  if (b.melee.hold === 'fwd') { const l = makeArm(); l.position.set(-.02, .14, -.04); l.rotation.set(1.1, -.3, .1); g.add(l); g.userData.leftHand = l; }
-  else if (b.model.melee !== 'knife') { const l = makeArm(); l.position.set(-.01, -.2, .02); l.rotation.set(.95, -.15, 0); g.add(l); g.userData.leftHand = l; }
+function addMeleeHands(g, b) { // the grip hand at the origin; a two-hander gets the other hand on the haft (the chainsaw: on its top handle)
+  const r = makeArm(true); g.add(r); const arms = [[r, .26]];
+  if (b.melee.hold === 'fwd') { const l = makeArm(true); l.position.set(0, .19, -.2); g.add(l); arms.push([l, -.26]); g.userData.leftHand = l; }
+  else if (b.model.melee !== 'knife') { const l = makeArm(true); l.position.set(0, -.2, 0); g.add(l); arms.push([l, -.2]); g.userData.leftHand = l; }
+  g.userData.arms = arms; armsToShoulders(g);
+}
+// the forearms always run back toward the shoulders (just off screen), however the weapon swings: no hand floats in the air
+const _aq = new THREE.Quaternion(), _ap = new V3(), _ad = new V3(), _aZ = new V3(0, 0, 1);
+function armsToShoulders(g) {
+  if (!g || !g.userData.arms) return; vmRoot.updateMatrixWorld(true);
+  for (const [arm, sx] of g.userData.arms) { arm.getWorldPosition(_ap); _ad.set(sx, -.62, .35).sub(_ap).normalize(); arm.parent.getWorldQuaternion(_aq); _ad.applyQuaternion(_aq.invert()); arm.quaternion.setFromUnitVectors(_aZ, _ad); }
 }
 const SWITCH_T = .45;
 function equipView() {
@@ -475,6 +483,7 @@ function updateVM(dt) {
   const bx = Math.cos(vm.bobT * .5) * .014 * vm.bobA, by = -Math.abs(Math.sin(vm.bobT * .5)) * .014 * vm.bobA;
   vmRoot.position.set(b.p.x + bx + vm.swayX, b.p.y + by + vm.swayY, b.p.z + vm.kick);
   vmRoot.rotation.set(b.r.x + vm.kickR, b.r.y, b.r.z);
+  if (w.base.melee) armsToShoulders(vm.gun);
   updateArm(dt);
   updateReloadAnim(dt);
   if (vm.gun.userData.spinner) vm.gun.userData.spinner.rotation.z += dt * 45 * (player.spin || 0);

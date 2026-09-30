@@ -309,10 +309,12 @@ function buildMelee(w, flat) {
     cy(.02, .82, M.wood, 0, .17, 0); bx(.046, .09, .046, M.rub, 0, -.2, 0); bx(.044, .05, .044, M.accent, 0, .02, 0);
     if (kind === 'axe') { bx(.04, .11, .09, red, 0, .52, -.03); bx(.022, .17, .08, M.steel, 0, .52, -.11); bx(.03, .05, .07, red, 0, .52, .06, 0, 0, 0); }
     else { bx(.12, .13, .3, w.unique === 'thunder' ? red : M.metal, 0, .54, 0); bx(.124, .02, .304, M.accent, 0, .54, 0); if (w.unique === 'thunder') bx(.13, .06, .06, M.accent, 0, .54, -.13); }
-  } else { // chainsaw: the body round the grip, the bar out front
-    bx(.12, .15, .3, M.accent, 0, .02, .04); bx(.13, .06, .2, M.dark, 0, -.07, .06); bx(.03, .12, .03, M.rub, 0, .13, -.02);
-    add(new THREE.TorusGeometry(.07, .012, 6, 14, Math.PI), M.rub, 0, .1, -.02, 0, Math.PI / 2, 0);
-    bx(.03, .08, .5, M.steel, 0, .0, -.35); bx(.034, .1, .5, M.dark, 0, .0, -.35).scale.set(.02, .1, .52); cy(.035, .04, M.steel, 0, 0, -.6).rotation.x = Math.PI / 2;
+  } else { // chainsaw: the rear handle at the origin, the engine in front of it, a wrap handle over the top, the bar out front
+    bx(.035, .035, .16, M.rub, 0, 0, .02); bx(.035, .09, .035, M.rub, 0, .04, .1); bx(.035, .035, .1, M.rub, 0, .08, .05); // the rear handle's loop
+    bx(.15, .17, .32, M.accent, 0, .03, -.2); bx(.155, .06, .22, M.dark, 0, -.07, -.18); bx(.12, .05, .1, M.metal, 0, .13, -.28); // engine, sump, air filter
+    for (let i = 0; i < 4; i++) bx(.158, .01, .012, M.dark, 0, .06, -.08 - i * .04); // cooling fins
+    const wrap = add(new THREE.TorusGeometry(.1, .014, 6, 16, Math.PI), M.rub, 0, .1, -.2, 0, 0, 0); wrap.rotation.set(0, 0, 0); // the wrap handle arching over the engine
+    bx(.03, .09, .56, M.steel, 0, .0, -.62); bx(.036, .1, .56, M.dark, 0, 0, -.62).scale.set(.012, .1, .58); cy(.045, .036, M.steel, 0, 0, -.9).rotation.set(0, 0, Math.PI / 2);
   }
   U.sightY = .1; U.muzzleZ = -.3; U.muzzleY = .1; U.port = new THREE.Object3D(); g.add(U.port);
   if (flat && b.melee.hold !== 'fwd') { const o = new THREE.Group(); o.add(g); g.rotation.x = -Math.PI / 2; Object.assign(o.userData, U); return o; }

@@ -278,3 +278,51 @@ function updateDecals(dt) {
   }
   decalIM.count = n; decalIM.instanceMatrix.needsUpdate = true;
 }
+
+// ---------- blood on the lens: shoot a zombie up close, or hit it in melee, and some of it lands in your face.
+// Every splash is drawn fresh (blobs, a spray of droplets, a darker middle), a few of them run down a little, then it all fades.
+const splats = []; let splatCd = 0;
+function faceSplat(power = 1) {
+  if (splats.length > 7) splats.shift();
+  const W = innerWidth, H = innerHeight, r = (38 + Math.random() * 80) * power * Math.min(W, H) / 900;
+  const a = Math.random() * 6.28, d = .3 + Math.random() * .62, x = W / 2 + Math.cos(a) * d * W / 2, y = H / 2 + Math.sin(a) * d * H / 2; // round the edges, off the crosshair
+  const S = Math.ceil(r * 3.2), c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), m = S / 2;
+  const col = al => `rgba(${70 + Math.random() * 40 | 0},${Math.random() * 6 | 0},${Math.random() * 5 | 0},${al})`, gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+  g.filter = 'blur(.8px)';
+  for (let i = 0; i < 70; i++) { const px = m + gauss() * r * .7, py = m + gauss() * r * .7; g.fillStyle = col(.55 + Math.random() * .3); g.beginPath(); g.arc(px, py, r * (.08 + Math.random() * .2), 0, 7); g.fill(); } // the body: a noisy clump, not a circle
+  const sa = Math.random() * 6.28;
+  for (let i = 0; i < 9; i++) { const q = sa + (Math.random() - .5) * 2.4, len = r * (.5 + Math.random() * .9), wd = r * (.04 + Math.random() * .06); // streaks flung outward
+    g.save(); g.translate(m + Math.cos(q) * r * .45, m + Math.sin(q) * r * .45); g.rotate(q); g.fillStyle = col(.6); g.beginPath(); g.ellipse(len / 2, 0, len / 2, wd, 0, 0, 7); g.fill(); g.restore(); }
+  for (let i = 0; i < 30; i++) { const q = sa + (Math.random() - .5) * 2, dd = r * (.7 + Math.random() * .9); g.fillStyle = col(.7); g.beginPath(); g.arc(m + Math.cos(q) * dd, m + Math.sin(q) * dd, 1 + Math.random() * r * .05, 0, 7); g.fill(); } // droplets
+  g.filter = 'none';
+  const gr = g.createRadialGradient(m, m, 0, m, m, r * .7); gr.addColorStop(0, 'rgba(25,0,0,.5)'); gr.addColorStop(1, 'rgba(25,0,0,0)');
+  g.globalCompositeOperation = 'source-atop'; g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  const hl = g.createRadialGradient(m - r * .25, m - r * .3, 0, m - r * .25, m - r * .3, r * .35); hl.addColorStop(0, 'rgba(255,190,190,.16)'); hl.addColorStop(1, 'rgba(255,190,190,0)'); g.fillStyle = hl; g.fillRect(0, 0, S, S); // a wet sheen
+  g.globalCompositeOperation = 'source-over';
+  const drips = Math.random() < .75 ? Array.from({ length: 1 + (Math.random() * 3 | 0) }, () => ({ x: m + (Math.random() - .5) * r, y: m + r * .3, w: (2.5 + Math.random() * 4) * power, len: 0, max: 40 + Math.random() * 130, v: 12 + Math.random() * 30 })) : [];
+  splats.push({ c, x: x - m, y: y - m, drips, t: 0, life: 3.5 + Math.random() * 2.2 });
+}
+function faceSplatHit(z, o) { // how close, how hard: a point-blank shot sometimes, a melee blow often, a heavy one nearly always
+  if (splatCd > 0 || !camera) return; const d = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z);
+  if (d > (o.melee ? 3 : 3.2)) return;
+  const heavy = o.melee && typeof MEL !== 'undefined' && MEL.heavy, chance = o.melee ? (heavy ? .7 : .35) : .16 * (1 + (o.w && o.w.pellets > 1 ? 1 : 0));
+  if (Math.random() > chance) return; splatCd = .22;
+  faceSplat(heavy ? 1.35 : o.melee ? 1.05 : .85); if (heavy && Math.random() < .5) faceSplat(.7);
+}
+function updateFaceSplats(dt) {
+  splatCd -= dt; const cv = $('bloodfx'); if (!cv) return;
+  if (!splats.length) { if (cv.dataset.on) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); cv.dataset.on = ''; } return; }
+  if (cv.width !== innerWidth || cv.height !== innerHeight) { cv.width = innerWidth; cv.height = innerHeight; }
+  const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); cv.dataset.on = 1;
+  for (let i = splats.length - 1; i >= 0; i--) {
+    const s = splats[i]; s.t += dt; if (s.t >= s.life) { splats.splice(i, 1); continue; }
+    g.globalAlpha = Math.min(1, (s.life - s.t) / 1.8) * Math.min(1, s.t / .04);
+    g.drawImage(s.c, s.x, s.y);
+    for (const dr of s.drips) { // running down, slower as it goes
+      dr.len = Math.min(dr.max, dr.len + dr.v * dt * Math.max(.15, 1 - dr.len / dr.max)); const x = s.x + dr.x, y = s.y + dr.y;
+      g.fillStyle = 'rgba(80,3,3,.7)'; g.fillRect(x - dr.w / 2, y, dr.w, dr.len); g.beginPath(); g.arc(x, y + dr.len, dr.w * .75, 0, 7); g.fill();
+    }
+  }
+  g.globalAlpha = 1;
+}
+function clearFaceSplats() { splats.length = 0; }
