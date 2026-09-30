@@ -76,7 +76,7 @@ function startJob(job, opts = {}) {
   if (!job.test) { profile.inMission = { coop: !!NET.pr, code: NET.code, alone: !NET.pr, at: Date.now() }; saveProfile(); } // cleared by finishJob; still here on the next load = the job was abandoned
   if (job.test) { player.points = 0; if (!opts.client) setupTestGround(mission); }
   player.yaw = Math.atan2(player.pos.x, player.pos.z); player.pitch = 0;
-  powers.insta = powers.double = 0;
+  powers.rage = powers.double = 0;
   vm.blend = null; if (vm.gun) { vmRoot.remove(vm.gun); vm.gun = null; } renderSlots(); renderInv();
   round = START_THREAT[job.diff - 1]; spawnT = 0;
   $('round').textContent = round;
@@ -685,7 +685,7 @@ function updateFx(dt) {
     if (Math.hypot(p.s.position.x - player.pos.x, p.s.position.z - player.pos.z) < 1.4 && (p.type !== 'ammo' || ammoFits(p))) { takePower(p); p.t = 0; }
     if (p.t <= 0) { scene.remove(p.s); if (!p.cat) { p.s.material.map.dispose(); p.s.material.dispose(); } powerUps.splice(i, 1); } // ammo icons are shared
   }
-  for (const k in powers) powers[k] = Math.max(0, powers[k] - dt);
+  for (const k in powers) powers[k] = Math.max(0, powers[k] - dt); $('hud').classList.toggle('rage', powers.rage > 0);
 }
 
 // ================= HUD =================
@@ -756,7 +756,7 @@ function buffIcons(w) {
   if (player.stormT > 0) add('∞', 'Tűzvihar: nem fogy a tár', '#ff8a3a', sec(player.stormT), 11);
   if (player.eyeT > 0) add('◎', 'Halálszem: amit eltalálsz, megjelölődik', '#b46cff', sec(player.eyeT), 20);
   if (now < (player.overT || 0)) add('↯', 'Pörgés: +40% tűzgyorsaság', '#ffd23f', sec(player.overT - now), 8);
-  if (powers.insta > 0) add('✖', 'Insta-Kill', '#b6ff8a', sec(powers.insta), 15);
+  if (powers.rage > 0) add('!', 'Rage', '#ff5a3a', sec(powers.rage), 15);
   if (powers.double > 0) add('2×', 'Dupla pont', '#b6ff8a', sec(powers.double), 15);
   if (w && w.tal === 'frenzy' && now < (player.frenzyT || 0)) add('✦', 'Vérszomj: +20% sebzés', '#ff5a4a', sec(player.frenzyT - now), 5);
   if (w && w.tal === 'bread' && player.bread) add('◐', 'Kenyérkosár: a következő fejlövés +40%', '#ffd23f');

@@ -316,7 +316,7 @@ function netHit(z, amt, o) {
   if (rk('h_bounty') && (z.elite || z.K.boss)) amt *= 1 + .12 * rk('h_bounty');
   if (exoOn('cryo') && z.net && z.net.fl & 32) amt *= 1.3;
   hitPerks(z, amt, o);
-  const insta = powers.insta > 0 && !o.dot && !z.K.boss;
+  const insta = false; // (the Insta-Kill power-up is gone; the flag stays for older peers)
   z.hp -= z.armor > 0 && !o.head && !o.dot && !o.melee && !insta ? amt * .25 : amt; z.flash = .08; z.hitT = now;
   const col = o.crit ? '#ff7a1a' : o.head ? '#ffd23f' : o.color || (o.w && o.w.element ? ELEMENTS[o.w.element].color : '#ece6d4');
   dmgNumber(zHeadPos(z), amt, col, o.head || o.crit, o.crit);

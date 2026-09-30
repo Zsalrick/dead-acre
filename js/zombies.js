@@ -207,7 +207,6 @@ function hurtZombie(z, amt, o = {}) {
     if (z.markT > 0) amt *= 1.5;                                   // Vadász: Jelölés
     if (z.K.boss && rk('h_boss')) amt *= 1.2;
     if (o.w && rk('h_exec') && z.hp < z.maxHp * .25) amt *= 2;
-    if (powers.insta > 0 && !o.dot && !z.K.boss) amt = Math.max(amt, z.hp);
   }
   if (z.slagT > 0 && !(o.w && o.w.element === 'slag')) amt *= 1.4; // slagged: everything else hits harder
   if (z.armor > 0 && !o.head && !o.dot && !o.melee) { // armour soaks most body damage until it breaks

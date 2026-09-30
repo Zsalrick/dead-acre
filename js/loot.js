@@ -56,11 +56,11 @@ function removeDrop(d) {
 
 const POWERS = {
   max:    { lines: ['MAX', 'AMMO'], label: 'Max Ammo' },
-  insta:  { lines: ['INSTA', 'KILL'], label: 'Insta-Kill' },
+  rage:   { lines: ['RAGE'], label: 'Rage' }, // 15 s: harder, faster, tougher (Insta-Kill was too much)
   double: { lines: ['2X'], label: 'Double Points' },
   ammo:   { lines: ['LŐSZER'], label: 'Lőszer', small: true }, // never rolled at random: dropped on purpose
 };
-const powers = { insta: 0, double: 0 };
+const powers = { rage: 0, double: 0 };
 const powerUps = [];
 // ammo on the ground is typed by weapon family, with its own icon: mostly for a gun you carry, sometimes for another
 const AMMO_COL = { pistol: '#e8c86a', smg: '#9fd0ff', rifle: '#ffb060', marks: '#c8a8ff', heavy: '#ff7a5a', shotgun: '#ff5a5a', energy: '#6ff0c8', explosive: '#ffd23f' };

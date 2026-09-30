@@ -103,7 +103,7 @@ const TABS = {
           <h3>Pontok (munka közben)</h3><ul class="mlist"><li><b>Találat</b><span>10 pont</span></li><li><b>Ölés</b><span>60 · fejlövés 100 · késsel 130</span></li>
           <li><b>Rejtélyes doboz</b><span>${BOX_COST} pont, véletlen fegyver; néhány pörgetés után elköltözik</span></li><li><b>Lőszerláda</b><span>${AMMO_COST} pont</span></li>
           <li><b>Eladás</b><span>F nyomva tartva a földön lévő fegyveren</span></li></ul>
-          <h3>Power-upok</h3><ul class="mlist"><li><b>Max Ammo</b><span>minden fegyver tele</span></li><li><b>Insta-Kill</b><span>15 mp-ig minden találat öl (a bosst kivéve)</span></li>
+          <h3>Power-upok</h3><ul class="mlist"><li><b>Max Ammo</b><span>minden fegyver tele</span></li><li><b>Rage</b><span>15 mp-ig +50% sebzés, +15% mozgás és 25%-kal kevesebb elszenvedett sebzés</span></li>
           <li><b>Double Points</b><span>15 mp-ig dupla pont</span></li></ul></section>
         <section><h3>Pályák</h3><ul class="mlist">${maps}</ul><h3>Állomások a területeken</h3><ul class="mlist">${st}</ul>
           <h3>Munka-módosítók</h3><ul class="mlist">${Object.values(MODS).map(m => `<li><b>${m.label}</b><span>${m.sub}</span></li>`).join('')}</ul>

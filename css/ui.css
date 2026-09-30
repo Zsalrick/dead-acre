@@ -1107,3 +1107,5 @@ svg.ic{display:inline-block;width:1em;height:1em;vertical-align:-.13em;flex:none
 #melstam{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);display:flex;gap:4px;pointer-events:none}
 #melstam i{width:26px;height:5px;background:linear-gradient(90deg,#e8e2d0 calc(var(--f) * 100%),rgba(255,255,255,.14) 0);box-shadow:0 0 4px rgba(0,0,0,.8)}
 #bloodfx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#hud.rage::before{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 140px rgba(255,40,20,.38);animation:ragep .9s ease-in-out infinite alternate}
+@keyframes ragep{from{opacity:.55}to{opacity:1}}
