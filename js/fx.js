@@ -283,7 +283,7 @@ function updateDecals(dt) {
 // Every splash is drawn fresh (blobs, a spray of droplets, a darker middle), a few of them run down a little, then it all fades.
 const splats = []; let splatCd = 0;
 function faceSplat(power = 1) {
-  if (splats.length > 7) splats.shift();
+  if (splats.length > 80) splats.shift(); // (only so a minigun at point blank can't eat the memory)
   const W = innerWidth, H = innerHeight, r = (38 + Math.random() * 80) * power * Math.min(W, H) / 900;
   const a = Math.random() * 6.28, d = .3 + Math.random() * .62, x = W / 2 + Math.cos(a) * d * W / 2, y = H / 2 + Math.sin(a) * d * H / 2; // round the edges, off the crosshair
   const S = Math.ceil(r * 3.2), c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), m = S / 2;
@@ -312,11 +312,12 @@ function faceSplat(power = 1) {
   splats.push({ c, x: x - m, y: y - m, drips, t: 0, life: 3.5 + Math.random() * 2.2 });
 }
 function faceSplatHit(z, o) { // how close, how hard: a point-blank shot sometimes, a melee blow often, a heavy one nearly always
-  if (splatCd > 0 || !camera) return; const d = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z);
+  if (!camera) return; const d = Math.hypot(z.pos.x - player.pos.x, z.pos.z - player.pos.z);
   if (d > 10) return; // up to 10 m; the closer, the likelier
   const heavy = o.melee && typeof MEL !== 'undefined' && MEL.heavy, near = clamp(1.25 - d / 8, .25, 1), chance = (o.melee ? (heavy ? .95 : .6) : .3 * (1 + (o.w && o.w.pellets > 1 ? 1 : 0))) * near;
-  if (Math.random() > chance) return; splatCd = .15;
-  faceSplat((heavy ? 1.35 : o.melee ? 1.05 : .85) * (.6 + .4 * near)); if (heavy && Math.random() < .5) faceSplat(.7); // further off: smaller splashes
+  if (d > 3 && Math.random() > chance) return; // within 3 m every hit splashes you
+  const size = d < 3 ? 1.3 + (3 - d) * .28 : .6 + .4 * near; // point blank: big ones; further off: smaller
+  faceSplat((heavy ? 1.35 : o.melee ? 1.05 : .85) * size); if (heavy && Math.random() < .5) faceSplat(.7 * size);
 }
 function updateFaceSplats(dt) {
   splatCd -= dt; const cv = $('bloodfx'); if (!cv) return;
