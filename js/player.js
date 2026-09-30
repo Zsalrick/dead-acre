@@ -484,6 +484,7 @@ function updateVM(dt) {
   vmRoot.position.set(b.p.x + bx + vm.swayX, b.p.y + by + vm.swayY, b.p.z + vm.kick);
   vmRoot.rotation.set(b.r.x + vm.kickR, b.r.y, b.r.z);
   if (w.base.melee) armsToShoulders(vm.gun);
+  meleeCam(w); updateMeleeTrail(w);
   updateArm(dt);
   updateReloadAnim(dt);
   if (vm.gun.userData.spinner) vm.gun.userData.spinner.rotation.z += dt * 45 * (player.spin || 0);

@@ -41,6 +41,30 @@ function nz(dur, freq, vol, type = 'lowpass', q = .7, delay = 0) {
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
   s.connect(f).connect(g).connect(master); s.start(t, Math.random() * .5); s.stop(t + dur);
 }
+function nzs(dur, f0, f1, vol, type = 'bandpass', q = 1, delay = 0, att = 0) { // noise through a sweeping filter, with an optional swell (a whoosh)
+  if (!ac || sndVol < .02) return; vol *= sndVol;
+  const t = ac.currentTime + delay, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = noiseBuf; f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  if (att) { g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + att); } else g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  s.connect(f).connect(g).connect(master); s.start(t, Math.random() * .5); s.stop(t + dur);
+}
+let sawLoop = null; // the chainsaw's engine: idles while it's in your hands, screams while it cuts
+function sawHold(rev) {
+  if (!ac) return; const t = ac.currentTime;
+  if (!sawLoop) {
+    const o = ac.createOscillator(), o2 = ac.createOscillator(), f = ac.createBiquadFilter(), am = ac.createGain(), g = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
+    o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.Q.value = 3; am.gain.value = .6; g.gain.value = 0;
+    lfo.frequency.value = 22; lg.gain.value = .4; lfo.connect(lg).connect(am.gain); // the two-stroke putter
+    o.connect(f); o2.connect(f); f.connect(am).connect(g).connect(master);
+    const nsrc = ac.createBufferSource(), nf = ac.createBiquadFilter(), ng = ac.createGain(); nsrc.buffer = noiseBuf; nsrc.loop = true; nf.type = 'bandpass'; nf.frequency.value = 2800; nf.Q.value = 1.2; ng.gain.value = 0; nsrc.connect(nf).connect(ng).connect(g); // the chain rattle
+    o.start(); o2.start(); lfo.start(); nsrc.start(); sawLoop = { o, o2, f, g, ng, lfo, last: 0 };
+  }
+  const L = sawLoop, hz = 42 + 70 * rev; L.last = t;
+  L.o.frequency.setTargetAtTime(hz, t, .08); L.o2.frequency.setTargetAtTime(hz * 1.01, t, .08); L.lfo.frequency.setTargetAtTime(18 + 30 * rev, t, .1);
+  L.f.frequency.setTargetAtTime(500 + 1800 * rev, t, .08); L.ng.gain.setTargetAtTime(.25 * rev, t, .05);
+  const G = L.g.gain; G.cancelScheduledValues(t); G.setTargetAtTime((.05 + .13 * rev) * sndVol, t, .05); G.setTargetAtTime(0, t + .25, .12); // lets go by itself if nobody keeps it running
+}
 function grunt() { // a short, low "uhh": a buzzing voice through two vowel formants, pitch falling
   if (!ac || sndVol < .02) return;
   const t = ac.currentTime, f0 = rand(105, 135), dur = rand(.2, .28), o = ac.createOscillator(), g = ac.createGain(), out = ac.createGain();
@@ -76,13 +100,23 @@ const SND = {
   dry() { tn(1200, .02, .08); },
   reload() { nz(.05, 3000, .3, 'bandpass', 2); nz(.05, 2200, .3, 'bandpass', 2, .35); },
   knife() { nz(.12, 4000, .3, 'highpass', 1); },
-  swing(h, charge, miss) { if (charge) return nz(.3, 900, .08, 'bandpass', 1); nz(h ? .26 : .16, h ? 900 : 1500, h ? .34 : .24, 'bandpass', .7); if (miss) nz(.1, 2400, .06, 'highpass', 1, .08); }, // a whoosh
-  chop() { nz(.1, 420, .55, 'lowpass', 1.2); tn(140, .1, .3, 'square', 60); nz(.08, 2400, .22, 'bandpass', 3, .02); }, // a blade biting in
-  blunt() { nz(.16, 240, .7, 'lowpass', 1); tn(70, .2, .5, 'sine', 32); nz(.06, 1200, .15, 'bandpass', 2); }, // a heavy thud
-  block() { tn(1900, .09, .12, 'square', 900); nz(.12, 3200, .22, 'bandpass', 4); tn(300, .1, .12, 'triangle', 200); },
-  push() { nz(.16, 620, .3, 'lowpass', 1); tn(160, .12, .2, 'triangle', 80); },
-  saw(r) { tn(95 + r * 70, .11, .06, 'sawtooth', 120 + r * 80); nz(.1, 2600, .04, 'bandpass', 2); },
-  sawHit() { nz(.09, 1600, .2, 'bandpass', 1.5); tn(150, .09, .1, 'sawtooth', 120); },
+  swing(h, charge, miss) { // the whoosh: air rising in pitch as the blade speeds up; heavier and lower for a heavy
+    if (charge) return nzs(.45, 200, 500, .06, 'bandpass', 1.2, 0, .3); // drawing back
+    const d = h ? .34 : .22, p = rand(.9, 1.12); nzs(d, (h ? 260 : 420) * p, (h ? 1500 : 2600) * p, h ? .42 : .3, 'bandpass', 1.6, 0, d * .6);
+    nzs(d * .8, 900 * p, 3800 * p, .08, 'highpass', .7, .02, d * .5); if (h) tn(70, .3, .12, 'sine', 45);
+    if (miss) nzs(.12, 1800, 700, .07, 'bandpass', 1, d * .7); },
+  chop() { const p = rand(.9, 1.1); // a blade biting in: the slice, the wet body of it, a thump, sometimes bone
+    nzs(.1, 3000 * p, 900 * p, .3, 'bandpass', 2); nz(.11, 320 * p, .5, 'lowpass', 1.1); tn(120 * p, .12, .32, 'sine', 55);
+    nzs(.2, 700 * p, 220 * p, .26, 'bandpass', 4, .015); if (Math.random() < .5) { tn(1900 * p, .025, .12, 'square', 900, .01); nz(.03, 4500, .14, 'highpass', 1, .01); } },
+  blunt() { const p = rand(.9, 1.1); // a heavy thud, the crunch under it
+    tn(62 * p, .3, .62, 'sine', 28); nz(.22, 170 * p, .75, 'lowpass', 1); nzs(.14, 1500 * p, 450 * p, .32, 'bandpass', 3, .01); tn(1300 * p, .03, .1, 'square', 600, .012); nz(.05, 3600, .12, 'highpass', 1, .012); },
+  block() { // a parry: steel on bone, ringing
+    for (const [f, v, d] of [[520, .16, .5], [1310, .1, .4], [2290, .07, .32], [3170, .05, .25]]) tn(f * rand(.98, 1.02), d, v, 'sine');
+    nz(.05, 5200, .3, 'highpass', 1); tn(180, .12, .25, 'triangle', 90); },
+  push() { nzs(.22, 500, 150, .38, 'lowpass', 1); tn(140, .14, .28, 'triangle', 70); nz(.08, 900, .12, 'bandpass', 1.5, .03); },
+  saw(r) { sawHold(r); },
+  sawHit() { nzs(.12, 3200, 1100, .24, 'bandpass', 2); tn(170, .1, .12, 'sawtooth', 140); if (Math.random() < .4) nzs(.18, 700, 240, .18, 'bandpass', 4, .02); },
+  tired() { nzs(.3, 900, 400, .08, 'bandpass', 1.2); }, // out of breath
   legend(u) { [0, 1, 2, 3, 4].forEach(i => tn((u ? 330 : 392) * Math.pow(1.335, i % 3) * (i > 2 ? 2 : 1), .5, .07, 'triangle', 0, i * .09)); nz(1.2, 5000, .05, 'highpass', .5, .1); },
   threat(t = 2) { tn(55, 1.1, .16, 'sawtooth', 38); tn(82, .9, .1, 'square', 60, .04); nz(.7, 380, .14, 'lowpass', 1); if (t >= 3) { tn(110, 1.4, .1, 'sawtooth', 70, .25); nz(1, 200, .12, 'lowpass', 1, .2); } }, // something strong has arrived
   salvage(kind) { if (kind === 'g') { nz(.32, 2600, .2, 'bandpass', 2.5); nz(.22, 1400, .14, 'bandpass', 2, .1); tn(260, .12, .05, 'triangle', 180, .18); } // cloth tearing

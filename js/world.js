@@ -317,6 +317,8 @@ function buildMelee(w, flat) {
     bx(.03, .09, .56, M.steel, 0, .0, -.62); bx(.036, .1, .56, M.dark, 0, 0, -.62).scale.set(.012, .1, .58); cy(.045, .036, M.steel, 0, 0, -.9).rotation.set(0, 0, Math.PI / 2);
   }
   U.sightY = .1; U.muzzleZ = -.3; U.muzzleY = .1; U.port = new THREE.Object3D(); g.add(U.port);
+  const TIP = { knife: [[0, .3, -.01], [0, .14, 0]], axe: [[0, .56, -.16], [0, .44, -.1]], maul: [[0, .56, -.15], [0, .46, -.12]], saw: [[0, 0, -.9], [0, 0, -.5]] }[kind]; // where the streak is drawn from
+  U.tip = new THREE.Object3D(); U.tip.position.set(...TIP[0]); g.add(U.tip); U.mid = new THREE.Object3D(); U.mid.position.set(...TIP[1]); g.add(U.mid);
   if (flat && b.melee.hold !== 'fwd') { const o = new THREE.Group(); o.add(g); g.rotation.x = -Math.PI / 2; Object.assign(o.userData, U); return o; }
   if (!flat) g.scale.setScalar(.62); // in the hands: the viewmodel is drawn close to the eye
   return g;

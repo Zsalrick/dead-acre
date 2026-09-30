@@ -3,7 +3,7 @@
 // RMB = block (costs stamina), RMB + LMB = push. A swing cleaves through everything along its arc, the first one hardest;
 // heavies stagger. The chainsaw's heavy saws for as long as you hold it and burns fuel (reloaded like a flamethrower).
 const isMelee = w => !!(w && w.base.melee);
-const MEL = { ph: 'idle', t: 0, combo: 0, pat: null, heavy: false, hit: false, charge: 0, stam: 4, stamT: 0, block: false, hs: 0, sawT: 0, idleT: 0, fury: 0, furyT: 0, press: false };
+const MEL = { parryT: -9, rmbWas: false, tired: false, ftT: 0, ph: 'idle', t: 0, combo: 0, pat: null, heavy: false, hit: false, charge: 0, stam: 4, stamT: 0, block: false, hs: 0, sawT: 0, idleT: 0, fury: 0, furyT: 0, press: false };
 const MEL_STAM = () => 4 + (hasPassive('barbarian') ? 1 : 0) + rk('b_stam'); // block / push stamina pips
 // poses of the viewmodel [x, y, z, rx, ry, rz]: where a swing starts (a) and ends (b); dir = which way it sweeps (for the cleave order)
 const MEL_UP = { // held upright: knife, axe, sledgehammer
@@ -22,7 +22,7 @@ const MEL_FWD = { // held forward like a gun: the chainsaw
 const melPoses = w => w.base.melee.hold === 'fwd' ? MEL_FWD : MEL_UP;
 const melLerp = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
 const easeIn = k => k * k, easeOut = k => 1 - (1 - k) * (1 - k);
-function melSpeed(w) { return (player.stormT > 0 ? 1.25 : 1) * (player.rageT > 0 ? 1.3 : 1) * (1 + .06 * rk('b_swift')) * (1 + .15 * (w.unique === 'headsman' ? MEL.fury : 0)) * (typeof rateMul === 'function' ? rateMul(w) : 1); }
+function melSpeed(w) { return (MEL.tired ? .65 : 1) * (player.stormT > 0 ? 1.25 : 1) * (player.rageT > 0 ? 1.3 : 1) * (1 + .06 * rk('b_swift')) * (1 + .15 * (w.unique === 'headsman' ? MEL.fury : 0)) * (typeof rateMul === 'function' ? rateMul(w) : 1); }
 function melReset() { Object.assign(MEL, { ph: 'idle', t: 0, combo: 0, pat: null, heavy: false, hit: false, charge: 0, block: false, hs: 0, press: false }); }
 
 // ---------- the frame ----------
@@ -30,12 +30,15 @@ function updateMelee(dt, w, busy) {
   const M = w.base.melee, P = melPoses(w), dur = 60 / w.rpm / melSpeed(w);
   if (MEL.furyT > 0 && (MEL.furyT -= dt) <= 0) MEL.fury = 0;
   if (MEL.hs > 0) { MEL.hs -= dt; return; } // hit-stop: the blade bites for a moment
-  MEL.stamT -= dt; if (!MEL.block && MEL.stamT <= 0) MEL.stam = Math.min(MEL_STAM(), MEL.stam + dt * .9);
+  MEL.stamT -= dt; if (MEL.stamT <= 0) MEL.stam = Math.min(MEL_STAM(), MEL.stam + dt * 1.2); // stamina comes back once you stop swinging and blocking
   const pressed = clickQueued > 0; // a fresh click this frame (or just now)
-  if (busy) { if (MEL.ph !== 'idle') melReset(); return; }
-  MEL.block = rmb && (MEL.ph === 'idle' || MEL.ph === 'rec') && MEL.stam > 0 && !player.sprint;
+  if (w.base.melee.saw) SND.saw(MEL.ph === 'saw' ? 1 : .3); // the engine runs while it's in your hands
+  if (busy) { if (MEL.ph !== 'idle') melReset(); MEL.rmbWas = rmb; return; }
+  if (rmb && !MEL.rmbWas && (MEL.ph === 'idle' || MEL.ph === 'rec')) { MEL.parryT = now; MEL.ph = 'idle'; } // the block: only the moment you raise it counts
+  MEL.rmbWas = rmb;
+  MEL.block = now - MEL.parryT < .3 && !player.sprint; // a 0.3 s window to catch the blow; holding it up after that does nothing
   if (rmb && pressed && (MEL.ph === 'idle' || MEL.ph === 'rec')) { clickQueued = 0; return melPush(w); }
-  if (MEL.block) { MEL.ph = 'idle'; return; }
+  if (MEL.block || (rmb && now - MEL.parryT < .45)) { MEL.ph = 'idle'; return; }
   switch (MEL.ph) {
     case 'idle':
       if ((MEL.idleT += dt) > .8) MEL.combo = 0;
@@ -43,7 +46,7 @@ function updateMelee(dt, w, busy) {
       break;
     case 'wind': { // winding up: let go early = a light swing, keep holding = it becomes a heavy
       MEL.t += dt; const windT = Math.max(.08, dur * .22);
-      if (mouseDown && MEL.t > .24) { MEL.ph = 'charge'; MEL.heavy = true; MEL.pat = P[M.heavyPat]; MEL.charge = 0; MEL.t = 0; SND.swing(1, true); }
+      if (mouseDown && MEL.t > .24) { MEL.ph = 'charge'; MEL.heavy = true; MEL.pat = P[M.heavyPat]; MEL.charge = 0; MEL.t = 0; SND.swing(1, true); MEL.tired = MEL.tired || MEL.stam < .5; MEL.stam = Math.max(0, MEL.stam - .5); MEL.stamT = .8; } // a heavy costs another half
       else if (!mouseDown && MEL.t >= windT) melStrike(w, false);
       break; }
     case 'charge':
@@ -60,7 +63,7 @@ function updateMelee(dt, w, busy) {
     case 'strike': {
       const T = MEL.strikeT; MEL.t += dt;
       if (!MEL.hit && MEL.t >= T * .5) { MEL.hit = true; melSwingHit(w); } // the blade is at the middle of its arc: that's where it connects
-      if (MEL.t >= T + .06) { MEL.ph = 'rec'; MEL.t = 0; MEL.recT = dur * (MEL.heavy ? .5 : .38); MEL.from = MEL.pat.b; } // a beat of follow-through at the end
+      if (MEL.t >= T + .09) { MEL.ph = 'rec'; MEL.t = 0; MEL.recT = dur * (MEL.heavy ? .5 : .38); MEL.from = meleePose(w); } // a beat of follow-through at the end, then back from wherever it got to
       break; }
     case 'rec': // recovering: a click from a third of the way in chains the next swing
       MEL.t += dt;
@@ -76,6 +79,7 @@ function updateMelee(dt, w, busy) {
 }
 function melWind(w) {
   const M = w.base.melee, chain = M.light; MEL.pat = melPoses(w)[chain[MEL.combo % chain.length]]; MEL.combo++;
+  MEL.tired = MEL.stam < .5; MEL.stam = Math.max(0, MEL.stam - .5); MEL.stamT = .8; if (MEL.tired) SND.tired(); // a swing costs stamina; out of it you still swing, slow and weak
   MEL.rush = player.sprint && rk('b_charge') > 0; // Roham: a swing out of a sprint
   Object.assign(MEL, { ph: 'wind', t: 0, heavy: false, hit: false, charge: 0, idleT: 0, from: null }); player.sprint = false;
 }
@@ -114,7 +118,7 @@ function melHit(w, pat, o) {
   const blunt = w.base.melee.blunt, fuelOut = w.base.melee.saw && w.ammo <= 0;
   T.forEach((t, k) => {
     const z = t.z, head = melAimHead(z) || (k === 0 && pat === melPoses(w).ov && player.pitch > -.05), crit = Math.random() < critChance();
-    let amt = w.dmg * SK.dmg(w) * o.mul * Math.max(.4, 1 - .2 * k) * (fuelOut ? .45 : 1);
+    let amt = w.dmg * SK.dmg(w) * o.mul * Math.max(.4, 1 - .2 * k) * (fuelOut ? .45 : 1) * (MEL.tired ? .6 : 1);
     if (head) amt *= (w.base.headMult || 1.5) * headBonus(); if (crit) amt *= critMult();
     if (head && rk('b_exec') && z.hp < z.maxHp * .2) amt = Math.max(amt, z.hp + 1); // Lefejezés
     const hp0 = z.hp; hurtZombie(z, amt, { melee: true, w, head, crit, stag: o.stag * (k ? .7 : 1), from: player.pos, color: head ? null : '#ece6d4' });
@@ -153,13 +157,15 @@ function melBlocked(d, from) {
   const p = src && (src.pos || src); if (!p) return d;
   const dx = p.x - player.pos.x, dz = p.z - player.pos.z, ahead = (-dx * Math.sin(player.yaw) - dz * Math.cos(player.yaw)) / (Math.hypot(dx, dz) || 1);
   if (ahead < .35) return d;
-  const free = player.rageT > 0 || now < (player.ironT || 0) || Math.random() < .3 * rk('b_guard'); // Vérfürdő / Tökéletes hárítás: no stamina
-  if (!free) MEL.stam = Math.max(0, MEL.stam - clamp(d / 30, .5, 2)); MEL.stamT = 1; SND.block(); vm.kick = .04;
-  if (src && src.z) { src.z.atkCd = Math.max(src.z.atkCd, .9); src.z.windup = 0; if (free && rk('b_guard')) staggerZ(src.z, 1.2, player.pos); }
+  const free = player.rageT > 0 || now < (player.ironT || 0) || Math.random() < .3 * rk('b_guard'); // Vérfürdő / Vérvörös penge / Tökéletes hárítás: no stamina
+  if (!free) MEL.stam = Math.max(0, MEL.stam - clamp(d / 40, .4, 1.5)); MEL.stamT = 1; SND.block(); vm.kick = .05; player.shake = Math.max(player.shake, .08);
+  burst(new V3(player.pos.x - Math.sin(player.yaw) * .9, 1.4, player.pos.z - Math.cos(player.yaw) * .9), 0xfff0c0, 10, 3, .25); // sparks off the blade
+  if (src && src.z) { src.z.atkCd = Math.max(src.z.atkCd, 1.1); src.z.windup = 0; staggerZ(src.z, free && rk('b_guard') ? 1.4 : .8, player.pos); } // a caught blow throws the attacker off
+  MEL.parryT = -9; // one catch per raise
   if (src && src.z && exoOn('gladiator')) hurtZombie(src.z, Math.max(d * 4, zombieHp() * .35), { melee: true, w, stag: 1.4, from: player.pos, color: '#ff9a6a' }); // Gladiátor-karvédő: the block hits back
   if (player.rageT > 0 && augOn('avatar')) return 0; // Élő bástya: the block takes it all
   if (MEL.stam <= 0) { popText('Kitartás elfogyott!', '#ff8a70'); MEL.block = false; }
-  return d * .12;
+  return 0; // caught in time: none of it gets through
 }
 // the viewmodel pose for this frame (updateVM blends it); null = not a melee weapon
 function meleePose(w) {
@@ -167,11 +173,11 @@ function meleePose(w) {
   if (player.sprint && MEL.ph === 'idle') return [R[0] - .04, R[1] - .06, R[2], R[3] - .25, R[4] + .5, R[5]];
   if (MEL.block) return P.block;
   switch (MEL.ph) {
-    case 'wind': return melLerp(R, MEL.pat.a, easeOut(clamp(k / .12, 0, 1)));
+    case 'wind': { const a = MEL.pat.a, back = [a[0] + .03, a[1] + .04, a[2] + .08, a[3] + .12, a[4] * 1.08, a[5] * 1.06]; return melLerp(R, back, easeOut(clamp(k / .12, 0, 1))); } // pulled back past the start: anticipation
     case 'charge': { const a = MEL.pat.a, j = MEL.charge >= 1 ? Math.sin(now * 50) * .004 : 0; return melLerp(a, [a[0] + .06, a[1] + .08 + j, a[2] + .14, a[3] + .25, a[4] - .1, a[5] - .1], MEL.charge); }
     case 'saw': { const b = P.saw.b, j = Math.sin(now * 70) * .006; return [b[0] + j, b[1] + j, b[2], b[3], b[4], b[5]]; }
-    case 'strike': return melLerp(MEL.pat.a, MEL.pat.b, smooth(clamp(k / MEL.strikeT, 0, 1))); // speeds up into the target, slows through it
-    case 'rec': return melLerp(MEL.from || R, R, easeOut(clamp(k / MEL.recT, 0, 1)));
+    case 'strike': { const T = MEL.strikeT, over = k > T ? .08 * Math.sin(clamp((k - T) / .09, 0, 1) * Math.PI / 2) : 0; return melLerp(MEL.pat.a, MEL.pat.b, smooth(clamp(k / T, 0, 1)) + over); } // speeds up into the target, carries on past it
+    case 'rec': return melLerp(MEL.from || R, R, smooth(clamp(k / MEL.recT, 0, 1)));
     case 'push': return melLerp(R, P.push, Math.sin(clamp(k / .42, 0, 1) * Math.PI));
   }
   return R;
@@ -181,4 +187,31 @@ function updateMeleeHud() {
   const el = $('melstam'); if (!el) return; const w = curW(), on = state === 'playing' && isMelee(w) && (MEL.block || MEL.stam < MEL_STAM() - .01);
   el.hidden = !on; if (!on) return;
   const n = MEL_STAM(); el.innerHTML = Array.from({ length: n }, (_, i) => `<i style="--f:${clamp(MEL.stam - i, 0, 1)}"></i>`).join('');
+}
+
+// the camera leans into the swing and is pushed a little forward at the moment of impact
+function meleeCam(w) {
+  if (!isMelee(w) || state !== 'playing') return; let roll = 0, dip = 0; // (updatePlayer resets the camera every playing frame)
+  if (MEL.ph === 'strike' && MEL.pat) { const p = clamp(MEL.t / MEL.strikeT, 0, 1.3), s = Math.sin(Math.min(1, p) * Math.PI); roll = -(MEL.pat.dir || 0) * .045 * s * (MEL.heavy ? 1.5 : 1); dip = (MEL.pat.dir ? .012 : .03) * s * (MEL.heavy ? 1.6 : 1); }
+  if (MEL.ph === 'charge') roll = .02 * MEL.charge;
+  if (MEL.ph === 'saw') { roll = Math.sin(now * 60) * .004; dip = .006; }
+  camera.rotation.z += roll; camera.rotation.x -= dip;
+}
+// a streak behind the blade while it swings: the last few tip and mid-blade positions, fading
+const TRAIL_N = 12, trailGeo = new THREE.BufferGeometry(), trailPos = new Float32Array(TRAIL_N * 2 * 3), trailCol = new Float32Array(TRAIL_N * 2 * 3), trailHist = [];
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3)); trailGeo.setAttribute('color', new THREE.BufferAttribute(trailCol, 3));
+{ const idx = []; for (let i = 0; i < TRAIL_N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } trailGeo.setIndex(idx); }
+const trailMesh = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+trailMesh.frustumCulled = false; trailMesh.renderOrder = 5; vmScene.add(trailMesh);
+const _t1 = new V3(), _t2 = new V3();
+function updateMeleeTrail(w) {
+  const on = isMelee(w) && vm.gun && vm.gun.userData.tip && (MEL.ph === 'strike' || MEL.ph === 'saw');
+  if (on) { vm.gun.userData.tip.getWorldPosition(_t1); vm.gun.userData.mid.getWorldPosition(_t2); trailHist.unshift([_t1.x, _t1.y, _t1.z, _t2.x, _t2.y, _t2.z]); }
+  else if (trailHist.length) trailHist.pop(); // let the tail catch up and vanish
+  if (trailHist.length > TRAIL_N) trailHist.length = TRAIL_N;
+  trailMesh.visible = trailHist.length > 1; if (!trailMesh.visible) return;
+  const hot = MEL.heavy ? 1 : .6;
+  for (let i = 0; i < TRAIL_N; i++) { const h = trailHist[Math.min(i, trailHist.length - 1)], f = Math.max(0, 1 - i / (trailHist.length - 1 || 1)) * hot * .5;
+    trailPos.set([h[0], h[1], h[2], h[3], h[4], h[5]], i * 6); trailCol.set([f, f * .95, f * .9, 0, 0, 0], i * 6); }
+  trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
 }
