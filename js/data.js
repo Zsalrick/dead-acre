@@ -213,7 +213,7 @@ const UNIQUES = {
   ash:       { base: 'flamer',   name: 'Hamvazószerda',   text: 'Porból lettél, porrá leszel.', trick: 'Az égő zombik halálukkor szétrobbannak.' },
   thirteen:  { base: 'revolver', name: 'Tizenhárom',      text: 'Az utolsó golyó hozza a szerencsét.', trick: 'A tár utolsó lövése ötszörös és mindig kritikus.' },
   haystack:  { base: 'lmg',      name: 'Szénakazal',      text: 'Ha elég sokat lősz, valami csak eltalál.', trick: 'Folyamatos tűznél egyre gyorsabban lő, akár kétszeres sebességig.' },
-  reaper:    { base: 'lever',    name: 'Kaszás',          text: 'Aratás ideje van.', trick: 'Fejlövéses ölés után a következő lövés többszörös (3-ig halmozódik).' },
+  reaper:    { base: 'lever',    name: 'Kaszás',          text: 'Aratás ideje van.', trick: 'Fejlövéses ölés után a következő lövés többszörös (3-ig halmozódik). Amíg fejlövéssel ölsz (a lepattanó golyó is számít), a halom megmarad.' },
   rod:       { base: 'tesla',    name: 'Villámhárító',    text: 'Vihar idején ne állj a fa alá.', trick: 'A villám 6 célra ugrik át.', baseMod: { chain: 6 } },
   sebastian: { base: 'crossbow', name: 'Szent Sebestyén', text: 'Egy nyíl is elég volt.', trick: 'A nyilak becsapódáskor felrobbannak.' },
   silent:    { base: 'sniper',   name: 'Csendes Éj',      text: 'Aludj csak, reggel már nem kelsz fel.', trick: 'A fejlövés szétveti a közeli zombikat is.' },

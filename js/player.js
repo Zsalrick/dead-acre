@@ -249,7 +249,7 @@ function shotMul(w) {
   if (w.tal === 'optimist') m *= 1 + .3 * (1 - w.ammo / Math.max(1, w.mag));
   if (w.tal === 'frenzy' && now < (player.frenzyT || 0)) m *= 1.2;
   if (w.unique === 'thirteen' && w.ammo === 0) m *= 5;
-  if (w.unique === 'reaper' && player.uStack) { m *= 1 + player.uStack; player.uStack = 0; }
+  if (w.unique === 'reaper') { m *= 1 + (player.uStack || 0); player.uSpent = player.uStack || 0; player.uStack = 0; } // spent on this shot; a headshot kill gives it back (zombies.js)
   return m;
 }
 // fire-rate multiplier: anointment, the Haystack's spin-up, the Double Tap perk

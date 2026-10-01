@@ -931,7 +931,7 @@ function weaponOnKill(z, o) {
   if (w.unique === 'howl') player.howlUntil = now + 4; // Farkasüvöltés
   if (w.unique === 'glacier' && (z.slowT > 0 || (z.net && z.net.fl & 32))) { burst(new V3(z.pos.x, 1.2, z.pos.z), 0x9fe6ff, 18, 4, .6); for (const q of zombies) if (!q.dead && q !== z && q.pos.distanceTo(z.pos) < 4.5) { q.slowT = 3; hurtZombie(q, zombieHp() * .3, { color: '#9fe6ff', chain: true }); } }
   if (w.unique === 'ash' && (z.burnT > 0 || (z.net && z.net.fl & 16))) explode(new V3(z.pos.x, 1, z.pos.z), { r: 3.5, zdmg: zombieHp() * 1.2, pr: .01, pdmg: .001, color: 0xff7a1a });
-  if (w.unique === 'reaper' && o.head) player.uStack = Math.min(3, (player.uStack || 0) + 1);
+  if (w.unique === 'reaper' && o.head) { player.uStack = Math.min(3, Math.max(player.uStack || 0, player.uSpent || 0) + 1); player.uSpent = 0; } // a headshot kill (the bounce's too) keeps the stack and adds one
   if (w.tal === 'frenzy') player.frenzyT = now + 5;
   if (w.tal === 'feast' && o.head) player.hp = Math.min(maxHp(), player.hp + maxHp() * .04);
   if (w.tal === 'scav') { const t = Math.min(w.mag - w.ammo, Math.ceil(w.mag * .15), w.reserve); w.ammo += t; w.reserve -= t; }
